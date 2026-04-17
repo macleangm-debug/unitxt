@@ -83,7 +83,7 @@ export function Card({ children, className = "", testid }) {
 export function Modal({ open, onClose, title, children, testid }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose} data-testid={testid}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" onClick={onClose} data-testid={testid}>
       <div className="w-full max-w-lg border border-zinc-800 bg-[#141414]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-zinc-900 px-5 py-3">
           <h3 className="font-display text-base font-semibold">{title}</h3>
