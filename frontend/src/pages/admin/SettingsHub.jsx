@@ -46,7 +46,7 @@ export default function SettingsHub() {
   const [busy, setBusy] = useState(false);
 
   const load = () => http.get("/admin/settings").then(r => setSettings(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const visible = useMemo(() => settings.filter(s => s.category === active), [settings, active]);
 

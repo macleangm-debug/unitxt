@@ -8,7 +8,7 @@ export default function ApiKeys() {
   const [items, setItems] = useState([]);
   const [name, setName] = useState("");
   const load = () => http.get("/api-keys").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
   const create = async (e) => {
     e.preventDefault();
     try { await http.post("/api-keys", { name }); setName(""); load(); toast.success("API key created"); }

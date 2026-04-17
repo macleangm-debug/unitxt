@@ -9,7 +9,7 @@ export default function AdminSenderIds() {
   const [open, setOpen] = useState(null);
   const [decision, setDecision] = useState({ status:"approved", note:"" });
   const load = () => http.get("/admin/sender-ids").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const review = async (e) => {
     e.preventDefault();

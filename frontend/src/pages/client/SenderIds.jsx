@@ -12,7 +12,7 @@ export default function SenderIds() {
   const [form, setForm] = useState({ sender_id: "", country: "TZ", use_case: "", sample_message: "" });
 
   const load = () => http.get("/sender-ids").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const submit = async (e) => {
     e.preventDefault();

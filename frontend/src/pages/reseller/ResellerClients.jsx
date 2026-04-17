@@ -10,7 +10,7 @@ export default function ResellerClients() {
   const [amount, setAmount] = useState(20);
   const [note, setNote] = useState("");
   const load = () => http.get("/reseller/clients").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const transfer = async (e) => {
     e.preventDefault();

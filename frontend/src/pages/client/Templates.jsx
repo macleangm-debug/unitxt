@@ -9,7 +9,7 @@ export default function Templates() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name:"", body:"", category:"transactional" });
   const load = () => http.get("/templates").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const add = async (e) => {
     e.preventDefault();

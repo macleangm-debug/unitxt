@@ -11,7 +11,7 @@ export default function AdminUsers() {
   const [amount, setAmount] = useState(50);
 
   const load = () => http.get("/admin/users").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const save = async (e) => {
     e.preventDefault();

@@ -10,7 +10,7 @@ export default function AdminCountries() {
   const [items, setItems] = useState([]);
   const [edit, setEdit] = useState(null);
   const load = () => http.get("/admin/countries").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const save = async (e) => {
     e.preventDefault();

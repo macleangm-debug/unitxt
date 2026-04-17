@@ -10,7 +10,7 @@ export default function AdminPromotions() {
   const [items, setItems] = useState([]);
   const [edit, setEdit] = useState(null);
   const load = () => http.get("/admin/promotions").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
   const save = async (e) => {
     e.preventDefault();
     const body = { ...edit, value:Number(edit.value), min_topup:Number(edit.min_topup) };

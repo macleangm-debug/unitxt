@@ -13,7 +13,7 @@ export default function Wallet() {
   const [busy, setBusy] = useState(false);
 
   const load = () => http.get("/wallet/transactions").then(r => setTx(r.data)).catch(()=>{});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const topup = async (e) => {
     e.preventDefault();
