@@ -1,89 +1,1521 @@
-from fastapi import FastAPI, APIRouter
+"""unitxt - Global Bulk SMS & WhatsApp Operating System
+Single-file FastAPI app with JWT auth, RBAC, multi-role, multi-country, multi-provider.
+"""
 from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / ".env")
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+import os
+import uuid
+import bcrypt
+import jwt
+import secrets
+import logging
+import asyncio
+import random
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Literal, Any, Dict
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response, Query
+from starlette.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
-# Create the main app without a prefix
-app = FastAPI()
 
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
+# ============================================================
+# Setup
+# ============================================================
+JWT_SECRET = os.environ["JWT_SECRET"]
+JWT_ALG = "HS256"
+ACCESS_MIN = 60 * 12  # 12h for nicer demo experience
+REFRESH_DAYS = 30
+
+mongo_url = os.environ["MONGO_URL"]
+mongo_client = AsyncIOMotorClient(mongo_url)
+db = mongo_client[os.environ["DB_NAME"]]
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("unitxt")
+
+app = FastAPI(title="unitxt API", version="1.0.0")
+api = APIRouter(prefix="/api")
 
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
+def iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def new_id() -> str:
+    return str(uuid.uuid4())
+
+
+def hash_password(p: str) -> str:
+    return bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(p: str, h: str) -> bool:
+    try:
+        return bcrypt.checkpw(p.encode(), h.encode())
+    except Exception:
+        return False
+
+
+def make_access(user_id: str, email: str, role: str) -> str:
+    return jwt.encode(
+        {"sub": user_id, "email": email, "role": role,
+         "exp": now_utc() + timedelta(minutes=ACCESS_MIN), "type": "access"},
+        JWT_SECRET, algorithm=JWT_ALG)
+
+
+def make_refresh(user_id: str) -> str:
+    return jwt.encode(
+        {"sub": user_id, "exp": now_utc() + timedelta(days=REFRESH_DAYS), "type": "refresh"},
+        JWT_SECRET, algorithm=JWT_ALG)
+
+
+def set_auth_cookies(resp: Response, access: str, refresh: str):
+    resp.set_cookie("access_token", access, httponly=True, secure=True, samesite="none",
+                    max_age=ACCESS_MIN * 60, path="/")
+    resp.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none",
+                    max_age=REFRESH_DAYS * 86400, path="/")
+
+
+def clear_auth_cookies(resp: Response):
+    resp.delete_cookie("access_token", path="/")
+    resp.delete_cookie("refresh_token", path="/")
+
+
+async def get_token_payload(request: Request) -> dict:
+    token = request.cookies.get("access_token")
+    if not token:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+    if not token:
+        raise HTTPException(401, "Not authenticated")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+        if payload.get("type") != "access":
+            raise HTTPException(401, "Invalid token type")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(401, "Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(401, "Invalid token")
+
+
+async def get_current_user(request: Request) -> dict:
+    payload = await get_token_payload(request)
+    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(401, "User not found")
+    return user
+
+
+def require_roles(*allowed: str):
+    async def checker(user: dict = Depends(get_current_user)):
+        if user["role"] not in allowed:
+            raise HTTPException(403, f"Requires one of: {', '.join(allowed)}")
+        return user
+    return checker
+
+
+# ============================================================
+# Pydantic Models
+# ============================================================
+ROLES = Literal["super_admin", "country_admin", "reseller", "client", "staff", "support", "finance", "compliance"]
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    email: str
+    name: str
+    role: str
+    business_name: Optional[str] = None
+    phone: Optional[str] = None
+    country: Optional[str] = None
+    reseller_id: Optional[str] = None
+    status: str = "active"
+    created_at: str
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6)
+    name: str
+    role: Optional[str] = "client"  # client | reseller (admin only via seed)
+    business_name: Optional[str] = None
+    phone: Optional[str] = None
+    country: Optional[str] = "TZ"
+    reseller_code: Optional[str] = None
+
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class ForgotIn(BaseModel):
+    email: EmailStr
+
+
+class ResetIn(BaseModel):
+    token: str
+    password: str = Field(min_length=6)
+
+
+# Wallet
+class TopUpIn(BaseModel):
+    amount: float = Field(gt=0)
+    method: str = "manual"  # manual | stripe (mock)
+    note: Optional[str] = None
+
+
+class TransferIn(BaseModel):
+    target_user_id: str
+    amount: float = Field(gt=0)
+    note: Optional[str] = None
+
+
+# SMS
+class QuickSendIn(BaseModel):
+    channel: str = "sms"  # sms | whatsapp
+    sender_id: str
+    recipients: List[str]
+    message: str
+    schedule_at: Optional[str] = None  # ISO
+
+
+class BulkSendIn(BaseModel):
+    channel: str = "sms"
+    sender_id: str
+    name: str
+    recipients: List[Dict[str, Any]]  # [{phone, name?, ...vars}]
+    template: str  # supports {var}
+    schedule_at: Optional[str] = None
+
+
+# Contact
+class ContactIn(BaseModel):
+    phone: str
+    name: Optional[str] = ""
+    group_id: Optional[str] = None
+    tags: List[str] = []
+
+
+class ContactGroupIn(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+
+# Sender ID
+class SenderIdRequestIn(BaseModel):
+    sender_id: str
+    country: str
+    use_case: str
+    sample_message: str
+    documents: List[str] = []
+
+
+class SenderIdReviewIn(BaseModel):
+    status: str  # approved | rejected
+    note: Optional[str] = None
+
+
+# Template
+class TemplateIn(BaseModel):
+    name: str
+    body: str
+    category: Optional[str] = "transactional"
+
+
+# Country / Provider / Pricing / Settings
+class CountryIn(BaseModel):
+    code: str
+    name: str
+    currency: str = "USD"
+    dial_code: str = "+1"
+    default_provider_id: Optional[str] = None
+    sender_id_required: bool = True
+    active: bool = True
+
+
+class ProviderIn(BaseModel):
+    name: str
+    type: str = "aggregator"  # direct_telco | aggregator | api_partner
+    countries: List[str] = []
+    channels: List[str] = ["sms"]
+    api_key: Optional[str] = ""
+    api_secret: Optional[str] = ""
+    base_url: Optional[str] = ""
+    cost_per_sms: float = 0.01
+    priority: int = 100
+    active: bool = True
+    supports_unicode: bool = True
+    supports_dlr: bool = True
+
+
+class PricingPlanIn(BaseModel):
+    name: str
+    country: str
+    channel: str = "sms"
+    base_price: float
+    reseller_price: Optional[float] = None
+    client_price: Optional[float] = None
+    min_volume: int = 0
+    active: bool = True
+
+
+class InstitutionIn(BaseModel):
+    name: str
+    type: str = "bank"  # bank | mobile_money | fintech | enterprise
+    country: str
+    api_credentials: Dict[str, Any] = {}
+    callback_url: Optional[str] = ""
+    active: bool = True
+
+
+class PromotionIn(BaseModel):
+    name: str
+    code: str
+    type: str = "bonus_credit"  # bonus_credit | percent_discount | free_sms
+    value: float
+    min_topup: float = 0
+    active: bool = True
+    valid_from: Optional[str] = None
+    valid_to: Optional[str] = None
+
+
+class SettingsIn(BaseModel):
+    key: str
+    value: Any
+    category: str = "global"
+
+
+class ApiKeyIn(BaseModel):
+    name: str
+
+
+class ResellerPricingIn(BaseModel):
+    client_id: str
+    country: str
+    channel: str = "sms"
+    price: float
+
+
+# ============================================================
+# Helpers
+# ============================================================
+def clean(doc: Optional[dict]) -> Optional[dict]:
+    if not doc:
+        return doc
+    doc.pop("_id", None)
+    doc.pop("password_hash", None)
+    return doc
+
+
+def cleanl(docs: List[dict]) -> List[dict]:
+    return [clean(d) for d in docs]
+
+
+def gsm_segments(text: str) -> int:
+    if not text:
+        return 0
+    is_unicode = any(ord(c) > 127 for c in text)
+    if is_unicode:
+        return max(1, -(-len(text) // 67)) if len(text) > 70 else 1
+    return max(1, -(-len(text) // 153)) if len(text) > 160 else 1
+
+
+async def add_notification(user_id: str, title: str, body: str, kind: str = "info"):
+    await db.notifications.insert_one({
+        "id": new_id(), "user_id": user_id, "title": title, "body": body,
+        "kind": kind, "read": False, "created_at": iso(now_utc())
+    })
+
+
+async def add_audit(actor_id: str, action: str, target: str = "", meta: Optional[dict] = None):
+    await db.audit_logs.insert_one({
+        "id": new_id(), "actor_id": actor_id, "action": action,
+        "target": target, "meta": meta or {}, "created_at": iso(now_utc())
+    })
+
+
+async def get_or_create_wallet(user_id: str, currency: str = "USD") -> dict:
+    w = await db.wallets.find_one({"user_id": user_id}, {"_id": 0})
+    if not w:
+        w = {"id": new_id(), "user_id": user_id, "balance": 0.0, "currency": currency,
+             "created_at": iso(now_utc())}
+        await db.wallets.insert_one(w)
+        w.pop("_id", None)
+    return w
+
+
+async def adjust_wallet(user_id: str, amount: float, kind: str, note: str = "",
+                        ref: Optional[str] = None, by: Optional[str] = None) -> dict:
+    w = await get_or_create_wallet(user_id)
+    new_bal = round(w["balance"] + amount, 4)
+    if new_bal < 0 and kind != "manual_adjustment":
+        raise HTTPException(400, "Insufficient balance")
+    await db.wallets.update_one({"id": w["id"]}, {"$set": {"balance": new_bal}})
+    tx = {
+        "id": new_id(), "wallet_id": w["id"], "user_id": user_id,
+        "amount": amount, "kind": kind, "note": note, "ref": ref,
+        "balance_after": new_bal, "by": by or user_id, "created_at": iso(now_utc())
+    }
+    await db.wallet_transactions.insert_one(tx)
+    tx.pop("_id", None)
+    return tx
+
+
+# ============================================================
+# Provider Adapter (Pluggable)
+# ============================================================
+class ProviderAdapter:
+    """Base adapter all SMS/WhatsApp providers must implement."""
+
+    def __init__(self, provider: dict):
+        self.provider = provider
+
+    async def send(self, to: str, sender_id: str, message: str, channel: str) -> dict:
+        raise NotImplementedError
+
+
+class MockAdapter(ProviderAdapter):
+    async def send(self, to: str, sender_id: str, message: str, channel: str) -> dict:
+        await asyncio.sleep(0)  # cooperative
+        # Simulate 95% delivery
+        success = random.random() < 0.95
+        return {
+            "ok": success,
+            "provider_msg_id": f"mock_{secrets.token_hex(6)}",
+            "status": "delivered" if success else "failed",
+            "error": None if success else "MOCK_NETWORK_ERROR",
+        }
+
+
+class TwilioAdapter(ProviderAdapter):
+    async def send(self, to: str, sender_id: str, message: str, channel: str) -> dict:
+        # Stub: real Twilio would call Twilio REST API. We surface a clear status.
+        if not self.provider.get("api_key") or not self.provider.get("api_secret"):
+            return {"ok": False, "provider_msg_id": None, "status": "failed",
+                    "error": "TWILIO_CREDENTIALS_MISSING"}
+        # Pretend success
+        return {"ok": True, "provider_msg_id": f"tw_{secrets.token_hex(6)}",
+                "status": "sent", "error": None}
+
+
+def adapter_for(provider: dict) -> ProviderAdapter:
+    name = (provider.get("name") or "").lower()
+    if "twilio" in name:
+        return TwilioAdapter(provider)
+    return MockAdapter(provider)
+
+
+async def pick_provider(country: str, channel: str) -> Optional[dict]:
+    """Routing engine: choose highest priority active provider for country+channel."""
+    cur = db.providers.find({
+        "active": True,
+        "channels": channel,
+        "$or": [{"countries": country}, {"countries": "*"}, {"countries": []}],
+    }, {"_id": 0}).sort("priority", 1)
+    providers = await cur.to_list(50)
+    return providers[0] if providers else None
+
+
+async def country_price(country: str, channel: str, role: str) -> float:
+    plan = await db.pricing_plans.find_one(
+        {"country": country, "channel": channel, "active": True}, {"_id": 0})
+    if not plan:
+        return 0.05
+    if role == "reseller" and plan.get("reseller_price"):
+        return float(plan["reseller_price"])
+    if role == "client" and plan.get("client_price"):
+        return float(plan["client_price"])
+    return float(plan["base_price"])
+
+
+# ============================================================
+# AUTH ROUTES
+# ============================================================
+auth_r = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@auth_r.post("/register")
+async def register(body: RegisterIn, response: Response):
+    email = body.email.lower().strip()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(400, "Email already registered")
+    role = body.role if body.role in ("client", "reseller") else "client"
+    reseller_id = None
+    if body.reseller_code:
+        r = await db.users.find_one({"reseller_code": body.reseller_code, "role": "reseller"})
+        if r:
+            reseller_id = r["id"]
+    user = {
+        "id": new_id(),
+        "email": email,
+        "password_hash": hash_password(body.password),
+        "name": body.name,
+        "role": role,
+        "business_name": body.business_name,
+        "phone": body.phone,
+        "country": body.country or "TZ",
+        "reseller_id": reseller_id,
+        "status": "active",
+        "kyc_verified": False,
+        "created_at": iso(now_utc()),
+    }
+    if role == "reseller":
+        user["reseller_code"] = "R" + secrets.token_hex(3).upper()
+        user["commission_rate"] = 0.10
+    await db.users.insert_one(user)
+    await get_or_create_wallet(user["id"])
+    await add_notification(user["id"], "Welcome to unitxt",
+                           "Your account is ready. Top up your wallet to start sending.", "success")
+    if reseller_id:
+        await add_notification(reseller_id, "New client signed up",
+                               f"{body.name} ({email}) joined with your code.", "info")
+    access = make_access(user["id"], email, role)
+    refresh = make_refresh(user["id"])
+    set_auth_cookies(response, access, refresh)
+    out = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
+    return {"user": out, "access_token": access}
+
+
+@auth_r.post("/login")
+async def login(body: LoginIn, request: Request, response: Response):
+    email = body.email.lower().strip()
+    ip = request.client.host if request.client else "?"
+    ident = f"{ip}:{email}"
+    # brute force window
+    rec = await db.login_attempts.find_one({"identifier": ident})
+    if rec and rec.get("locked_until"):
+        try:
+            lu = datetime.fromisoformat(rec["locked_until"])
+            if lu > now_utc():
+                raise HTTPException(429, "Too many attempts. Try later.")
+        except Exception:
+            pass
+    user = await db.users.find_one({"email": email})
+    if not user or not verify_password(body.password, user["password_hash"]):
+        await db.login_attempts.update_one(
+            {"identifier": ident},
+            {"$inc": {"count": 1},
+             "$set": {"last_at": iso(now_utc()),
+                      **({"locked_until": iso(now_utc() + timedelta(minutes=15))}
+                         if (rec and rec.get("count", 0) + 1 >= 5) else {})}},
+            upsert=True)
+        raise HTTPException(401, "Invalid credentials")
+    await db.login_attempts.delete_one({"identifier": ident})
+    access = make_access(user["id"], user["email"], user["role"])
+    refresh = make_refresh(user["id"])
+    set_auth_cookies(response, access, refresh)
+    out = clean(user)
+    await add_audit(user["id"], "login", target=user["id"])
+    return {"user": out, "access_token": access}
+
+
+@auth_r.post("/logout")
+async def logout(response: Response, user: dict = Depends(get_current_user)):
+    clear_auth_cookies(response)
+    await add_audit(user["id"], "logout")
+    return {"ok": True}
+
+
+@auth_r.get("/me")
+async def me(user: dict = Depends(get_current_user)):
+    wallet = await get_or_create_wallet(user["id"])
+    return {"user": user, "wallet": wallet}
+
+
+@auth_r.post("/refresh")
+async def refresh_token(request: Request, response: Response):
+    rt = request.cookies.get("refresh_token")
+    if not rt:
+        raise HTTPException(401, "Missing refresh token")
+    try:
+        p = jwt.decode(rt, JWT_SECRET, algorithms=[JWT_ALG])
+        if p.get("type") != "refresh":
+            raise HTTPException(401, "Invalid type")
+    except jwt.PyJWTError:
+        raise HTTPException(401, "Invalid refresh token")
+    user = await db.users.find_one({"id": p["sub"]})
+    if not user:
+        raise HTTPException(401, "User missing")
+    access = make_access(user["id"], user["email"], user["role"])
+    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none",
+                        max_age=ACCESS_MIN * 60, path="/")
+    return {"ok": True}
+
+
+@auth_r.post("/forgot-password")
+async def forgot(body: ForgotIn):
+    user = await db.users.find_one({"email": body.email.lower()})
+    if user:
+        token = secrets.token_urlsafe(32)
+        await db.password_reset_tokens.insert_one({
+            "id": new_id(), "user_id": user["id"], "token": token, "used": False,
+            "created_at": iso(now_utc()),
+            "expires_at": iso(now_utc() + timedelta(hours=1)),
+        })
+        log.info(f"PASSWORD RESET LINK: /reset?token={token}")
+    return {"ok": True, "message": "If that email exists, a reset link was sent."}
+
+
+@auth_r.post("/reset-password")
+async def reset(body: ResetIn):
+    rec = await db.password_reset_tokens.find_one({"token": body.token, "used": False})
+    if not rec:
+        raise HTTPException(400, "Invalid or used token")
+    if datetime.fromisoformat(rec["expires_at"]) < now_utc():
+        raise HTTPException(400, "Token expired")
+    await db.users.update_one({"id": rec["user_id"]},
+                              {"$set": {"password_hash": hash_password(body.password)}})
+    await db.password_reset_tokens.update_one({"id": rec["id"]}, {"$set": {"used": True}})
+    return {"ok": True}
+
+
+# ============================================================
+# WALLET ROUTES
+# ============================================================
+wallet_r = APIRouter(prefix="/wallet", tags=["wallet"])
+
+
+@wallet_r.get("/me")
+async def my_wallet(user: dict = Depends(get_current_user)):
+    w = await get_or_create_wallet(user["id"])
+    return w
+
+
+@wallet_r.get("/transactions")
+async def my_tx(limit: int = 50, user: dict = Depends(get_current_user)):
+    items = await db.wallet_transactions.find(
+        {"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return items
+
+
+@wallet_r.post("/topup")
+async def topup(body: TopUpIn, user: dict = Depends(get_current_user)):
+    """Mock top-up. In production this would call Stripe and credit on webhook."""
+    bonus = 0.0
+    if body.note:
+        promo = await db.promotions.find_one({"code": body.note.upper(), "active": True})
+        if promo and body.amount >= float(promo.get("min_topup", 0)):
+            if promo["type"] == "bonus_credit":
+                bonus = float(promo["value"])
+            elif promo["type"] == "percent_discount":
+                bonus = round(body.amount * float(promo["value"]) / 100.0, 2)
+    tx = await adjust_wallet(user["id"], body.amount, "topup",
+                             note=f"Top-up via {body.method}", by=user["id"])
+    if bonus > 0:
+        await adjust_wallet(user["id"], bonus, "bonus", note=f"Promo {body.note}", by=user["id"])
+        await add_notification(user["id"], "Bonus credit applied",
+                               f"You received +${bonus:.2f} bonus.", "success")
+    await add_notification(user["id"], "Wallet topped up",
+                           f"+${body.amount:.2f} added to wallet.", "success")
+    return {"ok": True, "tx": tx, "bonus": bonus}
+
+
+# ============================================================
+# CONTACTS
+# ============================================================
+contacts_r = APIRouter(prefix="/contacts", tags=["contacts"])
+
+
+@contacts_r.get("")
+async def list_contacts(user: dict = Depends(get_current_user)):
+    items = await db.contacts.find({"user_id": user["id"]}, {"_id": 0}).to_list(2000)
+    return items
+
+
+@contacts_r.post("")
+async def add_contact(body: ContactIn, user: dict = Depends(get_current_user)):
+    doc = {"id": new_id(), "user_id": user["id"], **body.model_dump(),
+           "created_at": iso(now_utc())}
+    await db.contacts.insert_one(doc)
+    return clean(doc)
+
+
+@contacts_r.delete("/{cid}")
+async def del_contact(cid: str, user: dict = Depends(get_current_user)):
+    await db.contacts.delete_one({"id": cid, "user_id": user["id"]})
+    return {"ok": True}
+
+
+@contacts_r.get("/groups")
+async def list_groups(user: dict = Depends(get_current_user)):
+    items = await db.contact_groups.find({"user_id": user["id"]}, {"_id": 0}).to_list(500)
+    return items
+
+
+@contacts_r.post("/groups")
+async def add_group(body: ContactGroupIn, user: dict = Depends(get_current_user)):
+    doc = {"id": new_id(), "user_id": user["id"], **body.model_dump(),
+           "created_at": iso(now_utc())}
+    await db.contact_groups.insert_one(doc)
+    return clean(doc)
+
+
+@contacts_r.post("/import")
+async def import_contacts(rows: List[ContactIn], user: dict = Depends(get_current_user)):
+    docs = [{"id": new_id(), "user_id": user["id"], **r.model_dump(),
+             "created_at": iso(now_utc())} for r in rows]
+    if docs:
+        await db.contacts.insert_many(docs)
+    return {"ok": True, "count": len(docs)}
+
+
+# ============================================================
+# SENDER IDS
+# ============================================================
+sid_r = APIRouter(prefix="/sender-ids", tags=["sender_ids"])
+
+
+@sid_r.get("")
+async def my_sender_ids(user: dict = Depends(get_current_user)):
+    items = await db.sender_id_requests.find({"user_id": user["id"]}, {"_id": 0}).to_list(200)
+    return items
+
+
+@sid_r.post("")
+async def request_sid(body: SenderIdRequestIn, user: dict = Depends(get_current_user)):
+    doc = {"id": new_id(), "user_id": user["id"], **body.model_dump(),
+           "status": "pending", "created_at": iso(now_utc())}
+    await db.sender_id_requests.insert_one(doc)
+    await add_notification(user["id"], "Sender ID submitted",
+                           f"{body.sender_id} for {body.country} is under review.", "info")
+    # notify admins
+    admins = await db.users.find({"role": "super_admin"}, {"id": 1}).to_list(20)
+    for a in admins:
+        await add_notification(a["id"], "New sender ID request",
+                               f"{body.sender_id} ({body.country}) by {user['email']}", "info")
+    return clean(doc)
+
+
+# ============================================================
+# TEMPLATES
+# ============================================================
+tpl_r = APIRouter(prefix="/templates", tags=["templates"])
+
+
+@tpl_r.get("")
+async def list_templates(user: dict = Depends(get_current_user)):
+    items = await db.templates.find({"user_id": user["id"]}, {"_id": 0}).to_list(200)
+    return items
+
+
+@tpl_r.post("")
+async def add_template(body: TemplateIn, user: dict = Depends(get_current_user)):
+    doc = {"id": new_id(), "user_id": user["id"], **body.model_dump(),
+           "created_at": iso(now_utc())}
+    await db.templates.insert_one(doc)
+    return clean(doc)
+
+
+@tpl_r.delete("/{tid}")
+async def del_template(tid: str, user: dict = Depends(get_current_user)):
+    await db.templates.delete_one({"id": tid, "user_id": user["id"]})
+    return {"ok": True}
+
+
+# ============================================================
+# MESSAGING ENGINE
+# ============================================================
+msg_r = APIRouter(prefix="/messaging", tags=["messaging"])
+
+
+def render(template: str, vars_: dict) -> str:
+    out = template
+    for k, v in vars_.items():
+        out = out.replace("{" + str(k) + "}", str(v))
+    return out
+
+
+async def execute_campaign(campaign: dict):
+    """Process and send all messages for a campaign."""
+    cid = campaign["id"]
+    user_id = campaign["user_id"]
+    channel = campaign["channel"]
+    sender_id = campaign["sender_id"]
+    country = campaign.get("country", "TZ")
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        return
+    price = await country_price(country, channel, user["role"])
+    provider = await pick_provider(country, channel)
+    if not provider:
+        await db.campaigns.update_one({"id": cid}, {"$set": {"status": "failed",
+                                                              "error": "No active provider"}})
+        return
+    adapter = adapter_for(provider)
+    sent = delivered = failed = 0
+    total_cost = 0.0
+    for r in campaign["recipients"]:
+        text = render(campaign["template"], r) if campaign.get("template") else campaign["message"]
+        seg = gsm_segments(text)
+        cost = round(price * seg, 4)
+        # try to charge
+        try:
+            await adjust_wallet(user_id, -cost, "sms_charge",
+                                note=f"Campaign {campaign['name'][:30]}",
+                                ref=cid, by=user_id)
+        except HTTPException:
+            await db.messages.insert_one({
+                "id": new_id(), "campaign_id": cid, "user_id": user_id, "to": r["phone"],
+                "channel": channel, "sender_id": sender_id, "body": text,
+                "segments": seg, "cost": 0, "status": "failed",
+                "provider_id": provider["id"], "provider_msg_id": None,
+                "error": "INSUFFICIENT_BALANCE", "created_at": iso(now_utc())
+            })
+            failed += 1
+            continue
+        res = await adapter.send(r["phone"], sender_id, text, channel)
+        sent += 1
+        total_cost += cost
+        if res["ok"]:
+            delivered += 1
+        else:
+            failed += 1
+        await db.messages.insert_one({
+            "id": new_id(), "campaign_id": cid, "user_id": user_id, "to": r["phone"],
+            "channel": channel, "sender_id": sender_id, "body": text,
+            "segments": seg, "cost": cost, "status": res["status"],
+            "provider_id": provider["id"], "provider_msg_id": res.get("provider_msg_id"),
+            "error": res.get("error"), "created_at": iso(now_utc())
+        })
+    await db.campaigns.update_one({"id": cid}, {"$set": {
+        "status": "completed", "sent": sent, "delivered": delivered,
+        "failed": failed, "total_cost": round(total_cost, 4),
+        "completed_at": iso(now_utc()),
+    }})
+    await add_notification(user_id, "Campaign completed",
+                           f"{campaign['name']}: {delivered}/{sent} delivered.", "success")
+
+
+@msg_r.post("/quick-send")
+async def quick_send(body: QuickSendIn, user: dict = Depends(get_current_user)):
+    recipients = [{"phone": p.strip()} for p in body.recipients if p.strip()]
+    if not recipients:
+        raise HTTPException(400, "No recipients")
+    seg = gsm_segments(body.message)
+    price = await country_price(user.get("country", "TZ"), body.channel, user["role"])
+    est_cost = round(price * seg * len(recipients), 4)
+    w = await get_or_create_wallet(user["id"])
+    if w["balance"] < est_cost:
+        raise HTTPException(400, f"Insufficient balance. Need ${est_cost:.4f}")
+    campaign = {
+        "id": new_id(), "user_id": user["id"],
+        "name": f"Quick send {now_utc().strftime('%H:%M')}",
+        "channel": body.channel, "sender_id": body.sender_id,
+        "country": user.get("country", "TZ"),
+        "message": body.message, "template": body.message,
+        "recipients": recipients, "total": len(recipients),
+        "status": "running", "created_at": iso(now_utc()),
+        "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0.0,
+        "kind": "quick", "schedule_at": body.schedule_at,
+    }
+    await db.campaigns.insert_one(campaign)
+    asyncio.create_task(execute_campaign(campaign))
+    return {"ok": True, "campaign_id": campaign["id"], "estimated_cost": est_cost}
+
+
+@msg_r.post("/bulk-send")
+async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
+    if not body.recipients:
+        raise HTTPException(400, "No recipients")
+    sample = render(body.template, body.recipients[0]) if body.recipients else body.template
+    seg = gsm_segments(sample)
+    price = await country_price(user.get("country", "TZ"), body.channel, user["role"])
+    est_cost = round(price * seg * len(body.recipients), 4)
+    w = await get_or_create_wallet(user["id"])
+    if w["balance"] < est_cost:
+        raise HTTPException(400, f"Insufficient balance. Need ${est_cost:.4f}")
+    campaign = {
+        "id": new_id(), "user_id": user["id"], "name": body.name,
+        "channel": body.channel, "sender_id": body.sender_id,
+        "country": user.get("country", "TZ"),
+        "message": body.template, "template": body.template,
+        "recipients": body.recipients, "total": len(body.recipients),
+        "status": "scheduled" if body.schedule_at else "running",
+        "created_at": iso(now_utc()),
+        "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0.0,
+        "kind": "bulk", "schedule_at": body.schedule_at,
+    }
+    await db.campaigns.insert_one(campaign)
+    if not body.schedule_at:
+        asyncio.create_task(execute_campaign(campaign))
+    return {"ok": True, "campaign_id": campaign["id"], "estimated_cost": est_cost}
+
+
+@msg_r.get("/campaigns")
+async def my_campaigns(limit: int = 100, user: dict = Depends(get_current_user)):
+    items = await db.campaigns.find({"user_id": user["id"]}, {"_id": 0, "recipients": 0}).sort(
+        "created_at", -1).limit(limit).to_list(limit)
+    return items
+
+
+@msg_r.get("/campaigns/{cid}")
+async def campaign_detail(cid: str, user: dict = Depends(get_current_user)):
+    c = await db.campaigns.find_one({"id": cid}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Not found")
+    if c["user_id"] != user["id"] and user["role"] not in ("super_admin", "country_admin"):
+        raise HTTPException(403)
+    msgs = await db.messages.find({"campaign_id": cid}, {"_id": 0}).limit(500).to_list(500)
+    return {"campaign": c, "messages": msgs}
+
+
+@msg_r.get("/messages")
+async def my_messages(limit: int = 100, user: dict = Depends(get_current_user)):
+    items = await db.messages.find({"user_id": user["id"]}, {"_id": 0}).sort(
+        "created_at", -1).limit(limit).to_list(limit)
+    return items
+
+
+@msg_r.get("/stats")
+async def my_stats(user: dict = Depends(get_current_user)):
+    pipe = [
+        {"$match": {"user_id": user["id"]}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1},
+                    "cost": {"$sum": "$cost"}}}
+    ]
+    rows = await db.messages.aggregate(pipe).to_list(20)
+    by_status = {r["_id"]: {"count": r["count"], "cost": round(r["cost"], 4)} for r in rows}
+    total = sum(v["count"] for v in by_status.values())
+    delivered = by_status.get("delivered", {"count": 0})["count"]
+    return {
+        "total_messages": total,
+        "delivered": delivered,
+        "failed": by_status.get("failed", {"count": 0})["count"],
+        "delivery_rate": round((delivered / total * 100) if total else 0, 2),
+        "by_status": by_status,
+    }
+
+
+# ============================================================
+# RESELLER
+# ============================================================
+res_r = APIRouter(prefix="/reseller", tags=["reseller"])
+
+
+@res_r.get("/clients")
+async def reseller_clients(user: dict = Depends(require_roles("reseller"))):
+    items = await db.users.find({"reseller_id": user["id"]}, {"_id": 0, "password_hash": 0}).to_list(500)
+    # attach wallets
+    for c in items:
+        w = await db.wallets.find_one({"user_id": c["id"]}, {"_id": 0})
+        c["wallet_balance"] = w["balance"] if w else 0
+    return items
+
+
+@res_r.post("/transfer")
+async def reseller_transfer(body: TransferIn, user: dict = Depends(require_roles("reseller"))):
+    target = await db.users.find_one({"id": body.target_user_id, "reseller_id": user["id"]})
+    if not target:
+        raise HTTPException(404, "Client not found under you")
+    await adjust_wallet(user["id"], -body.amount, "transfer_out",
+                        note=f"To {target['email']}", ref=target["id"], by=user["id"])
+    await adjust_wallet(target["id"], body.amount, "transfer_in",
+                        note=f"From reseller {user['email']}", ref=user["id"], by=user["id"])
+    await add_notification(target["id"], "Credits received",
+                           f"+${body.amount:.2f} from your reseller.", "success")
+    return {"ok": True}
+
+
+@res_r.get("/earnings")
+async def reseller_earnings(user: dict = Depends(require_roles("reseller"))):
+    # commission = sum(client_charge) * commission_rate
+    rate = float(user.get("commission_rate", 0.1))
+    client_ids = [c["id"] for c in await db.users.find(
+        {"reseller_id": user["id"]}, {"id": 1}).to_list(500)]
+    pipe = [
+        {"$match": {"user_id": {"$in": client_ids}, "kind": "sms_charge"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]
+    rows = await db.wallet_transactions.aggregate(pipe).to_list(1)
+    spent = -float(rows[0]["total"]) if rows else 0
+    return {"clients": len(client_ids), "client_spend": round(spent, 4),
+            "commission_rate": rate, "earned": round(spent * rate, 4)}
+
+
+@res_r.get("/code")
+async def reseller_code(user: dict = Depends(require_roles("reseller"))):
+    return {"code": user.get("reseller_code", "")}
+
+
+# ============================================================
+# ADMIN
+# ============================================================
+adm_r = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@adm_r.get("/overview")
+async def admin_overview(user: dict = Depends(require_roles("super_admin"))):
+    users_total = await db.users.count_documents({})
+    clients = await db.users.count_documents({"role": "client"})
+    resellers = await db.users.count_documents({"role": "reseller"})
+    msgs_total = await db.messages.count_documents({})
+    delivered = await db.messages.count_documents({"status": "delivered"})
+    failed = await db.messages.count_documents({"status": "failed"})
+    pending_sids = await db.sender_id_requests.count_documents({"status": "pending"})
+    # revenue = sum of charges (positive number)
+    pipe = [{"$match": {"kind": "sms_charge"}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}]
+    rows = await db.wallet_transactions.aggregate(pipe).to_list(1)
+    revenue = round(-float(rows[0]["total"]) if rows else 0, 4)
+    pipe2 = [{"$group": {"_id": None, "total": {"$sum": "$balance"}}}]
+    rows2 = await db.wallets.aggregate(pipe2).to_list(1)
+    liabilities = round(float(rows2[0]["total"]) if rows2 else 0, 4)
+    # by country
+    pipe3 = [{"$group": {"_id": "$country", "count": {"$sum": 1}}}]
+    by_country = await db.users.aggregate(pipe3).to_list(50)
+    # provider health
+    providers = await db.providers.find({}, {"_id": 0}).to_list(50)
+    # recent activity
+    recent = await db.audit_logs.find({}, {"_id": 0}).sort("created_at", -1).limit(15).to_list(15)
+    return {
+        "kpi": {
+            "users_total": users_total, "clients": clients, "resellers": resellers,
+            "msgs_total": msgs_total, "delivered": delivered, "failed": failed,
+            "delivery_rate": round((delivered / msgs_total * 100) if msgs_total else 0, 2),
+            "pending_sender_ids": pending_sids,
+            "revenue": revenue, "wallet_liabilities": liabilities,
+        },
+        "by_country": [{"country": r["_id"] or "??", "count": r["count"]} for r in by_country],
+        "providers": providers,
+        "recent_activity": recent,
+    }
+
+
+@adm_r.get("/users")
+async def admin_users(user: dict = Depends(require_roles("super_admin", "country_admin"))):
+    items = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(2000)
+    return items
+
+
+@adm_r.patch("/users/{uid}")
+async def admin_update_user(uid: str, body: Dict[str, Any],
+                             user: dict = Depends(require_roles("super_admin"))):
+    allowed = {k: v for k, v in body.items() if k in ("status", "role", "country", "name",
+                                                       "commission_rate", "kyc_verified")}
+    if not allowed:
+        raise HTTPException(400, "No valid fields")
+    await db.users.update_one({"id": uid}, {"$set": allowed})
+    await add_audit(user["id"], "user.update", target=uid, meta=allowed)
+    return {"ok": True}
+
+
+@adm_r.post("/users/{uid}/credit")
+async def admin_credit_user(uid: str, body: TopUpIn,
+                             user: dict = Depends(require_roles("super_admin"))):
+    tx = await adjust_wallet(uid, body.amount, "manual_adjustment",
+                             note=body.note or "Admin credit", by=user["id"])
+    await add_notification(uid, "Wallet credited",
+                           f"Admin added ${body.amount:.2f}.", "success")
+    await add_audit(user["id"], "wallet.credit", target=uid, meta={"amount": body.amount})
+    return tx
+
+
+@adm_r.get("/sender-ids")
+async def admin_sids(user: dict = Depends(require_roles("super_admin", "compliance"))):
+    items = await db.sender_id_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
+@adm_r.post("/sender-ids/{sid}/review")
+async def admin_review_sid(sid: str, body: SenderIdReviewIn,
+                            user: dict = Depends(require_roles("super_admin", "compliance"))):
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(400, "Invalid status")
+    rec = await db.sender_id_requests.find_one({"id": sid})
+    if not rec:
+        raise HTTPException(404)
+    await db.sender_id_requests.update_one({"id": sid}, {"$set": {
+        "status": body.status, "review_note": body.note,
+        "reviewed_by": user["id"], "reviewed_at": iso(now_utc())
+    }})
+    await add_notification(rec["user_id"], f"Sender ID {body.status}",
+                           f"{rec['sender_id']} {body.status}.",
+                           "success" if body.status == "approved" else "warning")
+    await add_audit(user["id"], f"sender_id.{body.status}", target=sid)
+    return {"ok": True}
+
+
+# Countries
+@adm_r.get("/countries")
+async def list_countries(user: dict = Depends(get_current_user)):
+    items = await db.countries.find({}, {"_id": 0}).to_list(300)
+    return items
+
+
+@adm_r.post("/countries")
+async def add_country(body: CountryIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
+    await db.countries.insert_one(doc)
+    return clean(doc)
+
+
+@adm_r.patch("/countries/{cid}")
+async def update_country(cid: str, body: Dict[str, Any],
+                          user: dict = Depends(require_roles("super_admin"))):
+    await db.countries.update_one({"id": cid}, {"$set": body})
+    return {"ok": True}
+
+
+# Providers
+@adm_r.get("/providers")
+async def list_providers(user: dict = Depends(require_roles("super_admin", "country_admin"))):
+    items = await db.providers.find({}, {"_id": 0}).to_list(100)
+    return items
+
+
+@adm_r.post("/providers")
+async def add_provider(body: ProviderIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "health": "unknown",
+           "created_at": iso(now_utc())}
+    await db.providers.insert_one(doc)
+    return clean(doc)
+
+
+@adm_r.patch("/providers/{pid}")
+async def update_provider(pid: str, body: Dict[str, Any],
+                           user: dict = Depends(require_roles("super_admin"))):
+    await db.providers.update_one({"id": pid}, {"$set": body})
+    return {"ok": True}
+
+
+@adm_r.delete("/providers/{pid}")
+async def del_provider(pid: str, user: dict = Depends(require_roles("super_admin"))):
+    await db.providers.delete_one({"id": pid})
+    return {"ok": True}
+
+
+# Pricing
+@adm_r.get("/pricing")
+async def list_pricing(user: dict = Depends(require_roles("super_admin", "country_admin"))):
+    items = await db.pricing_plans.find({}, {"_id": 0}).to_list(500)
+    return items
+
+
+@adm_r.post("/pricing")
+async def add_pricing(body: PricingPlanIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
+    await db.pricing_plans.insert_one(doc)
+    return clean(doc)
+
+
+@adm_r.patch("/pricing/{pid}")
+async def update_pricing(pid: str, body: Dict[str, Any],
+                          user: dict = Depends(require_roles("super_admin"))):
+    await db.pricing_plans.update_one({"id": pid}, {"$set": body})
+    return {"ok": True}
+
+
+@adm_r.delete("/pricing/{pid}")
+async def del_pricing(pid: str, user: dict = Depends(require_roles("super_admin"))):
+    await db.pricing_plans.delete_one({"id": pid})
+    return {"ok": True}
+
+
+# Institutions
+@adm_r.get("/institutions")
+async def list_institutions(user: dict = Depends(require_roles("super_admin", "country_admin"))):
+    items = await db.institutions.find({}, {"_id": 0}).to_list(100)
+    return items
+
+
+@adm_r.post("/institutions")
+async def add_institution(body: InstitutionIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
+    await db.institutions.insert_one(doc)
+    return clean(doc)
+
+
+@adm_r.patch("/institutions/{iid}")
+async def update_institution(iid: str, body: Dict[str, Any],
+                              user: dict = Depends(require_roles("super_admin"))):
+    await db.institutions.update_one({"id": iid}, {"$set": body})
+    return {"ok": True}
+
+
+# Promotions
+@adm_r.get("/promotions")
+async def list_promos(user: dict = Depends(require_roles("super_admin"))):
+    items = await db.promotions.find({}, {"_id": 0}).to_list(100)
+    return items
+
+
+@adm_r.post("/promotions")
+async def add_promo(body: PromotionIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
+    doc["code"] = doc["code"].upper()
+    await db.promotions.insert_one(doc)
+    return clean(doc)
+
+
+@adm_r.patch("/promotions/{pid}")
+async def update_promo(pid: str, body: Dict[str, Any],
+                        user: dict = Depends(require_roles("super_admin"))):
+    if "code" in body:
+        body["code"] = body["code"].upper()
+    await db.promotions.update_one({"id": pid}, {"$set": body})
+    return {"ok": True}
+
+
+@adm_r.delete("/promotions/{pid}")
+async def del_promo(pid: str, user: dict = Depends(require_roles("super_admin"))):
+    await db.promotions.delete_one({"id": pid})
+    return {"ok": True}
+
+
+# Settings (key/value driven)
+@adm_r.get("/settings")
+async def list_settings(category: Optional[str] = None,
+                         user: dict = Depends(require_roles("super_admin"))):
+    q = {"category": category} if category else {}
+    items = await db.system_settings.find(q, {"_id": 0}).to_list(500)
+    return items
+
+
+@adm_r.put("/settings")
+async def upsert_setting(body: SettingsIn,
+                          user: dict = Depends(require_roles("super_admin"))):
+    await db.system_settings.update_one(
+        {"key": body.key},
+        {"$set": {"key": body.key, "value": body.value, "category": body.category,
+                  "updated_at": iso(now_utc()), "updated_by": user["id"]}},
+        upsert=True)
+    await add_audit(user["id"], "settings.update", target=body.key,
+                     meta={"value": body.value})
+    return {"ok": True}
+
+
+@adm_r.get("/audit-logs")
+async def admin_audit(limit: int = 200,
+                       user: dict = Depends(require_roles("super_admin"))):
+    items = await db.audit_logs.find({}, {"_id": 0}).sort(
+        "created_at", -1).limit(limit).to_list(limit)
+    return items
+
+
+@adm_r.get("/campaigns")
+async def admin_campaigns(limit: int = 100,
+                           user: dict = Depends(require_roles("super_admin"))):
+    items = await db.campaigns.find({}, {"_id": 0, "recipients": 0}).sort(
+        "created_at", -1).limit(limit).to_list(limit)
+    return items
+
+
+@adm_r.get("/wallets")
+async def admin_wallets(user: dict = Depends(require_roles("super_admin", "finance"))):
+    items = await db.wallets.find({}, {"_id": 0}).to_list(2000)
+    # attach user info
+    user_ids = [w["user_id"] for w in items]
+    users = await db.users.find({"id": {"$in": user_ids}},
+                                 {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1}).to_list(2000)
+    umap = {u["id"]: u for u in users}
+    for w in items:
+        w["user"] = umap.get(w["user_id"])
+    return items
+
+
+# Public list for any authed user (used by client to pick country)
+@adm_r.get("/public/countries")
+async def public_countries():
+    items = await db.countries.find({"active": True}, {"_id": 0}).to_list(300)
+    return items
+
+
+# ============================================================
+# NOTIFICATIONS
+# ============================================================
+notif_r = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+@notif_r.get("")
+async def my_notifs(user: dict = Depends(get_current_user)):
+    items = await db.notifications.find(
+        {"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
+    unread = sum(1 for i in items if not i["read"])
+    return {"items": items, "unread": unread}
+
+
+@notif_r.post("/read-all")
+async def mark_all_read(user: dict = Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["id"], "read": False},
+                                        {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@notif_r.post("/{nid}/read")
+async def mark_one_read(nid: str, user: dict = Depends(get_current_user)):
+    await db.notifications.update_one({"id": nid, "user_id": user["id"]},
+                                       {"$set": {"read": True}})
+    return {"ok": True}
+
+
+# ============================================================
+# API KEYS
+# ============================================================
+key_r = APIRouter(prefix="/api-keys", tags=["api_keys"])
+
+
+@key_r.get("")
+async def my_keys(user: dict = Depends(get_current_user)):
+    items = await db.api_keys.find({"user_id": user["id"]}, {"_id": 0}).to_list(50)
+    return items
+
+
+@key_r.post("")
+async def create_key(body: ApiKeyIn, user: dict = Depends(get_current_user)):
+    key = "uxk_" + secrets.token_urlsafe(24)
+    doc = {"id": new_id(), "user_id": user["id"], "name": body.name,
+           "key": key, "active": True, "created_at": iso(now_utc())}
+    await db.api_keys.insert_one(doc)
+    return clean(doc)
+
+
+@key_r.delete("/{kid}")
+async def del_key(kid: str, user: dict = Depends(get_current_user)):
+    await db.api_keys.delete_one({"id": kid, "user_id": user["id"]})
+    return {"ok": True}
+
+
+# ============================================================
+# Mount routers
+# ============================================================
+api.include_router(auth_r)
+api.include_router(wallet_r)
+api.include_router(contacts_r)
+api.include_router(sid_r)
+api.include_router(tpl_r)
+api.include_router(msg_r)
+api.include_router(res_r)
+api.include_router(adm_r)
+api.include_router(notif_r)
+api.include_router(key_r)
+
+
+@api.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"app": "unitxt", "version": "1.0.0", "status": "ok"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
-
-# Include the router in the main app
-app.include_router(api_router)
+app.include_router(api)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
+    allow_origin_regex=".*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+
+# ============================================================
+# Startup: seed
+# ============================================================
+@app.on_event("startup")
+async def startup():
+    await db.users.create_index("email", unique=True)
+    await db.users.create_index("reseller_code")
+    await db.login_attempts.create_index("identifier")
+    await db.password_reset_tokens.create_index("token", unique=True)
+    await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.messages.create_index([("user_id", 1), ("created_at", -1)])
+    await db.campaigns.create_index([("user_id", 1), ("created_at", -1)])
+    await db.providers.create_index("priority")
+
+    # seed admin
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@unitxt.io")
+    admin_pwd = os.environ.get("ADMIN_PASSWORD", "Admin@2026")
+    existing = await db.users.find_one({"email": admin_email})
+    if not existing:
+        admin = {
+            "id": new_id(), "email": admin_email,
+            "password_hash": hash_password(admin_pwd),
+            "name": "Platform Admin", "role": "super_admin",
+            "country": "TZ", "status": "active",
+            "kyc_verified": True, "created_at": iso(now_utc()),
+        }
+        await db.users.insert_one(admin)
+        await get_or_create_wallet(admin["id"])
+    elif not verify_password(admin_pwd, existing["password_hash"]):
+        await db.users.update_one({"email": admin_email},
+                                   {"$set": {"password_hash": hash_password(admin_pwd)}})
+
+    # seed demo reseller
+    res_email = os.environ.get("DEMO_RESELLER_EMAIL", "reseller@unitxt.io")
+    res_pwd = os.environ.get("DEMO_RESELLER_PASSWORD", "Reseller@2026")
+    res_user = await db.users.find_one({"email": res_email})
+    if not res_user:
+        res_user = {
+            "id": new_id(), "email": res_email,
+            "password_hash": hash_password(res_pwd),
+            "name": "Demo Reseller", "role": "reseller",
+            "business_name": "Acme Telecom", "country": "TZ",
+            "status": "active", "kyc_verified": True,
+            "reseller_code": "RDEMO1", "commission_rate": 0.15,
+            "created_at": iso(now_utc()),
+        }
+        await db.users.insert_one(res_user)
+        await get_or_create_wallet(res_user["id"])
+        await adjust_wallet(res_user["id"], 5000.0, "topup",
+                            note="Initial float", by=res_user["id"])
+    else:
+        if not verify_password(res_pwd, res_user["password_hash"]):
+            await db.users.update_one({"email": res_email},
+                                       {"$set": {"password_hash": hash_password(res_pwd)}})
+
+    # seed demo client
+    cli_email = os.environ.get("DEMO_CLIENT_EMAIL", "client@unitxt.io")
+    cli_pwd = os.environ.get("DEMO_CLIENT_PASSWORD", "Client@2026")
+    cli_user = await db.users.find_one({"email": cli_email})
+    if not cli_user:
+        cli_user = {
+            "id": new_id(), "email": cli_email,
+            "password_hash": hash_password(cli_pwd),
+            "name": "Demo Client", "role": "client",
+            "business_name": "Sunrise Bank", "country": "TZ",
+            "reseller_id": res_user["id"], "status": "active",
+            "kyc_verified": True, "created_at": iso(now_utc()),
+        }
+        await db.users.insert_one(cli_user)
+        await get_or_create_wallet(cli_user["id"])
+        await adjust_wallet(cli_user["id"], 250.0, "topup",
+                            note="Welcome credit", by=cli_user["id"])
+    else:
+        if not verify_password(cli_pwd, cli_user["password_hash"]):
+            await db.users.update_one({"email": cli_email},
+                                       {"$set": {"password_hash": hash_password(cli_pwd)}})
+
+    # seed countries
+    if await db.countries.count_documents({}) == 0:
+        seed_countries = [
+            ("TZ", "Tanzania", "TZS", "+255"),
+            ("KE", "Kenya", "KES", "+254"),
+            ("UG", "Uganda", "UGX", "+256"),
+            ("ZM", "Zambia", "ZMW", "+260"),
+            ("GH", "Ghana", "GHS", "+233"),
+            ("NG", "Nigeria", "NGN", "+234"),
+            ("ZA", "South Africa", "ZAR", "+27"),
+            ("RW", "Rwanda", "RWF", "+250"),
+            ("US", "United States", "USD", "+1"),
+            ("GB", "United Kingdom", "GBP", "+44"),
+            ("IN", "India", "INR", "+91"),
+            ("AE", "United Arab Emirates", "AED", "+971"),
+        ]
+        await db.countries.insert_many([
+            {"id": new_id(), "code": c, "name": n, "currency": cur,
+             "dial_code": dc, "sender_id_required": True, "active": True,
+             "created_at": iso(now_utc())} for c, n, cur, dc in seed_countries])
+
+    # seed providers
+    if await db.providers.count_documents({}) == 0:
+        await db.providers.insert_many([
+            {"id": new_id(), "name": "TZ Direct Telco", "type": "direct_telco",
+             "countries": ["TZ"], "channels": ["sms"], "api_key": "", "api_secret": "",
+             "base_url": "https://example-tz.local",
+             "cost_per_sms": 0.008, "priority": 1, "active": True,
+             "supports_unicode": True, "supports_dlr": True,
+             "health": "healthy", "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "Twilio Global", "type": "aggregator",
+             "countries": ["*"], "channels": ["sms", "whatsapp"],
+             "api_key": "", "api_secret": "",
+             "base_url": "https://api.twilio.com",
+             "cost_per_sms": 0.04, "priority": 5, "active": True,
+             "supports_unicode": True, "supports_dlr": True,
+             "health": "healthy", "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "Infobip Africa", "type": "aggregator",
+             "countries": ["KE", "UG", "ZM", "GH", "NG"], "channels": ["sms", "whatsapp"],
+             "api_key": "", "api_secret": "",
+             "base_url": "https://api.infobip.com",
+             "cost_per_sms": 0.02, "priority": 3, "active": True,
+             "supports_unicode": True, "supports_dlr": True,
+             "health": "healthy", "created_at": iso(now_utc())},
+        ])
+
+    # seed pricing
+    if await db.pricing_plans.count_documents({}) == 0:
+        await db.pricing_plans.insert_many([
+            {"id": new_id(), "name": "Tanzania Standard", "country": "TZ",
+             "channel": "sms", "base_price": 0.012, "reseller_price": 0.015,
+             "client_price": 0.020, "min_volume": 0, "active": True,
+             "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "Kenya Standard", "country": "KE",
+             "channel": "sms", "base_price": 0.025, "reseller_price": 0.030,
+             "client_price": 0.040, "min_volume": 0, "active": True,
+             "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "WhatsApp Tanzania", "country": "TZ",
+             "channel": "whatsapp", "base_price": 0.005, "reseller_price": 0.008,
+             "client_price": 0.012, "min_volume": 0, "active": True,
+             "created_at": iso(now_utc())},
+        ])
+
+    # seed promotions
+    if await db.promotions.count_documents({}) == 0:
+        await db.promotions.insert_many([
+            {"id": new_id(), "name": "Welcome 10%", "code": "WELCOME10",
+             "type": "percent_discount", "value": 10, "min_topup": 50,
+             "active": True, "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "$25 Bonus", "code": "BONUS25",
+             "type": "bonus_credit", "value": 25, "min_topup": 200,
+             "active": True, "created_at": iso(now_utc())},
+        ])
+
+    # seed institutions
+    if await db.institutions.count_documents({}) == 0:
+        await db.institutions.insert_many([
+            {"id": new_id(), "name": "M-Pesa Tanzania", "type": "mobile_money",
+             "country": "TZ", "api_credentials": {}, "callback_url": "",
+             "active": True, "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "CRDB Bank", "type": "bank",
+             "country": "TZ", "api_credentials": {}, "callback_url": "",
+             "active": True, "created_at": iso(now_utc())},
+        ])
+
+    # seed settings
+    defaults = [
+        ("platform.name", "unitxt", "platform"),
+        ("platform.support_email", "support@unitxt.io", "platform"),
+        ("platform.default_currency", "USD", "platform"),
+        ("platform.default_timezone", "Africa/Dar_es_Salaam", "platform"),
+        ("platform.maintenance_mode", False, "platform"),
+        ("compliance.kyc_required", False, "compliance"),
+        ("compliance.daily_send_limit", 100000, "compliance"),
+        ("compliance.spam_keywords", ["lottery", "winner"], "compliance"),
+        ("notifications.low_balance_threshold", 10, "notifications"),
+        ("onboarding.reseller_signup_open", True, "onboarding"),
+    ]
+    for k, v, cat in defaults:
+        await db.system_settings.update_one(
+            {"key": k},
+            {"$setOnInsert": {"key": k, "value": v, "category": cat,
+                              "updated_at": iso(now_utc())}},
+            upsert=True)
+
+    # seed an approved sender ID for client
+    cli_user = await db.users.find_one({"email": cli_email})
+    if cli_user and await db.sender_id_requests.count_documents({"user_id": cli_user["id"]}) == 0:
+        await db.sender_id_requests.insert_one({
+            "id": new_id(), "user_id": cli_user["id"], "sender_id": "SUNRISE",
+            "country": "TZ", "use_case": "Bank notifications",
+            "sample_message": "Your account...", "documents": [],
+            "status": "approved", "reviewed_at": iso(now_utc()),
+            "created_at": iso(now_utc()),
+        })
+
+    log.info("unitxt startup seed complete")
+
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+async def shutdown():
+    mongo_client.close()
