@@ -1,0 +1,122 @@
+{
+  "project_name": "unitxt",
+  "theme": "dark",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) + Command Center Terminal Mode",
+  "core_philosophy": "A global telecommunications operating system. It must feel like an authoritative, high-density Bloomberg terminal fused with high-end SaaS elegance. The system is entirely dark mode, using stark white text on deep obsidian and structural grid lines for hierarchy, not soft shadows. Color is strictly functional (status, routing health).",
+  "color_palette": {
+    "background": {
+      "base": "#0A0A0A",
+      "surface": "#141414",
+      "surface_elevated": "#1A1A1A",
+      "surface_active": "#242424"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A1A1AA",
+      "muted": "#71717A",
+      "inverted": "#0A0A0A"
+    },
+    "border": {
+      "default": "#27272A",
+      "subtle": "#18181B",
+      "highlight": "#3F3F46"
+    },
+    "accents": {
+      "primary": "#E4E4E7",
+      "primary_hover": "#FFFFFF",
+      "signal_blue": "#007AFF",
+      "signal_green": "#34C759",
+      "signal_orange": "#FF9F0A",
+      "signal_red": "#FF3B30"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "headings": "Manrope",
+      "body": "IBM Plex Sans",
+      "data_and_code": "JetBrains Mono"
+    },
+    "hierarchy": {
+      "h1_hero": "text-5xl sm:text-6xl+ font-bold tracking-tighter leading-none",
+      "h2_section": "text-3xl sm:text-4xl font-semibold tracking-tight leading-tight",
+      "h3_widget": "text-xl font-medium tracking-tight",
+      "body": "text-sm text-zinc-300 leading-relaxed",
+      "data_large": "font-mono text-3xl font-medium tracking-tight",
+      "labels_overlines": "text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
+    }
+  },
+  "spacing_and_layout": {
+    "marketing_pages": {
+      "strategy": "Generous spacing (p-12 to p-24), massive typography, asymmetric grids (Bento mode A).",
+      "containers": "max-w-7xl mx-auto"
+    },
+    "dashboards": {
+      "strategy": "The 'Control Room' grid (Mode B). Dense, compact (p-4 to p-6). Every pixel utilized.",
+      "grid_gaps": "gap-4 md:gap-6",
+      "alignment": "Strict geometric alignment. Left-align data tables, metrics. Right-align actions."
+    }
+  },
+  "surface_strategies": {
+    "dashboard_cards": {
+      "style": "Flat background (bg-[#141414]), sharp 1px border (border-zinc-800), rounded-sm (max 4px radius). No shadows.",
+      "hover_state": "Slight border highlight (border-zinc-700), bg-[#1A1A1A]."
+    },
+    "settings_hub": {
+      "style": "Exquisite command center. Left rail: transparent bg with hover states. Active state: 'Tracing Beam' effect (border-l-2 border-white bg-gradient-to-r from-white/5 to-transparent). Right panel: structured grid boxes for forms."
+    },
+    "interactive_elements": {
+      "buttons": "Square or rounded-sm. Solid white (bg-white text-black) for primary CTA. Subtle zinc for secondary (bg-zinc-800 text-white hover:bg-zinc-700).",
+      "inputs": "bg-transparent border-zinc-800 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 text-white rounded-sm h-10 px-3."
+    }
+  },
+  "motion_and_interactions": {
+    "global": "Fast, mechanical. transition-all duration-150 ease-out.",
+    "hover_states": "Must explicitly shift background and text color to ensure contrast. Never rely on inheritance.",
+    "dropdowns_modals": "Instant snap or very quick scale-in (0.98 to 1.0) for a highly responsive feel."
+  },
+  "visual_enhancers": {
+    "borders": "Use 'Grid Borders' - expose the skeleton of the UI using border-collapse or border-b border-r on items to build dense tables and layouts.",
+    "glows": "Use very tight, subtle glows ONLY on status indicators (e.g., shadow-[0_0_8px_rgba(52,199,89,0.4)] for online routing engines)."
+  },
+  "component_instructions": {
+    "navigation": "Sticky, fixed height, border-b border-zinc-800, backdrop-blur-xl bg-zinc-950/80. z-50.",
+    "tables": "Dense, text-sm. Hover on row changes bg to zinc-900. Status pills must be highly visible (e.g., bg-green-500/10 text-green-400 border border-green-500/20).",
+    "forms": "Use Shadcn customized for sharp borders. Label should be uppercase mono or tiny sans.",
+    "notification_bell": "Real-time indicator: absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500 animate-pulse. Dropdown uses glassmorphism with tight list items.",
+    "routing_engine_view": "Visualize country to provider priority using a flow representation or a nested table with clear status colors (Green = Active, Orange = Failover, Red = Down)."
+  },
+  "accessibility_and_testing": {
+    "testing_ids": "CRITICAL: Add `data-testid` to all buttons, links, form inputs, and key data points (e.g., `data-testid='quick-send-btn'`).",
+    "contrast": "Ensure minimum 4.5:1 ratio for text. Avoid pure black backgrounds where text is grey; use zinc-400 or zinc-300."
+  },
+  "media": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1775057154553-0f3e8902fea3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwxfHxkYXJrJTIwYWJzdHJhY3QlMjBuZXR3b3JrJTIwdGVjaG5vbG9neSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzc2NDY1ODgwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract geometric lines and shapes on black background for the main landing page hero."
+    },
+    "routing_map_background": {
+      "url": "https://images.unsplash.com/photo-1633098096956-afdc8bcc8552?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwyfHx3b3JsZCUyMG1hcCUyMGRvdHMlMjBkYXJrJTIwYWJzdHJhY3R8ZW58MHx8fHwxNzc2NDY1ODgwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract dots map, perfect for the Routing Engine or Admin Overview background decoration (at 10% opacity)."
+    },
+    "avatars": [
+      {
+        "url": "https://images.pexels.com/photos/36363694/pexels-photo-36363694.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "role": "Client Avatar"
+      },
+      {
+        "url": "https://images.pexels.com/photos/4687544/pexels-photo-4687544.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "role": "Admin Avatar"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Do not use generic SaaS blue colors. Stick strictly to the monochrome + functional accent palette.",
+    "Implement the 'Settings Hub' as an exquisite right-panel view with a left sidebar navigation utilizing the Tracing Beam active state.",
+    "Dashboard cards must not use large shadows or high border radii. Keep them flat, sharp, and bordered (max rounded-sm).",
+    "Install and use Phosphor Icons (@phosphor-icons/react) for dense dashboard icons.",
+    "Implement 'data-testid' on ALL interactive elements and forms.",
+    "Use JetBrains Mono for all numeric values, prices, SMS counts, and wallet balances.",
+    "Build the multi-role portals as distinct sub-routes or conditional views based on auth state.",
+    "Ensure the hero section on the public landing page overlays the abstract network image with max 40% black opacity and uses a high-contrast white H1."
+  ]
+}
