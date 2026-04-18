@@ -868,21 +868,29 @@ async def bump_streak(user_id: str) -> int:
     return streak
 
 
-async def get_reseller_markup(reseller_id: str, country: str, channel: str) -> float:
-    """Fetch reseller's markup multiplier (default 1.0)."""
+async def get_reseller_commission(reseller_id: str, country: str, channel: str) -> float:
+    """Fetch reseller's commission rate (fraction 0.0–1.0) paid out of admin margin.
+    Clients ALWAYS pay the global retail rate; resellers never inflate end-client pricing.
+    Lookup order: country+channel override → default (*+channel) override → reseller's
+    `commission_rate` on user doc → global setting `pricing.reseller_commission_default`.
+    """
     if not reseller_id:
-        return 1.0
+        return 0.0
     rec = await db.reseller_pricing.find_one({
         "reseller_id": reseller_id, "country": country, "channel": channel,
         "active": True}, {"_id": 0})
-    if rec:
-        return float(rec.get("markup", 1.0))
+    if rec and rec.get("commission_rate") is not None:
+        return max(0.0, min(1.0, float(rec["commission_rate"])))
     default = await db.reseller_pricing.find_one({
         "reseller_id": reseller_id, "country": "*", "channel": channel,
         "active": True}, {"_id": 0})
-    if default:
-        return float(default.get("markup", 1.0))
-    return 1.0
+    if default and default.get("commission_rate") is not None:
+        return max(0.0, min(1.0, float(default["commission_rate"])))
+    reseller = await db.users.find_one({"id": reseller_id}, {"commission_rate": 1})
+    if reseller and reseller.get("commission_rate") is not None:
+        return max(0.0, min(1.0, float(reseller["commission_rate"])))
+    fallback = await get_setting("pricing.reseller_commission_default", 0.15)
+    return max(0.0, min(1.0, float(fallback or 0.0)))
 
 
 async def push_dlr_webhook(user: dict, message: dict):
@@ -926,10 +934,10 @@ async def execute_campaign(campaign: dict):
     if not user:
         return
     base_rate = await credits_per_msg(country, channel)
-    markup = await get_reseller_markup(user.get("reseller_id"), country, channel)
-    rate = int(round(base_rate * markup))
-    if rate < base_rate:
-        rate = base_rate
+    # Clients ALWAYS pay the global retail rate. Resellers earn a backend commission
+    # out of admin's margin — they never inflate end-client pricing.
+    rate = int(base_rate)
+    commission = await get_reseller_commission(user.get("reseller_id"), country, channel)
 
     recipients = campaign["recipients"]
     n = len(recipients)
@@ -961,6 +969,7 @@ async def execute_campaign(campaign: dict):
     credits_used = 0
     usd_cost_total = 0.0
     reseller_earned = 0
+    reseller_accum = 0.0  # fractional commission accumulator; finalized at end
 
     sem = asyncio.Semaphore(max_conc)
 
@@ -1018,8 +1027,8 @@ async def execute_campaign(campaign: dict):
                 failed += 1
             credits_used += res["credits_cost"]
             usd_cost_total += res["usd_cost"]
-            if markup > 1.0 and res["ok"]:
-                reseller_earned += (res["credits_cost"] - int(res["credits_cost"] / markup))
+            if commission > 0 and res["ok"]:
+                reseller_accum += res["credits_cost"] * commission
             msg_docs.append({
                 "id": new_id(), "campaign_id": cid, "user_id": user_id,
                 "to": res["phone"], "channel": channel, "sender_id": sender_id,
@@ -1070,12 +1079,13 @@ async def execute_campaign(campaign: dict):
         except HTTPException:
             pass
 
-    # Reseller markup earnings
+    # Reseller commission earnings (paid out of admin margin, not from client)
+    reseller_earned = int(round(reseller_accum))
     if reseller_earned > 0 and user.get("reseller_id"):
-        await adjust_wallet(user["reseller_id"], reseller_earned, "markup_earned",
-                            note=f"Markup from client {user['email']}",
+        await adjust_wallet(user["reseller_id"], reseller_earned, "commission_earned",
+                            note=f"Commission from client {user['email']}",
                             ref=cid, by=user_id)
-        await add_notification(user["reseller_id"], "Markup earned",
+        await add_notification(user["reseller_id"], "Commission earned",
                                 f"+{reseller_earned} credits from client send.", "success")
 
     await db.campaigns.update_one({"id": cid}, {"$set": {
@@ -2037,12 +2047,12 @@ async def get_webhook(user: dict = Depends(get_current_user)):
 
 
 # ============================================================
-# RESELLER MARKUP PRICING
+# RESELLER COMMISSION (paid out of admin margin; client never overcharged)
 # ============================================================
-class ResellerMarkupIn(BaseModel):
+class ResellerCommissionIn(BaseModel):
     country: str  # "*" for default
     channel: str = "sms"
-    markup: float = Field(gt=0, le=10)
+    commission_rate: float = Field(ge=0, le=1)  # 0.0–1.0 (e.g. 0.15 = 15%)
     active: bool = True
 
 
@@ -2051,17 +2061,49 @@ res_px_r = APIRouter(prefix="/reseller/pricing", tags=["reseller_pricing"])
 
 @res_px_r.get("")
 async def list_reseller_pricing(user: dict = Depends(require_roles("reseller"))):
+    """Read-only: resellers see the commission rates set for them by admin."""
     items = await db.reseller_pricing.find({"reseller_id": user["id"]},
                                             {"_id": 0}).to_list(500)
-    return items
+    # Surface default commission from user doc + global fallback
+    default_commission = user.get("commission_rate")
+    if default_commission is None:
+        default_commission = float(await get_setting("pricing.reseller_commission_default", 0.15) or 0.15)
+    return {
+        "default_commission_rate": float(default_commission),
+        "overrides": items,
+    }
 
 
-@res_px_r.post("")
-async def set_reseller_pricing(body: ResellerMarkupIn,
-                                user: dict = Depends(require_roles("reseller"))):
+# Admin-managed commission overrides per reseller
+adm_res_px_r = APIRouter(prefix="/admin/resellers", tags=["admin_reseller_commission"])
+
+
+@adm_res_px_r.get("/{reseller_id}/commissions")
+async def admin_list_commissions(reseller_id: str,
+                                   _: dict = Depends(require_roles("super_admin"))):
+    items = await db.reseller_pricing.find({"reseller_id": reseller_id},
+                                            {"_id": 0}).to_list(500)
+    reseller = await db.users.find_one({"id": reseller_id, "role": "reseller"},
+                                        {"_id": 0, "password_hash": 0})
+    if not reseller:
+        raise HTTPException(404, "Reseller not found")
+    return {
+        "reseller": {"id": reseller["id"], "email": reseller["email"],
+                     "name": reseller.get("name", ""),
+                     "default_commission_rate": reseller.get("commission_rate", 0.15)},
+        "overrides": items,
+    }
+
+
+@adm_res_px_r.post("/{reseller_id}/commissions")
+async def admin_set_commission(reseller_id: str, body: ResellerCommissionIn,
+                                _: dict = Depends(require_roles("super_admin"))):
+    reseller = await db.users.find_one({"id": reseller_id, "role": "reseller"})
+    if not reseller:
+        raise HTTPException(404, "Reseller not found")
     existing = await db.reseller_pricing.find_one({
-        "reseller_id": user["id"], "country": body.country, "channel": body.channel})
-    doc = {"reseller_id": user["id"], **body.model_dump(),
+        "reseller_id": reseller_id, "country": body.country, "channel": body.channel})
+    doc = {"reseller_id": reseller_id, **body.model_dump(),
            "updated_at": iso(now_utc())}
     if existing:
         await db.reseller_pricing.update_one({"id": existing["id"]}, {"$set": doc})
@@ -2072,11 +2114,24 @@ async def set_reseller_pricing(body: ResellerMarkupIn,
     return clean(doc)
 
 
-@res_px_r.delete("/{rid}")
-async def del_reseller_pricing(rid: str,
-                                 user: dict = Depends(require_roles("reseller"))):
-    await db.reseller_pricing.delete_one({"id": rid, "reseller_id": user["id"]})
+@adm_res_px_r.delete("/{reseller_id}/commissions/{rid}")
+async def admin_del_commission(reseller_id: str, rid: str,
+                                 _: dict = Depends(require_roles("super_admin"))):
+    await db.reseller_pricing.delete_one({"id": rid, "reseller_id": reseller_id})
     return {"ok": True}
+
+
+@adm_res_px_r.put("/{reseller_id}/default-commission")
+async def admin_set_default_commission(reseller_id: str,
+                                         body: dict,
+                                         _: dict = Depends(require_roles("super_admin"))):
+    rate = float(body.get("commission_rate", 0.15))
+    rate = max(0.0, min(1.0, rate))
+    reseller = await db.users.find_one({"id": reseller_id, "role": "reseller"})
+    if not reseller:
+        raise HTTPException(404, "Reseller not found")
+    await db.users.update_one({"id": reseller_id}, {"$set": {"commission_rate": rate}})
+    return {"ok": True, "commission_rate": rate}
 
 
 # ============================================================
@@ -2147,6 +2202,7 @@ async def adm_wa_review(tid: str, body: WaTemplateReviewIn,
 api.include_router(ref_r)
 api.include_router(prof_r)
 api.include_router(res_px_r)
+api.include_router(adm_res_px_r)
 api.include_router(wa_r)
 
 
@@ -2368,6 +2424,8 @@ async def startup():
         ("notifications.low_balance_threshold", 10, "notifications"),
         ("notifications.low_credits_threshold", 100, "notifications"),
         ("onboarding.reseller_signup_open", True, "onboarding"),
+        # Reseller commission paid out of admin margin (never inflates client price)
+        ("pricing.reseller_commission_default", 0.15, "pricing"),
         # Credits engine — drives all money-related behavior
         ("credits.default_rate", 2, "credits"),
         ("credits.whatsapp_rate", 3, "credits"),
@@ -2483,6 +2541,14 @@ async def startup():
 
     # kick off background loop
     asyncio.create_task(background_loop())
+
+    # v1.3 migration: retire legacy `markup`-based reseller pricing records. Replaced by
+    # admin-controlled commission_rate (0.0-1.0). Keep only records that already carry
+    # commission_rate; delete stale markup-only rows so the new pricing model is clean.
+    await db.reseller_pricing.delete_many({
+        "commission_rate": {"$exists": False},
+        "markup": {"$exists": True},
+    })
 
     log.info("unitxt startup seed complete")
 

@@ -1,54 +1,81 @@
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import http, { fmtErr } from "@/lib/api";
-import { PageHeader, Card, Field, Input, Select, Btn, Table, Pill } from "@/components/UI";
-import { Plus, Trash2 } from "lucide-react";
-
-const COUNTRIES = ["*","TZ","KE","UG","ZM","GH","NG","ZA","RW","US","GB","IN","AE"];
+import http from "@/lib/api";
+import { PageHeader, Card, Table, Pill } from "@/components/UI";
+import { Percent, ShieldCheck, Info } from "lucide-react";
 
 export default function ResellerPricing() {
-  const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ country:"TZ", channel:"sms", markup:1.5, active:true });
-  const load = () => http.get("/reseller/pricing").then(r => setItems(r.data)).catch(()=>{});
-  useEffect(() => { load(); }, []);
-  const save = async (e) => {
-    e.preventDefault();
-    try { await http.post("/reseller/pricing", { ...form, markup: Number(form.markup) }); toast.success("Saved"); load(); }
-    catch(err){ toast.error(fmtErr(err.response?.data?.detail)); }
-  };
-  const del = async (id) => { await http.delete(`/reseller/pricing/${id}`); load(); };
+  const [data, setData] = useState({ default_commission_rate: 0, overrides: [] });
+  useEffect(() => {
+    http.get("/reseller/pricing").then(r => setData(r.data)).catch(() => {});
+  }, []);
+
+  const pct = (x) => `${(Number(x || 0) * 100).toFixed(1)}%`;
+
   return (
     <div>
-      <PageHeader overline="Your business" title="Client pricing"
-        desc="Set a markup multiplier applied to your clients' sends. Your margin is credited to your float on every send."/>
+      <PageHeader
+        overline="Your business"
+        title="Commission"
+        desc="Clients always pay the global retail rate. You earn a commission out of the platform's margin on every send your clients make — admin controls the rate."
+      />
+
       <div className="grid gap-4 lg:grid-cols-[2fr,3fr]">
-        <Card testid="add-markup">
-          <div className="label-overline mb-3">New markup rule</div>
-          <form onSubmit={save} className="grid gap-3">
-            <Field label="Country" hint={`Use "*" for default across all countries.`}>
-              <Select value={form.country} onChange={(e)=>setForm({...form,country:e.target.value})}>
-                {COUNTRIES.map(c => <option key={c}>{c}</option>)}
-              </Select>
-            </Field>
-            <Field label="Channel">
-              <Select value={form.channel} onChange={(e)=>setForm({...form,channel:e.target.value})}>
-                <option>sms</option><option>whatsapp</option>
-              </Select>
-            </Field>
-            <Field label="Markup multiplier" hint="1.0 = platform rate, 1.5 = +50%, 2.0 = 2× platform rate">
-              <Input type="number" step="0.01" min="1" max="10" value={form.markup} onChange={(e)=>setForm({...form,markup:e.target.value})} data-testid="markup-input"/>
-            </Field>
-            <Btn type="submit" data-testid="markup-save"><Plus className="h-4 w-4"/>Save rule</Btn>
-          </form>
+        <Card testid="commission-default">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 place-items-center border border-zinc-800 bg-[#141414]">
+              <Percent className="h-5 w-5 text-white" strokeWidth={1.5}/>
+            </div>
+            <div className="flex-1">
+              <div className="label-overline">Default commission</div>
+              <div className="mt-1 font-display text-4xl font-semibold tracking-tight" data-testid="default-commission-rate">
+                {pct(data.default_commission_rate)}
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                Applied to every send from your clients, across all countries &amp; channels, unless an override is set below.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-start gap-2 border border-zinc-900 bg-[#0e0e0e] p-3">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" strokeWidth={1.5}/>
+            <div className="text-xs text-zinc-400">
+              <span className="font-medium text-zinc-200">Loss-proof</span> — commission is paid
+              from platform revenue the instant a client send succeeds, credited directly to your
+              float wallet. Clients are never overcharged.
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-start gap-2 border border-zinc-900 bg-[#0e0e0e] p-3">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" strokeWidth={1.5}/>
+            <div className="text-xs text-zinc-500">
+              Need a different rate? Contact your account manager — admin controls commission tiers.
+            </div>
+          </div>
         </Card>
 
-        <Table testid="markup-table" rows={items} empty="No markup rules yet — clients pay the platform rate." columns={[
-          { key:"country", label:"Country", mono:true },
-          { key:"channel", label:"Channel", mono:true },
-          { key:"markup", label:"Markup", mono:true, render: r => `${Number(r.markup).toFixed(2)}×` },
-          { key:"active", label:"Status", render: r => <Pill status={r.active?"active":"down"}/> },
-          { key:"actions", label:"", render: r => <button onClick={()=>del(r.id)} className="text-zinc-400 hover:text-red-400"><Trash2 className="h-4 w-4"/></button> },
-        ]}/>
+        <Card testid="commission-overrides">
+          <div className="label-overline mb-3">Per country &amp; channel overrides</div>
+          <Table
+            testid="commission-table"
+            rows={data.overrides || []}
+            empty="No overrides — default commission applies across the board."
+            columns={[
+              { key: "country", label: "Country", mono: true },
+              { key: "channel", label: "Channel", mono: true },
+              {
+                key: "commission_rate",
+                label: "Commission",
+                mono: true,
+                render: r => pct(r.commission_rate),
+              },
+              {
+                key: "active",
+                label: "Status",
+                render: r => <Pill status={r.active ? "active" : "down"}/>,
+              },
+            ]}
+          />
+        </Card>
       </div>
     </div>
   );
