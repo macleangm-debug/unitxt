@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { fmtErr } from "@/lib/api";
@@ -14,11 +14,18 @@ const COUNTRIES = [
 export default function Register() {
   const { register } = useAuth();
   const nav = useNavigate();
+  const loc = useLocation();
   const [form, setForm] = useState({
     name: "", business_name: "", email: "", phone: "",
-    password: "", country: "TZ", role: "client", reseller_code: "",
+    password: "", country: "TZ", role: "client", reseller_code: "", referral_code: "",
   });
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(loc.search);
+    const r = params.get("ref");
+    if (r) setForm(f => ({ ...f, referral_code: r }));
+  }, [loc.search]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -96,13 +103,22 @@ export default function Register() {
           </label>
 
           {form.role==="client" && (
-            <label className="mt-4 block">
-              <span className="label-overline">Reseller code (optional)</span>
-              <input value={form.reseller_code} onChange={(e)=>set("reseller_code", e.target.value)}
-                data-testid="reg-reseller-code"
-                className="mt-2 h-11 w-full border border-zinc-800 bg-transparent px-3 text-sm text-white outline-none focus:border-white"
-                placeholder="RDEMO1"/>
-            </label>
+            <>
+              <label className="mt-4 block">
+                <span className="label-overline">Reseller code (optional)</span>
+                <input value={form.reseller_code} onChange={(e)=>set("reseller_code", e.target.value)}
+                  data-testid="reg-reseller-code"
+                  className="mt-2 h-11 w-full border border-zinc-800 bg-transparent px-3 text-sm text-white outline-none focus:border-white"
+                  placeholder="RDEMO1"/>
+              </label>
+              <label className="mt-4 block">
+                <span className="label-overline">Referral code (optional)</span>
+                <input value={form.referral_code} onChange={(e)=>set("referral_code", e.target.value)}
+                  data-testid="reg-referral-code"
+                  className="mt-2 h-11 w-full border border-zinc-800 bg-transparent px-3 text-sm text-white outline-none focus:border-white"
+                  placeholder="From a friend"/>
+              </label>
+            </>
           )}
 
           <button type="submit" disabled={busy} data-testid="register-submit"

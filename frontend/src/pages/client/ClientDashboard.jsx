@@ -3,21 +3,23 @@ import { Link } from "react-router-dom";
 import http, { creditsShort, num, shortDate } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Stat, Card, Pill, Btn } from "@/components/UI";
-import { Send, Upload, Coins, ArrowUpRight, MessageSquare, Sparkles } from "lucide-react";
+import { Send, Upload, Coins, ArrowUpRight, MessageSquare, Sparkles, Flame } from "lucide-react";
 
 export default function ClientDashboard() {
   const { user, wallet } = useAuth();
   const [stats, setStats] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
+  const [streak, setStreak] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [s, c] = await Promise.all([
+        const [s, c, k] = await Promise.all([
           http.get("/messaging/stats"),
           http.get("/messaging/campaigns?limit=5"),
+          http.get("/profile/streak"),
         ]);
-        setStats(s.data); setCampaigns(c.data);
+        setStats(s.data); setCampaigns(c.data); setStreak(k.data);
       } catch { /* noop */ }
     })();
   }, []);
@@ -43,7 +45,16 @@ export default function ClientDashboard() {
         <Stat label="Credits" value={creditsShort(wallet?.balance)} sub="available to send" accent="green" testid="stat-credits"/>
         <Stat label="Messages sent" value={num(stats?.total_messages || 0)} testid="stat-msgs"/>
         <Stat label="Delivery rate" value={`${stats?.delivery_rate || 0}%`} sub={`${num(stats?.delivered || 0)} delivered`} accent="green" testid="stat-rate"/>
-        <Stat label="Failed" value={num(stats?.failed || 0)} accent={stats?.failed ? "red" : "white"} testid="stat-failed"/>
+        <div className="card-surface p-5" data-testid="stat-streak">
+          <div className="label-overline">Send streak</div>
+          <div className="mt-3 flex items-center gap-3">
+            <Flame className={`h-8 w-8 ${streak?.streak>=7?"text-orange-400":streak?.streak>=1?"text-yellow-400":"text-zinc-600"}`} strokeWidth={1.5}/>
+            <div>
+              <div className="font-mono text-3xl font-medium tracking-tight">{streak?.streak ?? 0}</div>
+              <div className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">days · +{streak?.bonuses?.["7"] ?? 100}cr at day 7</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">

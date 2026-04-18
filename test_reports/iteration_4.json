@@ -1,0 +1,104 @@
+{
+  "summary": "Comprehensive backend API testing for unitxt iteration 4 - All 43 new tests passed + 91 previous iteration tests passed (134 total). Verified: referral system (code generation, reward on pack purchase, 5% capped at 500), streak system (increments on send, milestone bonuses), DLR webhook configuration, reseller markup pricing (1.5x markup applied, reseller earns difference), WhatsApp template workflow (client submit, admin approve), smart queue batching (2000 recipients in ~140s, 95% delivery), scheduled campaigns (fires after schedule_at), operator-aware routing (Tigo prefix routes to Tigo provider), Settings Hub (referrals, streaks, queue categories), RBAC for new endpoints, no _id leaks.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4_features.py",
+    "/app/test_reports/pytest/iteration4_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Referral system correctly implements loss-proof math: 5% of pack credits, capped at 500 per referral",
+    "Referral reward only paid when referred user BUYS a pack (not on registration)",
+    "Streak system auto-bumps on campaign completion with 7/30/90 day milestone bonuses",
+    "Reseller markup pricing correctly charges client base_rate*markup and credits reseller the difference",
+    "WhatsApp template workflow: client submits (status=pending), admin approves/rejects, client notified",
+    "Smart queue batching: 2000 recipients processed in ~140s with 95% delivery rate (mock)",
+    "Scheduled campaign worker fires campaigns with schedule_at<=now every 60 seconds",
+    "Operator-aware routing: pick_provider_for() prefers providers with matching operators array",
+    "DLR webhook push is fire-and-forget (httpx POST to client's configured URL)",
+    "All new endpoints properly implement RBAC",
+    "No _id leaks in any new endpoint responses"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration4_features.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "N/A - backend only testing"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026 (500,000 credits)",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Seeded automatically: referral settings (5%, 500 cap), streak bonuses (100/1000/5000 for 7/30/90 days), queue settings (batch_size=1000, max_concurrency=200), Tigo Tanzania provider with operators=['Tigo']",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration 4 backend APIs tested and working. New features verified: (1) Referral system - GET /api/referrals/me returns code/count/earned/settings, reward paid on pack purchase; (2) Streak - GET /api/profile/streak returns streak/last_send_date/bonuses, auto-increments on campaign completion; (3) Webhook - GET/PUT /api/profile/webhook for DLR push config; (4) Reseller markup - GET/POST/DELETE /api/reseller/pricing, markup applied on client sends; (5) WA templates - GET/POST /api/wa-templates, admin review at /api/admin/wa-templates/{id}/review; (6) Smart queue - 2000 recipients in ~140s, credit reservation upfront, refund unused; (7) Scheduled campaigns - schedule_at creates status=scheduled, background_loop fires every 60s; (8) Operator routing - Tigo prefix routes to Tigo provider. Mock adapters: MockAdapter (95% success), TigoTZAdapter (stub), TwilioAdapter (stub), pack purchase (no Stripe), DLR webhook (fire-and-forget).",
+  "tests_executed": {
+    "total": 134,
+    "passed": 134,
+    "failed": 0,
+    "breakdown": {
+      "iteration4_new_tests": 43,
+      "iteration3_tests": 41,
+      "iteration1_2_tests": 50
+    },
+    "categories": {
+      "previous_iterations": 5,
+      "referral_system": 5,
+      "streak_system": 2,
+      "webhook": 2,
+      "reseller_markup_pricing": 5,
+      "whatsapp_templates": 5,
+      "smart_queue": 2,
+      "scheduled_campaign": 2,
+      "operator_routing": 1,
+      "settings_hub": 4,
+      "rbac_new_endpoints": 4,
+      "no_id_leak": 5,
+      "prefix_import": 1
+    }
+  },
+  "mocked_apis_verified": [
+    "MockAdapter - 95% delivery simulation working",
+    "TigoTZAdapter - stub mode (logs payloads, returns 'sent')",
+    "TwilioAdapter - stub mode (fails without credentials)",
+    "Credit pack purchase - MOCKED (no Stripe, credits wallet directly)",
+    "DLR webhook push - fire-and-forget httpx POST"
+  ],
+  "features_verified": {
+    "referrals_me": "PASS - returns code, referred_count, earned, percent_of_pack=5, max_per_referral=500, active=true",
+    "register_with_referral": "PASS - referred_by linked on registration",
+    "referral_reward_on_purchase": "PASS - referrer gets 5% of pack credits (capped at 500) when referred user buys",
+    "referral_not_triggered_without_purchase": "PASS - no reward if referred user doesn't buy",
+    "profile_streak": "PASS - returns streak, last_send_date, bonuses (7/30/90 day)",
+    "streak_increments_on_send": "PASS - streak >= 1 after campaign completion",
+    "webhook_get_put": "PASS - saves and retrieves dlr_webhook_url/secret",
+    "reseller_pricing_crud": "PASS - list/create/delete markup rules",
+    "reseller_markup_applied": "PASS - client charged base*markup, reseller earns difference",
+    "wa_template_create": "PASS - status=pending on creation",
+    "wa_template_admin_approve": "PASS - status changes to approved, client notified",
+    "bulk_send_2000": "PASS - completed in ~140s, delivered>=1900 (95%)",
+    "insufficient_credits_reservation": "PASS - 400 returned at reservation step",
+    "scheduled_campaign_status": "PASS - status=scheduled when schedule_at provided",
+    "scheduled_campaign_fires": "PASS - status changes to running/completed after schedule_at",
+    "operator_routing": "PASS - Tigo prefix routes to Tigo provider",
+    "settings_hub_referrals": "PASS - referral.percent_of_pack updatable",
+    "settings_hub_queue": "PASS - queue.max_concurrency updatable",
+    "rbac_reseller_pricing": "PASS - requires reseller role (403 for client)",
+    "rbac_admin_wa_templates": "PASS - requires super_admin/compliance (403 for client/reseller)",
+    "rbac_admin_credit_packs": "PASS - requires super_admin (403 for client/reseller)",
+    "rbac_admin_margin_report": "PASS - requires super_admin/finance (403 for client/reseller)",
+    "no_id_leak": "PASS - no _id in referrals, streak, webhook, reseller_pricing, wa_templates responses",
+    "prefix_import": "PASS - JSON array import works"
+  }
+}

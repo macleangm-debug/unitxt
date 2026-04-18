@@ -154,6 +154,7 @@ class RegisterIn(BaseModel):
     phone: Optional[str] = None
     country: Optional[str] = "TZ"
     reseller_code: Optional[str] = None
+    referral_code: Optional[str] = None  # another user's referral code
 
 
 class LoginIn(BaseModel):
@@ -515,6 +516,11 @@ async def register(body: RegisterIn, response: Response):
         r = await db.users.find_one({"reseller_code": body.reseller_code, "role": "reseller"})
         if r:
             reseller_id = r["id"]
+    referred_by = None
+    if body.referral_code:
+        ref = await db.users.find_one({"referral_code": body.referral_code.upper()})
+        if ref and ref["id"] != body.email:
+            referred_by = ref["id"]
     user = {
         "id": new_id(),
         "email": email,
@@ -525,6 +531,10 @@ async def register(body: RegisterIn, response: Response):
         "phone": body.phone,
         "country": body.country or "TZ",
         "reseller_id": reseller_id,
+        "referred_by": referred_by,
+        "referral_code": "U" + secrets.token_hex(3).upper(),
+        "referral_earned_credits": 0,
+        "send_streak_days": 0,
         "status": "active",
         "kyc_verified": False,
         "created_at": iso(now_utc()),
@@ -798,9 +808,115 @@ def render(template: str, vars_: dict) -> str:
     return out
 
 
+async def pick_provider_for(country: str, channel: str, operator: Optional[str] = None) -> Optional[dict]:
+    """Operator-aware routing. Prefer providers that explicitly target the operator
+    (via `operators` array). Fall back to country-only providers. Then catch-all."""
+    cur = db.providers.find({
+        "active": True,
+        "channels": channel,
+        "$or": [{"countries": country}, {"countries": "*"}, {"countries": []}],
+    }, {"_id": 0}).sort("priority", 1)
+    providers = await cur.to_list(100)
+    if not providers:
+        return None
+    if operator:
+        op_match = [p for p in providers if operator in (p.get("operators") or [])]
+        if op_match:
+            return op_match[0]
+    no_op = [p for p in providers if not p.get("operators")]
+    return no_op[0] if no_op else providers[0]
+
+
+async def bump_streak(user_id: str) -> int:
+    """Called after a successful campaign completion. Updates send_streak_days. Returns new streak."""
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        return 0
+    today = now_utc().date().isoformat()
+    last = user.get("last_send_date")
+    streak = int(user.get("send_streak_days", 0))
+    if last == today:
+        pass
+    else:
+        try:
+            last_d = datetime.fromisoformat(last).date() if last else None
+        except Exception:
+            last_d = None
+        if last_d and (now_utc().date() - last_d).days == 1:
+            streak += 1
+        else:
+            streak = 1
+    await db.users.update_one({"id": user_id},
+                               {"$set": {"last_send_date": today,
+                                         "send_streak_days": streak}})
+    # milestone bonuses
+    milestones = {7: "streak.7_day_bonus", 30: "streak.30_day_bonus", 90: "streak.90_day_bonus"}
+    if streak in milestones:
+        bonus = int(await get_setting(milestones[streak], 0) or 0)
+        if bonus > 0:
+            awarded = await db.streak_awards.find_one(
+                {"user_id": user_id, "milestone": streak})
+            if not awarded:
+                await db.streak_awards.insert_one(
+                    {"id": new_id(), "user_id": user_id, "milestone": streak,
+                     "credits": bonus, "created_at": iso(now_utc())})
+                await adjust_wallet(user_id, bonus, "streak_bonus",
+                                     note=f"{streak}-day streak reward", by=user_id)
+                await add_notification(user_id, f"🔥 {streak}-day streak!",
+                                        f"+{bonus} bonus credits for sticking with it.",
+                                        "success")
+    return streak
+
+
+async def get_reseller_markup(reseller_id: str, country: str, channel: str) -> float:
+    """Fetch reseller's markup multiplier (default 1.0)."""
+    if not reseller_id:
+        return 1.0
+    rec = await db.reseller_pricing.find_one({
+        "reseller_id": reseller_id, "country": country, "channel": channel,
+        "active": True}, {"_id": 0})
+    if rec:
+        return float(rec.get("markup", 1.0))
+    default = await db.reseller_pricing.find_one({
+        "reseller_id": reseller_id, "country": "*", "channel": channel,
+        "active": True}, {"_id": 0})
+    if default:
+        return float(default.get("markup", 1.0))
+    return 1.0
+
+
+async def push_dlr_webhook(user: dict, message: dict):
+    """Fire-and-forget DLR push to client-configured webhook URL."""
+    url = user.get("dlr_webhook_url")
+    if not url:
+        return
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json={
+                "id": message.get("id"),
+                "to": message.get("to"),
+                "status": message.get("status"),
+                "provider_msg_id": message.get("provider_msg_id"),
+                "error": message.get("error"),
+                "sender_id": message.get("sender_id"),
+                "cost": message.get("cost"),
+                "channel": message.get("channel"),
+                "at": iso(now_utc()),
+            }, headers={"X-unitxt-secret": user.get("dlr_webhook_secret", "")})
+    except Exception:
+        pass  # silent; carrier-style fire-and-forget
+
+
 async def execute_campaign(campaign: dict):
-    """Process all messages for a campaign. Charges credits; records USD provider cost
-    for admin margin reporting. Concurrency-limited per provider."""
+    """Smart batching engine: processes up to 200k+ recipients per campaign.
+    - Reserves all credits upfront (one debit) with reseller markup.
+    - Processes recipients in chunks (default 1000 per batch).
+    - Uses insert_many for messages; bulk updates status after each batch.
+    - Refunds unused credits at the end.
+    - Supports operator-aware provider selection per recipient.
+    - Credits reseller markup and writes DLR webhooks fire-and-forget.
+    """
     cid = campaign["id"]
     user_id = campaign["user_id"]
     channel = campaign["channel"]
@@ -809,59 +925,70 @@ async def execute_campaign(campaign: dict):
     user = await db.users.find_one({"id": user_id})
     if not user:
         return
-    credits_rate = await credits_per_msg(country, channel)
-    provider = await pick_provider(country, channel)
-    if not provider:
-        await db.campaigns.update_one({"id": cid}, {"$set": {"status": "failed",
-                                                              "error": "No active provider"}})
+    base_rate = await credits_per_msg(country, channel)
+    markup = await get_reseller_markup(user.get("reseller_id"), country, channel)
+    rate = int(round(base_rate * markup))
+    if rate < base_rate:
+        rate = base_rate
+
+    recipients = campaign["recipients"]
+    n = len(recipients)
+    # assume 1 segment for reservation; we'll true-up later per actual content
+    tmpl = campaign.get("template") or campaign.get("message") or ""
+    approx_seg = max(1, gsm_segments(tmpl or "x"))
+    reserved = rate * approx_seg * n
+
+    # Reserve upfront (single debit)
+    try:
+        await adjust_wallet(user_id, -reserved, "sms_reserve",
+                            note=f"Reserve for campaign {campaign['name'][:40]} · {n} recipients",
+                            ref=cid, by=user_id)
+    except HTTPException:
+        await db.campaigns.update_one({"id": cid}, {"$set": {
+            "status": "failed", "error": "Insufficient credits (reservation)"}})
+        await add_notification(user_id, "Campaign halted",
+                                f"{campaign['name']}: not enough credits to reserve.",
+                                "warning")
         return
-    adapter = adapter_for(provider)
-    provider_usd = float(provider.get("cost_per_sms", 0.01))
+
+    batch_size = int(await get_setting("queue.batch_size", 1000) or 1000)
+    max_conc = int(await get_setting("queue.max_concurrency", 200) or 200)
+    provider_usd_cache: Dict[str, float] = {}
+    # Pre-cache providers by msg; we still need an adapter per provider
+    adapter_cache: Dict[str, ProviderAdapter] = {}
+
     sent = delivered = failed = 0
-    total_credits = 0
-    total_usd_cost = 0.0
+    credits_used = 0
+    usd_cost_total = 0.0
+    reseller_earned = 0
 
-    # Queue concurrency: defaults 50, overridable via provider.rate_limit
-    max_conc = int(provider.get("rate_limit") or await get_setting("queue.max_concurrency", 50) or 50)
     sem = asyncio.Semaphore(max_conc)
-    lock = asyncio.Lock()
 
-    async def send_one(r):
-        nonlocal sent, delivered, failed, total_credits, total_usd_cost
+    async def process_recipient(r):
         text = render(campaign["template"], r) if campaign.get("template") else campaign["message"]
         seg = gsm_segments(text)
-        credits_cost = credits_rate * seg
-        usd_cost = round(provider_usd * seg, 6)
-        # charge credits up-front (atomic under lock to avoid oversell)
-        async with lock:
-            w = await get_or_create_wallet(user_id)
-            if w["balance"] < credits_cost:
-                await db.messages.insert_one({
-                    "id": new_id(), "campaign_id": cid, "user_id": user_id, "to": r["phone"],
-                    "channel": channel, "sender_id": sender_id, "body": text,
-                    "segments": seg, "cost": 0, "usd_cost": 0, "status": "failed",
-                    "provider_id": provider["id"], "provider_msg_id": None,
-                    "error": "INSUFFICIENT_CREDITS", "created_at": iso(now_utc())
-                })
-                failed += 1
-                return
-            await adjust_wallet(user_id, -credits_cost, "sms_charge",
-                                note=f"Campaign {campaign['name'][:30]} · {seg}seg",
-                                ref=cid, by=user_id)
-        # initial queued message row
-        mid = new_id()
-        await db.messages.insert_one({
-            "id": mid, "campaign_id": cid, "user_id": user_id, "to": r["phone"],
-            "channel": channel, "sender_id": sender_id, "body": text,
-            "segments": seg, "cost": credits_cost, "usd_cost": usd_cost,
-            "status": "queued", "provider_id": provider["id"],
-            "provider_msg_id": None, "error": None,
-            "created_at": iso(now_utc())
-        })
+        credits_cost = rate * seg
+        # operator-aware routing
+        op = None
+        if isinstance(r.get("phone"), str):
+            m = await phone_to_operator(r["phone"])
+            if m:
+                op = m.get("operator")
+        provider = await pick_provider_for(country, channel, op)
+        if not provider:
+            return {"ok": False, "status": "failed", "error": "NO_PROVIDER",
+                    "seg": seg, "credits_cost": credits_cost, "usd_cost": 0,
+                    "phone": r.get("phone"), "body": text, "provider_id": None,
+                    "provider_msg_id": None}
+        if provider["id"] not in adapter_cache:
+            adapter_cache[provider["id"]] = adapter_for(provider)
+            provider_usd_cache[provider["id"]] = float(provider.get("cost_per_sms", 0.01))
+        adapter = adapter_cache[provider["id"]]
+        usd_cost = round(provider_usd_cache[provider["id"]] * seg, 6)
+        # send with retry under semaphore
         async with sem:
-            # retry up to 2 times on transient failure
             last = None
-            for attempt in range(2):
+            for attempt in range(int(await get_setting("queue.max_retries", 2) or 2) + 1):
                 try:
                     res = await adapter.send(r["phone"], sender_id, text, channel)
                     last = res
@@ -870,49 +997,105 @@ async def execute_campaign(campaign: dict):
                 except Exception as e:
                     last = {"ok": False, "status": "failed", "error": str(e),
                             "provider_msg_id": None}
-                await asyncio.sleep(0.2 * (attempt + 1))
+                if attempt < 2:
+                    await asyncio.sleep(0.1 * (attempt + 1))
             res = last or {"ok": False, "status": "failed", "error": "UNKNOWN"}
-        async with lock:
+        return {**res, "seg": seg, "credits_cost": credits_cost, "usd_cost": usd_cost,
+                "phone": r.get("phone"), "body": text, "provider_id": provider["id"]}
+
+    # Process in batches
+    for i in range(0, n, batch_size):
+        chunk = recipients[i:i + batch_size]
+        results = await asyncio.gather(*[process_recipient(r) for r in chunk])
+        # Prepare bulk writes
+        msg_docs = []
+        rev_docs = []
+        for res in results:
             sent += 1
             if res["ok"]:
                 delivered += 1
             else:
                 failed += 1
-            total_credits += credits_cost
-            total_usd_cost += usd_cost
-        await db.messages.update_one({"id": mid}, {"$set": {
-            "status": res.get("status", "sent"),
-            "provider_msg_id": res.get("provider_msg_id"),
-            "error": res.get("error"),
-            "sent_at": iso(now_utc()),
+            credits_used += res["credits_cost"]
+            usd_cost_total += res["usd_cost"]
+            if markup > 1.0 and res["ok"]:
+                reseller_earned += (res["credits_cost"] - int(res["credits_cost"] / markup))
+            msg_docs.append({
+                "id": new_id(), "campaign_id": cid, "user_id": user_id,
+                "to": res["phone"], "channel": channel, "sender_id": sender_id,
+                "body": res["body"], "segments": res["seg"],
+                "cost": res["credits_cost"], "usd_cost": res["usd_cost"],
+                "status": res.get("status") or ("sent" if res.get("ok") else "failed"),
+                "provider_id": res.get("provider_id"),
+                "provider_msg_id": res.get("provider_msg_id"),
+                "error": res.get("error"),
+                "created_at": iso(now_utc()),
+                "sent_at": iso(now_utc()) if res.get("ok") else None,
+            })
+            rev_docs.append({
+                "id": new_id(), "campaign_id": cid, "user_id": user_id,
+                "reseller_id": user.get("reseller_id"),
+                "country": country, "channel": channel,
+                "credits": res["credits_cost"], "usd_cost": res["usd_cost"],
+                "provider_id": res.get("provider_id"),
+                "created_at": iso(now_utc()),
+            })
+        if msg_docs:
+            await db.messages.insert_many(msg_docs, ordered=False)
+            await db.platform_revenue_log.insert_many(rev_docs, ordered=False)
+        # progress update
+        await db.campaigns.update_one({"id": cid}, {"$set": {
+            "sent": sent, "delivered": delivered, "failed": failed,
+            "total_cost": credits_used,
+            "progress_pct": round(min(100.0, sent / max(1, n) * 100), 2),
         }})
-        # record margin log
-        await db.platform_revenue_log.insert_one({
-            "id": new_id(), "campaign_id": cid, "user_id": user_id,
-            "reseller_id": user.get("reseller_id"),
-            "country": country, "channel": channel,
-            "credits": credits_cost, "usd_cost": usd_cost,
-            "provider_id": provider["id"], "created_at": iso(now_utc())
-        })
+        # fire DLR webhooks (best-effort)
+        if user.get("dlr_webhook_url"):
+            asyncio.create_task(asyncio.gather(*[
+                push_dlr_webhook(user, m) for m in msg_docs[:50]  # cap per batch
+            ], return_exceptions=True))
 
-    await asyncio.gather(*[send_one(r) for r in campaign["recipients"]])
+    # Refund unused reservation
+    refund = reserved - credits_used
+    if refund > 0:
+        await adjust_wallet(user_id, refund, "sms_refund",
+                            note=f"Reconcile campaign {campaign['name'][:40]}",
+                            ref=cid, by=user_id)
+    elif refund < 0:
+        # Under-reserved (unicode etc). Try to charge the delta; if fails, we still accept.
+        try:
+            await adjust_wallet(user_id, refund, "sms_topoff",
+                                note=f"Top-off {campaign['name'][:40]}",
+                                ref=cid, by=user_id)
+        except HTTPException:
+            pass
+
+    # Reseller markup earnings
+    if reseller_earned > 0 and user.get("reseller_id"):
+        await adjust_wallet(user["reseller_id"], reseller_earned, "markup_earned",
+                            note=f"Markup from client {user['email']}",
+                            ref=cid, by=user_id)
+        await add_notification(user["reseller_id"], "Markup earned",
+                                f"+{reseller_earned} credits from client send.", "success")
 
     await db.campaigns.update_one({"id": cid}, {"$set": {
         "status": "completed", "sent": sent, "delivered": delivered,
-        "failed": failed,
-        "total_cost": total_credits,
-        "total_usd_cost": round(total_usd_cost, 6),
-        "completed_at": iso(now_utc()),
+        "failed": failed, "total_cost": credits_used,
+        "total_usd_cost": round(usd_cost_total, 6),
+        "progress_pct": 100.0, "completed_at": iso(now_utc()),
     }})
     await add_notification(user_id, "Campaign completed",
-                           f"{campaign['name']}: {delivered}/{sent} delivered. {total_credits} credits used.",
+                           f"{campaign['name']}: {delivered}/{sent} delivered. {credits_used} credits used.",
                            "success")
-    # check low-credits threshold
+    # streak
+    if sent > 0:
+        await bump_streak(user_id)
+    # low credits check
     w = await get_or_create_wallet(user_id)
     thr = int(await get_setting("notifications.low_credits_threshold", 100) or 0)
     if thr > 0 and w["balance"] < thr:
         await add_notification(user_id, "Credits running low",
-                               f"Your balance is {w['balance']} credits. Top up to keep sending.",
+                               f"Your balance is {int(w['balance'])} credits. Top up to keep sending.",
                                "warning")
 
 
@@ -1464,7 +1647,8 @@ async def my_rates(user: dict = Depends(get_current_user)):
 @credits_r.post("/buy")
 async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
     """Mock payment — credits the wallet immediately with the pack's credits,
-    applies promo bonus if applicable, records payment in platform_payments."""
+    applies promo bonus if applicable, records payment in platform_payments.
+    Also pays referral reward (from pack profit) to the referrer if configured."""
     pack = await db.credit_packs.find_one({"id": body.pack_id, "active": True}, {"_id": 0})
     if not pack:
         raise HTTPException(404, "Pack not found")
@@ -1473,7 +1657,7 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
         promo = await db.promotions.find_one({"code": body.promo_code.upper(), "active": True})
         if promo and float(pack.get("price_usd", 0)) >= float(promo.get("min_topup", 0)):
             if promo["type"] == "bonus_credit":
-                bonus = int(float(promo["value"]) * 100)  # value interpreted as credits bonus
+                bonus = int(float(promo["value"]) * 100)
             elif promo["type"] == "percent_discount":
                 bonus = int(pack["credits"] * float(promo["value"]) / 100.0)
     total_credits = int(pack["credits"]) + int(bonus)
@@ -1487,6 +1671,26 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
         "price_usd": float(pack["price_usd"]), "method": "mock",
         "promo_code": body.promo_code, "created_at": iso(now_utc()),
     })
+    # Referral reward (loss-proof: % of pack credits, capped, only if enabled)
+    referrer_id = user.get("referred_by")
+    if referrer_id and await get_setting("referral.active", True):
+        pct = float(await get_setting("referral.percent_of_pack", 5))
+        cap = int(await get_setting("referral.max_credits_per_referral", 500))
+        reward = min(int(pack["credits"] * pct / 100.0), cap)
+        if reward > 0:
+            await adjust_wallet(referrer_id, reward, "referral_reward",
+                                note=f"Referral: {user['email']} bought {pack['name']}",
+                                ref=user["id"], by=user["id"])
+            await db.users.update_one({"id": referrer_id},
+                                        {"$inc": {"referral_earned_credits": reward}})
+            await db.referral_earnings.insert_one({
+                "id": new_id(), "referrer_id": referrer_id, "referred_user_id": user["id"],
+                "pack_id": pack["id"], "reward_credits": reward,
+                "created_at": iso(now_utc()),
+            })
+            await add_notification(referrer_id, "Referral reward",
+                                    f"+{reward} credits — {user['email']} bought {pack['name']}.",
+                                    "success")
     await add_notification(user["id"], "Credits added",
                            f"+{total_credits} credits purchased. Happy sending!", "success")
     return {"ok": True, "credits_added": total_credits, "bonus": bonus}
@@ -1710,12 +1914,22 @@ async def renew_sender_id(sid: str, user: dict = Depends(get_current_user)):
 # Background tasks
 # ============================================================
 async def background_loop():
-    """Runs forever: inactivity flagging + sender ID expiry + daily metrics snapshot."""
-    await asyncio.sleep(5)  # start after boot
+    """Runs forever: sender ID expiry + inactivity + scheduled-campaign dispatch."""
+    await asyncio.sleep(5)
     while True:
         try:
-            # sender ID expiry → status=expired
             now = now_utc()
+            # 1. SCHEDULED CAMPAIGN DRAINER (runs every cycle)
+            cur = db.campaigns.find(
+                {"status": "scheduled", "schedule_at": {"$lte": iso(now)}},
+                {"_id": 0})
+            async for c in cur:
+                log.info(f"[scheduler] firing campaign {c['id']} ({c['name']})")
+                await db.campaigns.update_one({"id": c["id"]},
+                                                {"$set": {"status": "running"}})
+                asyncio.create_task(execute_campaign(c))
+
+            # 2. sender ID expiry → status=expired
             cur = db.sender_id_requests.find(
                 {"status": "approved", "expires_at": {"$lt": iso(now)}},
                 {"_id": 0})
@@ -1724,7 +1938,7 @@ async def background_loop():
                                                         {"$set": {"status": "expired"}})
                 await add_notification(s["user_id"], "Sender ID expired",
                                         f"{s['sender_id']} is expired. Renew to reuse.", "warning")
-            # inactivity
+            # 3. inactivity
             warn_days = int(await get_setting("credits.inactivity_warn_days", 30) or 0)
             susp_days = int(await get_setting("credits.inactivity_suspend_days", 60) or 0)
             warn_before = iso(now - timedelta(days=warn_days))
@@ -1754,13 +1968,186 @@ async def background_loop():
                                             f"Send something or your account will pause.", "warning")
         except Exception as e:
             log.exception(f"background_loop error: {e}")
-        await asyncio.sleep(3600)  # every hour
+        await asyncio.sleep(60)  # every minute (for scheduler responsiveness)
 
 
 api.include_router(credits_r)
 api.include_router(prefix_r)
 api.include_router(dlr_r)
 api.include_router(adm_r2)
+
+
+# ============================================================
+# REFERRALS (client-to-client)
+# ============================================================
+ref_r = APIRouter(prefix="/referrals", tags=["referrals"])
+
+
+@ref_r.get("/me")
+async def my_referral(user: dict = Depends(get_current_user)):
+    code = user.get("referral_code")
+    if not code:
+        code = "U" + secrets.token_hex(3).upper()
+        await db.users.update_one({"id": user["id"]},
+                                   {"$set": {"referral_code": code}})
+    # count referrals
+    n = await db.users.count_documents({"referred_by": user["id"]})
+    earned = int(user.get("referral_earned_credits", 0) or 0)
+    return {"code": code, "referred_count": n, "earned": earned,
+            "percent_of_pack": await get_setting("referral.percent_of_pack", 5),
+            "max_per_referral": await get_setting("referral.max_credits_per_referral", 500),
+            "active": await get_setting("referral.active", True)}
+
+
+# ============================================================
+# STREAK + PROFILE
+# ============================================================
+prof_r = APIRouter(prefix="/profile", tags=["profile"])
+
+
+class WebhookIn(BaseModel):
+    dlr_webhook_url: Optional[str] = ""
+    dlr_webhook_secret: Optional[str] = ""
+
+
+@prof_r.get("/streak")
+async def my_streak(user: dict = Depends(get_current_user)):
+    return {"streak": int(user.get("send_streak_days", 0) or 0),
+            "last_send_date": user.get("last_send_date"),
+            "bonuses": {
+                "7": await get_setting("streak.7_day_bonus", 100),
+                "30": await get_setting("streak.30_day_bonus", 1000),
+                "90": await get_setting("streak.90_day_bonus", 5000),
+            }}
+
+
+@prof_r.put("/webhook")
+async def set_webhook(body: WebhookIn, user: dict = Depends(get_current_user)):
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "dlr_webhook_url": body.dlr_webhook_url or None,
+        "dlr_webhook_secret": body.dlr_webhook_secret or None,
+    }})
+    return {"ok": True}
+
+
+@prof_r.get("/webhook")
+async def get_webhook(user: dict = Depends(get_current_user)):
+    return {"dlr_webhook_url": user.get("dlr_webhook_url") or "",
+            "dlr_webhook_secret": user.get("dlr_webhook_secret") or ""}
+
+
+# ============================================================
+# RESELLER MARKUP PRICING
+# ============================================================
+class ResellerMarkupIn(BaseModel):
+    country: str  # "*" for default
+    channel: str = "sms"
+    markup: float = Field(gt=0, le=10)
+    active: bool = True
+
+
+res_px_r = APIRouter(prefix="/reseller/pricing", tags=["reseller_pricing"])
+
+
+@res_px_r.get("")
+async def list_reseller_pricing(user: dict = Depends(require_roles("reseller"))):
+    items = await db.reseller_pricing.find({"reseller_id": user["id"]},
+                                            {"_id": 0}).to_list(500)
+    return items
+
+
+@res_px_r.post("")
+async def set_reseller_pricing(body: ResellerMarkupIn,
+                                user: dict = Depends(require_roles("reseller"))):
+    existing = await db.reseller_pricing.find_one({
+        "reseller_id": user["id"], "country": body.country, "channel": body.channel})
+    doc = {"reseller_id": user["id"], **body.model_dump(),
+           "updated_at": iso(now_utc())}
+    if existing:
+        await db.reseller_pricing.update_one({"id": existing["id"]}, {"$set": doc})
+        return {"ok": True, "id": existing["id"]}
+    doc["id"] = new_id()
+    doc["created_at"] = iso(now_utc())
+    await db.reseller_pricing.insert_one(doc)
+    return clean(doc)
+
+
+@res_px_r.delete("/{rid}")
+async def del_reseller_pricing(rid: str,
+                                 user: dict = Depends(require_roles("reseller"))):
+    await db.reseller_pricing.delete_one({"id": rid, "reseller_id": user["id"]})
+    return {"ok": True}
+
+
+# ============================================================
+# WHATSAPP TEMPLATES
+# ============================================================
+class WaTemplateIn(BaseModel):
+    name: str
+    body: str
+    category: str = "utility"  # utility | marketing | authentication
+    language: str = "en"
+
+
+class WaTemplateReviewIn(BaseModel):
+    status: str  # approved | rejected
+    note: Optional[str] = None
+
+
+wa_r = APIRouter(prefix="/wa-templates", tags=["wa_templates"])
+
+
+@wa_r.get("")
+async def list_wa(user: dict = Depends(get_current_user)):
+    return await db.wa_templates.find(
+        {"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@wa_r.post("")
+async def add_wa(body: WaTemplateIn, user: dict = Depends(get_current_user)):
+    doc = {"id": new_id(), "user_id": user["id"], **body.model_dump(),
+           "status": "pending", "created_at": iso(now_utc())}
+    await db.wa_templates.insert_one(doc)
+    admins = await db.users.find({"role": "super_admin"}, {"id": 1}).to_list(20)
+    for a in admins:
+        await add_notification(a["id"], "WhatsApp template submitted",
+                                f"{body.name} by {user['email']}", "info")
+    return clean(doc)
+
+
+@wa_r.delete("/{tid}")
+async def del_wa(tid: str, user: dict = Depends(get_current_user)):
+    await db.wa_templates.delete_one({"id": tid, "user_id": user["id"]})
+    return {"ok": True}
+
+
+@adm_r.get("/wa-templates")
+async def adm_wa(user: dict = Depends(require_roles("super_admin", "compliance"))):
+    return await db.wa_templates.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+
+@adm_r.post("/wa-templates/{tid}/review")
+async def adm_wa_review(tid: str, body: WaTemplateReviewIn,
+                         user: dict = Depends(require_roles("super_admin", "compliance"))):
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(400, "Invalid status")
+    rec = await db.wa_templates.find_one({"id": tid})
+    if not rec:
+        raise HTTPException(404)
+    await db.wa_templates.update_one({"id": tid}, {"$set": {
+        "status": body.status, "review_note": body.note,
+        "reviewed_by": user["id"], "reviewed_at": iso(now_utc())
+    }})
+    await add_notification(rec["user_id"], f"WhatsApp template {body.status}",
+                           f"{rec['name']} {body.status}.",
+                           "success" if body.status == "approved" else "warning")
+    return {"ok": True}
+
+
+api.include_router(ref_r)
+api.include_router(prof_r)
+api.include_router(res_px_r)
+api.include_router(wa_r)
 
 
 # ============================================================
@@ -1897,7 +2284,8 @@ async def startup():
     if await db.providers.count_documents({}) == 0:
         await db.providers.insert_many([
             {"id": new_id(), "name": "Tigo Tanzania (Direct)", "type": "direct_telco",
-             "countries": ["TZ"], "channels": ["sms"], "api_key": "", "api_secret": "",
+             "countries": ["TZ"], "operators": ["Tigo"],
+             "channels": ["sms"], "api_key": "", "api_secret": "",
              "base_url": "",  # fill with VPN endpoint when provided
              "cost_per_sms": 0.006, "priority": 1, "active": True,
              "supports_unicode": True, "supports_dlr": True,
@@ -1996,8 +2384,17 @@ async def startup():
         ("credits.inactivity_suspend_days", 60, "inactivity"),
         ("credits.inactivity_recovery_cost", 1000, "inactivity"),
         # queue
-        ("queue.max_concurrency", 50, "queue"),
+        ("queue.max_concurrency", 200, "queue"),
+        ("queue.batch_size", 1000, "queue"),
         ("queue.max_retries", 2, "queue"),
+        # Referrals — loss-proof (paid from pack revenue)
+        ("referral.active", True, "referrals"),
+        ("referral.percent_of_pack", 5, "referrals"),
+        ("referral.max_credits_per_referral", 500, "referrals"),
+        # Streak gamification
+        ("streak.7_day_bonus", 100, "streaks"),
+        ("streak.30_day_bonus", 1000, "streaks"),
+        ("streak.90_day_bonus", 5000, "streaks"),
     ]
     for k, v, cat in defaults:
         await db.system_settings.update_one(

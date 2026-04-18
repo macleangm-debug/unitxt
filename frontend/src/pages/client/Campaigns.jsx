@@ -11,7 +11,7 @@ export default function Campaigns() {
       <Table testid="campaigns-table" rows={items} columns={[
         { key: "name", label: "Name", render: r => <div><div className="font-medium">{r.name}</div><div className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">{r.kind} · {r.channel}</div></div> },
         { key: "total", label: "Recipients", mono: true, render: r => r.total },
-        { key: "delivered", label: "Delivered", mono: true, render: r => `${r.delivered}/${r.sent}` },
+        { key: "delivered", label: "Delivered", mono: true, render: r => `${r.delivered}/${r.sent}` + (r.status==="running"?` · ${r.progress_pct||0}%`:"") },
         { key: "total_cost", label: "Credits", mono: true, render: r => creditsShort(r.total_cost) },
         { key: "status", label: "Status", render: r => <Pill status={r.status}/> },
         { key: "created_at", label: "Created", mono: true, render: r => shortDate(r.created_at) },

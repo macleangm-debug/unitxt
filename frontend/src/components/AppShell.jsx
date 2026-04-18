@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Send, Upload, Calendar, Users, Tag, FileText, Wallet as WalletIcon,
   BarChart3, Key, LogOut, Bell, Search, Globe2, Building2, DollarSign, ShieldCheck,
   ListChecks, Megaphone, Receipt, History, Settings, Network, IdCard, UserCog,
-  Coins, Smartphone, TrendingUp,
+  Coins, Smartphone, TrendingUp, Gift, MessageCircle, Webhook,
 } from "lucide-react";
 
 const CLIENT_NAV = [
@@ -16,15 +16,20 @@ const CLIENT_NAV = [
   { to: "/client/campaigns", icon: Calendar, label: "Campaigns" },
   { to: "/client/contacts", icon: Users, label: "Contacts" },
   { to: "/client/sender-ids", icon: IdCard, label: "Sender IDs" },
-  { to: "/client/templates", icon: FileText, label: "Templates" },
+  { to: "/client/whatsapp", icon: MessageCircle, label: "WhatsApp" },
+  { to: "/client/templates", icon: FileText, label: "SMS templates" },
   { to: "/client/wallet", icon: Coins, label: "Credits" },
+  { to: "/client/referrals", icon: Gift, label: "Referrals" },
   { to: "/client/reports", icon: BarChart3, label: "Reports" },
   { to: "/client/api-keys", icon: Key, label: "API keys" },
+  { to: "/client/webhooks", icon: Webhook, label: "Webhooks" },
 ];
 const RESELLER_NAV = [
   { to: "/reseller/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/reseller/clients", icon: Users, label: "Clients" },
+  { to: "/reseller/pricing", icon: DollarSign, label: "Client pricing" },
   { to: "/reseller/earnings", icon: DollarSign, label: "Earnings" },
+  { to: "/reseller/referrals", icon: Gift, label: "Referrals" },
   { to: "/reseller/wallet", icon: Coins, label: "Float credits" },
   { to: "/reseller/quick-send", icon: Send, label: "Quick send" },
   { to: "/reseller/bulk-send", icon: Upload, label: "Bulk send" },
@@ -48,6 +53,7 @@ const ADMIN_NAV = [
   { to: "/admin/campaigns", icon: Calendar, label: "Campaigns" },
   { to: "/admin/institutions", icon: Building2, label: "Institutions" },
   { to: "/admin/promotions", icon: Megaphone, label: "Promotions" },
+  { to: "/admin/whatsapp", icon: MessageCircle, label: "WhatsApp approvals" },
   { to: "/admin/audit", icon: History, label: "Audit logs" },
   { to: "/admin/settings", icon: Settings, label: "Settings hub" },
 ];

@@ -25,6 +25,11 @@ import ResellerEarnings from "@/pages/reseller/ResellerEarnings";
 import AdminCreditPacks from "@/pages/admin/AdminCreditPacks";
 import AdminMobilePrefixes from "@/pages/admin/AdminMobilePrefixes";
 import AdminMargin from "@/pages/admin/AdminMargin";
+import AdminWhatsApp from "@/pages/admin/AdminWhatsApp";
+import Referrals from "@/pages/client/Referrals";
+import WhatsAppTemplates from "@/pages/client/WhatsAppTemplates";
+import WebhookSettings from "@/pages/client/WebhookSettings";
+import ResellerPricing from "@/pages/reseller/ResellerPricing";
 
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminUsers from "@/pages/admin/AdminUsers";
@@ -97,6 +102,9 @@ export default function App() {
             <Route path="wallet" element={<Wallet />} />
             <Route path="reports" element={<Reports />} />
             <Route path="api-keys" element={<ApiKeys />} />
+            <Route path="referrals" element={<Referrals />} />
+            <Route path="whatsapp" element={<WhatsAppTemplates />} />
+            <Route path="webhooks" element={<WebhookSettings />} />
           </Route>
 
           {/* Reseller */}
@@ -111,6 +119,8 @@ export default function App() {
             <Route path="sender-ids" element={<SenderIds />} />
             <Route path="contacts" element={<Contacts />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="pricing" element={<ResellerPricing />} />
+            <Route path="referrals" element={<Referrals />} />
           </Route>
 
           {/* Admin */}
@@ -131,6 +141,7 @@ export default function App() {
             <Route path="credit-packs" element={<AdminCreditPacks />} />
             <Route path="prefixes" element={<AdminMobilePrefixes />} />
             <Route path="margin" element={<AdminMargin />} />
+            <Route path="whatsapp" element={<AdminWhatsApp />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

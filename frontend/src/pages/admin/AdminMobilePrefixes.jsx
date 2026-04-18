@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import http, { fmtErr } from "@/lib/api";
 import { PageHeader, Card, Field, Input, Select, Btn, Table, Pill, Modal } from "@/components/UI";
 import { Plus, Trash2, Upload, Search } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const empty = { country:"TZ", operator:"", prefix:"+255", active:true };
 
@@ -49,8 +50,20 @@ export default function AdminMobilePrefixes() {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setCsv(String(reader.result));
-    reader.readAsText(f);
+    reader.onload = () => {
+      const data = reader.result;
+      // XLSX auto-detects file type (csv, xlsx, xls)
+      try {
+        const wb = XLSX.read(data, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const csvOut = XLSX.utils.sheet_to_csv(ws);
+        setCsv(csvOut);
+      } catch {
+        // fallback: treat as text
+        setCsv(String(data));
+      }
+    };
+    reader.readAsBinaryString(f);
   };
 
   const doLookup = async () => {
@@ -130,8 +143,8 @@ export default function AdminMobilePrefixes() {
       <Modal open={importOpen} onClose={()=>setImportOpen(false)} title="Import prefixes (CSV)">
         <div className="space-y-3">
           <label className="inline-flex items-center gap-2 cursor-pointer border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-600">
-            <Upload className="h-3.5 w-3.5"/> Upload .csv
-            <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile} className="hidden" data-testid="import-file"/>
+            <Upload className="h-3.5 w-3.5"/> Upload .csv / .xlsx / .xls
+            <input type="file" accept=".csv,.xlsx,.xls,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={onFile} className="hidden" data-testid="import-file"/>
           </label>
           <div className="text-xs text-zinc-500">Columns (header row required): <code className="font-mono text-zinc-300">country,operator,prefix</code></div>
           <textarea value={csv} onChange={(e)=>setCsv(e.target.value)} className="min-h-[180px] w-full border border-zinc-800 bg-transparent p-3 font-mono text-xs text-white outline-none focus:border-white" data-testid="import-textarea"/>
