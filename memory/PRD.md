@@ -1,88 +1,77 @@
 # unitxt — Product Requirements Document
 
-**Last updated**: 2026-04-17
-**Version**: 1.0 (MVP live)
+**Last updated**: 2026-04-18
+**Version**: 1.1 (Credits OS + routing intelligence)
 
 ## Vision
-A configurable global bulk SMS + WhatsApp operating system. Multi-tenant, multi-country, multi-provider. Most platform behaviour is driven from a central Settings Hub — not hardcoded. Three portals (Client, Reseller, Admin) share a pluggable routing engine, wallet/billing layer, and notification spine.
+A configurable global bulk SMS + WhatsApp operating system. Multi-tenant, multi-country, multi-provider. Platform behaviour driven from a central Settings Hub. Three portals share a pluggable routing engine, **credits-based billing**, and notification spine.
 
-## Original problem statement
-The user specified:
-- Multi-role: Super Admin, Country Admin, Reseller, Client, Staff/Support/Finance/Compliance
-- Settings Hub with Global, Country, Provider, Pricing, Wallet, Sender ID, Institution, Notification, Compliance, Promotion settings
-- Routing engine (country → provider priority, failover)
-- Wallet, billing, pricing engine
-- Messaging engine (quick/bulk/scheduled/personalized)
-- Institution integrations (banks, mobile money, fintechs, CRMs)
-- Provider adapter pattern (local TZ telco + Twilio + Infobip etc.)
-- "World-class" UI, notification bell, configurable promotions
-- Settings Hub should feel "exquisite"
+## What's implemented
 
-## Personas
-1. **Super Admin** — platform owner. Configures countries, providers, pricing, settings. Approves sender IDs. Sees KPIs.
-2. **Reseller** — white-label operator. Funds clients, earns margin.
-3. **Client** — end business. Sends SMS/WhatsApp campaigns.
-4. **Staff/Support/Finance/Compliance** — scoped admin roles (role exists; specific UIs can be added).
+### v1.0 — 2026-04-17 (first ship)
+- Three portals (Client, Reseller, Admin) with premium dark UI
+- JWT auth + RBAC (7 role types)
+- Messaging engine (quick send, bulk with merge tags, scheduled, campaign tracking)
+- Pluggable provider adapters (Mock + Twilio stub)
+- Wallet, transfers, promo codes (USD-based)
+- Sender ID request/approve workflow
+- 12 admin pages incl. Settings Hub (11 categories)
+- 12 countries, 3 providers, 3 pricing plans seeded
+- 100% backend / 98% frontend tests passing
 
-## Architecture
-- **Backend**: FastAPI (one `server.py`), MongoDB (UUID ids), JWT auth with httpOnly cookies + Bearer fallback, RBAC via `require_roles` dependency, pluggable `ProviderAdapter` (MockAdapter + TwilioAdapter stub), async campaign execution via `asyncio.create_task`.
-- **Frontend**: React + react-router-dom v7, TailwindCSS + shadcn/ui primitives, recharts for charts, sonner for toasts. Custom dark "command-center" design per `/app/design_guidelines.json` (Manrope + IBM Plex Sans + JetBrains Mono; obsidian palette with signal colors).
-- **Design**: dark, high-contrast Swiss grid. Tracing-beam active sidebar. Sharp bordered cards (no heavy shadows). Mono for all numbers.
+### v1.1 — 2026-04-18 (credits & intelligence)
+- **Credits economy** — wallet balance is integer credits, not USD. TZ=1cr, KE=2cr, US=5cr, WhatsApp=3cr, sender ID creation=500cr, renewal=500cr. All configurable in Settings Hub → Credits.
+- **Credit packs** — 4 seeded retail tiers (Starter 1k/$15, Growth 10k/$120, Scale 100k/$1k, Enterprise 1M/$8.5k). Client can buy any pack. Admin manages full catalog.
+- **Mobile prefixes** — 65 auto-seeded prefixes across 14 African + global countries (TZ: Vodacom, Tigo, Airtel, Halotel, TTCL, Zantel; KE: Safaricom, Airtel, Telkom; UG, RW, ZM, GH, NG, ZA, SN, CI, ET, EG, MA + US/UK/IN/AE). Admin UI: list, filter, lookup, add, bulk CSV import.
+- **Tigo Tanzania adapter** — structured stub ready for VPN credentials. Seeded as priority-1 provider for TZ.
+- **Conversational Quick Send** — 4-step wizard ("Hi {name} — let's send something.", "Who are we reaching?", etc.) with name personalization and success celebration screen.
+- **Delivery-status lifecycle** — messages move through queued→sent→delivered/failed via adapter. DLR webhook at `POST /api/dlr/{provider_id}` updates statuses asynchronously.
+- **Queue engine** — per-provider concurrency (default 50) via asyncio Semaphore, up to 2 retries with backoff, per-message USD cost tracking into `platform_revenue_log`.
+- **Margin & revenue report** — Admin → Margin page shows revenue (pack USD) vs provider cost vs margin %, with daily line chart and by-country / by-provider breakdowns.
+- **Inactivity policy** — background loop flags users inactive after 60 days (warn at 30). Inactive users pay 1,000 credits via `/api/credits/recover` to restore access. All thresholds in Settings Hub → Inactivity policy.
+- **Sender ID expiry** — default 365 days. Background loop flags expired. `POST /api/sender-ids/{id}/renew` charges 500 credits.
+- **Admin credit packs CRUD** at `/admin/credit-packs`.
+- 41/41 new backend tests pass.
 
-## What's implemented (v1.0 — 2026-04-17)
-### Backend (100% backend tests pass)
-- Auth: register / login / logout / me / refresh / forgot / reset. Bcrypt, JWT, brute-force lockout, httpOnly cookies, seeded admin + demo reseller + demo client.
-- Wallet: balance, transactions, top-up (MOCKED — applies promo codes WELCOME10 / BONUS25).
-- Messaging: quick-send, bulk-send (with merge tags), campaigns list + detail, messages list, stats aggregation. Routing engine picks highest-priority active provider per country+channel. Segment counting. Async execution.
-- Provider adapter: MockAdapter (95% delivery), TwilioAdapter (stub, returns failure without creds).
-- Contacts (CRUD + import), Templates (CRUD), Sender ID requests (submit + admin review), API keys.
-- Reseller: list clients with wallet balance, transfer credits, earnings, referral code.
-- Admin: overview KPIs, users CRUD + credit, sender ID approval, countries CRUD, providers CRUD, pricing CRUD, institutions CRUD, promotions CRUD, settings key/value upsert, audit logs, wallets list, campaigns list.
-- Notifications: list + mark read. Auto-created for signups, transfers, SID reviews, topups, campaign completions, etc.
-- Seed: 12 countries, 3 providers (TZ Direct, Twilio, Infobip), 3 pricing plans, 2 promotions, 2 institutions, 1 approved sender ID, 10 default settings keys.
+## Architecture notes
+- **Backend**: one `server.py` (~2.1kLOC), FastAPI, MongoDB. Routers: auth, wallet, credits, contacts, sender_ids, templates, messaging, reseller, admin, notifications, api_keys, prefixes, dlr, admin (credit packs + margin).
+- **Frontend**: React + react-router v7 + Tailwind + shadcn/ui + recharts + sonner. Custom dark aesthetic (Manrope + IBM Plex Sans + JetBrains Mono).
+- **Provider pattern**: `ProviderAdapter.send()` → MockAdapter | TwilioAdapter | TigoTZAdapter.
+- **Routing**: `pick_provider(country, channel)` returns highest-priority active provider. Next step: operator-aware routing using mobile prefixes.
 
-### Frontend (98% frontend tests pass)
-- Landing page (hero, portal cards, features, CTA).
-- Login / Register with demo account fill.
-- AppShell with role-aware sidebar (tracing-beam active), topbar with wallet display + notification bell + user menu.
-- **Client portal (10 pages)**: Dashboard, Quick Send, Bulk Send, Campaigns, Contacts, Sender IDs, Templates, Wallet, Reports (bar + pie charts), API Keys.
-- **Reseller portal**: Dashboard, Clients (transfer modal), Earnings + reuses client pages for sending.
-- **Admin portal (13 pages)**: Overview, Users, Providers, **Routing engine** visualization, Countries, Pricing, Sender IDs queue, Wallets, Campaigns, Institutions, Promotions, Audit logs, **Settings Hub**.
-- **Settings Hub**: left rail of 11 categories (Platform, Onboarding, Compliance, Notifications, Providers, Countries, Pricing, Wallets, Sender IDs, Institutions, Promotions). Auto-renders editors based on value type. Each module category links out to its dedicated workspace.
-- Notification bell with pulsing badge, dropdown, tabs-style unread count.
-
-## Core requirements (static)
-- Configurable country onboarding (no code changes)
-- Pluggable provider adapter
-- Multi-role auth + RBAC
-- Pluggable promotion engine
-- Wallet-based billing with reseller float
-- Sender ID approval workflow
-- Settings-driven behaviour
+## What's still mocked
+- **SMS send** goes through MockAdapter unless provider.name contains "twilio" or "tigo". Real Twilio/Tigo calls are stubs until credentials provided.
+- **Pack purchase** credits the wallet directly (no Stripe Checkout yet).
 
 ## Prioritized backlog
-### P0 (next)
-- Real Twilio credentials wiring (user to provide) — right now adapter is stub
-- Real Stripe wallet top-up (currently mocked) — will need user to pick flow (Stripe Checkout recommended)
-- Scheduled campaign background worker (currently schedule_at is stored but no cron — campaigns only run if `schedule_at` is falsy)
+### P0 — unlock go-live
+- Real Twilio REST integration (when user provides Account SID + Auth Token)
+- Real Tigo TZ VPN integration (when user shares docs)
+- Stripe Checkout for pack purchase (webhook credits wallet)
+- Scheduled campaign worker (drain `schedule_at <= now` every minute)
 
-### P1
-- Institution linking flow (users link their CRM / bank via the institution config)
-- Country Admin scoped views
+### P1 — depth
+- Operator-aware routing (use mobile prefixes to choose provider per operator)
+- Excel import for prefixes (today: CSV)
 - Reseller "set client pricing" UI
-- CSV bulk import preview with column mapping wizard
+- Bulk send CSV column-mapping wizard
 - Opt-out / DND list handling
-- Rate limiting per client per day per country
+- WhatsApp template (HSM) approval workflow
+- Webhook delivery reports pushed to client-configured URLs
+- Country Admin scoped views
 
-### P2
-- Smart routing optimization (quality-aware)
+### P2 — frontier
 - AI fraud detection
-- Omnichannel expansion (WhatsApp templates, voice, email)
-- Webhook callbacks for delivery reports to client systems
-- Multi-currency wallets + FX
+- Omnichannel voice + email
+- Quality-aware smart routing
+- Multi-currency pack purchasing + FX
 
 ## Next tasks
-1. Ask user for Twilio credentials and Stripe go-live decision.
-2. Wire Scheduled-campaign worker (APScheduler or asyncio periodic task).
-3. Add "Set client pricing" UI in reseller portal.
-4. Harden: rate limiting, spam keyword check on messages, retention cleanup on old campaigns.
+1. User to share Tigo TZ VPN docs → wire real adapter body.
+2. User to provide Twilio credentials → wire Twilio REST.
+3. Build Stripe Checkout flow for pack purchases.
+4. Add scheduled campaign background worker.
+5. Add operator-aware routing (use `phone_to_operator` inside `pick_provider`).
+
+## Test credentials
+See `/app/memory/test_credentials.md` — demo reseller has 500,000 credits, demo client has ~129k after self-tests.
