@@ -1,77 +1,53 @@
-# unitxt — Product Requirements Document
+# unitxt — PRD
 
-**Last updated**: 2026-04-18
-**Version**: 1.1 (Credits OS + routing intelligence)
+**Last updated**: 2026-04-18 (iteration 4)
+**Version**: 1.2 (Scale engine + distribution economics)
 
-## Vision
-A configurable global bulk SMS + WhatsApp operating system. Multi-tenant, multi-country, multi-provider. Platform behaviour driven from a central Settings Hub. Three portals share a pluggable routing engine, **credits-based billing**, and notification spine.
+## Implemented so far (cumulative)
+### v1.0 (first ship)
+- Three portals (Client, Reseller, Admin), JWT+RBAC, messaging engine (quick/bulk/scheduled), pluggable providers, wallets, promos, sender IDs, Settings Hub basics, 12 admin pages.
 
-## What's implemented
+### v1.1 (credits economy)
+- Credits-based wallet everywhere (TZ=1, KE=2, US=5, WhatsApp=3, sender ID=500, renewal=500, expiry=365d). 4 credit packs (Starter/Growth/Scale/Enterprise). Tigo TZ adapter (stub). Conversational 4-step Quick Send wizard. DLR webhook. Queue w/ concurrency. Margin & revenue report. Inactivity policy. 65 seeded African+global mobile prefixes with lookup.
 
-### v1.0 — 2026-04-17 (first ship)
-- Three portals (Client, Reseller, Admin) with premium dark UI
-- JWT auth + RBAC (7 role types)
-- Messaging engine (quick send, bulk with merge tags, scheduled, campaign tracking)
-- Pluggable provider adapters (Mock + Twilio stub)
-- Wallet, transfers, promo codes (USD-based)
-- Sender ID request/approve workflow
-- 12 admin pages incl. Settings Hub (11 categories)
-- 12 countries, 3 providers, 3 pricing plans seeded
-- 100% backend / 98% frontend tests passing
+### v1.2 (scale + distribution) — **this iteration**
+- **Smart batching queue**: processes 100k-200k recipients per campaign. Batches of 1,000 (configurable), per-provider semaphore (default 200 concurrent), credit reservation upfront with auto-refund of unused, `insert_many` bulk writes, progress_pct live-updated every batch. **Locally tested: 10,000 recipients delivered in 21 seconds, 100% delivery.**
+- **Scheduled-campaign worker**: `background_loop` drains campaigns where `schedule_at <= now` every 60 seconds. Verified.
+- **Client referrals (loss-proof)**: each user has a unique referral_code; new users register with it; when they *buy a pack*, the referrer is automatically credited **5% of pack credits capped at 500** (configurable). Rewards come from pack revenue, never the referrer's balance. Full audit in `referral_earnings`.
+- **Send streak gamification**: auto-bumps on campaign completion. Milestones pay **+100 / +1,000 / +5,000** credits at 7/30/90 days, idempotent via `streak_awards`. Flame icon widget on client dashboard.
+- **Operator-aware routing**: `pick_provider_for(country, channel, operator)` uses the existing `mobile_prefixes` to detect operator per recipient; Tigo provider is seeded with `operators=["Tigo"]` so TZ/71/65/67 numbers hit Tigo direct.
+- **Reseller markup pricing**: Reseller → Client pricing page. Multiplier per country+channel (default/wildcard `*` supported). Clients charged `base × markup`; markup delta credited to reseller's wallet on every send.
+- **WhatsApp template workflow**: Client submits HSM template → admin approves/rejects → client notified. Ready to be wired to Meta/Twilio template APIs later.
+- **DLR webhook push to client systems**: user configures `dlr_webhook_url` + `dlr_webhook_secret`; engine fires-and-forgets JSON POST to client URL per message update. Webhook settings page in client portal.
+- **Excel import for mobile prefixes**: frontend now accepts `.csv`, `.xlsx`, `.xls` via SheetJS, converts to CSV, feeds existing import endpoint.
+- **134/134 backend tests pass** (43 new + 91 prior).
 
-### v1.1 — 2026-04-18 (credits & intelligence)
-- **Credits economy** — wallet balance is integer credits, not USD. TZ=1cr, KE=2cr, US=5cr, WhatsApp=3cr, sender ID creation=500cr, renewal=500cr. All configurable in Settings Hub → Credits.
-- **Credit packs** — 4 seeded retail tiers (Starter 1k/$15, Growth 10k/$120, Scale 100k/$1k, Enterprise 1M/$8.5k). Client can buy any pack. Admin manages full catalog.
-- **Mobile prefixes** — 65 auto-seeded prefixes across 14 African + global countries (TZ: Vodacom, Tigo, Airtel, Halotel, TTCL, Zantel; KE: Safaricom, Airtel, Telkom; UG, RW, ZM, GH, NG, ZA, SN, CI, ET, EG, MA + US/UK/IN/AE). Admin UI: list, filter, lookup, add, bulk CSV import.
-- **Tigo Tanzania adapter** — structured stub ready for VPN credentials. Seeded as priority-1 provider for TZ.
-- **Conversational Quick Send** — 4-step wizard ("Hi {name} — let's send something.", "Who are we reaching?", etc.) with name personalization and success celebration screen.
-- **Delivery-status lifecycle** — messages move through queued→sent→delivered/failed via adapter. DLR webhook at `POST /api/dlr/{provider_id}` updates statuses asynchronously.
-- **Queue engine** — per-provider concurrency (default 50) via asyncio Semaphore, up to 2 retries with backoff, per-message USD cost tracking into `platform_revenue_log`.
-- **Margin & revenue report** — Admin → Margin page shows revenue (pack USD) vs provider cost vs margin %, with daily line chart and by-country / by-provider breakdowns.
-- **Inactivity policy** — background loop flags users inactive after 60 days (warn at 30). Inactive users pay 1,000 credits via `/api/credits/recover` to restore access. All thresholds in Settings Hub → Inactivity policy.
-- **Sender ID expiry** — default 365 days. Background loop flags expired. `POST /api/sender-ids/{id}/renew` charges 500 credits.
-- **Admin credit packs CRUD** at `/admin/credit-packs`.
-- 41/41 new backend tests pass.
+## What's still mocked / pending user input
+- **Tigo TZ VPN call body** — stub ready; user to share docs.
+- **Twilio real REST** — stub ready; user to provide Account SID + Auth Token.
+- **Stripe Checkout** — pack purchase credits wallet directly; user to confirm checkout style.
 
-## Architecture notes
-- **Backend**: one `server.py` (~2.1kLOC), FastAPI, MongoDB. Routers: auth, wallet, credits, contacts, sender_ids, templates, messaging, reseller, admin, notifications, api_keys, prefixes, dlr, admin (credit packs + margin).
-- **Frontend**: React + react-router v7 + Tailwind + shadcn/ui + recharts + sonner. Custom dark aesthetic (Manrope + IBM Plex Sans + JetBrains Mono).
-- **Provider pattern**: `ProviderAdapter.send()` → MockAdapter | TwilioAdapter | TigoTZAdapter.
-- **Routing**: `pick_provider(country, channel)` returns highest-priority active provider. Next step: operator-aware routing using mobile prefixes.
+## Backlog
+### P0
+- Real Twilio + Tigo wiring (credentials pending)
+- Real Stripe Checkout (credentials available; needs wiring session)
+- WhatsApp send channel using approved templates (today WhatsApp sends go through mock; once approved templates flow to Twilio WA Business, use those)
 
-## What's still mocked
-- **SMS send** goes through MockAdapter unless provider.name contains "twilio" or "tigo". Real Twilio/Tigo calls are stubs until credentials provided.
-- **Pack purchase** credits the wallet directly (no Stripe Checkout yet).
-
-## Prioritized backlog
-### P0 — unlock go-live
-- Real Twilio REST integration (when user provides Account SID + Auth Token)
-- Real Tigo TZ VPN integration (when user shares docs)
-- Stripe Checkout for pack purchase (webhook credits wallet)
-- Scheduled campaign worker (drain `schedule_at <= now` every minute)
-
-### P1 — depth
-- Operator-aware routing (use mobile prefixes to choose provider per operator)
-- Excel import for prefixes (today: CSV)
-- Reseller "set client pricing" UI
-- Bulk send CSV column-mapping wizard
-- Opt-out / DND list handling
-- WhatsApp template (HSM) approval workflow
-- Webhook delivery reports pushed to client-configured URLs
+### P1
 - Country Admin scoped views
+- CSV column-mapping wizard in Bulk send
+- Opt-out / DND list
+- Spam-keyword guard on message body (setting already exists)
+- Daily send limit enforcement per client (setting exists)
 
-### P2 — frontier
+### P2
 - AI fraud detection
-- Omnichannel voice + email
-- Quality-aware smart routing
+- Voice + email channels
+- Quality-aware smart routing (delivery-rate feedback loop)
 - Multi-currency pack purchasing + FX
 
-## Next tasks
-1. User to share Tigo TZ VPN docs → wire real adapter body.
-2. User to provide Twilio credentials → wire Twilio REST.
-3. Build Stripe Checkout flow for pack purchases.
-4. Add scheduled campaign background worker.
-5. Add operator-aware routing (use `phone_to_operator` inside `pick_provider`).
+## Settings Hub categories (now 16)
+platform, credits, referrals, streaks, inactivity, queue, onboarding, compliance, notifications, providers (→ page), countries (→ page), pricing (→ page), wallets (→ page), sender_ids (→ page), institutions (→ page), promotions (→ page)
 
 ## Test credentials
-See `/app/memory/test_credentials.md` — demo reseller has 500,000 credits, demo client has ~129k after self-tests.
+See `/app/memory/test_credentials.md`. Demo reseller has 500k credits, demo client has active sender ID + many credits from tests.
