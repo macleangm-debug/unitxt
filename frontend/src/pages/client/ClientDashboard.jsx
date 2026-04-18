@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import http, { money, num, shortDate } from "@/lib/api";
+import http, { creditsShort, num, shortDate } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Stat, Card, Pill, Btn } from "@/components/UI";
-import { Send, Upload, Wallet as WalletIcon, ArrowUpRight, MessageSquare } from "lucide-react";
+import { Send, Upload, Coins, ArrowUpRight, MessageSquare, Sparkles } from "lucide-react";
 
 export default function ClientDashboard() {
   const { user, wallet } = useAuth();
@@ -17,17 +17,18 @@ export default function ClientDashboard() {
           http.get("/messaging/stats"),
           http.get("/messaging/campaigns?limit=5"),
         ]);
-        setStats(s.data);
-        setCampaigns(c.data);
+        setStats(s.data); setCampaigns(c.data);
       } catch { /* noop */ }
     })();
   }, []);
+
+  const firstName = user?.name?.split(" ")[0] || "friend";
 
   return (
     <div>
       <PageHeader
         overline={`Workspace · ${user?.business_name || user?.name}`}
-        title={`Hello, ${user?.name?.split(" ")[0] || "friend"}.`}
+        title={`Hello, ${firstName}.`}
         desc="Your dispatch console. Quick send, bulk send, or schedule what comes next."
         testid="client-dashboard-header"
         actions={
@@ -39,7 +40,7 @@ export default function ClientDashboard() {
       />
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="Wallet balance" value={money(wallet?.balance)} sub={wallet?.currency} accent="green" testid="stat-wallet"/>
+        <Stat label="Credits" value={creditsShort(wallet?.balance)} sub="available to send" accent="green" testid="stat-credits"/>
         <Stat label="Messages sent" value={num(stats?.total_messages || 0)} testid="stat-msgs"/>
         <Stat label="Delivery rate" value={`${stats?.delivery_rate || 0}%`} sub={`${num(stats?.delivered || 0)} delivered`} accent="green" testid="stat-rate"/>
         <Stat label="Failed" value={num(stats?.failed || 0)} accent={stats?.failed ? "red" : "white"} testid="stat-failed"/>
@@ -52,7 +53,11 @@ export default function ClientDashboard() {
             <Link to="/client/campaigns" className="text-xs text-zinc-400 hover:text-white">View all →</Link>
           </div>
           <div className="mt-4 divide-y divide-zinc-900">
-            {campaigns.length === 0 && <div className="py-10 text-center text-sm text-zinc-500">No campaigns yet. Send your first message →</div>}
+            {campaigns.length === 0 && (
+              <div className="py-10 text-center text-sm text-zinc-500">
+                Ready when you are, {firstName}. Send your first message →
+              </div>
+            )}
             {campaigns.map((c) => (
               <div key={c.id} className="flex items-center justify-between py-3" data-testid={`campaign-row-${c.id}`}>
                 <div>
@@ -63,6 +68,7 @@ export default function ClientDashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="font-mono text-xs text-zinc-400">{c.delivered}/{c.sent}</div>
+                  <div className="font-mono text-[11px] text-emerald-400">{creditsShort(c.total_cost)} cr</div>
                   <Pill status={c.status} />
                 </div>
               </div>
@@ -71,19 +77,22 @@ export default function ClientDashboard() {
         </Card>
 
         <Card testid="quick-tip">
-          <div className="label-overline">Pro tip</div>
-          <h3 className="mt-3 font-display text-xl font-semibold tracking-tight">Top up & save 10% with WELCOME10</h3>
-          <p className="mt-2 text-sm text-zinc-500">Apply the promo code at top-up to claim a 10% bonus on $50+. Or unlock $25 free credit with BONUS25 on $200.</p>
+          <div className="label-overline">Buy credits</div>
+          <h3 className="mt-3 font-display text-xl font-semibold tracking-tight">Pick a pack, hit send.</h3>
+          <p className="mt-2 text-sm text-zinc-500">Starter (1,000 cr · $15) for quick tests. Growth (10,000 cr · $120) for most teams. Use <span className="font-mono text-zinc-300">WELCOME10</span> at checkout.</p>
           <Link to="/client/wallet" className="mt-4 inline-flex items-center gap-2 text-sm text-white underline-offset-4 hover:underline" data-testid="goto-wallet">
-            <WalletIcon className="h-4 w-4"/> Open wallet <ArrowUpRight className="h-3.5 w-3.5"/>
+            <Coins className="h-4 w-4"/> Buy credits <ArrowUpRight className="h-3.5 w-3.5"/>
           </Link>
           <div className="mt-6 border-t border-zinc-900 pt-4">
-            <div className="label-overline">Channels available</div>
+            <div className="label-overline">Channels</div>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="pill pill-blue"><MessageSquare className="h-3 w-3"/> SMS</span>
               <span className="pill pill-green"><MessageSquare className="h-3 w-3"/> WhatsApp</span>
             </div>
           </div>
+          <Link to="/client/quick-send" className="mt-6 inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300">
+            <Sparkles className="h-3.5 w-3.5"/> Try the conversational composer
+          </Link>
         </Card>
       </div>
     </div>

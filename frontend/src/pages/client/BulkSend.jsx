@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import http, { fmtErr } from "@/lib/api";
+import http, { fmtErr, creditsShort } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Card, Field, Input, TextArea, Select, Btn, Pill } from "@/components/UI";
 import { Upload, FileSpreadsheet } from "lucide-react";
 
 export default function BulkSend() {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [channel, setChannel] = useState("sms");
   const [senderId, setSenderId] = useState("");
@@ -12,15 +14,21 @@ export default function BulkSend() {
   const [template, setTemplate] = useState("Hi {name}, this is a personalized bulk message from us.");
   const [scheduleAt, setScheduleAt] = useState("");
   const [sids, setSids] = useState([]);
+  const [rates, setRates] = useState(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    http.get("/sender-ids").then(({data}) => {
-      const approved = data.filter(s => s.status === "approved");
+    Promise.all([http.get("/sender-ids"), http.get("/credits/rates")]).then(([s,r]) => {
+      const approved = s.data.filter(x => x.status === "approved");
       setSids(approved);
       if (approved[0]) setSenderId(approved[0].sender_id);
+      setRates(r.data);
     }).catch(() => {});
   }, []);
+
+  const rate = (!rates) ? 1
+    : channel === "whatsapp" ? (rates.whatsapp_rate || 3)
+    : (rates.country_rate?.[user?.country] || rates.default_rate || 2);
 
   const parseCsv = () => {
     const lines = csv.trim().split(/\n/);
@@ -34,6 +42,8 @@ export default function BulkSend() {
     }).filter(r => r.phone);
   };
   const recipients = parseCsv();
+  const segs = Math.max(1, Math.ceil(template.length/153));
+  const totalCredits = rate * segs * recipients.length;
 
   const onFile = (e) => {
     const f = e.target.files?.[0];
@@ -51,11 +61,10 @@ export default function BulkSend() {
     setBusy(true);
     try {
       const { data } = await http.post("/messaging/bulk-send", {
-        name, channel, sender_id: senderId,
-        recipients, template,
+        name, channel, sender_id: senderId, recipients, template,
         schedule_at: scheduleAt || null,
       });
-      toast.success(`Campaign queued · est. cost $${data.estimated_cost.toFixed(4)}`);
+      toast.success(`Campaign queued · ${data.estimated_credits} credits`);
       setName("");
     } catch (err) {
       toast.error(fmtErr(err.response?.data?.detail) || err.message);
@@ -72,7 +81,6 @@ export default function BulkSend() {
             <Field label="Campaign name">
               <Input value={name} onChange={(e)=>setName(e.target.value)} placeholder="January Reminders" data-testid="bulk-name"/>
             </Field>
-
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Channel">
                 <div className="grid grid-cols-2 gap-2">
@@ -90,8 +98,7 @@ export default function BulkSend() {
                 </Select>
               </Field>
             </div>
-
-            <Field label="CSV data" hint="First row = column headers. Must include phone column. Other columns can be merge tags.">
+            <Field label="CSV data" hint="First row = headers. Must include phone. Other columns become {merge tags}.">
               <div className="mb-2 flex items-center gap-2">
                 <label className="inline-flex items-center gap-2 cursor-pointer border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-600">
                   <FileSpreadsheet className="h-3.5 w-3.5"/> Upload .csv
@@ -101,11 +108,9 @@ export default function BulkSend() {
               </div>
               <TextArea value={csv} onChange={(e)=>setCsv(e.target.value)} className="min-h-[160px] font-mono text-xs" data-testid="bulk-csv"/>
             </Field>
-
-            <Field label="Template" hint="Use {column_name} as merge tag. Available: phone, name, …">
+            <Field label="Template" hint="Use {column_name} as merge tag.">
               <TextArea value={template} onChange={(e)=>setTemplate(e.target.value)} data-testid="bulk-template"/>
             </Field>
-
             <Field label="Schedule (optional)">
               <Input type="datetime-local" value={scheduleAt} onChange={(e)=>setScheduleAt(e.target.value)} data-testid="bulk-schedule"/>
             </Field>
@@ -117,10 +122,12 @@ export default function BulkSend() {
             <div className="label-overline">Campaign summary</div>
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div><div className="font-mono text-2xl font-medium">{recipients.length}</div><div className="text-xs text-zinc-500">recipients</div></div>
-              <div><div className="font-mono text-2xl font-medium">{Math.max(1, Math.ceil(template.length/153))}</div><div className="text-xs text-zinc-500">segments / msg</div></div>
+              <div><div className="font-mono text-2xl font-medium">{segs}</div><div className="text-xs text-zinc-500">segments / msg</div></div>
             </div>
             <div className="mt-4 border-t border-zinc-900 pt-4 text-xs text-zinc-500">
               <div className="flex justify-between"><span>Channel</span><Pill status={channel==="sms"?"info":"approved"}>{channel.toUpperCase()}</Pill></div>
+              <div className="mt-2 flex justify-between"><span>Rate</span><span className="font-mono text-white">{rate} cr / msg</span></div>
+              <div className="mt-2 flex justify-between"><span>Total</span><span className="font-mono text-emerald-400">{creditsShort(totalCredits)} cr</span></div>
               <div className="mt-2 flex justify-between"><span>When</span><span className="font-mono text-white">{scheduleAt ? new Date(scheduleAt).toLocaleString() : "Now"}</span></div>
             </div>
             <Btn type="submit" disabled={busy} className="mt-5 w-full" data-testid="bulk-dispatch">

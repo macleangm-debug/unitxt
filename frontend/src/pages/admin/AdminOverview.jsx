@@ -12,8 +12,8 @@ export default function AdminOverview() {
     <div>
       <PageHeader overline="Mission control" title="Platform overview" desc="Live KPIs across countries, providers, and resellers."/>
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="Revenue" value={money(kpi.revenue)} accent="green" testid="kpi-revenue"/>
-        <Stat label="Wallet liabilities" value={money(kpi.wallet_liabilities)} sub="Funds owed to users" testid="kpi-liab"/>
+        <Stat label="Revenue (USD)" value={money(kpi.revenue)} sub="pack purchases" accent="green" testid="kpi-revenue"/>
+        <Stat label="Credits outstanding" value={Number(kpi.wallet_liabilities).toLocaleString()} sub="in wallets" testid="kpi-liab"/>
         <Stat label="Messages sent" value={num(kpi.msgs_total)} sub={`${kpi.delivery_rate}% delivered`} accent="green" testid="kpi-msgs"/>
         <Stat label="Pending sender IDs" value={num(kpi.pending_sender_ids)} accent={kpi.pending_sender_ids?"orange":"white"} testid="kpi-pending"/>
       </div>

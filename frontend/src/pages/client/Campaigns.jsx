@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import http from "@/lib/api";
+import http, { creditsShort, shortDate } from "@/lib/api";
 import { PageHeader, Table, Pill } from "@/components/UI";
-import { shortDate, money } from "@/lib/api";
 
 export default function Campaigns() {
   const [items, setItems] = useState([]);
@@ -13,7 +12,7 @@ export default function Campaigns() {
         { key: "name", label: "Name", render: r => <div><div className="font-medium">{r.name}</div><div className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">{r.kind} · {r.channel}</div></div> },
         { key: "total", label: "Recipients", mono: true, render: r => r.total },
         { key: "delivered", label: "Delivered", mono: true, render: r => `${r.delivered}/${r.sent}` },
-        { key: "total_cost", label: "Cost", mono: true, render: r => money(r.total_cost) },
+        { key: "total_cost", label: "Credits", mono: true, render: r => creditsShort(r.total_cost) },
         { key: "status", label: "Status", render: r => <Pill status={r.status}/> },
         { key: "created_at", label: "Created", mono: true, render: r => shortDate(r.created_at) },
       ]}/>

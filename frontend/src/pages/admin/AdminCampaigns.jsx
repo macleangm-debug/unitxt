@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import http, { money, shortDate } from "@/lib/api";
+import http, { creditsShort, shortDate } from "@/lib/api";
 import { PageHeader, Table, Pill } from "@/components/UI";
 
 export default function AdminCampaigns() {
@@ -13,7 +13,8 @@ export default function AdminCampaigns() {
         { key:"channel", label:"Channel", mono:true },
         { key:"total", label:"Total", mono:true },
         { key:"delivered", label:"Delivered", mono:true, render: r => `${r.delivered}/${r.sent}` },
-        { key:"total_cost", label:"Cost", mono:true, render: r => money(r.total_cost) },
+        { key:"total_cost", label:"Credits", mono:true, render: r => creditsShort(r.total_cost) },
+        { key:"total_usd_cost", label:"USD cost", mono:true, render: r => r.total_usd_cost ? `$${Number(r.total_usd_cost).toFixed(4)}` : "—" },
         { key:"status", label:"Status", render: r => <Pill status={r.status}/> },
         { key:"created_at", label:"When", mono:true, render: r => shortDate(r.created_at) },
       ]}/>

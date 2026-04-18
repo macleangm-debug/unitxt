@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import http, { money, num } from "@/lib/api";
+import http, { creditsShort, num } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Stat, Card, Btn } from "@/components/UI";
-import { Users, DollarSign, Wallet as WalletIcon, Copy, ArrowUpRight } from "lucide-react";
+import { Copy, ArrowUpRight } from "lucide-react";
 
 export default function ResellerDashboard() {
   const { user, wallet } = useAuth();
@@ -24,12 +24,13 @@ export default function ResellerDashboard() {
 
   return (
     <div>
-      <PageHeader overline="Reseller console" title={`Hello, ${user?.name?.split(" ")[0] || ""}`} desc="Float, clients, and commissions — your business at a glance."/>
+      <PageHeader overline="Reseller console" title={`Hi, ${user?.name?.split(" ")[0] || ""}`}
+        desc="Float, clients, and commissions — your business at a glance."/>
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="Float balance" value={money(wallet?.balance)} sub={wallet?.currency} accent="green" testid="r-stat-float"/>
+        <Stat label="Float balance" value={creditsShort(wallet?.balance)} sub="credits" accent="green" testid="r-stat-float"/>
         <Stat label="Active clients" value={num(clients.length)} testid="r-stat-clients"/>
-        <Stat label="Client spend" value={money(earn?.client_spend||0)} testid="r-stat-spend"/>
-        <Stat label="Earned" value={money(earn?.earned||0)} accent="green" sub={`${Math.round((earn?.commission_rate||0)*100)}% commission`} testid="r-stat-earn"/>
+        <Stat label="Client credits spent" value={creditsShort(Math.abs(earn?.client_spend||0))} testid="r-stat-spend"/>
+        <Stat label="Commission" value={`${Math.round((earn?.commission_rate||0)*100)}%`} sub={`${creditsShort(earn?.earned||0)} cr earned`} accent="green" testid="r-stat-earn"/>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -46,7 +47,7 @@ export default function ResellerDashboard() {
                   <div className="text-sm font-medium">{c.name}</div>
                   <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-500">{c.email}</div>
                 </div>
-                <div className="font-mono text-sm">{money(c.wallet_balance)}</div>
+                <div className="font-mono text-sm">{creditsShort(c.wallet_balance)} <span className="text-[10px] uppercase text-zinc-500">cr</span></div>
               </div>
             ))}
           </div>

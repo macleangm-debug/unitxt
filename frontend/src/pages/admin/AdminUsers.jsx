@@ -65,8 +65,8 @@ export default function AdminUsers() {
       <Modal open={!!credit} onClose={()=>setCredit(null)} title={`Credit ${credit?.name||""}`}>
         {credit && (
           <form onSubmit={doCredit} className="space-y-3">
-            <Field label="Amount (USD)"><Input type="number" value={amount} onChange={(e)=>setAmount(e.target.value)} min={0} step="any" required/></Field>
-            <Btn type="submit" className="w-full">Credit wallet</Btn>
+            <Field label="Credits to add"><Input type="number" value={amount} onChange={(e)=>setAmount(e.target.value)} min={0} step="1" required/></Field>
+            <Btn type="submit" className="w-full">Credit account</Btn>
           </form>
         )}
       </Modal>

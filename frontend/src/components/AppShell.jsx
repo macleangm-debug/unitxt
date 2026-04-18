@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import http, { money } from "@/lib/api";
+import http, { money, creditsShort } from "@/lib/api";
 import {
   LayoutDashboard, Send, Upload, Calendar, Users, Tag, FileText, Wallet as WalletIcon,
   BarChart3, Key, LogOut, Bell, Search, Globe2, Building2, DollarSign, ShieldCheck,
   ListChecks, Megaphone, Receipt, History, Settings, Network, IdCard, UserCog,
+  Coins, Smartphone, TrendingUp,
 } from "lucide-react";
 
 const CLIENT_NAV = [
@@ -16,7 +17,7 @@ const CLIENT_NAV = [
   { to: "/client/contacts", icon: Users, label: "Contacts" },
   { to: "/client/sender-ids", icon: IdCard, label: "Sender IDs" },
   { to: "/client/templates", icon: FileText, label: "Templates" },
-  { to: "/client/wallet", icon: WalletIcon, label: "Wallet" },
+  { to: "/client/wallet", icon: Coins, label: "Credits" },
   { to: "/client/reports", icon: BarChart3, label: "Reports" },
   { to: "/client/api-keys", icon: Key, label: "API keys" },
 ];
@@ -24,7 +25,7 @@ const RESELLER_NAV = [
   { to: "/reseller/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/reseller/clients", icon: Users, label: "Clients" },
   { to: "/reseller/earnings", icon: DollarSign, label: "Earnings" },
-  { to: "/reseller/wallet", icon: WalletIcon, label: "Float wallet" },
+  { to: "/reseller/wallet", icon: Coins, label: "Float credits" },
   { to: "/reseller/quick-send", icon: Send, label: "Quick send" },
   { to: "/reseller/bulk-send", icon: Upload, label: "Bulk send" },
   { to: "/reseller/campaigns", icon: Calendar, label: "Campaigns" },
@@ -34,11 +35,14 @@ const RESELLER_NAV = [
 ];
 const ADMIN_NAV = [
   { to: "/admin/overview", icon: LayoutDashboard, label: "Overview" },
+  { to: "/admin/margin", icon: TrendingUp, label: "Margin & revenue" },
   { to: "/admin/users", icon: UserCog, label: "Users" },
   { to: "/admin/providers", icon: Network, label: "Providers" },
   { to: "/admin/routing", icon: Globe2, label: "Routing engine" },
   { to: "/admin/countries", icon: Globe2, label: "Countries" },
+  { to: "/admin/prefixes", icon: Smartphone, label: "Mobile prefixes" },
   { to: "/admin/pricing", icon: DollarSign, label: "Pricing" },
+  { to: "/admin/credit-packs", icon: Coins, label: "Credit packs" },
   { to: "/admin/sender-ids", icon: ListChecks, label: "Sender IDs" },
   { to: "/admin/wallets", icon: WalletIcon, label: "Wallets" },
   { to: "/admin/campaigns", icon: Calendar, label: "Campaigns" },
@@ -214,8 +218,8 @@ export default function AppShell() {
             {user.role !== "super_admin" && wallet && (
               <div className="hidden items-center gap-3 border border-zinc-800 bg-zinc-950 px-3 py-1.5 sm:flex" data-testid="topbar-wallet">
                 <WalletIcon className="h-3.5 w-3.5 text-emerald-400" />
-                <div className="font-mono text-sm font-medium">{money(wallet.balance)}</div>
-                <span className="font-mono text-[10px] text-zinc-500">{wallet.currency}</span>
+                <div className="font-mono text-sm font-medium">{creditsShort(wallet.balance)}</div>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">credits</span>
               </div>
             )}
             <NotificationBell />

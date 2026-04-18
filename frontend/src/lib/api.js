@@ -31,6 +31,16 @@ export function money(n, cur = "USD") {
   })}`;
 }
 
+export function credits(n) {
+  const v = Math.floor(Number(n || 0));
+  return v.toLocaleString() + (v === 1 ? " credit" : " credits");
+}
+
+export function creditsShort(n) {
+  const v = Math.floor(Number(n || 0));
+  return v.toLocaleString();
+}
+
 export function num(n) {
   return Number(n || 0).toLocaleString();
 }

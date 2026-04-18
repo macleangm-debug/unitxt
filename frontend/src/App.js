@@ -22,6 +22,10 @@ import ResellerDashboard from "@/pages/reseller/ResellerDashboard";
 import ResellerClients from "@/pages/reseller/ResellerClients";
 import ResellerEarnings from "@/pages/reseller/ResellerEarnings";
 
+import AdminCreditPacks from "@/pages/admin/AdminCreditPacks";
+import AdminMobilePrefixes from "@/pages/admin/AdminMobilePrefixes";
+import AdminMargin from "@/pages/admin/AdminMargin";
+
 import AdminOverview from "@/pages/admin/AdminOverview";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminProviders from "@/pages/admin/AdminProviders";
@@ -124,6 +128,9 @@ export default function App() {
             <Route path="audit" element={<AdminAudit />} />
             <Route path="settings" element={<SettingsHub />} />
             <Route path="routing" element={<RoutingEngine />} />
+            <Route path="credit-packs" element={<AdminCreditPacks />} />
+            <Route path="prefixes" element={<AdminMobilePrefixes />} />
+            <Route path="margin" element={<AdminMargin />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

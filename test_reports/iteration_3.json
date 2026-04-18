@@ -1,0 +1,93 @@
+{
+  "summary": "Comprehensive backend API testing for unitxt iteration 3 - credits-based wallet system. All 41 tests passed. Verified: login for 3 users, credits-based wallet, credit packs (4 seeded), credits rates, messaging with credit deduction, mobile prefixes (14 TZ prefixes), prefix lookup (Tigo/Vodacom), admin credit packs CRUD, margin reports, sender ID approval/renewal with credit charges, DLR webhook, account recovery, settings hub, RBAC, and no _id leaks.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3_credits.py",
+    "/app/test_reports/pytest/iteration3_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All new endpoints properly implement RBAC (admin-only for prefixes CRUD, credit packs CRUD, margin reports)",
+    "clean(_id) properly applied to all responses - no MongoDB _id leaks",
+    "Credits system working correctly: TZ=1 credit, KE=2 credits, US=5 credits, WhatsApp=3 credits",
+    "Sender ID approval charges 500 credits and sets expires_at ~365 days",
+    "Sender ID renewal charges 500 credits and extends expires_at",
+    "DLR webhook updates message status correctly",
+    "Margin report aggregates revenue_usd, cost_usd, margin_usd, margin_pct with by_country, by_reseller, by_provider, daily breakdowns",
+    "TigoTZAdapter selected for providers with 'tigo' in name (verified: 'Tigo Tanzania (Direct)' provider exists)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3_credits.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "N/A - backend only testing"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026 (500,000 credits)",
+    "client": "client@unitxt.io / Client@2026 (~129,492 credits after tests)"
+  },
+  "seed_data_creation": "Seeded automatically: 4 credit packs (Starter/Growth/Scale/Enterprise), 14 TZ mobile prefixes (Vodacom/Tigo/Airtel/Halotel/TTCL/Zantel), credits settings (country_rate, whatsapp_rate, sender_id_cost, etc.), Tigo Tanzania provider",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration 3 backend APIs tested and working. Credits-based system fully functional. Test file covers: auth (3 users), wallet (credits balance), credit packs (list, buy, promo codes), credits rates, messaging (SMS/WhatsApp with credit deduction, insufficient credits), mobile prefixes (list, lookup, CRUD, import), admin credit packs CRUD, margin reports, sender ID approval/renewal, DLR webhook, account recovery, settings hub, RBAC, and no _id leaks. Mock adapters: MockAdapter (95% success), TigoTZAdapter (stub), TwilioAdapter (stub), credit pack purchase (no Stripe).",
+  "tests_executed": {
+    "total": 41,
+    "passed": 41,
+    "failed": 0,
+    "categories": {
+      "auth_login": 3,
+      "wallet_credits": 2,
+      "credit_packs": 4,
+      "credits_rates": 1,
+      "messaging_credits": 3,
+      "mobile_prefixes": 8,
+      "admin_credit_packs": 4,
+      "margin_report": 2,
+      "sender_id_approval_renewal": 2,
+      "dlr_webhook": 1,
+      "account_recovery": 1,
+      "settings_hub": 2,
+      "rbac": 4,
+      "no_id_leak": 4
+    }
+  },
+  "mocked_apis_verified": [
+    "MockAdapter - 95% delivery simulation working",
+    "TigoTZAdapter - stub mode (logs payloads, returns 'sent')",
+    "TwilioAdapter - stub mode (fails without credentials)",
+    "Credit pack purchase - MOCKED (no Stripe, credits wallet directly)"
+  ],
+  "features_verified": {
+    "login_3_users": "PASS - admin, reseller, client all login successfully",
+    "wallet_credits_balance": "PASS - reseller ~500000, client ~129492 credits",
+    "credit_packs_4_seeded": "PASS - Starter/Growth/Scale/Enterprise sorted by credits",
+    "credits_rates": "PASS - country_rate dict, whatsapp_rate, sender_id_cost etc",
+    "buy_pack_with_promo": "PASS - BONUS25 gives bonus on $200+ pack, no bonus below min_topup",
+    "quick_send_sms": "PASS - charges ~1 credit per recipient for TZ",
+    "quick_send_whatsapp": "PASS - charges 3 credits per msg",
+    "insufficient_credits": "PASS - returns 400",
+    "prefixes_tz": "PASS - 14 TZ prefixes (Vodacom/Tigo/Airtel/etc)",
+    "prefix_lookup_tigo": "PASS - +255712345678 returns Tigo",
+    "prefix_lookup_vodacom": "PASS - +255742345678 returns Vodacom",
+    "admin_prefix_crud": "PASS - add/import/delete work, non-admin gets 403",
+    "admin_credit_packs_crud": "PASS - list/add/update/delete work",
+    "margin_report": "PASS - totals, by_country, by_reseller, by_provider, daily",
+    "sender_id_approval": "PASS - charges 500 credits, sets expires_at ~365 days",
+    "sender_id_renewal": "PASS - charges 500 credits, extends expires_at",
+    "dlr_webhook": "PASS - updates message status",
+    "account_recovery": "PASS - active user gets ok message",
+    "settings_hub_credits": "PASS - credits category settings work",
+    "rbac": "PASS - client/reseller blocked from /api/admin/*",
+    "no_id_leak": "PASS - no _id in wallet, user, packs, prefixes responses"
+  }
+}

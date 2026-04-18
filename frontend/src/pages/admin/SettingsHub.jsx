@@ -9,12 +9,15 @@ import {
 
 const CATEGORIES = [
   { key: "platform", label: "Platform", icon: SettingsIcon, desc: "Brand, currency, timezone, maintenance." },
+  { key: "credits", label: "Credits", icon: SettingsIcon, desc: "Rates per country, WhatsApp, sender ID, unicode." },
+  { key: "inactivity", label: "Inactivity policy", icon: SettingsIcon, desc: "Warn, suspend, recovery cost in credits." },
+  { key: "queue", label: "Queue engine", icon: SettingsIcon, desc: "Concurrency and retry knobs." },
   { key: "onboarding", label: "Onboarding", icon: Globe2, desc: "Signup flow, KYC requirements." },
   { key: "compliance", label: "Compliance", icon: ShieldCheck, desc: "Spam, KYC, daily limits, retention." },
   { key: "notifications", label: "Notifications", icon: Bell, desc: "Triggers, thresholds, templates." },
   { key: "providers", label: "Providers", icon: Network, desc: "Adapter configuration & failover.", linkTo: "/admin/providers" },
   { key: "countries", label: "Countries", icon: Globe2, desc: "Geographies and dial codes.", linkTo: "/admin/countries" },
-  { key: "pricing", label: "Pricing", icon: DollarSign, desc: "Per-country, per-channel rates.", linkTo: "/admin/pricing" },
+  { key: "pricing", label: "Pricing", icon: DollarSign, desc: "Per-country, per-channel provider rates.", linkTo: "/admin/pricing" },
   { key: "wallets", label: "Wallets", icon: WalletIcon, desc: "All accounts.", linkTo: "/admin/wallets" },
   { key: "sender_ids", label: "Sender IDs", icon: IdCard, desc: "Approval queue & policies.", linkTo: "/admin/sender-ids" },
   { key: "institutions", label: "Institutions", icon: Building2, desc: "Banks, fintechs, mobile money.", linkTo: "/admin/institutions" },
@@ -35,6 +38,13 @@ function renderEditor(setting, onChange) {
   }
   if (Array.isArray(v)) {
     return <TextArea value={v.join(", ")} onChange={(e) => onChange(e.target.value.split(",").map(s=>s.trim()).filter(Boolean))} />;
+  }
+  if (v && typeof v === "object") {
+    // JSON editor for dicts like credits.country_rate
+    const str = JSON.stringify(v, null, 2);
+    return <TextArea className="min-h-[140px] font-mono text-xs" defaultValue={str} onChange={(e) => {
+      try { onChange(JSON.parse(e.target.value)); } catch { /* wait for valid json */ }
+    }} />;
   }
   return <Input value={v ?? ""} onChange={(e) => onChange(e.target.value)} />;
 }

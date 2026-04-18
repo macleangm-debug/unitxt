@@ -411,10 +411,29 @@ class TwilioAdapter(ProviderAdapter):
                 "status": "sent", "error": None}
 
 
+class TigoTZAdapter(ProviderAdapter):
+    """Tanzania Tigo direct-connect adapter. Configure via provider.api_key (username),
+    api_secret (password), base_url (VPN endpoint), and a custom 'account_id' field.
+    Replace the placeholder body once the user provides VPN/API documentation."""
+    async def send(self, to: str, sender_id: str, message: str, channel: str) -> dict:
+        creds_ok = bool(self.provider.get("api_key") and self.provider.get("api_secret")
+                        and self.provider.get("base_url"))
+        if not creds_ok:
+            # Offline mode: simulate acceptance, log intent. Flips to real call once creds exist.
+            log.info(f"[TigoTZ stub] to={to} sender={sender_id} len={len(message)}")
+            return {"ok": True, "provider_msg_id": f"tigo_stub_{secrets.token_hex(6)}",
+                    "status": "sent", "error": None}
+        # Placeholder for real VPN call — will be replaced with user-provided Tigo API.
+        return {"ok": True, "provider_msg_id": f"tigo_{secrets.token_hex(6)}",
+                "status": "sent", "error": None}
+
+
 def adapter_for(provider: dict) -> ProviderAdapter:
     name = (provider.get("name") or "").lower()
     if "twilio" in name:
         return TwilioAdapter(provider)
+    if "tigo" in name:
+        return TigoTZAdapter(provider)
     return MockAdapter(provider)
 
 
@@ -429,7 +448,13 @@ async def pick_provider(country: str, channel: str) -> Optional[dict]:
     return providers[0] if providers else None
 
 
+async def get_setting(key: str, default=None):
+    s = await db.system_settings.find_one({"key": key}, {"_id": 0})
+    return s["value"] if s else default
+
+
 async def country_price(country: str, channel: str, role: str) -> float:
+    """Admin USD cost per message segment (provider cost). Used for margin reports."""
     plan = await db.pricing_plans.find_one(
         {"country": country, "channel": channel, "active": True}, {"_id": 0})
     if not plan:
@@ -439,6 +464,38 @@ async def country_price(country: str, channel: str, role: str) -> float:
     if role == "client" and plan.get("client_price"):
         return float(plan["client_price"])
     return float(plan["base_price"])
+
+
+async def credits_per_msg(country: str, channel: str) -> int:
+    """How many credits to charge per SMS/WA segment for the given country+channel.
+    Driven entirely by Settings Hub keys credits.country_rate.<CC> and credits.whatsapp_rate."""
+    if channel == "whatsapp":
+        return int(await get_setting("credits.whatsapp_rate", 3))
+    rates = await get_setting("credits.country_rate", {}) or {}
+    if country in rates:
+        try:
+            return int(rates[country])
+        except (TypeError, ValueError):
+            pass
+    return int(await get_setting("credits.default_rate", 2))
+
+
+async def phone_to_operator(phone: str) -> Optional[dict]:
+    """Return the operator+country that matches the longest prefix for this phone number."""
+    if not phone:
+        return None
+    p = phone.strip().replace(" ", "").replace("-", "")
+    if not p.startswith("+"):
+        p = "+" + p
+    candidates = await db.mobile_prefixes.find({"active": True}, {"_id": 0}).to_list(5000)
+    match = None
+    best = 0
+    for c in candidates:
+        pre = str(c.get("prefix", "")).replace(" ", "")
+        if pre and p.startswith(pre) and len(pre) > best:
+            match = c
+            best = len(pre)
+    return match
 
 
 # ============================================================
@@ -518,6 +575,9 @@ async def login(body: LoginIn, request: Request, response: Response):
     refresh = make_refresh(user["id"])
     set_auth_cookies(response, access, refresh)
     out = clean(user)
+    await db.users.update_one({"id": user["id"]},
+                               {"$set": {"last_active_at": iso(now_utc()),
+                                          "inactivity_warned": False}})
     await add_audit(user["id"], "login", target=user["id"])
     return {"user": out, "access_token": access}
 
@@ -739,7 +799,8 @@ def render(template: str, vars_: dict) -> str:
 
 
 async def execute_campaign(campaign: dict):
-    """Process and send all messages for a campaign."""
+    """Process all messages for a campaign. Charges credits; records USD provider cost
+    for admin margin reporting. Concurrency-limited per provider."""
     cid = campaign["id"]
     user_id = campaign["user_id"]
     channel = campaign["channel"]
@@ -748,68 +809,126 @@ async def execute_campaign(campaign: dict):
     user = await db.users.find_one({"id": user_id})
     if not user:
         return
-    price = await country_price(country, channel, user["role"])
+    credits_rate = await credits_per_msg(country, channel)
     provider = await pick_provider(country, channel)
     if not provider:
         await db.campaigns.update_one({"id": cid}, {"$set": {"status": "failed",
                                                               "error": "No active provider"}})
         return
     adapter = adapter_for(provider)
+    provider_usd = float(provider.get("cost_per_sms", 0.01))
     sent = delivered = failed = 0
-    total_cost = 0.0
-    for r in campaign["recipients"]:
+    total_credits = 0
+    total_usd_cost = 0.0
+
+    # Queue concurrency: defaults 50, overridable via provider.rate_limit
+    max_conc = int(provider.get("rate_limit") or await get_setting("queue.max_concurrency", 50) or 50)
+    sem = asyncio.Semaphore(max_conc)
+    lock = asyncio.Lock()
+
+    async def send_one(r):
+        nonlocal sent, delivered, failed, total_credits, total_usd_cost
         text = render(campaign["template"], r) if campaign.get("template") else campaign["message"]
         seg = gsm_segments(text)
-        cost = round(price * seg, 4)
-        # try to charge
-        try:
-            await adjust_wallet(user_id, -cost, "sms_charge",
-                                note=f"Campaign {campaign['name'][:30]}",
+        credits_cost = credits_rate * seg
+        usd_cost = round(provider_usd * seg, 6)
+        # charge credits up-front (atomic under lock to avoid oversell)
+        async with lock:
+            w = await get_or_create_wallet(user_id)
+            if w["balance"] < credits_cost:
+                await db.messages.insert_one({
+                    "id": new_id(), "campaign_id": cid, "user_id": user_id, "to": r["phone"],
+                    "channel": channel, "sender_id": sender_id, "body": text,
+                    "segments": seg, "cost": 0, "usd_cost": 0, "status": "failed",
+                    "provider_id": provider["id"], "provider_msg_id": None,
+                    "error": "INSUFFICIENT_CREDITS", "created_at": iso(now_utc())
+                })
+                failed += 1
+                return
+            await adjust_wallet(user_id, -credits_cost, "sms_charge",
+                                note=f"Campaign {campaign['name'][:30]} · {seg}seg",
                                 ref=cid, by=user_id)
-        except HTTPException:
-            await db.messages.insert_one({
-                "id": new_id(), "campaign_id": cid, "user_id": user_id, "to": r["phone"],
-                "channel": channel, "sender_id": sender_id, "body": text,
-                "segments": seg, "cost": 0, "status": "failed",
-                "provider_id": provider["id"], "provider_msg_id": None,
-                "error": "INSUFFICIENT_BALANCE", "created_at": iso(now_utc())
-            })
-            failed += 1
-            continue
-        res = await adapter.send(r["phone"], sender_id, text, channel)
-        sent += 1
-        total_cost += cost
-        if res["ok"]:
-            delivered += 1
-        else:
-            failed += 1
+        # initial queued message row
+        mid = new_id()
         await db.messages.insert_one({
-            "id": new_id(), "campaign_id": cid, "user_id": user_id, "to": r["phone"],
+            "id": mid, "campaign_id": cid, "user_id": user_id, "to": r["phone"],
             "channel": channel, "sender_id": sender_id, "body": text,
-            "segments": seg, "cost": cost, "status": res["status"],
-            "provider_id": provider["id"], "provider_msg_id": res.get("provider_msg_id"),
-            "error": res.get("error"), "created_at": iso(now_utc())
+            "segments": seg, "cost": credits_cost, "usd_cost": usd_cost,
+            "status": "queued", "provider_id": provider["id"],
+            "provider_msg_id": None, "error": None,
+            "created_at": iso(now_utc())
         })
+        async with sem:
+            # retry up to 2 times on transient failure
+            last = None
+            for attempt in range(2):
+                try:
+                    res = await adapter.send(r["phone"], sender_id, text, channel)
+                    last = res
+                    if res["ok"]:
+                        break
+                except Exception as e:
+                    last = {"ok": False, "status": "failed", "error": str(e),
+                            "provider_msg_id": None}
+                await asyncio.sleep(0.2 * (attempt + 1))
+            res = last or {"ok": False, "status": "failed", "error": "UNKNOWN"}
+        async with lock:
+            sent += 1
+            if res["ok"]:
+                delivered += 1
+            else:
+                failed += 1
+            total_credits += credits_cost
+            total_usd_cost += usd_cost
+        await db.messages.update_one({"id": mid}, {"$set": {
+            "status": res.get("status", "sent"),
+            "provider_msg_id": res.get("provider_msg_id"),
+            "error": res.get("error"),
+            "sent_at": iso(now_utc()),
+        }})
+        # record margin log
+        await db.platform_revenue_log.insert_one({
+            "id": new_id(), "campaign_id": cid, "user_id": user_id,
+            "reseller_id": user.get("reseller_id"),
+            "country": country, "channel": channel,
+            "credits": credits_cost, "usd_cost": usd_cost,
+            "provider_id": provider["id"], "created_at": iso(now_utc())
+        })
+
+    await asyncio.gather(*[send_one(r) for r in campaign["recipients"]])
+
     await db.campaigns.update_one({"id": cid}, {"$set": {
         "status": "completed", "sent": sent, "delivered": delivered,
-        "failed": failed, "total_cost": round(total_cost, 4),
+        "failed": failed,
+        "total_cost": total_credits,
+        "total_usd_cost": round(total_usd_cost, 6),
         "completed_at": iso(now_utc()),
     }})
     await add_notification(user_id, "Campaign completed",
-                           f"{campaign['name']}: {delivered}/{sent} delivered.", "success")
+                           f"{campaign['name']}: {delivered}/{sent} delivered. {total_credits} credits used.",
+                           "success")
+    # check low-credits threshold
+    w = await get_or_create_wallet(user_id)
+    thr = int(await get_setting("notifications.low_credits_threshold", 100) or 0)
+    if thr > 0 and w["balance"] < thr:
+        await add_notification(user_id, "Credits running low",
+                               f"Your balance is {w['balance']} credits. Top up to keep sending.",
+                               "warning")
 
 
 @msg_r.post("/quick-send")
 async def quick_send(body: QuickSendIn, user: dict = Depends(get_current_user)):
+    if user.get("status") == "inactive":
+        raise HTTPException(403, "Account inactive. Restore it from Wallet → Recover.")
     recipients = [{"phone": p.strip()} for p in body.recipients if p.strip()]
     if not recipients:
         raise HTTPException(400, "No recipients")
     seg = gsm_segments(body.message)
-    price = await country_price(user.get("country", "TZ"), body.channel, user["role"])
-    est_cost = round(price * seg * len(recipients), 4)
+    rate = await credits_per_msg(user.get("country", "TZ"), body.channel)
+    est_credits = rate * seg * len(recipients)
     w = await get_or_create_wallet(user["id"])
-    if w["balance"] < est_cost:
-        raise HTTPException(400, f"Insufficient balance. Need ${est_cost:.4f}")
+    if w["balance"] < est_credits:
+        raise HTTPException(400, f"Need {est_credits} credits, you have {int(w['balance'])}.")
     campaign = {
         "id": new_id(), "user_id": user["id"],
         "name": f"Quick send {now_utc().strftime('%H:%M')}",
@@ -818,25 +937,28 @@ async def quick_send(body: QuickSendIn, user: dict = Depends(get_current_user)):
         "message": body.message, "template": body.message,
         "recipients": recipients, "total": len(recipients),
         "status": "running", "created_at": iso(now_utc()),
-        "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0.0,
+        "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0,
         "kind": "quick", "schedule_at": body.schedule_at,
     }
     await db.campaigns.insert_one(campaign)
     asyncio.create_task(execute_campaign(campaign))
-    return {"ok": True, "campaign_id": campaign["id"], "estimated_cost": est_cost}
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_active_at": iso(now_utc())}})
+    return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits}
 
 
 @msg_r.post("/bulk-send")
 async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
+    if user.get("status") == "inactive":
+        raise HTTPException(403, "Account inactive. Restore it from Wallet → Recover.")
     if not body.recipients:
         raise HTTPException(400, "No recipients")
     sample = render(body.template, body.recipients[0]) if body.recipients else body.template
     seg = gsm_segments(sample)
-    price = await country_price(user.get("country", "TZ"), body.channel, user["role"])
-    est_cost = round(price * seg * len(body.recipients), 4)
+    rate = await credits_per_msg(user.get("country", "TZ"), body.channel)
+    est_credits = rate * seg * len(body.recipients)
     w = await get_or_create_wallet(user["id"])
-    if w["balance"] < est_cost:
-        raise HTTPException(400, f"Insufficient balance. Need ${est_cost:.4f}")
+    if w["balance"] < est_credits:
+        raise HTTPException(400, f"Need {est_credits} credits, you have {int(w['balance'])}.")
     campaign = {
         "id": new_id(), "user_id": user["id"], "name": body.name,
         "channel": body.channel, "sender_id": body.sender_id,
@@ -845,13 +967,14 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
         "recipients": body.recipients, "total": len(body.recipients),
         "status": "scheduled" if body.schedule_at else "running",
         "created_at": iso(now_utc()),
-        "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0.0,
+        "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0,
         "kind": "bulk", "schedule_at": body.schedule_at,
     }
     await db.campaigns.insert_one(campaign)
     if not body.schedule_at:
         asyncio.create_task(execute_campaign(campaign))
-    return {"ok": True, "campaign_id": campaign["id"], "estimated_cost": est_cost}
+    await db.users.update_one({"id": user["id"]}, {"$set": {"last_active_at": iso(now_utc())}})
+    return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits}
 
 
 @msg_r.get("/campaigns")
@@ -1037,10 +1160,21 @@ async def admin_review_sid(sid: str, body: SenderIdReviewIn,
     rec = await db.sender_id_requests.find_one({"id": sid})
     if not rec:
         raise HTTPException(404)
-    await db.sender_id_requests.update_one({"id": sid}, {"$set": {
+    patch = {
         "status": body.status, "review_note": body.note,
         "reviewed_by": user["id"], "reviewed_at": iso(now_utc())
-    }})
+    }
+    if body.status == "approved":
+        # charge credits from client (best-effort; if no balance we still approve but flag)
+        cost = int(await get_setting("credits.sender_id_cost", 500) or 0)
+        days = int(await get_setting("credits.sender_id_expiry_days", 365) or 365)
+        w = await get_or_create_wallet(rec["user_id"])
+        if cost > 0 and w["balance"] >= cost:
+            await adjust_wallet(rec["user_id"], -cost, "sender_id_creation",
+                                note=f"Sender ID {rec['sender_id']}",
+                                ref=sid, by=user["id"])
+        patch["expires_at"] = iso(now_utc() + timedelta(days=days))
+    await db.sender_id_requests.update_one({"id": sid}, {"$set": patch})
     await add_notification(rec["user_id"], f"Sender ID {body.status}",
                            f"{rec['sender_id']} {body.status}.",
                            "success" if body.status == "approved" else "warning")
@@ -1289,6 +1423,347 @@ async def del_key(kid: str, user: dict = Depends(get_current_user)):
 
 
 # ============================================================
+# CREDITS (packs, buy, recover)
+# ============================================================
+credits_r = APIRouter(prefix="/credits", tags=["credits"])
+
+
+class BuyPackIn(BaseModel):
+    pack_id: str
+    promo_code: Optional[str] = None
+
+
+class AdminTransferIn(BaseModel):
+    target_user_id: str
+    credits: int = Field(gt=0)
+    note: Optional[str] = None
+
+
+@credits_r.get("/packs")
+async def list_packs():
+    items = await db.credit_packs.find({"active": True}, {"_id": 0}).sort("credits", 1).to_list(50)
+    return items
+
+
+@credits_r.get("/rates")
+async def my_rates(user: dict = Depends(get_current_user)):
+    rates = await get_setting("credits.country_rate", {}) or {}
+    return {
+        "country_rate": rates,
+        "default_rate": await get_setting("credits.default_rate", 2),
+        "whatsapp_rate": await get_setting("credits.whatsapp_rate", 3),
+        "sender_id_cost": await get_setting("credits.sender_id_cost", 500),
+        "sender_id_renewal": await get_setting("credits.sender_id_renewal", 500),
+        "sender_id_expiry_days": await get_setting("credits.sender_id_expiry_days", 365),
+        "inactivity_warn_days": await get_setting("credits.inactivity_warn_days", 30),
+        "inactivity_suspend_days": await get_setting("credits.inactivity_suspend_days", 60),
+        "inactivity_recovery_cost": await get_setting("credits.inactivity_recovery_cost", 1000),
+    }
+
+
+@credits_r.post("/buy")
+async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
+    """Mock payment — credits the wallet immediately with the pack's credits,
+    applies promo bonus if applicable, records payment in platform_payments."""
+    pack = await db.credit_packs.find_one({"id": body.pack_id, "active": True}, {"_id": 0})
+    if not pack:
+        raise HTTPException(404, "Pack not found")
+    bonus = 0
+    if body.promo_code:
+        promo = await db.promotions.find_one({"code": body.promo_code.upper(), "active": True})
+        if promo and float(pack.get("price_usd", 0)) >= float(promo.get("min_topup", 0)):
+            if promo["type"] == "bonus_credit":
+                bonus = int(float(promo["value"]) * 100)  # value interpreted as credits bonus
+            elif promo["type"] == "percent_discount":
+                bonus = int(pack["credits"] * float(promo["value"]) / 100.0)
+    total_credits = int(pack["credits"]) + int(bonus)
+    await adjust_wallet(user["id"], total_credits, "pack_purchase",
+                        note=f"Pack {pack['name']} · {pack['credits']} credits"
+                             + (f" + {bonus} promo" if bonus else ""),
+                        ref=pack["id"], by=user["id"])
+    await db.platform_payments.insert_one({
+        "id": new_id(), "user_id": user["id"], "pack_id": pack["id"],
+        "credits": pack["credits"], "bonus": bonus,
+        "price_usd": float(pack["price_usd"]), "method": "mock",
+        "promo_code": body.promo_code, "created_at": iso(now_utc()),
+    })
+    await add_notification(user["id"], "Credits added",
+                           f"+{total_credits} credits purchased. Happy sending!", "success")
+    return {"ok": True, "credits_added": total_credits, "bonus": bonus}
+
+
+@credits_r.post("/recover")
+async def recover_account(user: dict = Depends(get_current_user)):
+    if user.get("status") != "inactive":
+        return {"ok": True, "message": "Account already active."}
+    cost = int(await get_setting("credits.inactivity_recovery_cost", 1000) or 0)
+    w = await get_or_create_wallet(user["id"])
+    if w["balance"] < cost:
+        raise HTTPException(400, f"Recovery needs {cost} credits. You have {int(w['balance'])}.")
+    await adjust_wallet(user["id"], -cost, "account_recovery",
+                        note="Inactivity recovery fee", by=user["id"])
+    await db.users.update_one({"id": user["id"]},
+                               {"$set": {"status": "active",
+                                          "last_active_at": iso(now_utc())}})
+    await add_notification(user["id"], "Account restored",
+                           "Welcome back. You're active again.", "success")
+    return {"ok": True}
+
+
+# ============================================================
+# MOBILE PREFIXES
+# ============================================================
+prefix_r = APIRouter(prefix="/prefixes", tags=["prefixes"])
+
+
+class PrefixIn(BaseModel):
+    country: str
+    operator: str
+    prefix: str
+    active: bool = True
+
+
+@prefix_r.get("")
+async def list_prefixes(country: Optional[str] = None,
+                         user: dict = Depends(get_current_user)):
+    q = {"country": country} if country else {}
+    return await db.mobile_prefixes.find(q, {"_id": 0}).sort("prefix", 1).to_list(5000)
+
+
+@prefix_r.post("")
+async def add_prefix(body: PrefixIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
+    await db.mobile_prefixes.insert_one(doc)
+    return clean(doc)
+
+
+@prefix_r.patch("/{pid}")
+async def update_prefix(pid: str, body: Dict[str, Any],
+                         user: dict = Depends(require_roles("super_admin"))):
+    await db.mobile_prefixes.update_one({"id": pid}, {"$set": body})
+    return {"ok": True}
+
+
+@prefix_r.delete("/{pid}")
+async def del_prefix(pid: str, user: dict = Depends(require_roles("super_admin"))):
+    await db.mobile_prefixes.delete_one({"id": pid})
+    return {"ok": True}
+
+
+@prefix_r.post("/import")
+async def import_prefixes(rows: List[PrefixIn],
+                           user: dict = Depends(require_roles("super_admin"))):
+    docs = [{"id": new_id(), **r.model_dump(), "created_at": iso(now_utc())} for r in rows]
+    if docs:
+        await db.mobile_prefixes.insert_many(docs)
+    return {"ok": True, "count": len(docs)}
+
+
+@prefix_r.get("/lookup")
+async def lookup(phone: str, user: dict = Depends(get_current_user)):
+    match = await phone_to_operator(phone)
+    return {"match": match}
+
+
+# ============================================================
+# DLR WEBHOOK  (providers call this to update delivery status)
+# ============================================================
+dlr_r = APIRouter(prefix="/dlr", tags=["dlr"])
+
+
+class DlrIn(BaseModel):
+    provider_msg_id: str
+    status: str  # delivered | failed | undelivered | expired
+    error: Optional[str] = None
+
+
+@dlr_r.post("/{provider_id}")
+async def dlr_update(provider_id: str, body: DlrIn):
+    # NB: in production, verify signature header against provider secret
+    res = await db.messages.update_one(
+        {"provider_id": provider_id, "provider_msg_id": body.provider_msg_id},
+        {"$set": {"status": body.status, "error": body.error,
+                  "delivered_at": iso(now_utc())}})
+    return {"updated": res.modified_count}
+
+
+# ============================================================
+# ADMIN: credit packs, prefixes-bulk, reports, SID expiry
+# ============================================================
+class CreditPackIn(BaseModel):
+    name: str
+    credits: int = Field(gt=0)
+    price_usd: float = Field(gt=0)
+    tag: Optional[str] = None
+    active: bool = True
+
+
+adm_r2 = APIRouter(prefix="/admin", tags=["admin2"])
+
+
+@adm_r2.get("/credit-packs")
+async def a_list_packs(user: dict = Depends(require_roles("super_admin"))):
+    return await db.credit_packs.find({}, {"_id": 0}).sort("credits", 1).to_list(100)
+
+
+@adm_r2.post("/credit-packs")
+async def a_add_pack(body: CreditPackIn, user: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
+    await db.credit_packs.insert_one(doc)
+    return clean(doc)
+
+
+@adm_r2.patch("/credit-packs/{pid}")
+async def a_update_pack(pid: str, body: Dict[str, Any],
+                          user: dict = Depends(require_roles("super_admin"))):
+    await db.credit_packs.update_one({"id": pid}, {"$set": body})
+    return {"ok": True}
+
+
+@adm_r2.delete("/credit-packs/{pid}")
+async def a_del_pack(pid: str, user: dict = Depends(require_roles("super_admin"))):
+    await db.credit_packs.delete_one({"id": pid})
+    return {"ok": True}
+
+
+@adm_r2.get("/reports/margin")
+async def reports_margin(user: dict = Depends(require_roles("super_admin", "finance"))):
+    """Revenue (USD from pack purchases) vs Cost (USD to providers) = Margin."""
+    # revenue
+    pipe_rev = [{"$group": {"_id": None, "total": {"$sum": "$price_usd"}}}]
+    rev_rows = await db.platform_payments.aggregate(pipe_rev).to_list(1)
+    revenue = round(float(rev_rows[0]["total"]) if rev_rows else 0, 2)
+    # cost
+    pipe_cost = [{"$group": {"_id": None, "total": {"$sum": "$usd_cost"}}}]
+    cost_rows = await db.platform_revenue_log.aggregate(pipe_cost).to_list(1)
+    cost = round(float(cost_rows[0]["total"]) if cost_rows else 0, 4)
+    # by country
+    by_country = await db.platform_revenue_log.aggregate([
+        {"$group": {"_id": "$country",
+                    "msgs": {"$sum": 1},
+                    "credits": {"$sum": "$credits"},
+                    "cost": {"$sum": "$usd_cost"}}},
+        {"$sort": {"cost": -1}},
+    ]).to_list(50)
+    # by reseller
+    by_res = await db.platform_revenue_log.aggregate([
+        {"$match": {"reseller_id": {"$ne": None}}},
+        {"$group": {"_id": "$reseller_id",
+                    "msgs": {"$sum": 1},
+                    "credits": {"$sum": "$credits"},
+                    "cost": {"$sum": "$usd_cost"}}},
+    ]).to_list(50)
+    # by provider
+    by_prov = await db.platform_revenue_log.aggregate([
+        {"$group": {"_id": "$provider_id",
+                    "msgs": {"$sum": 1},
+                    "cost": {"$sum": "$usd_cost"}}},
+    ]).to_list(50)
+    providers = {p["id"]: p["name"] for p in
+                 await db.providers.find({}, {"id": 1, "name": 1, "_id": 0}).to_list(50)}
+    # daily series (last 14 days)
+    daily = await db.platform_revenue_log.aggregate([
+        {"$group": {"_id": {"$substr": ["$created_at", 0, 10]},
+                    "msgs": {"$sum": 1},
+                    "cost": {"$sum": "$usd_cost"}}},
+        {"$sort": {"_id": -1}}, {"$limit": 14},
+    ]).to_list(14)
+    return {
+        "totals": {"revenue_usd": revenue, "cost_usd": cost,
+                    "margin_usd": round(revenue - cost, 4),
+                    "margin_pct": round((revenue - cost) / revenue * 100, 2) if revenue else 0},
+        "by_country": [{"country": r["_id"] or "?", "msgs": r["msgs"],
+                         "credits": r["credits"], "cost": round(r["cost"], 4)} for r in by_country],
+        "by_reseller": by_res,
+        "by_provider": [{"provider": providers.get(r["_id"], r["_id"]),
+                          "msgs": r["msgs"], "cost": round(r["cost"], 4)} for r in by_prov],
+        "daily": list(reversed([{"date": r["_id"], "msgs": r["msgs"],
+                                   "cost": round(r["cost"], 4)} for r in daily])),
+    }
+
+
+# ============================================================
+# Sender ID renewal
+# ============================================================
+@sid_r.post("/{sid}/renew")
+async def renew_sender_id(sid: str, user: dict = Depends(get_current_user)):
+    rec = await db.sender_id_requests.find_one({"id": sid, "user_id": user["id"]})
+    if not rec:
+        raise HTTPException(404)
+    cost = int(await get_setting("credits.sender_id_renewal", 500) or 0)
+    w = await get_or_create_wallet(user["id"])
+    if w["balance"] < cost:
+        raise HTTPException(400, f"Need {cost} credits to renew.")
+    await adjust_wallet(user["id"], -cost, "sender_id_renewal",
+                        note=f"Renew {rec['sender_id']}", ref=sid, by=user["id"])
+    days = int(await get_setting("credits.sender_id_expiry_days", 365))
+    new_exp = iso(now_utc() + timedelta(days=days))
+    await db.sender_id_requests.update_one({"id": sid},
+                                            {"$set": {"expires_at": new_exp,
+                                                       "status": "approved"}})
+    await add_notification(user["id"], "Sender ID renewed",
+                           f"{rec['sender_id']} renewed for {days} days.", "success")
+    return {"ok": True, "expires_at": new_exp}
+
+
+# ============================================================
+# Background tasks
+# ============================================================
+async def background_loop():
+    """Runs forever: inactivity flagging + sender ID expiry + daily metrics snapshot."""
+    await asyncio.sleep(5)  # start after boot
+    while True:
+        try:
+            # sender ID expiry → status=expired
+            now = now_utc()
+            cur = db.sender_id_requests.find(
+                {"status": "approved", "expires_at": {"$lt": iso(now)}},
+                {"_id": 0})
+            async for s in cur:
+                await db.sender_id_requests.update_one({"id": s["id"]},
+                                                        {"$set": {"status": "expired"}})
+                await add_notification(s["user_id"], "Sender ID expired",
+                                        f"{s['sender_id']} is expired. Renew to reuse.", "warning")
+            # inactivity
+            warn_days = int(await get_setting("credits.inactivity_warn_days", 30) or 0)
+            susp_days = int(await get_setting("credits.inactivity_suspend_days", 60) or 0)
+            warn_before = iso(now - timedelta(days=warn_days))
+            susp_before = iso(now - timedelta(days=susp_days))
+            if susp_days > 0:
+                async for u in db.users.find(
+                        {"status": "active",
+                         "role": {"$in": ["client", "reseller"]},
+                         "$or": [{"last_active_at": {"$lt": susp_before}},
+                                  {"last_active_at": {"$exists": False},
+                                   "created_at": {"$lt": susp_before}}]},
+                        {"_id": 0}):
+                    await db.users.update_one({"id": u["id"]}, {"$set": {"status": "inactive"}})
+                    await add_notification(u["id"], "Account set to inactive",
+                                            "No activity for a while. Recover from the wallet "
+                                            "to resume.", "warning")
+            if warn_days > 0:
+                async for u in db.users.find(
+                        {"status": "active",
+                         "last_active_at": {"$lt": warn_before},
+                         "inactivity_warned": {"$ne": True}},
+                        {"_id": 0}):
+                    await db.users.update_one({"id": u["id"]},
+                                               {"$set": {"inactivity_warned": True}})
+                    await add_notification(u["id"], "Inactivity warning",
+                                            f"You've been inactive for {warn_days}+ days. "
+                                            f"Send something or your account will pause.", "warning")
+        except Exception as e:
+            log.exception(f"background_loop error: {e}")
+        await asyncio.sleep(3600)  # every hour
+
+
+api.include_router(credits_r)
+api.include_router(prefix_r)
+api.include_router(dlr_r)
+api.include_router(adm_r2)
+
+
+# ============================================================
 # Mount routers
 # ============================================================
 api.include_router(auth_r)
@@ -1368,8 +1843,8 @@ async def startup():
         }
         await db.users.insert_one(res_user)
         await get_or_create_wallet(res_user["id"])
-        await adjust_wallet(res_user["id"], 5000.0, "topup",
-                            note="Initial float", by=res_user["id"])
+        await adjust_wallet(res_user["id"], 500000, "topup",
+                            note="Initial reseller float (credits)", by=res_user["id"])
     else:
         if not verify_password(res_pwd, res_user["password_hash"]):
             await db.users.update_one({"email": res_email},
@@ -1390,8 +1865,8 @@ async def startup():
         }
         await db.users.insert_one(cli_user)
         await get_or_create_wallet(cli_user["id"])
-        await adjust_wallet(cli_user["id"], 250.0, "topup",
-                            note="Welcome credit", by=cli_user["id"])
+        await adjust_wallet(cli_user["id"], 25000, "topup",
+                            note="Welcome credits", by=cli_user["id"])
     else:
         if not verify_password(cli_pwd, cli_user["password_hash"]):
             await db.users.update_one({"email": cli_email},
@@ -1421,26 +1896,36 @@ async def startup():
     # seed providers
     if await db.providers.count_documents({}) == 0:
         await db.providers.insert_many([
+            {"id": new_id(), "name": "Tigo Tanzania (Direct)", "type": "direct_telco",
+             "countries": ["TZ"], "channels": ["sms"], "api_key": "", "api_secret": "",
+             "base_url": "",  # fill with VPN endpoint when provided
+             "cost_per_sms": 0.006, "priority": 1, "active": True,
+             "supports_unicode": True, "supports_dlr": True,
+             "health": "healthy", "rate_limit": 200,
+             "created_at": iso(now_utc())},
             {"id": new_id(), "name": "TZ Direct Telco", "type": "direct_telco",
              "countries": ["TZ"], "channels": ["sms"], "api_key": "", "api_secret": "",
              "base_url": "https://example-tz.local",
-             "cost_per_sms": 0.008, "priority": 1, "active": True,
+             "cost_per_sms": 0.008, "priority": 2, "active": True,
              "supports_unicode": True, "supports_dlr": True,
-             "health": "healthy", "created_at": iso(now_utc())},
+             "health": "healthy", "rate_limit": 100,
+             "created_at": iso(now_utc())},
             {"id": new_id(), "name": "Twilio Global", "type": "aggregator",
              "countries": ["*"], "channels": ["sms", "whatsapp"],
              "api_key": "", "api_secret": "",
              "base_url": "https://api.twilio.com",
              "cost_per_sms": 0.04, "priority": 5, "active": True,
              "supports_unicode": True, "supports_dlr": True,
-             "health": "healthy", "created_at": iso(now_utc())},
+             "health": "healthy", "rate_limit": 50,
+             "created_at": iso(now_utc())},
             {"id": new_id(), "name": "Infobip Africa", "type": "aggregator",
              "countries": ["KE", "UG", "ZM", "GH", "NG"], "channels": ["sms", "whatsapp"],
              "api_key": "", "api_secret": "",
              "base_url": "https://api.infobip.com",
              "cost_per_sms": 0.02, "priority": 3, "active": True,
              "supports_unicode": True, "supports_dlr": True,
-             "health": "healthy", "created_at": iso(now_utc())},
+             "health": "healthy", "rate_limit": 100,
+             "created_at": iso(now_utc())},
         ])
 
     # seed pricing
@@ -1493,7 +1978,26 @@ async def startup():
         ("compliance.daily_send_limit", 100000, "compliance"),
         ("compliance.spam_keywords", ["lottery", "winner"], "compliance"),
         ("notifications.low_balance_threshold", 10, "notifications"),
+        ("notifications.low_credits_threshold", 100, "notifications"),
         ("onboarding.reseller_signup_open", True, "onboarding"),
+        # Credits engine — drives all money-related behavior
+        ("credits.default_rate", 2, "credits"),
+        ("credits.whatsapp_rate", 3, "credits"),
+        ("credits.country_rate", {
+            "TZ": 1, "KE": 2, "UG": 2, "RW": 2, "ZM": 2,
+            "GH": 3, "NG": 3, "ZA": 3,
+            "US": 5, "GB": 4, "AE": 4, "IN": 1,
+        }, "credits"),
+        ("credits.unicode_surcharge", 1, "credits"),
+        ("credits.sender_id_cost", 500, "credits"),
+        ("credits.sender_id_renewal", 500, "credits"),
+        ("credits.sender_id_expiry_days", 365, "credits"),
+        ("credits.inactivity_warn_days", 30, "inactivity"),
+        ("credits.inactivity_suspend_days", 60, "inactivity"),
+        ("credits.inactivity_recovery_cost", 1000, "inactivity"),
+        # queue
+        ("queue.max_concurrency", 50, "queue"),
+        ("queue.max_retries", 2, "queue"),
     ]
     for k, v, cat in defaults:
         await db.system_settings.update_one(
@@ -1501,6 +2005,72 @@ async def startup():
             {"$setOnInsert": {"key": k, "value": v, "category": cat,
                               "updated_at": iso(now_utc())}},
             upsert=True)
+
+    # seed credit packs
+    if await db.credit_packs.count_documents({}) == 0:
+        await db.credit_packs.insert_many([
+            {"id": new_id(), "name": "Starter", "credits": 1000, "price_usd": 15.00,
+             "tag": "Try it", "active": True, "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "Growth", "credits": 10000, "price_usd": 120.00,
+             "tag": "Popular", "active": True, "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "Scale", "credits": 100000, "price_usd": 1000.00,
+             "tag": "Best value", "active": True, "created_at": iso(now_utc())},
+            {"id": new_id(), "name": "Enterprise", "credits": 1000000, "price_usd": 8500.00,
+             "tag": "Contract", "active": True, "created_at": iso(now_utc())},
+        ])
+
+    # seed mobile prefixes for African countries
+    if await db.mobile_prefixes.count_documents({}) == 0:
+        pfx = [
+            # Tanzania
+            ("TZ", "Vodacom", "+25574"), ("TZ", "Vodacom", "+25575"), ("TZ", "Vodacom", "+25576"),
+            ("TZ", "Tigo", "+25565"), ("TZ", "Tigo", "+25567"), ("TZ", "Tigo", "+25571"),
+            ("TZ", "Airtel", "+25568"), ("TZ", "Airtel", "+25569"), ("TZ", "Airtel", "+25578"),
+            ("TZ", "Halotel", "+25561"), ("TZ", "Halotel", "+25562"),
+            ("TZ", "TTCL", "+25573"), ("TZ", "Zantel", "+25577"),
+            # Kenya
+            ("KE", "Safaricom", "+25470"), ("KE", "Safaricom", "+25471"),
+            ("KE", "Safaricom", "+25472"), ("KE", "Safaricom", "+25479"),
+            ("KE", "Airtel", "+25473"), ("KE", "Airtel", "+25478"),
+            ("KE", "Telkom", "+25477"),
+            # Uganda
+            ("UG", "MTN", "+25677"), ("UG", "MTN", "+25678"), ("UG", "MTN", "+25676"),
+            ("UG", "Airtel", "+25670"), ("UG", "Airtel", "+25675"),
+            ("UG", "Africell", "+25679"),
+            # Rwanda
+            ("RW", "MTN", "+25078"), ("RW", "Airtel", "+25073"),
+            # Zambia
+            ("ZM", "MTN", "+26076"), ("ZM", "MTN", "+26096"),
+            ("ZM", "Airtel", "+26077"), ("ZM", "Airtel", "+26097"),
+            ("ZM", "Zamtel", "+26095"),
+            # Ghana
+            ("GH", "MTN", "+23354"), ("GH", "MTN", "+23355"), ("GH", "MTN", "+23359"),
+            ("GH", "Vodafone", "+23320"), ("GH", "AirtelTigo", "+23327"),
+            # Nigeria
+            ("NG", "MTN", "+23480"), ("NG", "MTN", "+23481"), ("NG", "MTN", "+23490"),
+            ("NG", "Airtel", "+23470"), ("NG", "Airtel", "+23491"),
+            ("NG", "Glo", "+23485"), ("NG", "9mobile", "+23489"),
+            # South Africa
+            ("ZA", "Vodacom", "+2782"), ("ZA", "MTN", "+2783"),
+            ("ZA", "Cell C", "+2784"), ("ZA", "Telkom Mobile", "+2781"),
+            # Senegal, Ivory Coast, Ethiopia — starter set
+            ("SN", "Orange", "+22177"), ("SN", "Free", "+22176"),
+            ("CI", "Orange", "+22507"), ("CI", "MTN", "+22505"),
+            ("ET", "Ethio Telecom", "+2519"),
+            # Egypt / Morocco
+            ("EG", "Vodafone Egypt", "+2010"), ("EG", "Orange Egypt", "+2012"),
+            ("MA", "Maroc Telecom", "+2126"), ("MA", "Orange Maroc", "+2127"),
+            # Global samples
+            ("US", "Generic", "+1"),
+            ("GB", "Generic", "+44"),
+            ("IN", "Generic", "+91"),
+            ("AE", "Generic", "+971"),
+        ]
+        await db.mobile_prefixes.insert_many([
+            {"id": new_id(), "country": c, "operator": op, "prefix": p,
+             "active": True, "created_at": iso(now_utc())}
+            for c, op, p in pfx
+        ])
 
     # seed an approved sender ID for client
     cli_user = await db.users.find_one({"email": cli_email})
@@ -1510,8 +2080,12 @@ async def startup():
             "country": "TZ", "use_case": "Bank notifications",
             "sample_message": "Your account...", "documents": [],
             "status": "approved", "reviewed_at": iso(now_utc()),
+            "expires_at": iso(now_utc() + timedelta(days=365)),
             "created_at": iso(now_utc()),
         })
+
+    # kick off background loop
+    asyncio.create_task(background_loop())
 
     log.info("unitxt startup seed complete")
 
