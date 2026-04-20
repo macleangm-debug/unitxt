@@ -45,6 +45,8 @@ import AdminResellers from "@/pages/admin/AdminResellers";
 import CountryHub from "@/pages/admin/CountryHub";
 import CountryDetail from "@/pages/admin/CountryDetail";
 import IntegrationHealth from "@/pages/admin/IntegrationHealth";
+import AdminApprovals from "@/pages/admin/AdminApprovals";
+import ApplyPage from "@/pages/ApplyPage";
 import AdminAudit from "@/pages/admin/AdminAudit";
 import SettingsHub from "@/pages/admin/SettingsHub";
 import RoutingEngine from "@/pages/admin/RoutingEngine";
@@ -91,6 +93,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/apply/:kind" element={<ApplyPage />} />
 
           <Route path="/app" element={<ProtectedRoute><RoleHome /></ProtectedRoute>} />
 
@@ -150,6 +153,7 @@ export default function App() {
             <Route path="country-hub" element={<CountryHub />} />
             <Route path="country-hub/:code" element={<CountryDetail />} />
             <Route path="integrations" element={<IntegrationHealth />} />
+            <Route path="approvals" element={<AdminApprovals />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

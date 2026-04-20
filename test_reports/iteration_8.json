@@ -1,0 +1,116 @@
+{
+  "summary": "Iteration 8 testing complete - Unified Approvals, Public Apply Pages, Country Economics, Admin Sidebar Reorganization. All 28 backend tests passed. Frontend UI verified: Admin sidebar reorganized to 3 groups (Platform ops, Insights, Configuration), Approvals inbox with 4 tabs and drawer, /apply/reseller and /apply/institution public pages, Country Hub as TABLE format, Country Detail with 6 tabs including Economics, Settings Hub with humanized keys and reorganized groups.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration8_approvals_apply.py",
+    "/app/test_reports/pytest/iteration8_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/admin/approvals/inbox returns {sender_ids, wa_templates, reseller_applications, institution_applications, total} with requester_email/name enrichment",
+    "POST /api/public/apply/reseller accepts application, rejects if agree_terms=false, dedupes on email+pending",
+    "POST /api/public/apply/institution similar flow, writes to db.institution_applications",
+    "POST /api/admin/applications/resellers/{id}/review - approve creates reseller user with temp password and reseller_code",
+    "POST /api/admin/applications/institutions/{id}/review - approve promotes to db.institutions collection",
+    "GET /api/admin/country-hub/{code}/economics returns unit_economics (usd_per_credit, credits_per_sms, retail_usd_per_sms, cost_usd_per_sms_min/max/avg, margin_usd_per_sms, margin_pct, providers_count) and windows (1/7/30/90 days P&L)",
+    "PUT /api/admin/country-hub/{code}/rate updates credits.country_rate[code] setting",
+    "POST/DELETE /api/admin/country-hub/{code}/prefixes for prefix management",
+    "economy.usd_per_credit setting exists (default 0.01) and is editable via PUT /admin/settings",
+    "Admin sidebar reorganized: Platform ops (Users, Resellers, Institutions, Approvals), Insights (Overview, Margin & revenue, Audit logs), Configuration (Settings hub)",
+    "Old nav items (Campaigns, Routing, Providers, Countries, Pricing, CreditPacks, Promotions, Prefixes, CountryHub, Integrations, WhatsApp) NOT in admin sidebar - accessible via Settings Hub",
+    "Settings Hub Geographies group contains: country_hub, integrations, routing, providers, prefixes, countries, pricing",
+    "Settings Hub Economy group contains: credits, pricing_cfg, credit_packs, referrals, streaks",
+    "Settings keys humanized (e.g., 'Credits default rate' not 'credits.default_rate')"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration8_approvals_apply.py"
+  ],
+  "success_rate": {
+    "backend": "100% (28/28 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Reseller and institution applications created during testing for approval flow verification",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 8 complete. Big admin refactor verified: (1) Admin sidebar reorganized to 3 groups - Platform ops (Users, Resellers, Institutions, Approvals), Insights (Overview, Margin & revenue, Audit logs), Configuration (Settings hub); (2) Unified Approvals inbox at /admin/approvals with 4 tabs (Sender IDs, WhatsApp templates, Reseller applications, Institution applications), stats row, Review drawer with Approve/Reject buttons; (3) Public /apply/reseller and /apply/institution pages accessible without auth, with pitch columns, stats, forms, and cross-links; (4) Country Hub now TABLE format (not cards) with columns: Country, Rate, Routes, Operators, Prefixes, Sender IDs, Health, Status, Manage; (5) Country Detail has 6 tabs (Overview, Economics, Routes, Operators & prefixes, Sender IDs, Compliance); (6) Economics tab shows unit economics stats, rate input, usd_per_credit input (global), P&L windows table; (7) Operators tab has Add prefix form + delete buttons; (8) Settings Hub has humanized keys and reorganized groups (Geographies contains country_hub, integrations, routing, providers, prefixes, countries, pricing; Economy contains credit_packs).",
+  "tests_executed": {
+    "total": 28,
+    "passed": 28,
+    "failed": 0,
+    "categories": {
+      "unified_approvals_inbox": 2,
+      "public_apply_reseller": 3,
+      "public_apply_institution": 2,
+      "admin_applications_resellers": 4,
+      "admin_applications_institutions": 2,
+      "country_economics": 2,
+      "country_rate": 1,
+      "country_prefixes": 2,
+      "economy_usd_per_credit": 2,
+      "regression_iteration567": 8
+    }
+  },
+  "frontend_tests_executed": {
+    "admin_sidebar_3_groups": "PASS - Platform ops, Insights, Configuration",
+    "admin_sidebar_platform_ops": "PASS - Users, Resellers, Institutions, Approvals",
+    "admin_sidebar_insights": "PASS - Overview, Margin & revenue, Audit logs",
+    "admin_sidebar_configuration": "PASS - Settings hub",
+    "admin_sidebar_no_old_items": "PASS - Campaigns, Routing, Providers, Countries, Pricing NOT in sidebar",
+    "approvals_page_loads": "PASS - /admin/approvals loads",
+    "approvals_4_tabs": "PASS - Sender IDs, WhatsApp templates, Reseller applications, Institution applications",
+    "approvals_stats_row": "PASS - Total pending + 4 counts",
+    "approvals_review_drawer": "PASS - Opens with Approve/Reject buttons + note field",
+    "apply_reseller_public": "PASS - /apply/reseller loads without auth",
+    "apply_reseller_pitch_stats": "PASS - 15% commission, 0% overcharge, Instant payout, Flexible float",
+    "apply_reseller_form": "PASS - Company, name, email, phone, country, website, volume, pitch, terms checkbox",
+    "apply_reseller_topbar_links": "PASS - Become a reseller, Integrate with us, Log in",
+    "apply_institution_public": "PASS - /apply/institution loads without auth",
+    "apply_institution_pitch_stats": "PASS - 200k+ queue, <30s delivery, Real-time DLR, 99.9% uptime",
+    "apply_institution_form": "PASS - Institution name, type, contact, email, phone, country, use_cases, volume",
+    "admin_users_stats_row": "PASS - Total, Clients, Resellers, Suspended",
+    "admin_users_search_filter": "PASS - Search + role filter",
+    "admin_users_drawer": "PASS - Suspend/Reactivate toggle, profile edit, credit adjust",
+    "country_hub_table_format": "PASS - TABLE not cards",
+    "country_hub_columns": "PASS - Country, Rate, Routes, Operators, Prefixes, Sender IDs, Health, Status, Manage",
+    "country_detail_6_tabs": "PASS - Overview, Economics, Routes, Operators & prefixes, Sender IDs, Compliance",
+    "country_economics_tab": "PASS - Unit economics stats, rate input, usd_per_credit input, P&L windows",
+    "country_operators_tab": "PASS - Add prefix form + delete buttons",
+    "country_sender_ids_tab": "PASS - Table with inline Approve/Reject for pending",
+    "settings_hub_groups": "PASS - Platform & Onboarding, Economy, Geographies, Messaging engine, Governance & lifecycle, Distribution & treasury",
+    "settings_hub_geographies": "PASS - Country hub, Integration health, Routing engine, Providers, Mobile prefixes, Countries, Pricing",
+    "settings_hub_economy": "PASS - Credits, Reseller margin, Credit packs, Referrals, Streaks",
+    "settings_hub_humanized_keys": "PASS - 'Credits default rate' not 'credits.default_rate'"
+  },
+  "mocked_apis_verified": [
+    "Twilio adapter (stub)",
+    "Tigo TZ adapter (stub)",
+    "Mock adapter"
+  ],
+  "features_verified": {
+    "unified_approvals_inbox": "PASS - 4 queues merged with enrichment",
+    "public_apply_reseller": "PASS - terms validation, email dedupe",
+    "public_apply_institution": "PASS - email dedupe",
+    "approve_reseller_creates_user": "PASS - temp password + reseller_code",
+    "approve_institution_creates_institution": "PASS - promotes to institutions collection",
+    "country_economics_unit_economics": "PASS - usd_per_credit, credits_per_sms, margins",
+    "country_economics_pnl_windows": "PASS - 1/7/30/90 days",
+    "country_rate_update": "PASS - updates credits.country_rate setting",
+    "country_prefix_add_delete": "PASS - CRUD operations",
+    "economy_usd_per_credit_setting": "PASS - exists and editable",
+    "admin_sidebar_reorganized": "PASS - 3 groups, old items removed",
+    "settings_hub_reorganized": "PASS - Geographies and Economy groups updated"
+  }
+}

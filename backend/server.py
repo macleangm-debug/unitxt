@@ -2644,6 +2644,318 @@ async def integrations_test(provider_id: str,
 
 
 # ============================================================
+# UNIFIED APPROVALS INBOX (Sender IDs + WhatsApp templates + Reseller KYC + Institution apps)
+# ============================================================
+approv_r = APIRouter(prefix="/admin/approvals", tags=["approvals"])
+
+
+@approv_r.get("/inbox")
+async def approvals_inbox(_: dict = Depends(require_roles("super_admin", "compliance"))):
+    """Single pending-approvals inbox across all queues."""
+    sids = await db.sender_id_requests.find(
+        {"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    watpls = await db.wa_templates.find(
+        {"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    reseller_apps = await db.reseller_applications.find(
+        {"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    inst_apps = await db.institution_applications.find(
+        {"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    # enrich with user info
+    async def enrich(rows, user_key="user_id"):
+        ids = list({r.get(user_key) for r in rows if r.get(user_key)})
+        users = {}
+        if ids:
+            async for u in db.users.find({"id": {"$in": ids}},
+                                           {"_id": 0, "id": 1, "email": 1, "name": 1}):
+                users[u["id"]] = u
+        for r in rows:
+            u = users.get(r.get(user_key), {})
+            r["requester_email"] = u.get("email", "")
+            r["requester_name"] = u.get("name", "")
+        return rows
+    return {
+        "sender_ids": await enrich(sids),
+        "wa_templates": await enrich(watpls),
+        "reseller_applications": reseller_apps,
+        "institution_applications": inst_apps,
+        "total": len(sids) + len(watpls) + len(reseller_apps) + len(inst_apps),
+    }
+
+
+# ============================================================
+# RESELLER APPLICATIONS (public form → admin KYC review)
+# ============================================================
+class ResellerApplicationIn(BaseModel):
+    company_name: str
+    contact_name: str
+    email: EmailStr
+    phone: Optional[str] = ""
+    country: str
+    website: Optional[str] = ""
+    expected_monthly_volume: Optional[int] = 0
+    pitch: Optional[str] = ""  # why they want to resell
+    agree_terms: bool = True
+
+
+pub_r = APIRouter(prefix="/public", tags=["public_apply"])
+
+
+@pub_r.post("/apply/reseller")
+async def apply_reseller(body: ResellerApplicationIn):
+    if not body.agree_terms:
+        raise HTTPException(400, "You must accept the reseller terms.")
+    # Dedupe on email
+    existing = await db.reseller_applications.find_one({"email": body.email,
+                                                         "status": "pending"})
+    if existing:
+        raise HTTPException(400, "We already have a pending application for this email.")
+    doc = {"id": new_id(), **body.model_dump(), "status": "pending",
+           "created_at": iso(now_utc())}
+    await db.reseller_applications.insert_one(doc)
+    return {"ok": True, "id": doc["id"]}
+
+
+class InstitutionApplicationIn(BaseModel):
+    institution_name: str
+    institution_type: str = "bank"  # bank | mobile_money | fintech | enterprise
+    contact_name: str
+    email: EmailStr
+    phone: Optional[str] = ""
+    country: str
+    use_cases: Optional[str] = ""  # what they want to send (OTP, marketing, etc.)
+    expected_monthly_volume: Optional[int] = 0
+    api_integration_needed: bool = True
+
+
+@pub_r.post("/apply/institution")
+async def apply_institution(body: InstitutionApplicationIn):
+    existing = await db.institution_applications.find_one({"email": body.email,
+                                                             "status": "pending"})
+    if existing:
+        raise HTTPException(400, "We already have a pending application for this email.")
+    doc = {"id": new_id(), **body.model_dump(), "status": "pending",
+           "created_at": iso(now_utc())}
+    await db.institution_applications.insert_one(doc)
+    return {"ok": True, "id": doc["id"]}
+
+
+# Admin side: list/review reseller + institution applications
+app_r = APIRouter(prefix="/admin/applications", tags=["applications"])
+
+
+class ApplicationReviewIn(BaseModel):
+    status: str  # approved | rejected
+    note: Optional[str] = ""
+
+
+@app_r.get("/resellers")
+async def list_reseller_apps(status: Optional[str] = None,
+                               _: dict = Depends(require_roles("super_admin"))):
+    q = {"status": status} if status else {}
+    items = await db.reseller_applications.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
+@app_r.post("/resellers/{aid}/review")
+async def review_reseller_app(aid: str, body: ApplicationReviewIn,
+                                admin: dict = Depends(require_roles("super_admin"))):
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(400, "Invalid status")
+    a = await db.reseller_applications.find_one({"id": aid})
+    if not a:
+        raise HTTPException(404, "Application not found")
+    await db.reseller_applications.update_one({"id": aid}, {"$set": {
+        "status": body.status, "note": body.note,
+        "reviewed_at": iso(now_utc()), "reviewed_by": admin["id"],
+    }})
+    # If approved, create a reseller user with a temp password; owner sets it via reset flow later.
+    if body.status == "approved":
+        existing_user = await db.users.find_one({"email": a["email"]})
+        if not existing_user:
+            tmp_pwd = secrets.token_hex(6)
+            user = {
+                "id": new_id(), "email": a["email"], "name": a["contact_name"],
+                "role": "reseller", "business_name": a["company_name"],
+                "country": a["country"], "phone": a.get("phone", ""),
+                "password_hash": bcrypt.hashpw(tmp_pwd.encode(), bcrypt.gensalt()).decode(),
+                "status": "active", "kyc_verified": True,
+                "reseller_code": "R" + secrets.token_hex(3).upper(),
+                "commission_rate": float(await get_setting(
+                    "pricing.reseller_commission_default", 0.15)),
+                "created_at": iso(now_utc()),
+            }
+            await db.users.insert_one(user)
+            await get_or_create_wallet(user["id"])
+            await db.reseller_applications.update_one({"id": aid}, {"$set": {
+                "provisioned_user_id": user["id"], "temp_password": tmp_pwd,
+            }})
+    await add_audit(admin["id"], f"reseller_app.{body.status}", target=aid,
+                     meta={"note": body.note})
+    return {"ok": True}
+
+
+@app_r.get("/institutions")
+async def list_inst_apps(status: Optional[str] = None,
+                           _: dict = Depends(require_roles("super_admin"))):
+    q = {"status": status} if status else {}
+    items = await db.institution_applications.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
+@app_r.post("/institutions/{aid}/review")
+async def review_inst_app(aid: str, body: ApplicationReviewIn,
+                             admin: dict = Depends(require_roles("super_admin"))):
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(400, "Invalid status")
+    a = await db.institution_applications.find_one({"id": aid})
+    if not a:
+        raise HTTPException(404, "Application not found")
+    await db.institution_applications.update_one({"id": aid}, {"$set": {
+        "status": body.status, "note": body.note,
+        "reviewed_at": iso(now_utc()), "reviewed_by": admin["id"],
+    }})
+    if body.status == "approved":
+        # Promote to institutions collection
+        doc = {
+            "id": new_id(),
+            "name": a["institution_name"], "type": a.get("institution_type", "bank"),
+            "country": a["country"], "contact_email": a["email"],
+            "api_credentials": {}, "callback_url": "",
+            "active": True, "created_at": iso(now_utc()),
+            "from_application_id": aid,
+        }
+        await db.institutions.insert_one(doc)
+    await add_audit(admin["id"], f"inst_app.{body.status}", target=aid,
+                     meta={"note": body.note})
+    return {"ok": True}
+
+
+# ============================================================
+# COUNTRY ECONOMICS — credits ↔ USD mapping + per-country P&L
+# ============================================================
+@country_r.get("/{code}/economics")
+async def country_economics(code: str,
+                              _: dict = Depends(require_roles("super_admin", "country_admin"))):
+    """Per-country economics: credits ↔ USD, cost, margin, P&L over windows.
+
+    Model:
+      - usd_per_credit   : global reference (settings economy.usd_per_credit; default 0.01).
+      - credits_per_sms  : what the client pays (settings credits.country_rate[code]).
+      - retail_usd_per_sms = credits_per_sms * usd_per_credit.
+      - cost_usd_per_sms  : weighted-avg of active providers' cost_per_sms for this country.
+      - margin_usd_per_sms = retail - cost. Margin % = margin / retail.
+    """
+    code = code.upper()
+    country = await db.countries.find_one({"code": code}, {"_id": 0})
+    if not country:
+        raise HTTPException(404, "Country not found")
+    usd_per_credit = float(await get_setting("economy.usd_per_credit", 0.01) or 0.01)
+    rates = await get_setting("credits.country_rate", {}) or {}
+    credits_per_sms = int(rates.get(code,
+                                     await get_setting("credits.default_rate", 2)) or 2)
+    whatsapp_credits = int(await get_setting("credits.whatsapp_rate", 3) or 3)
+
+    providers = await db.providers.find(
+        {"countries": code, "active": True}, {"_id": 0}).to_list(50)
+    if providers:
+        costs = [float(p.get("cost_per_sms", 0.01)) for p in providers]
+        cost_min = min(costs)
+        cost_max = max(costs)
+        cost_avg = sum(costs) / len(costs)
+    else:
+        cost_min = cost_max = cost_avg = None
+
+    retail_usd_per_sms = round(credits_per_sms * usd_per_credit, 6)
+    margin_usd_per_sms = round((retail_usd_per_sms - cost_avg), 6) if cost_avg is not None else None
+    margin_pct = round((margin_usd_per_sms / retail_usd_per_sms * 100), 2) if (
+        margin_usd_per_sms is not None and retail_usd_per_sms > 0) else None
+
+    # P&L windows from platform_revenue_log
+    async def window(days: int):
+        since = now_utc() - timedelta(days=days)
+        pipe = [
+            {"$match": {"country": code, "created_at": {"$gte": iso(since)}}},
+            {"$group": {"_id": None,
+                         "credits": {"$sum": "$credits"},
+                         "usd_cost": {"$sum": "$usd_cost"},
+                         "sends": {"$sum": 1}}},
+        ]
+        async for row in db.platform_revenue_log.aggregate(pipe):
+            credits = int(row.get("credits", 0))
+            cost = round(float(row.get("usd_cost", 0)), 4)
+            revenue = round(credits * usd_per_credit, 4)
+            return {"days": days, "sends": row.get("sends", 0), "credits": credits,
+                    "revenue_usd": revenue, "cost_usd": cost,
+                    "margin_usd": round(revenue - cost, 4),
+                    "margin_pct": round((revenue - cost) / revenue * 100, 2) if revenue else None}
+        return {"days": days, "sends": 0, "credits": 0, "revenue_usd": 0,
+                "cost_usd": 0, "margin_usd": 0, "margin_pct": None}
+
+    return {
+        "country": {"code": code, "name": country["name"]},
+        "unit_economics": {
+            "usd_per_credit": usd_per_credit,
+            "credits_per_sms": credits_per_sms,
+            "credits_per_whatsapp": whatsapp_credits,
+            "retail_usd_per_sms": retail_usd_per_sms,
+            "cost_usd_per_sms_min": cost_min,
+            "cost_usd_per_sms_max": cost_max,
+            "cost_usd_per_sms_avg": round(cost_avg, 6) if cost_avg is not None else None,
+            "margin_usd_per_sms": margin_usd_per_sms,
+            "margin_pct": margin_pct,
+            "providers_count": len(providers),
+        },
+        "windows": [
+            await window(1),
+            await window(7),
+            await window(30),
+            await window(90),
+        ],
+    }
+
+
+class CountryRateIn(BaseModel):
+    credits_per_sms: int = Field(ge=1, le=100)
+
+
+@country_r.put("/{code}/rate")
+async def country_set_rate(code: str, body: CountryRateIn,
+                             admin: dict = Depends(require_roles("super_admin"))):
+    code = code.upper()
+    rates = await get_setting("credits.country_rate", {}) or {}
+    rates[code] = int(body.credits_per_sms)
+    await db.system_settings.update_one(
+        {"key": "credits.country_rate"},
+        {"$set": {"key": "credits.country_rate", "value": rates, "category": "credits",
+                  "updated_at": iso(now_utc())}},
+        upsert=True)
+    await add_audit(admin["id"], "country.rate", target=code,
+                     meta={"credits_per_sms": body.credits_per_sms})
+    return {"ok": True, "credits_per_sms": body.credits_per_sms}
+
+
+@country_r.post("/{code}/prefixes")
+async def country_add_prefix(code: str, body: Dict[str, Any],
+                               _: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), "country": code.upper(),
+           "prefix": body.get("prefix", "").strip(),
+           "operator": body.get("operator", "Unknown"),
+           "active": body.get("active", True),
+           "created_at": iso(now_utc())}
+    if not doc["prefix"]:
+        raise HTTPException(400, "Prefix is required")
+    await db.mobile_prefixes.insert_one(doc)
+    return clean(doc)
+
+
+@country_r.delete("/{code}/prefixes/{pid}")
+async def country_del_prefix(code: str, pid: str,
+                               _: dict = Depends(require_roles("super_admin"))):
+    await db.mobile_prefixes.delete_one({"id": pid, "country": code.upper()})
+    return {"ok": True}
+
+
+# ============================================================
 # WHATSAPP TEMPLATES
 # ============================================================
 class WaTemplateIn(BaseModel):
@@ -2714,6 +3026,9 @@ api.include_router(res_px_r)
 api.include_router(adm_res_px_r)
 api.include_router(country_r)
 api.include_router(int_r)
+api.include_router(approv_r)
+api.include_router(app_r)
+api.include_router(pub_r)
 api.include_router(wa_r)
 
 
@@ -2943,6 +3258,9 @@ async def startup():
         ("reseller.allow_invite_clients", True, "reseller"),
         # Reseller commission paid out of admin margin (never inflates client price)
         ("pricing.reseller_commission_default", 0.15, "pricing"),
+        # Economy — credits ↔ USD reference rate. Drives all country P&L calculations.
+        # Default 0.01 = $1 per 100 credits (matches Scale pack's blended price).
+        ("economy.usd_per_credit", 0.01, "economy"),
         # Credits engine — drives all money-related behavior
         ("credits.default_rate", 2, "credits"),
         ("credits.whatsapp_rate", 3, "credits"),

@@ -40,7 +40,16 @@ const RESELLER_NAV = [
 ];
 const ADMIN_NAV = [
   {
-    group: "Overview",
+    group: "Platform ops",
+    items: [
+      { to: "/admin/users", icon: UserCog, label: "Users" },
+      { to: "/admin/resellers", icon: Users, label: "Resellers" },
+      { to: "/admin/institutions", icon: Building2, label: "Institutions" },
+      { to: "/admin/approvals", icon: ShieldCheck, label: "Approvals" },
+    ],
+  },
+  {
+    group: "Insights",
     items: [
       { to: "/admin/overview", icon: LayoutDashboard, label: "Overview" },
       { to: "/admin/margin", icon: TrendingUp, label: "Margin & revenue" },
@@ -48,44 +57,8 @@ const ADMIN_NAV = [
     ],
   },
   {
-    group: "Geographies",
+    group: "Configuration",
     items: [
-      { to: "/admin/country-hub", icon: Globe2, label: "Country hub" },
-      { to: "/admin/integrations", icon: Network, label: "Integration health" },
-      { to: "/admin/prefixes", icon: Smartphone, label: "Mobile prefixes" },
-    ],
-  },
-  {
-    group: "Messaging",
-    items: [
-      { to: "/admin/routing", icon: RouteIcon, label: "Routing engine" },
-      { to: "/admin/providers", icon: Network, label: "Providers" },
-      { to: "/admin/campaigns", icon: Calendar, label: "Campaigns" },
-      { to: "/admin/sender-ids", icon: ListChecks, label: "Sender IDs" },
-      { to: "/admin/whatsapp", icon: MessageCircle, label: "WhatsApp approvals" },
-    ],
-  },
-  {
-    group: "Economy",
-    items: [
-      { to: "/admin/pricing", icon: DollarSign, label: "Pricing" },
-      { to: "/admin/credit-packs", icon: Coins, label: "Credit packs" },
-      { to: "/admin/wallets", icon: WalletIcon, label: "Wallets" },
-      { to: "/admin/promotions", icon: Megaphone, label: "Promotions" },
-    ],
-  },
-  {
-    group: "Distribution",
-    items: [
-      { to: "/admin/resellers", icon: Users, label: "Resellers" },
-      { to: "/admin/institutions", icon: Building2, label: "Institutions" },
-      { to: "/admin/users", icon: UserCog, label: "Users" },
-    ],
-  },
-  {
-    group: "System",
-    items: [
-      { to: "/admin/countries", icon: Globe2, label: "Countries (legacy)" },
       { to: "/admin/settings", icon: Settings, label: "Settings hub" },
     ],
   },

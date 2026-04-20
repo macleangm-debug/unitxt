@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
-import http, { fmtErr } from "@/lib/api";
+import http, { fmtErr, humanize } from "@/lib/api";
 import { PageHeader, Card, Field, Input, Select, TextArea, Btn, Pill } from "@/components/UI";
 import {
   Settings as SettingsIcon, Globe2, Network, DollarSign, Wallet as WalletIcon,
@@ -30,8 +30,11 @@ const CATEGORIES = {
   promotions:    { label: "Promotions",      icon: Megaphone,    desc: "Bonus credits & promo codes.",               linkTo: "/admin/promotions" },
   resellers:     { label: "Resellers",       icon: Users,        desc: "Reseller catalog, commission & audit.",     linkTo: "/admin/resellers" },
   reseller_policy: { label: "Reseller policy", icon: ShieldCheck, desc: "Signup, KYC, commission defaults, limits." },
-  country_hub:   { label: "Country hub",     icon: Globe2,       desc: "Every country we operate in.",               linkTo: "/admin/country-hub" },
+  country_hub:   { label: "Country hub",     icon: Globe2,       desc: "Every country we operate in — pricing, routes, operators.", linkTo: "/admin/country-hub" },
   integrations:  { label: "Integration health", icon: Network,   desc: "Every partner × country with live signal.", linkTo: "/admin/integrations" },
+  routing:       { label: "Routing engine",  icon: Network,      desc: "Per-country priority & failover rules.",     linkTo: "/admin/routing" },
+  prefixes:      { label: "Mobile prefixes", icon: SettingsIcon, desc: "Map phone prefixes to operators.",           linkTo: "/admin/prefixes" },
+  credit_packs:  { label: "Credit packs",    icon: DollarSign,   desc: "Global & country-specific packages.",        linkTo: "/admin/credit-packs" },
 };
 
 // Organize into logical groups
@@ -46,19 +49,19 @@ const GROUPS = [
     key: "economy",
     label: "Economy",
     desc: "Credits, reseller commission, referrals and loyalty rewards.",
-    items: ["credits", "pricing_cfg", "referrals", "streaks"],
+    items: ["credits", "pricing_cfg", "credit_packs", "referrals", "streaks"],
   },
   {
     key: "geographies",
     label: "Geographies",
-    desc: "Countries we operate in and the partners that power them.",
-    items: ["country_hub", "integrations"],
+    desc: "Countries we operate in, partners, routing & prefixes.",
+    items: ["country_hub", "integrations", "routing", "providers", "prefixes", "countries", "pricing"],
   },
   {
     key: "messaging",
     label: "Messaging engine",
-    desc: "Throughput, routing and all message-channel related modules.",
-    items: ["queue", "providers", "countries", "pricing", "sender_ids"],
+    desc: "Queue throughput and channel controls.",
+    items: ["queue", "sender_ids"],
   },
   {
     key: "governance",
@@ -281,8 +284,8 @@ export default function SettingsHub() {
                 return (
                   <div key={s.key} className="grid gap-3 border border-zinc-900 bg-[#141414] p-4 sm:grid-cols-[1fr,1.5fr,auto] sm:items-end" data-testid={`setting-${s.key}`}>
                     <div>
-                      <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-500">key</div>
-                      <code className="mt-1 block font-mono text-sm text-white break-all">{s.key}</code>
+                      <div className="text-sm font-medium text-white">{humanize(s.key)}</div>
+                      <code className="mt-1 block font-mono text-[11px] text-zinc-500 break-all">{s.key}</code>
                     </div>
                     <Field label="Value">
                       {renderEditor({ ...s, value: isDraft ? draft[s.key] : s.value }, (v) => setDraft({ ...draft, [s.key]: v }))}

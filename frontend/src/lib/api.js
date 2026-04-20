@@ -23,6 +23,26 @@ export function fmtErr(detail) {
   return String(detail);
 }
 
+/** Humanize a dotted/underscore key for UI display.
+ * e.g. "credit.added" → "Credit added", "reseller.kyc_required" → "Reseller KYC required"
+ */
+export function humanize(key) {
+  if (!key) return "";
+  const acronyms = new Set(["KYC", "DLR", "SMS", "API", "USD", "ID", "OTP", "WA"]);
+  return String(key)
+    .replace(/[._-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word, i) => {
+      const u = word.toUpperCase();
+      if (acronyms.has(u)) return u;
+      return i === 0
+        ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        : word.toLowerCase();
+    })
+    .join(" ");
+}
+
 export function money(n, cur = "USD") {
   const v = Number(n || 0);
   return `${cur === "USD" ? "$" : ""}${v.toLocaleString(undefined, {

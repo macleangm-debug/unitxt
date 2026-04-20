@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import http, { fmtErr } from "@/lib/api";
 import {
   PageHeader, Card, Field, Input, Select, Btn, Pill, Stat, Table,
-} from "@/components/UI";
-import {
+} from "@/components/UI";import {
   Globe2, ShieldCheck, Route as RouteIcon, Users, IdCard, Smartphone,
   Zap, PauseCircle, PlayCircle, ArrowLeft, Activity, Shield,
+  TrendingUp, Plus, Trash2, Check,
 } from "lucide-react";
 
 const HEALTH_COLOR = {
@@ -38,6 +38,7 @@ function HealthChip({ h }) {
 
 const TABS = [
   { key: "overview",   label: "Overview",       icon: Activity },
+  { key: "economics",  label: "Economics",      icon: TrendingUp },
   { key: "routes",     label: "Routes",         icon: RouteIcon },
   { key: "operators",  label: "Operators & prefixes", icon: Smartphone },
   { key: "sender",     label: "Sender IDs",     icon: IdCard },
@@ -181,45 +182,19 @@ export default function CountryDetail() {
         </div>
       )}
 
+      {/* ECONOMICS */}
+      {tab === "economics" && (
+        <EconomicsPanel code={code} />
+      )}
+
       {/* OPERATORS */}
       {tab === "operators" && (
-        <div className="grid gap-4 lg:grid-cols-[1fr,2fr]" data-testid="ops-panel">
-          <Card>
-            <div className="label-overline mb-3">Operators</div>
-            <Table rows={data.operators} rowKey="name"
-                   empty="No operators mapped for this country."
-                   columns={[
-                     { key: "name", label: "Operator", render: r => <span className="text-white">{r.name}</span> },
-                     { key: "prefixes", label: "Prefixes", mono: true },
-                   ]}/>
-          </Card>
-          <Card>
-            <div className="label-overline mb-3">Mobile prefixes ({data.prefixes.length})</div>
-            <Table rows={data.prefixes.slice(0, 200)}
-                   empty="No prefixes."
-                   columns={[
-                     { key: "prefix", label: "Prefix", mono: true },
-                     { key: "operator", label: "Operator" },
-                     { key: "active", label: "Active", render: r => <Pill status={r.active ? "active" : "down"}/> },
-                   ]}/>
-          </Card>
-        </div>
+        <OperatorsPanel code={code} data={data} onSaved={load}/>
       )}
 
       {/* SENDER IDs */}
       {tab === "sender" && (
-        <Table testid="sender-ids-table"
-               rows={data.sender_ids}
-               empty="No sender IDs in this country yet."
-               columns={[
-                 { key: "sender_id", label: "Sender ID", mono: true },
-                 { key: "user_id", label: "Owner", mono: true, render: r => (r.user_id || "").slice(0, 8) },
-                 { key: "status", label: "Status", render: r => <Pill status={r.status}/> },
-                 { key: "created_at", label: "Created", mono: true,
-                   render: r => new Date(r.created_at).toLocaleDateString() },
-                 { key: "expires_at", label: "Expires", mono: true,
-                   render: r => r.expires_at ? new Date(r.expires_at).toLocaleDateString() : "—" },
-               ]}/>
+        <SenderIdPanel rows={data.sender_ids} onDone={load}/>
       )}
 
       {/* COMPLIANCE */}
@@ -286,5 +261,217 @@ function CompliancePanel({ country, code, onSaved }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+
+/* ---------- Economics panel ---------- */
+function EconomicsPanel({ code }) {
+  const [data, setData] = useState(null);
+  const [rate, setRate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [usdPerCredit, setUsdPerCredit] = useState("");
+
+  const load = async () => {
+    const r = await http.get(`/admin/country-hub/${code}/economics`);
+    setData(r.data);
+    setRate(r.data.unit_economics.credits_per_sms);
+    setUsdPerCredit(r.data.unit_economics.usd_per_credit);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [code]);
+
+  if (!data) return <div className="text-sm text-zinc-500">Loading economics…</div>;
+  const u = data.unit_economics;
+
+  const saveRate = async () => {
+    setBusy(true);
+    try {
+      await http.put(`/admin/country-hub/${code}/rate`, { credits_per_sms: Number(rate) });
+      toast.success("Rate updated");
+      load();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+
+  const saveUsdPerCredit = async () => {
+    setBusy(true);
+    try {
+      await http.put("/admin/settings",
+        { key: "economy.usd_per_credit", value: Number(usdPerCredit), category: "economy" });
+      toast.success("Credit value updated (global)");
+      load();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+
+  const fmtUsd = (n) => n == null ? "—" : `$${Number(n).toFixed(4)}`;
+  const fmtUsd2 = (n) => n == null ? "—" : `$${Number(n).toFixed(2)}`;
+
+  return (
+    <div className="space-y-4" data-testid="economics-panel">
+      {/* Unit economics */}
+      <Card testid="unit-economics">
+        <div className="label-overline mb-3 flex items-center gap-2">
+          <TrendingUp className="h-3.5 w-3.5"/>Unit economics
+        </div>
+        <div className="grid grid-cols-2 gap-0 border border-zinc-900 md:grid-cols-4">
+          <Stat label="Credits / SMS"       value={u.credits_per_sms}/>
+          <Stat label="Retail / SMS (USD)"  value={fmtUsd(u.retail_usd_per_sms)} accent="white"/>
+          <Stat label="Our cost avg (USD)"  value={fmtUsd(u.cost_usd_per_sms_avg)}/>
+          <Stat label="Margin / SMS"        value={fmtUsd(u.margin_usd_per_sms)} accent={u.margin_pct > 0 ? "green" : "red"}/>
+          <Stat label="Margin %"            value={u.margin_pct != null ? `${u.margin_pct}%` : "—"} accent={u.margin_pct > 0 ? "green" : "red"}/>
+          <Stat label="Cost min"            value={fmtUsd(u.cost_usd_per_sms_min)}/>
+          <Stat label="Cost max"            value={fmtUsd(u.cost_usd_per_sms_max)}/>
+          <Stat label="Active routes"       value={u.providers_count}/>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="grid items-end gap-3 sm:grid-cols-[1fr,auto] border border-zinc-900 bg-[#141414] p-3">
+            <Field label={`Credits / SMS for ${code}`} hint="Client retail rate in credits.">
+              <Input type="number" value={rate} onChange={(e) => setRate(e.target.value)} data-testid="rate-input"/>
+            </Field>
+            <Btn onClick={saveRate} disabled={busy} className="h-10" data-testid="rate-save">Save rate</Btn>
+          </div>
+          <div className="grid items-end gap-3 sm:grid-cols-[1fr,auto] border border-zinc-900 bg-[#141414] p-3">
+            <Field label="USD per credit (global)" hint="Reference rate for all countries. Changes propagate everywhere.">
+              <Input type="number" step="0.0001" value={usdPerCredit} onChange={(e) => setUsdPerCredit(e.target.value)} data-testid="usd-per-credit"/>
+            </Field>
+            <Btn onClick={saveUsdPerCredit} disabled={busy} className="h-10" data-testid="usd-per-credit-save">Save</Btn>
+          </div>
+        </div>
+      </Card>
+
+      {/* P&L windows */}
+      <Card testid="pnl-windows">
+        <div className="label-overline mb-3">P&amp;L windows</div>
+        <Table rows={data.windows} rowKey="days"
+               empty="No traffic yet."
+               columns={[
+                 { key: "days", label: "Window", mono: true, render: r => `${r.days}d` },
+                 { key: "sends", label: "Sends", mono: true, render: r => (r.sends || 0).toLocaleString() },
+                 { key: "credits", label: "Credits used", mono: true, render: r => (r.credits || 0).toLocaleString() },
+                 { key: "revenue_usd", label: "Revenue", mono: true, render: r => fmtUsd2(r.revenue_usd) },
+                 { key: "cost_usd", label: "Cost", mono: true, render: r => fmtUsd2(r.cost_usd) },
+                 { key: "margin_usd", label: "Margin", mono: true, render: r =>
+                   <span className={(r.margin_usd || 0) >= 0 ? "text-emerald-400" : "text-red-400"}>
+                     {fmtUsd2(r.margin_usd)}
+                   </span>,
+                 },
+                 { key: "margin_pct", label: "Margin %", mono: true,
+                   render: r => r.margin_pct != null ? `${r.margin_pct}%` : "—" },
+               ]}/>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------- Operators & prefixes panel (with add/delete) ---------- */
+function OperatorsPanel({ code, data, onSaved }) {
+  const [prefix, setPrefix] = useState("");
+  const [operator, setOperator] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    setBusy(true);
+    try {
+      await http.post(`/admin/country-hub/${code}/prefixes`, { prefix: prefix.trim(), operator: operator.trim() || "Unknown", active: true });
+      setPrefix(""); setOperator("");
+      toast.success("Prefix added");
+      onSaved?.();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+
+  const del = async (pid) => {
+    if (!window.confirm("Remove this prefix?")) return;
+    try {
+      await http.delete(`/admin/country-hub/${code}/prefixes/${pid}`);
+      toast.success("Removed");
+      onSaved?.();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr,2fr]" data-testid="ops-panel">
+      <Card>
+        <div className="label-overline mb-3">Operators ({data.operators.length})</div>
+        <Table rows={data.operators} rowKey="name"
+               empty="No operators mapped yet — add prefixes to auto-populate."
+               columns={[
+                 { key: "name", label: "Operator", render: r => <span className="text-white">{r.name}</span> },
+                 { key: "prefixes", label: "Prefixes", mono: true },
+               ]}/>
+      </Card>
+      <Card>
+        <div className="label-overline mb-3">Mobile prefixes ({data.prefixes.length})</div>
+        <div className="mb-3 grid gap-2 border border-zinc-900 bg-[#141414] p-3 sm:grid-cols-[1fr,1fr,auto]">
+          <Field label="Prefix" hint="e.g. +25571">
+            <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} data-testid="prefix-input"/>
+          </Field>
+          <Field label="Operator">
+            <Input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder="Tigo, Airtel, Vodacom..." data-testid="operator-input"/>
+          </Field>
+          <Btn onClick={add} disabled={busy || !prefix.trim()} className="h-10 self-end" data-testid="add-prefix-btn">
+            <Plus className="h-4 w-4"/>Add
+          </Btn>
+        </div>
+        <Table rows={data.prefixes.slice(0, 200)}
+               empty="No prefixes yet."
+               columns={[
+                 { key: "prefix", label: "Prefix", mono: true },
+                 { key: "operator", label: "Operator" },
+                 { key: "active", label: "Active", render: r => <Pill status={r.active ? "active" : "down"}/> },
+                 { key: "del", label: "",
+                   render: r => (
+                     <button onClick={() => del(r.id)} className="text-zinc-400 hover:text-red-400" data-testid={`del-prefix-${r.id}`}>
+                       <Trash2 className="h-4 w-4"/>
+                     </button>
+                   ),
+                 },
+               ]}/>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------- Sender ID panel with approve/reject ---------- */
+function SenderIdPanel({ rows, onDone }) {
+  const review = async (sid, status) => {
+    try {
+      await http.post(`/admin/sender-ids/${sid.id}/review`, { status, note: "" });
+      toast.success(`Marked ${status}`);
+      onDone?.();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+  };
+
+  return (
+    <Table testid="sender-ids-table"
+           rows={rows}
+           empty="No sender IDs in this country yet."
+           columns={[
+             { key: "sender_id", label: "Sender ID", mono: true },
+             { key: "user_id", label: "Owner", mono: true, render: r => (r.user_id || "").slice(0, 8) },
+             { key: "status", label: "Status", render: r => <Pill status={r.status}/> },
+             { key: "created_at", label: "Created", mono: true,
+               render: r => new Date(r.created_at).toLocaleDateString() },
+             { key: "expires_at", label: "Expires", mono: true,
+               render: r => r.expires_at ? new Date(r.expires_at).toLocaleDateString() : "—" },
+             { key: "actions", label: "",
+               render: r => r.status === "pending" ? (
+                 <div className="flex gap-2">
+                   <button onClick={() => review(r, "approved")}
+                           className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300"
+                           data-testid={`sid-approve-${r.id}`}>
+                     <Check className="h-3 w-3"/>Approve
+                   </button>
+                   <button onClick={() => review(r, "rejected")}
+                           className="inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
+                           data-testid={`sid-reject-${r.id}`}>
+                     <ArrowLeft className="h-3 w-3 rotate-180"/>Reject
+                   </button>
+                 </div>
+               ) : null,
+             },
+           ]}/>
   );
 }

@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import http, { fmtErr } from "@/lib/api";
-import { PageHeader, Card, Field, Input, Select, Btn, Pill, Stat, Modal } from "@/components/UI";
+import { PageHeader, Card, Field, Input, Select, Btn, Pill, Stat, Modal, Table } from "@/components/UI";
 import {
-  Globe2, Plus, Activity, Route as RouteIcon, IdCard, Smartphone,
-  Search, ArrowRight, AlertTriangle, Check,
+  Globe2, Plus, Activity, Search, ArrowRight, Check,
 } from "lucide-react";
 
 const HEALTH_COLOR = {
@@ -305,66 +304,61 @@ export default function CountryHub() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map(c => (
-          <Card key={c.code} testid={`country-card-${c.code}`}
-                className="group cursor-pointer transition hover:border-zinc-700"
-          >
-            <button onClick={() => nav(`/admin/country-hub/${c.code}`)}
-                    className="block w-full text-left"
-                    data-testid={`open-country-${c.code}`}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-12 w-12 place-items-center border border-zinc-800 bg-[#141414] text-2xl">
-                    {flagFor(c.code) || <Globe2 className="h-5 w-5 text-zinc-500"/>}
-                  </div>
-                  <div>
-                    <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-500">{c.code} · {c.dial_code}</div>
-                    <div className="mt-0.5 font-display text-lg font-semibold tracking-tight">{c.name}</div>
-                  </div>
+      <Table
+        testid="countries-table"
+        rows={filtered}
+        empty="No countries match."
+        columns={[
+          {
+            key: "name", label: "Country",
+            render: c => (
+              <button onClick={() => nav(`/admin/country-hub/${c.code}`)}
+                      className="flex items-center gap-3 text-left hover:text-white"
+                      data-testid={`open-country-${c.code}`}>
+                <span className="text-xl">{flagFor(c.code) || "🌐"}</span>
+                <div>
+                  <div className="text-sm font-medium text-white">{c.name}</div>
+                  <div className="font-mono text-[11px] text-zinc-500">{c.code} · {c.dial_code}</div>
                 </div>
-                <Pill status={c.status === "active" ? "active"
-                                : c.status === "draft" ? "pending"
-                                : "down"}>{c.status}</Pill>
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-0 border border-zinc-900">
-                <div className="border-r border-zinc-900 p-3 text-center">
-                  <div className="label-overline">Rate</div>
-                  <div className="mt-1 font-mono text-sm text-white">{c.credits_per_sms} cr</div>
-                </div>
-                <div className="border-r border-zinc-900 p-3 text-center">
-                  <div className="label-overline">Routes</div>
-                  <div className="mt-1 flex items-center justify-center gap-1 font-mono text-sm text-white">
-                    <RouteIcon className="h-3 w-3"/>{c.routes_count}
-                  </div>
-                </div>
-                <div className="p-3 text-center">
-                  <div className="label-overline">Sender IDs</div>
-                  <div className="mt-1 flex items-center justify-center gap-1 font-mono text-sm text-white">
-                    <IdCard className="h-3 w-3"/>{c.active_sender_ids}/{c.sender_ids_count}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <HealthChip h={c.health}/>
-                  <span className="flex items-center gap-1 text-zinc-500">
-                    <Smartphone className="h-3 w-3"/>{c.prefixes_count} prefixes · {c.operators_count} ops
-                  </span>
-                </div>
-                {c.health?.status === "unconfigured" && (
-                  <span className="inline-flex items-center gap-1 text-amber-400">
-                    <AlertTriangle className="h-3 w-3"/>setup required
-                  </span>
-                )}
-                <span className="text-zinc-500 group-hover:text-white">Open →</span>
-              </div>
-            </button>
-          </Card>
-        ))}
-      </div>
+              </button>
+            ),
+          },
+          { key: "credits_per_sms", label: "Rate", mono: true, render: c => `${c.credits_per_sms} cr/SMS` },
+          { key: "routes_count", label: "Routes", mono: true },
+          { key: "operators_count", label: "Operators", mono: true },
+          { key: "prefixes_count", label: "Prefixes", mono: true },
+          {
+            key: "sender_ids",
+            label: "Sender IDs",
+            mono: true,
+            render: c => `${c.active_sender_ids}/${c.sender_ids_count}`,
+          },
+          {
+            key: "health",
+            label: "Health",
+            render: c => <HealthChip h={c.health}/>,
+          },
+          {
+            key: "status",
+            label: "Status",
+            render: c => (
+              <Pill status={c.status === "active" ? "active"
+                              : c.status === "draft" ? "pending"
+                              : "down"}>{c.status}</Pill>
+            ),
+          },
+          {
+            key: "actions",
+            label: "",
+            render: c => (
+              <Btn variant="ghost" onClick={() => nav(`/admin/country-hub/${c.code}`)}
+                   data-testid={`cta-${c.code}`}>
+                Manage →
+              </Btn>
+            ),
+          },
+        ]}
+      />
 
       <AddCountryWizard open={wizard} onClose={() => setWizard(false)} onCreated={load}/>
     </div>
