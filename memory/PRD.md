@@ -1,55 +1,54 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-20 (iteration 6)
-**Version**: 1.4 (Admin Reseller Workspace)
+**Last updated**: 2026-04-20 (iteration 7)
+**Version**: 1.5 (Country Hub + Integration Health)
 
 ## Implemented so far (cumulative)
-### v1.0 → v1.3 (prior)
-Three portals · JWT+RBAC · Credits economy · smart batching (10k in 21s) · scheduled worker · operator-aware routing · referrals · streaks · DLR webhook push · WhatsApp templates · Excel import · reseller commission model (clients pay retail, resellers earn from admin margin) · Settings Hub v2 with 5 grouped sections + search. See CHANGELOG below for details.
+### v1.0 → v1.4 (prior)
+Three portals · JWT+RBAC · Credits economy · smart batching (10k in 21s) · scheduled worker · operator-aware routing · referrals · streaks · DLR webhook push · WhatsApp templates · Excel import · reseller commission (clients pay retail, resellers earn from admin margin) · Settings Hub v2 (grouped + search) · Admin Reseller Workspace (catalog + drawer + policy + audit).
 
-### v1.4 (admin reseller workspace) — **this iteration**
-- **Admin Reseller Workspace** at `/admin/resellers`, surfaced inside Settings Hub → Distribution group. 3 tabs:
-  - **Reseller catalog** — stats (count, total float, clients, lifetime commission), search, table with every reseller (float balance, clients_count, lifetime commission, status). Click any row to open a drawer.
-  - **Global policy** — inline editors for `reseller.default_commission`, `reseller.kyc_required`, `reseller.min_float_topup`, `reseller.max_sub_clients`, `reseller.allow_invite_clients`, `onboarding.reseller_signup_open` and `pricing.reseller_commission_default`.
-  - **Commission audit** — windowed ledger (7/30/90/365 days) with grand total, per-reseller totals, transaction list.
-- **Per-reseller drawer**: float top-up / clawback, default commission editor, country×channel commission overrides CRUD, status toggle (active/suspended), sub-clients list, copy referral code.
-- **New backend endpoints**: `GET /api/admin/resellers`, `GET /api/admin/resellers/{id}/detail`, `POST /api/admin/resellers/{id}/float`, `PUT /api/admin/resellers/{id}/status`, `GET /api/admin/resellers/commission-audit`.
-- **32/32 backend tests pass**; full frontend verified.
+### v1.5 (Country Hub + Integration Health) — **this iteration**
+- **Country Hub** at `/admin/country-hub` — catalog of country cards (flag, ISO, dial code, credit rate, route count, sender IDs, live health chip). Stats row (countries / active / healthy / unconfigured). Search + refresh.
+- **4-step Add-country wizard** — Identity → Pricing → Routes → Compliance. Mandatory setup: country stays **draft** until at least one route is selected. On complete submit, writes `credits.country_rate[code]` setting, wires providers via `$addToSet` on `countries`, creates the country with `status=active`. Incomplete saves produce `status=draft, missing=[...]`.
+- **Country detail** at `/admin/country-hub/{code}` — 5 tabs (Overview, Routes, Operators & prefixes, Sender IDs, Compliance), kill-switch/activate button, per-route Test connection button with latency report, live country-level health (derived from 24h message success rate across providers).
+- **Integration Health dashboard** at `/admin/integrations` — table of every provider × country it covers with health chip (healthy / degraded / down / idle / offline), creds presence pill, 24h volume, 1-click Test button. Stats row. Info card explaining the health formula (≥90% healthy, 50-90% degraded, <50% down with traffic, idle otherwise).
+- **Add-integration wizard** — Step 1 picker lists **ONLY adapters actually implemented** in the backend (`INTEGRATED_ADAPTERS` list: Twilio, Tigo TZ, Mock). Info banner clearly states no defaults/marketing partners. Step 2 dynamic form pulls fields from the selected adapter's manifest (Account SID / Auth Token / Username / Password / VPN URL as appropriate). Users pick countries to cover from already-onboarded list.
+- **New backend endpoints**: `GET /api/admin/country-hub`, `GET /api/admin/country-hub/integrations/available`, `POST /api/admin/country-hub/wizard`, `GET /api/admin/country-hub/{code}`, `PUT /api/admin/country-hub/{code}/status`, `PUT /api/admin/country-hub/{code}/compliance`, `GET /api/admin/integrations/health`, `POST /api/admin/integrations/{id}/test`.
+- **Health signal**: `compute_provider_health()` aggregates last 24h `messages` per provider_id, factors in creds + active flag. `country_health_summary()` rolls up all providers for a country.
+- **Settings Hub layout** gains a new **Geographies** group exposing Country hub → and Integration health → as module links.
+- **40/40 backend tests pass**; full frontend verified (including critical check: no Infobip/MessageBird/Africa's Talking leaks into the wizard).
 
-## Upcoming (Phase 2 — Country Hub, confirmed by user)
-Per user feedback "configuration per country, routes, partners, integration health, all in Settings Hub":
-- **Country catalog** cards (flag/ISO/rate/health/routes/senderIDs) + "Add country" 4-step wizard (identity → pricing → routes → compliance). Mandatory setup; country stays in draft until complete.
-- **Country detail** with live health score, ordered route table (priority, operators, cost, success %, toggle), partners/integrations with "Test connection" button, operators & prefixes, sender IDs, compliance (opt-out footer, patterns, caps), kill switch.
-- **Integration health dashboard** — every provider × every country with simulated health pings (upgrade to real later).
-- **Add integration wizard** — Twilio / Infobip / MessageBird / Africa's Talking / Tigo / custom HTTP.
-
-## Blocked / pending user input
-- **Tigo TZ SMS API** — VPN doc supplied has no HTTP spec; waiting on actual SMS API docs.
-- **Twilio real REST** — stub ready; needs Account SID + Auth Token.
-- **Stripe Checkout** — pack purchase wiring; user to confirm hosted vs embedded style.
+## What's still mocked / pending user input
+- **Tigo TZ SMS API** — adapter exists as stub; waiting on HTTP spec/endpoints.
+- **Twilio real REST** — adapter skeleton; needs real Account SID + Auth Token to call live API.
+- **Stripe Checkout** — pack purchase wiring; user to confirm hosted vs embedded.
+- **Integration health ping** — currently derived from in-house traffic + creds state (simulated). Upgrade to per-provider real health endpoint once adapters go live.
 
 ## Backlog
 ### P0
-- Country Hub (Phase 2, see above)
-- Real Twilio + Tigo wiring (credentials/docs pending)
-- Real Stripe Checkout session wiring
+- Real Twilio wiring (creds pending)
+- Real Tigo TZ wiring (API docs pending)
+- Real Stripe Checkout session
 - WhatsApp send via approved templates
 
 ### P1
 - CSV column-mapping wizard in Bulk Send
-- Opt-out / DND list
+- Opt-out / DND list (referenced in country compliance)
 - Spam-keyword guard enforcement
-- Daily send-limit enforcement per client
+- Daily send-limit enforcement (already stored per country)
+- Country-Admin scoped views
 
 ### P2
 - AI fraud detection
 - Voice + email channels
-- Quality-aware smart routing
+- Quality-aware smart routing (delivery-rate feedback loop)
 - Multi-currency pack purchasing + FX
+- Real-time per-provider health pings via partner status endpoints
 
 ## Settings Hub layout (current)
 - **Platform & Onboarding** — platform, onboarding
 - **Economy** — credits, pricing_cfg (reseller margin), referrals, streaks
+- **Geographies** 🆕 — country_hub →, integrations →
 - **Messaging engine** — queue, providers →, countries →, pricing →, sender_ids →
 - **Governance & lifecycle** — compliance, inactivity, notifications
 - **Distribution & treasury** — resellers →, reseller_policy, wallets →, institutions →, promotions →
