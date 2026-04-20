@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-20 (iteration 8)
-**Version**: 1.7 (Ops-only admin + unified approvals + public apply + country economics)
+**Last updated**: 2026-04-20 (iteration 9)
+**Version**: 1.8 (Contact groups · Personalisation · Explicit DLR · Number lookup)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.4 (prior)
