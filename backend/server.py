@@ -291,6 +291,7 @@ class PromotionIn(BaseModel):
     type: str = "bonus_credit"  # bonus_credit | percent_discount | free_sms
     value: float
     min_topup: float = 0
+    country: Optional[str] = None  # None = global. ISO-2 = country-scoped.
     active: bool = True
     valid_from: Optional[str] = None
     valid_to: Optional[str] = None
@@ -1076,6 +1077,51 @@ async def lookup_history(user: dict = Depends(get_current_user)):
     return rows
 
 
+class AutoCleanIn(BaseModel):
+    group_id: Optional[str] = None  # None = clean all contacts
+    remove_invalid: bool = True
+
+
+@num_r.post("/auto-clean")
+async def auto_clean_contacts(body: AutoCleanIn,
+                                user: dict = Depends(get_current_user)):
+    """Run Smart validation on the user's entire contact list (or one group),
+    flag invalid numbers, and optionally delete them. Pricing: same as bulk smart
+    validation — 1 credit per contact (configurable via numbers.smart_validation_cost)."""
+    q: Dict[str, Any] = {"user_id": user["id"]}
+    if body.group_id:
+        q["group_ids"] = body.group_id
+    contacts = await db.contacts.find(q, {"_id": 0}).to_list(10000)
+    if not contacts:
+        return {"total": 0, "valid": 0, "invalid": 0, "removed": 0, "credits_charged": 0}
+    charged = await _charge_lookup(user, "smart_validation", len(contacts))
+    invalid_ids = []
+    results = []
+    for c in contacts:
+        r = await smart_validate_number(c["phone"], user["id"])
+        results.append({"contact_id": c["id"], "phone": c["phone"],
+                         "name": c.get("name", ""), "valid": r.get("valid"),
+                         "country": r.get("country"), "operator": r.get("operator"),
+                         "risk_flags": r.get("risk_flags", [])})
+        if not r.get("valid"):
+            invalid_ids.append(c["id"])
+    removed = 0
+    if body.remove_invalid and invalid_ids:
+        res = await db.contacts.delete_many(
+            {"user_id": user["id"], "id": {"$in": invalid_ids}})
+        removed = res.deleted_count
+    await db.number_lookups.insert_one({
+        "id": new_id(), "user_id": user["id"], "service": "smart_validation",
+        "phones_count": len(contacts), "valid_count": len(contacts) - len(invalid_ids),
+        "credits": charged, "kind": "auto_clean",
+        "group_id": body.group_id, "removed": removed,
+        "created_at": iso(now_utc()),
+    })
+    return {"total": len(contacts), "valid": len(contacts) - len(invalid_ids),
+             "invalid": len(invalid_ids), "removed": removed,
+             "credits_charged": charged, "results": results[:500]}
+
+
 # ============================================================
 # SENDER IDS
 # ============================================================
@@ -1569,6 +1615,95 @@ async def my_stats(user: dict = Depends(get_current_user)):
     }
 
 
+@msg_r.get("/delivery-report")
+async def delivery_report(days: int = 30,
+                            user: dict = Depends(get_current_user)):
+    """Daily delivery rate + plain-English failure reason breakdown."""
+    since = now_utc() - timedelta(days=max(1, min(365, days)))
+    q = {"user_id": user["id"], "created_at": {"$gte": iso(since)}}
+    # by-day
+    day_pipe = [
+        {"$match": q},
+        {"$group": {
+            "_id": {"day": {"$substr": ["$created_at", 0, 10]}, "status": "$status"},
+            "n": {"$sum": 1},
+        }},
+    ]
+    day_rows = await db.messages.aggregate(day_pipe).to_list(2000)
+    by_day: Dict[str, Dict[str, int]] = {}
+    for r in day_rows:
+        d = r["_id"]["day"]; s = r["_id"]["status"]; n = r["n"]
+        by_day.setdefault(d, {"sent": 0, "delivered": 0, "failed": 0, "queued": 0})
+        if s in ("sent", "delivered"):
+            by_day[d]["delivered"] += n
+        elif s in ("failed", "undelivered"):
+            by_day[d]["failed"] += n
+        else:
+            by_day[d][s] = by_day[d].get(s, 0) + n
+        by_day[d]["sent"] = (by_day[d]["delivered"] + by_day[d]["failed"]
+                              + by_day[d].get("queued", 0))
+    days_list = sorted(by_day.items())
+    timeline = [{
+        "day": d, **v,
+        "delivery_rate": round((v["delivered"] / v["sent"] * 100)
+                                 if v["sent"] else 0, 2),
+    } for d, v in days_list]
+
+    # overall counters
+    total = sum(v["sent"] for _, v in days_list) or 0
+    delivered_total = sum(v["delivered"] for _, v in days_list) or 0
+    failed_total = sum(v["failed"] for _, v in days_list) or 0
+
+    # failure reason breakdown
+    fail_pipe = [
+        {"$match": {**q, "status": {"$in": ["failed", "undelivered"]}}},
+        {"$project": {"error": 1}},
+        {"$limit": 5000},
+    ]
+    fails = await db.messages.aggregate(fail_pipe).to_list(5000)
+    reason_counts: Dict[str, Dict[str, Any]] = {}
+    for f in fails:
+        reason = classify_delivery_error(f.get("error"))
+        bucket = reason_counts.setdefault(reason["code"],
+            {"code": reason["code"], "reason": reason["reason"], "count": 0})
+        bucket["count"] += 1
+    reasons = sorted(reason_counts.values(), key=lambda x: -x["count"])
+
+    # by country
+    country_pipe = [
+        {"$match": q},
+        {"$group": {"_id": {"country": "$country", "status": "$status"},
+                     "n": {"$sum": 1}}},
+    ]
+    country_rows = await db.messages.aggregate(country_pipe).to_list(2000)
+    by_country: Dict[str, Dict[str, int]] = {}
+    for r in country_rows:
+        c = r["_id"].get("country") or "—"
+        s = r["_id"]["status"]
+        by_country.setdefault(c, {"sent": 0, "delivered": 0, "failed": 0})
+        if s in ("sent", "delivered"):
+            by_country[c]["delivered"] += r["n"]
+        elif s in ("failed", "undelivered"):
+            by_country[c]["failed"] += r["n"]
+        by_country[c]["sent"] = (by_country[c]["delivered"] + by_country[c]["failed"])
+    countries = [{
+        "country": c, **v,
+        "delivery_rate": round((v["delivered"] / v["sent"] * 100)
+                                 if v["sent"] else 0, 2),
+    } for c, v in sorted(by_country.items(), key=lambda x: -x[1]["sent"])]
+
+    return {
+        "days": days,
+        "total_sent": total,
+        "delivered": delivered_total,
+        "failed": failed_total,
+        "delivery_rate": round((delivered_total / total * 100) if total else 0, 2),
+        "timeline": timeline,
+        "failure_reasons": reasons,
+        "by_country": countries,
+    }
+
+
 # ============================================================
 # RESELLER
 # ============================================================
@@ -1987,8 +2122,18 @@ class AdminTransferIn(BaseModel):
 
 
 @credits_r.get("/packs")
-async def list_packs():
-    items = await db.credit_packs.find({"active": True}, {"_id": 0}).sort("credits", 1).to_list(50)
+async def list_packs(user: dict = Depends(get_current_user)):
+    """Return packs visible to this user:
+    - Global packs (country == None)
+    - Packs scoped to the user's country
+    Country-scoped packs are shown first, then globals.
+    """
+    user_country = user.get("country")
+    q = {"active": True, "$or": [{"country": None}, {"country": {"$exists": False}}]}
+    if user_country:
+        q["$or"].append({"country": user_country})
+    items = await db.credit_packs.find(q, {"_id": 0}).sort([
+        ("country", -1), ("credits", 1)]).to_list(80)
     return items
 
 
@@ -2020,6 +2165,12 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
     if body.promo_code:
         promo = await db.promotions.find_one({"code": body.promo_code.upper(), "active": True})
         if promo and float(pack.get("price_usd", 0)) >= float(promo.get("min_topup", 0)):
+            promo_country = promo.get("country")
+            user_country = user.get("country")
+            # Enforce country scope: None = global; otherwise must match user country
+            if promo_country and promo_country != user_country:
+                raise HTTPException(400,
+                    f"This promo code is only valid for customers in {promo_country}.")
             if promo["type"] == "bonus_credit":
                 bonus = int(float(promo["value"]) * 100)
             elif promo["type"] == "percent_discount":
@@ -2163,6 +2314,7 @@ class CreditPackIn(BaseModel):
     credits: int = Field(gt=0)
     price_usd: float = Field(gt=0)
     tag: Optional[str] = None
+    country: Optional[str] = None  # None = global pack. ISO-2 code = country-scoped.
     active: bool = True
 
 

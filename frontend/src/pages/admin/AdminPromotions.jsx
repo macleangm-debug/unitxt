@@ -4,7 +4,7 @@ import http, { fmtErr } from "@/lib/api";
 import { PageHeader, Field, Input, Select, Btn, Table, Pill, Modal } from "@/components/UI";
 import { Plus, Trash2 } from "lucide-react";
 
-const empty = { name:"", code:"", type:"bonus_credit", value:10, min_topup:0, active:true };
+const empty = { name:"", code:"", type:"bonus_credit", value:10, min_topup:0, country:"", active:true };
 
 export default function AdminPromotions() {
   const [items, setItems] = useState([]);
@@ -13,7 +13,8 @@ export default function AdminPromotions() {
   useEffect(() => { load(); }, []);
   const save = async (e) => {
     e.preventDefault();
-    const body = { ...edit, value:Number(edit.value), min_topup:Number(edit.min_topup) };
+    const body = { ...edit, value:Number(edit.value), min_topup:Number(edit.min_topup),
+                    country: edit.country?.trim().toUpperCase() || null };
     try {
       if (edit.id) await http.patch(`/admin/promotions/${edit.id}`, body);
       else await http.post("/admin/promotions", body);
@@ -28,6 +29,9 @@ export default function AdminPromotions() {
       <Table testid="promos-table" rows={items} columns={[
         { key:"name", label:"Name" },
         { key:"code", label:"Code", mono:true, render: r => <code className="font-mono text-white">{r.code}</code> },
+        { key:"country", label:"Scope", mono:true,
+          render: r => r.country ? <span className="text-white">{r.country}</span>
+                                  : <span className="text-zinc-500">Global</span> },
         { key:"type", label:"Type", mono:true },
         { key:"value", label:"Value", mono:true, render: r => r.type==="percent_discount"?`${r.value}%`:`$${r.value}` },
         { key:"min_topup", label:"Min top-up", mono:true, render: r => `$${r.min_topup}` },
@@ -53,6 +57,11 @@ export default function AdminPromotions() {
             </Field>
             <Field label="Value"><Input type="number" step="any" value={edit.value} onChange={(e)=>setEdit({...edit,value:e.target.value})}/></Field>
             <Field label="Min top-up (USD)"><Input type="number" step="any" value={edit.min_topup} onChange={(e)=>setEdit({...edit,min_topup:e.target.value})}/></Field>
+            <Field label="Country (ISO-2, empty = global)" hint="e.g. TZ, KE. Leave empty for any country.">
+              <Input value={edit.country||""} maxLength={2}
+                     onChange={(e)=>setEdit({...edit,country:e.target.value.toUpperCase()})}
+                     className="uppercase" placeholder="global"/>
+            </Field>
             <Field label="Active">
               <Select value={edit.active?"1":"0"} onChange={(e)=>setEdit({...edit,active:e.target.value==="1"})}>
                 <option value="1">active</option><option value="0">inactive</option>

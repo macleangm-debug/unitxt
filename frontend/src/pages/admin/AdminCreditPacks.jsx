@@ -4,7 +4,7 @@ import http, { fmtErr, money } from "@/lib/api";
 import { PageHeader, Field, Input, Select, Btn, Table, Pill, Modal } from "@/components/UI";
 import { Plus, Trash2 } from "lucide-react";
 
-const empty = { name:"", credits:1000, price_usd:15, tag:"", active:true };
+const empty = { name: "", credits: 1000, price_usd: 15, tag: "", country: "", active: true };
 
 export default function AdminCreditPacks() {
   const [items, setItems] = useState([]);
@@ -13,7 +13,8 @@ export default function AdminCreditPacks() {
   useEffect(() => { load(); }, []);
   const save = async (e) => {
     e.preventDefault();
-    const body = { ...edit, credits: Number(edit.credits), price_usd: Number(edit.price_usd) };
+    const body = { ...edit, credits: Number(edit.credits), price_usd: Number(edit.price_usd),
+                    country: edit.country?.trim().toUpperCase() || null };
     try {
       if (edit.id) await http.patch(`/admin/credit-packs/${edit.id}`, body);
       else await http.post("/admin/credit-packs", body);
@@ -28,6 +29,9 @@ export default function AdminCreditPacks() {
         actions={<Btn onClick={()=>setEdit({...empty})} data-testid="add-pack"><Plus className="h-4 w-4"/>Add pack</Btn>}/>
       <Table testid="packs-table" rows={items} columns={[
         { key:"name", label:"Name" },
+        { key:"country", label:"Scope", mono:true,
+          render: r => r.country ? <span className="text-white">{r.country}</span>
+                                  : <span className="text-zinc-500">Global</span> },
         { key:"tag", label:"Tag", mono:true },
         { key:"credits", label:"Credits", mono:true, render: r => Number(r.credits).toLocaleString() },
         { key:"price_usd", label:"Price", mono:true, render: r => money(r.price_usd) },
@@ -45,6 +49,11 @@ export default function AdminCreditPacks() {
           <form onSubmit={save} className="grid gap-3 sm:grid-cols-2">
             <Field label="Name"><Input value={edit.name} onChange={(e)=>setEdit({...edit,name:e.target.value})} required/></Field>
             <Field label="Tag (badge)"><Input value={edit.tag||""} onChange={(e)=>setEdit({...edit,tag:e.target.value})}/></Field>
+            <Field label="Country (ISO-2, empty = global)" hint="e.g. TZ, KE, US. Leave empty for a pack visible everywhere.">
+              <Input value={edit.country||""} maxLength={2}
+                     onChange={(e)=>setEdit({...edit,country:e.target.value.toUpperCase()})}
+                     className="uppercase" placeholder="global"/>
+            </Field>
             <Field label="Credits"><Input type="number" value={edit.credits} onChange={(e)=>setEdit({...edit,credits:e.target.value})} required/></Field>
             <Field label="Price (USD)"><Input type="number" step="any" value={edit.price_usd} onChange={(e)=>setEdit({...edit,price_usd:e.target.value})} required/></Field>
             <Field label="Active">

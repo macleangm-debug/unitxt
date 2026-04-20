@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import http, { fmtErr, creditsShort } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import { PageHeader, Card, Field, Input, TextArea, Select, Btn, Pill } from "@/components/UI";
+import { PageHeader, Card, Field, Input, TextArea, Select, Btn, Pill, Modal } from "@/components/UI";
 import { Upload, FileSpreadsheet, Tag, ListFilter } from "lucide-react";
 
 export default function BulkSend() {
@@ -77,31 +77,57 @@ export default function BulkSend() {
     } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
   };
 
+  const [mapModal, setMapModal] = useState(null);
+  // mapModal = { headers: string[], rows: [{}], defaultPhone: string | null }
+
   // Excel/CSV file import
   const onFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    let rows = [];
     if (f.name.match(/\.(xlsx|xls)$/i)) {
       const data = await f.arrayBuffer();
       const wb = XLSX.read(data);
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
-      if (!rows.length) return toast.error("Spreadsheet looks empty.");
-      const keys = Object.keys(rows[0]);
-      const cleanKeys = keys.map(k => String(k).trim().replace(/\s+/g, "_").toLowerCase());
-      const csvLines = [cleanKeys.join(",")];
-      rows.forEach(r => {
-        const line = keys.map(k => String(r[k] ?? "").replace(/,/g, " ").trim());
-        csvLines.push(line.join(","));
-      });
-      setCsv(csvLines.join("\n"));
-      toast.success(`Loaded ${rows.length} rows. ${cleanKeys.length} columns detected.`);
+      rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
     } else {
-      const reader = new FileReader();
-      reader.onload = () => setCsv(String(reader.result));
-      reader.readAsText(f);
+      const text = await f.text();
+      // tiny CSV parse to dict rows
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      if (!lines.length) { toast.error("File is empty."); e.target.value = ""; return; }
+      const rawHeaders = lines[0].split(",").map(h => h.trim());
+      rows = lines.slice(1).map(line => {
+        const parts = line.split(",").map(v => v.trim());
+        const r = {};
+        rawHeaders.forEach((h, i) => r[h] = parts[i] || "");
+        return r;
+      });
+    }
+    if (!rows.length) { toast.error("No rows detected."); e.target.value = ""; return; }
+    const headers = Object.keys(rows[0]);
+    // Try to auto-detect phone column
+    const guess = headers.find(h => /^(phone|mobile|msisdn|number|contact|tel|telephone)$/i.test(h));
+    if (guess) {
+      applyImport(rows, headers, guess);
+    } else {
+      setMapModal({ headers, rows, defaultPhone: headers[0] });
     }
     e.target.value = "";
+  };
+
+  const applyImport = (rows, headers, phoneCol, columnRenames = {}) => {
+    // Build new CSV with phone first + renames applied, slugged keys
+    const slug = (s) => String(s).trim().replace(/\s+/g, "_").toLowerCase();
+    const otherCols = headers.filter(h => h !== phoneCol);
+    const finalCols = ["phone", ...otherCols.map(h => slug(columnRenames[h] || h))];
+    const lines = [finalCols.join(",")];
+    rows.forEach(r => {
+      const vals = [String(r[phoneCol] ?? "").replace(/,/g, " ").trim()];
+      otherCols.forEach(h => vals.push(String(r[h] ?? "").replace(/,/g, " ").trim()));
+      lines.push(vals.join(","));
+    });
+    setCsv(lines.join("\n"));
+    toast.success(`Loaded ${rows.length} rows · ${finalCols.length} columns.`);
   };
 
   // Insert variable chip at cursor
@@ -278,6 +304,87 @@ export default function BulkSend() {
           </Card>
         </div>
       </form>
+
+      <ColumnMapModal
+        state={mapModal}
+        onClose={() => setMapModal(null)}
+        onConfirm={(phoneCol, renames) => {
+          applyImport(mapModal.rows, mapModal.headers, phoneCol, renames);
+          setMapModal(null);
+        }}
+      />
     </div>
+  );
+}
+
+function ColumnMapModal({ state, onClose, onConfirm }) {
+  const [phoneCol, setPhoneCol] = useState("");
+  const [renames, setRenames] = useState({});
+
+  useEffect(() => {
+    if (state) {
+      setPhoneCol(state.defaultPhone || state.headers[0]);
+      setRenames({});
+    }
+  }, [state]);
+
+  if (!state) return null;
+  const sample = state.rows[0] || {};
+  const suggest = (h) => {
+    const l = h.toLowerCase().trim();
+    const map = {
+      "first name": "first_name", "firstname": "first_name",
+      "last name": "last_name", "lastname": "last_name",
+      "full name": "name", "customer name": "name",
+      "amount due": "amount_owed", "amount owed": "amount_owed",
+      "balance": "balance", "account number": "account_number",
+      "due date": "due_date",
+    };
+    return map[l] || null;
+  };
+
+  const renameValue = (h) => renames[h] ?? suggest(h) ?? h;
+
+  return (
+    <Modal open={!!state} onClose={onClose} title="Map your columns" testid="column-map-modal">
+      <p className="mb-4 text-sm text-zinc-400">
+        We couldn't find a "phone" column automatically. Tell us which column holds the phone numbers and rename any others you want to use as personalisation tags.
+      </p>
+
+      <div className="mb-4 border border-zinc-900 bg-[#0e0e0e] p-3">
+        <div className="label-overline mb-2">Which column is the phone number?</div>
+        <Select value={phoneCol} onChange={(e) => setPhoneCol(e.target.value)} data-testid="map-phone-col">
+          {state.headers.map(h => (
+            <option key={h} value={h}>{h} · sample: {String(sample[h] || "").slice(0, 30)}</option>
+          ))}
+        </Select>
+      </div>
+
+      <div className="label-overline mb-2">Other columns — rename them into clean tags</div>
+      <div className="grid max-h-72 gap-2 overflow-y-auto">
+        {state.headers.filter(h => h !== phoneCol).map(h => (
+          <div key={h} className="grid grid-cols-[1fr,auto,1fr] items-center gap-2 border border-zinc-900 bg-[#141414] p-2 text-sm">
+            <div>
+              <div className="text-white">{h}</div>
+              <div className="font-mono text-[10px] text-zinc-500">
+                e.g. {String(sample[h] || "—").slice(0, 28)}
+              </div>
+            </div>
+            <span className="font-mono text-zinc-600">→</span>
+            <Input value={renameValue(h)}
+                   onChange={(e) => setRenames({ ...renames, [h]: e.target.value })}
+                   className="font-mono text-xs"
+                   data-testid={`map-rename-${h}`}/>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-zinc-900 pt-4">
+        <span className="text-xs text-zinc-500">{state.rows.length} rows detected</span>
+        <Btn onClick={() => onConfirm(phoneCol, renames)} data-testid="map-confirm">
+          Import {state.rows.length} row{state.rows.length === 1 ? "" : "s"}
+        </Btn>
+      </div>
+    </Modal>
   );
 }

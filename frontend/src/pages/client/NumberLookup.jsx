@@ -6,7 +6,7 @@ import {
   PageHeader, Card, Field, Input, TextArea, Btn, Table, Pill, Stat, Select,
 } from "@/components/UI";
 import {
-  CheckCircle2, AlertCircle, Upload, Globe2, Gauge, Info, Zap,
+  CheckCircle2, AlertCircle, Upload, Globe2, Gauge, Info, Zap, Sparkles,
 } from "lucide-react";
 
 export default function NumberLookup() {
@@ -19,8 +19,16 @@ export default function NumberLookup() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkResult, setBulkResult] = useState(null);
 
+  const [groups, setGroups] = useState([]);
+  const [autoCleanGroup, setAutoCleanGroup] = useState("");
+  const [autoCleanResult, setAutoCleanResult] = useState(null);
+  const [autoCleanBusy, setAutoCleanBusy] = useState(false);
+  const [contactsCount, setContactsCount] = useState(0);
+
   useEffect(() => {
     http.get("/numbers/services").then(r => setSvc(r.data)).catch(() => {});
+    http.get("/contacts/groups").then(r => setGroups(r.data || [])).catch(() => {});
+    http.get("/contacts").then(r => setContactsCount(r.data.length)).catch(() => {});
   }, []);
 
   const chosen = svc?.[service];
@@ -61,6 +69,21 @@ export default function NumberLookup() {
       toast.success(`${r.data.valid} valid of ${r.data.total} — charged ${r.data.credits_charged} credits`);
     } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
     finally { setBulkLoading(false); }
+  };
+
+  const runAutoClean = async () => {
+    if (!window.confirm("This will remove invalid numbers from your contacts. Continue?")) return;
+    setAutoCleanBusy(true); setAutoCleanResult(null);
+    try {
+      const r = await http.post("/numbers/auto-clean", {
+        group_id: autoCleanGroup || null, remove_invalid: true,
+      });
+      setAutoCleanResult(r.data);
+      toast.success(`${r.data.removed} invalid number${r.data.removed === 1 ? "" : "s"} removed · ${r.data.credits_charged} credits used`);
+      const c = await http.get("/contacts");
+      setContactsCount(c.data.length);
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setAutoCleanBusy(false); }
   };
 
   const exportResults = () => {
@@ -134,6 +157,43 @@ export default function NumberLookup() {
 
         {singleResult && <SingleResult r={singleResult}/>}
       </Card>
+
+      {/* Auto-clean contacts */}
+      {contactsCount > 0 && (
+        <Card testid="auto-clean" className="mb-4">
+          <div className="label-overline mb-3 flex items-center gap-2">
+            <Sparkles className="h-3.5 w-3.5"/>Auto-clean your contacts
+          </div>
+          <p className="mb-3 text-sm text-zinc-400">
+            Run Smart validation over your contact list (or one group) and remove the numbers that come back invalid.
+            Keeps your sending lists healthy and saves credits on messages that would never deliver.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Scope" hint={`You currently have ${contactsCount} contact${contactsCount === 1 ? "" : "s"}.`}>
+              <Select value={autoCleanGroup} onChange={(e) => setAutoCleanGroup(e.target.value)}
+                       className="min-w-[220px]" data-testid="auto-clean-scope">
+                <option value="">All contacts ({contactsCount})</option>
+                {groups.map(g => <option key={g.id} value={g.id}>Group: {g.name}</option>)}
+              </Select>
+            </Field>
+            <div className="flex-1 min-w-[180px] text-xs text-zinc-500">
+              Cost: {svc?.smart_validation.cost_per_lookup || 1} credit per number · invalid numbers will be removed.
+            </div>
+            <Btn onClick={runAutoClean} disabled={autoCleanBusy} data-testid="auto-clean-run">
+              {autoCleanBusy ? "Cleaning..." : "Clean now"}
+            </Btn>
+          </div>
+          {autoCleanResult && (
+            <div className="mt-4 grid grid-cols-2 gap-0 border border-zinc-900 sm:grid-cols-5" data-testid="auto-clean-result">
+              <Stat label="Total checked" value={autoCleanResult.total}/>
+              <Stat label="Valid"         value={autoCleanResult.valid} accent="green"/>
+              <Stat label="Invalid"       value={autoCleanResult.invalid} accent={autoCleanResult.invalid > 0 ? "orange" : "white"}/>
+              <Stat label="Removed"       value={autoCleanResult.removed} accent={autoCleanResult.removed > 0 ? "green" : "white"}/>
+              <Stat label="Credits used"  value={autoCleanResult.credits_charged}/>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Bulk lookup */}
       <Card testid="bulk-lookup">
