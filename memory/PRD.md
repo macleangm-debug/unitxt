@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-20 (iteration 9)
-**Version**: 1.8 (Contact groups · Personalisation · Explicit DLR · Number lookup)
+**Last updated**: 2026-04-20 (iteration 10)
+**Version**: 1.9 (Country packs · Auto-clean · Delivery dashboard · Column-map wizard)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.4 (prior)
