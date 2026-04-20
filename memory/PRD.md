@@ -1,13 +1,24 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-20 (iteration 7)
-**Version**: 1.5 (Country Hub + Integration Health)
+**Last updated**: 2026-04-20 (iteration 8)
+**Version**: 1.6 (Grouped admin sidebar)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.4 (prior)
 Three portals · JWT+RBAC · Credits economy · smart batching (10k in 21s) · scheduled worker · operator-aware routing · referrals · streaks · DLR webhook push · WhatsApp templates · Excel import · reseller commission (clients pay retail, resellers earn from admin margin) · Settings Hub v2 (grouped + search) · Admin Reseller Workspace (catalog + drawer + policy + audit).
 
-### v1.5 (Country Hub + Integration Health) — **this iteration**
+### v1.5 (Country Hub + Integration Health)
+- Country Hub catalog + 4-step Add-country wizard (draft until routes set). Country detail with 5 tabs + kill switch. Integration Health dashboard with health chips + Test button. Add-integration wizard lists ONLY actually-implemented adapters (Twilio, Tigo TZ, Mock) — explicit banner, no defaults.
+
+### v1.6 (Grouped admin sidebar) — **this iteration**
+- **Admin nav reorganized** from a flat 20-item list into 6 logical groups with section headers:
+  - **Overview** — Overview, Margin & revenue, Audit logs
+  - **Geographies** — Country hub, Integration health, Mobile prefixes
+  - **Messaging** — Routing engine, Providers, Campaigns, Sender IDs, WhatsApp approvals
+  - **Economy** — Pricing, Credit packs, Wallets, Promotions
+  - **Distribution** — Resellers, Institutions, Users
+  - **System** — Countries (legacy), Settings hub
+- `renderNav()` helper handles both flat (client/reseller) and grouped (admin) nav structures — no impact on client/reseller sidebars.
 - **Country Hub** at `/admin/country-hub` — catalog of country cards (flag, ISO, dial code, credit rate, route count, sender IDs, live health chip). Stats row (countries / active / healthy / unconfigured). Search + refresh.
 - **4-step Add-country wizard** — Identity → Pricing → Routes → Compliance. Mandatory setup: country stays **draft** until at least one route is selected. On complete submit, writes `credits.country_rate[code]` setting, wires providers via `$addToSet` on `countries`, creates the country with `status=active`. Incomplete saves produce `status=draft, missing=[...]`.
 - **Country detail** at `/admin/country-hub/{code}` — 5 tabs (Overview, Routes, Operators & prefixes, Sender IDs, Compliance), kill-switch/activate button, per-route Test connection button with latency report, live country-level health (derived from 24h message success rate across providers).

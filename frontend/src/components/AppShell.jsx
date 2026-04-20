@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Send, Upload, Calendar, Users, Tag, FileText, Wallet as WalletIcon,
   BarChart3, Key, LogOut, Bell, Search, Globe2, Building2, DollarSign, ShieldCheck,
   ListChecks, Megaphone, Receipt, History, Settings, Network, IdCard, UserCog,
-  Coins, Smartphone, TrendingUp, Gift, MessageCircle, Webhook,
+  Coins, Smartphone, TrendingUp, Gift, MessageCircle, Webhook, Route as RouteIcon,
 } from "lucide-react";
 
 const CLIENT_NAV = [
@@ -39,26 +39,56 @@ const RESELLER_NAV = [
   { to: "/reseller/reports", icon: BarChart3, label: "Reports" },
 ];
 const ADMIN_NAV = [
-  { to: "/admin/overview", icon: LayoutDashboard, label: "Overview" },
-  { to: "/admin/margin", icon: TrendingUp, label: "Margin & revenue" },
-  { to: "/admin/users", icon: UserCog, label: "Users" },
-  { to: "/admin/providers", icon: Network, label: "Providers" },
-  { to: "/admin/routing", icon: Globe2, label: "Routing engine" },
-  { to: "/admin/countries", icon: Globe2, label: "Countries" },
-  { to: "/admin/prefixes", icon: Smartphone, label: "Mobile prefixes" },
-  { to: "/admin/pricing", icon: DollarSign, label: "Pricing" },
-  { to: "/admin/credit-packs", icon: Coins, label: "Credit packs" },
-  { to: "/admin/sender-ids", icon: ListChecks, label: "Sender IDs" },
-  { to: "/admin/wallets", icon: WalletIcon, label: "Wallets" },
-  { to: "/admin/campaigns", icon: Calendar, label: "Campaigns" },
-  { to: "/admin/institutions", icon: Building2, label: "Institutions" },
-  { to: "/admin/promotions", icon: Megaphone, label: "Promotions" },
-  { to: "/admin/country-hub", icon: Globe2, label: "Country hub" },
-  { to: "/admin/integrations", icon: Network, label: "Integration health" },
-  { to: "/admin/resellers", icon: Users, label: "Resellers" },
-  { to: "/admin/whatsapp", icon: MessageCircle, label: "WhatsApp approvals" },
-  { to: "/admin/audit", icon: History, label: "Audit logs" },
-  { to: "/admin/settings", icon: Settings, label: "Settings hub" },
+  {
+    group: "Overview",
+    items: [
+      { to: "/admin/overview", icon: LayoutDashboard, label: "Overview" },
+      { to: "/admin/margin", icon: TrendingUp, label: "Margin & revenue" },
+      { to: "/admin/audit", icon: History, label: "Audit logs" },
+    ],
+  },
+  {
+    group: "Geographies",
+    items: [
+      { to: "/admin/country-hub", icon: Globe2, label: "Country hub" },
+      { to: "/admin/integrations", icon: Network, label: "Integration health" },
+      { to: "/admin/prefixes", icon: Smartphone, label: "Mobile prefixes" },
+    ],
+  },
+  {
+    group: "Messaging",
+    items: [
+      { to: "/admin/routing", icon: RouteIcon, label: "Routing engine" },
+      { to: "/admin/providers", icon: Network, label: "Providers" },
+      { to: "/admin/campaigns", icon: Calendar, label: "Campaigns" },
+      { to: "/admin/sender-ids", icon: ListChecks, label: "Sender IDs" },
+      { to: "/admin/whatsapp", icon: MessageCircle, label: "WhatsApp approvals" },
+    ],
+  },
+  {
+    group: "Economy",
+    items: [
+      { to: "/admin/pricing", icon: DollarSign, label: "Pricing" },
+      { to: "/admin/credit-packs", icon: Coins, label: "Credit packs" },
+      { to: "/admin/wallets", icon: WalletIcon, label: "Wallets" },
+      { to: "/admin/promotions", icon: Megaphone, label: "Promotions" },
+    ],
+  },
+  {
+    group: "Distribution",
+    items: [
+      { to: "/admin/resellers", icon: Users, label: "Resellers" },
+      { to: "/admin/institutions", icon: Building2, label: "Institutions" },
+      { to: "/admin/users", icon: UserCog, label: "Users" },
+    ],
+  },
+  {
+    group: "System",
+    items: [
+      { to: "/admin/countries", icon: Globe2, label: "Countries (legacy)" },
+      { to: "/admin/settings", icon: Settings, label: "Settings hub" },
+    ],
+  },
 ];
 
 function NavItem({ to, icon: Icon, label }) {
@@ -79,6 +109,30 @@ function NavItem({ to, icon: Icon, label }) {
       <span>{label}</span>
     </NavLink>
   );
+}
+
+function NavGroup({ label, children }) {
+  return (
+    <div className="pb-2">
+      <div className="px-5 pt-3 pb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-600">
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function renderNav(navigation) {
+  // supports both flat arrays [{to,icon,label}] and grouped arrays [{group,items:[...]}]
+  const isGrouped = navigation.length > 0 && navigation[0].group;
+  if (!isGrouped) {
+    return navigation.map((n) => <NavItem key={n.to} {...n} />);
+  }
+  return navigation.map((g) => (
+    <NavGroup key={g.group} label={g.group}>
+      {g.items.map((n) => <NavItem key={n.to} {...n} />)}
+    </NavGroup>
+  ));
 }
 
 function NotificationBell() {
@@ -195,7 +249,7 @@ export default function AppShell() {
           <div className="mt-1 truncate text-sm font-medium">{user.business_name || user.name}</div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3">
-          {navigation.map((n) => <NavItem key={n.to} {...n} />)}
+          {renderNav(navigation)}
         </nav>
         <div className="border-t border-zinc-900 p-4">
           <button
