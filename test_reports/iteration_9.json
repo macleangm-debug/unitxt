@@ -1,0 +1,124 @@
+{
+  "summary": "Iteration 9 testing complete - Contact Groups, Number Lookup, Personalization Variables, Campaign Failure Breakdown. All 25 backend tests passed. Frontend UI verified: Number Lookup page with Smart validation (working) and HLR lookup (Coming soon badge), Contacts page with groups rail and bulk assign, Bulk Send with merge-tag chips and load-from-group, Campaigns drawer with per-recipient delivery table.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9_contacts_numbers.py",
+    "/app/test_reports/pytest/iteration9_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/numbers/services returns smart_validation (available_everywhere=true, cost=1) and hlr_lookup (status=coming_soon, cost=5, available_countries=[])",
+    "POST /api/numbers/validate with smart_validation returns full validation result including country, operator, is_mobile, historical_success_rate, risk_flags",
+    "POST /api/numbers/validate with hlr_lookup returns 400 with plain English message 'HLR lookup is not live yet' when numbers.hlr_enabled_countries is empty",
+    "POST /api/numbers/validate/bulk validates up to 5000 numbers, returns total/valid/invalid counts with credits_charged",
+    "GET /api/numbers/history returns last 100 lookups for user",
+    "POST /api/contacts/groups creates group, PUT renames, DELETE removes group and pulls from all contacts",
+    "POST /api/contacts/{cid}/groups replaces contact's group_ids, validates all groups belong to user",
+    "POST /api/contacts/groups/{gid}/bulk with action=add|remove modifies multiple contacts atomically",
+    "Contact model accepts extras={} dict for personalization data",
+    "GET /api/messaging/campaigns/{cid} returns failure_breakdown[] with code, reason (plain English), count",
+    "GET /api/messaging/messages returns failure_code/failure_reason for failed messages",
+    "Settings seeded: numbers.smart_validation_cost=1, numbers.hlr_lookup_cost=5, numbers.hlr_enabled_countries=[]",
+    "PLAIN_DELIVERY_REASONS dict maps error codes to plain English (e.g., 'absent_subscriber' -> 'Phone is off or out of coverage.')",
+    "classify_delivery_error() function maps raw carrier errors to stable codes + plain English reasons"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration9_contacts_numbers.py"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Contact groups and contacts created during testing for group assignment verification",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 9 complete. Client-side enhancements verified: (1) Contact groups - left rail shows All/Ungrouped/each group with counts, create/rename/delete group via buttons, bulk Add to group/Remove from group dropdowns, Add contact modal has custom fields textarea; (2) Number lookup - two service cards (Smart validation selected, HLR lookup disabled with 'Coming soon' badge), single number form with instant result card showing all fields in plain English + risk flags, bulk mode accepts pasted numbers or file upload, results table with Download results; (3) Bulk send - xlsx/csv parsing via SheetJS, 'Load from contact group' dropdown, merge-tag chips row (each header becomes clickable chip), live validation with red warning for unknown variables, preview pane shows first recipient's personalized message; (4) Campaigns - click any campaign row opens drawer showing stats, failure breakdown card (if failures exist), per-recipient table with phone/status/route/reason/tries/sent-at, Refresh button. HLR lookup is MOCKED (scaffolded, not live - returns smart-validation payload with telco_backed=false).",
+  "tests_executed": {
+    "total": 25,
+    "passed": 25,
+    "failed": 0,
+    "categories": {
+      "number_lookup_services": 2,
+      "smart_validation": 3,
+      "hlr_lookup_not_live": 1,
+      "bulk_validation": 2,
+      "lookup_history": 1,
+      "contact_groups_crud": 4,
+      "contact_group_assignment": 4,
+      "contact_extras": 1,
+      "campaign_failure_breakdown": 2,
+      "settings_seeded": 3,
+      "regression_iteration8": 4
+    }
+  },
+  "frontend_tests_executed": {
+    "number_lookup_page_loads": "PASS - /client/number-lookup loads",
+    "number_lookup_service_picker": "PASS - Smart validation and HLR lookup cards visible",
+    "number_lookup_smart_selected": "PASS - Smart validation selected by default",
+    "number_lookup_hlr_disabled": "PASS - HLR lookup shows 'Coming soon — we're onboarding operators'",
+    "number_lookup_costs_displayed": "PASS - Smart=1 credit, HLR=5 credits",
+    "number_lookup_single_form": "PASS - Phone input and Validate button",
+    "number_lookup_single_result": "PASS - Shows valid/invalid, country, operator, dial code, mobile, seen before, last delivery, success rate",
+    "number_lookup_bulk_section": "PASS - Paste numbers textarea and upload spreadsheet",
+    "contacts_page_loads": "PASS - /client/contacts loads",
+    "contacts_group_rail": "PASS - Left rail with All contacts, Ungrouped, Groups section",
+    "contacts_group_counts": "PASS - Each group shows contact count",
+    "contacts_new_group_btn": "PASS - New group button opens modal",
+    "contacts_add_contact_btn": "PASS - Add contact button visible",
+    "contacts_table": "PASS - Table with checkbox, Name, Phone, Groups, Custom Fields columns",
+    "contacts_group_pills": "PASS - Contacts show group pills in Groups column",
+    "contacts_create_group_modal": "PASS - Modal with Group name and Description fields",
+    "bulk_send_page_loads": "PASS - /client/bulk-send loads",
+    "bulk_send_channel_selector": "PASS - SMS and WHATSAPP buttons",
+    "bulk_send_sender_id": "PASS - Sender ID dropdown with SUNRISE",
+    "bulk_send_csv_textarea": "PASS - CSV textarea with sample data",
+    "bulk_send_load_from_group": "PASS - 'Load from contact group...' dropdown",
+    "bulk_send_merge_tag_chips": "PASS - Clickable chips for each CSV header (name, amount_owed)",
+    "bulk_send_template_validation": "PASS - Shows 'Using 2 merge tags: {name} {amount_owed}' in green",
+    "bulk_send_preview": "PASS - Preview shows personalized message for first row",
+    "bulk_send_summary": "PASS - Campaign summary with recipients, segments, rate, total, when",
+    "campaigns_page_loads": "PASS - /client/campaigns loads",
+    "campaigns_table": "PASS - Table with Name, Recipients, Delivered, Failed, Credits, Status, Created",
+    "campaigns_drawer_opens": "PASS - Click campaign opens drawer",
+    "campaigns_drawer_stats": "PASS - Recipients, Delivered (%), Failed, Credits",
+    "campaigns_drawer_messages": "PASS - Per-recipient delivery table with Phone, Status, Route, Reason, Tries, Sent at",
+    "campaigns_drawer_refresh": "PASS - Refresh button visible",
+    "sidebar_number_lookup": "PASS - 'Number lookup' entry in client sidebar"
+  },
+  "mocked_apis_verified": [
+    "HLR lookup (scaffolded, not live - returns smart-validation payload with telco_backed=false)",
+    "Twilio adapter (stub)",
+    "Tigo TZ adapter (stub)",
+    "Mock adapter"
+  ],
+  "features_verified": {
+    "contact_groups_crud": "PASS - create, rename, delete groups",
+    "contact_group_assignment_single": "PASS - POST /api/contacts/{cid}/groups replaces groups",
+    "contact_group_assignment_bulk": "PASS - POST /api/contacts/groups/{gid}/bulk add/remove",
+    "contact_extras": "PASS - extras={} dict for personalization",
+    "number_services_endpoint": "PASS - returns smart_validation and hlr_lookup info",
+    "smart_validation_single": "PASS - validates number, returns country/operator/history",
+    "smart_validation_bulk": "PASS - validates up to 5000 numbers",
+    "hlr_lookup_not_live": "PASS - returns 400 with plain English message",
+    "lookup_history": "PASS - returns last 100 lookups",
+    "campaign_failure_breakdown": "PASS - failure_breakdown[] in campaign detail",
+    "messages_failure_reason": "PASS - failure_code/failure_reason for failed messages",
+    "settings_seeded": "PASS - numbers.smart_validation_cost=1, numbers.hlr_lookup_cost=5, numbers.hlr_enabled_countries=[]",
+    "merge_tag_chips": "PASS - clickable chips insert {column_name} at cursor",
+    "load_from_contact_group": "PASS - dropdown pulls saved contacts + extras into CSV",
+    "preview_personalized_message": "PASS - shows first recipient's personalized message"
+  }
+}

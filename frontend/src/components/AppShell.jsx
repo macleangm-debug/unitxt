@@ -15,6 +15,7 @@ const CLIENT_NAV = [
   { to: "/client/bulk-send", icon: Upload, label: "Bulk send" },
   { to: "/client/campaigns", icon: Calendar, label: "Campaigns" },
   { to: "/client/contacts", icon: Users, label: "Contacts" },
+  { to: "/client/number-lookup", icon: Search, label: "Number lookup" },
   { to: "/client/sender-ids", icon: IdCard, label: "Sender IDs" },
   { to: "/client/whatsapp", icon: MessageCircle, label: "WhatsApp" },
   { to: "/client/templates", icon: FileText, label: "SMS templates" },

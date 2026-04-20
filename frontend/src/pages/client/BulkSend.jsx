@@ -1,28 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import http, { fmtErr, creditsShort } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Card, Field, Input, TextArea, Select, Btn, Pill } from "@/components/UI";
-import { Upload, FileSpreadsheet } from "lucide-react";
+import { Upload, FileSpreadsheet, Tag, ListFilter } from "lucide-react";
 
 export default function BulkSend() {
   const { user } = useAuth();
+  const templateRef = useRef(null);
   const [name, setName] = useState("");
   const [channel, setChannel] = useState("sms");
   const [senderId, setSenderId] = useState("");
-  const [csv, setCsv] = useState("phone,name\n+255712345678,Jane\n+255700000001,John");
-  const [template, setTemplate] = useState("Hi {name}, this is a personalized bulk message from us.");
+  const [csv, setCsv] = useState("phone,name,amount_owed\n+255712345678,Jane,15000\n+255700000001,John,8500");
+  const [template, setTemplate] = useState("Hi {name}, your outstanding balance is {amount_owed}. Please settle by the due date. Thank you.");
   const [scheduleAt, setScheduleAt] = useState("");
   const [sids, setSids] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [pickedGroup, setPickedGroup] = useState("");
   const [rates, setRates] = useState(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    Promise.all([http.get("/sender-ids"), http.get("/credits/rates")]).then(([s,r]) => {
+    Promise.all([
+      http.get("/sender-ids"),
+      http.get("/credits/rates"),
+      http.get("/contacts/groups"),
+    ]).then(([s, r, g]) => {
       const approved = s.data.filter(x => x.status === "approved");
       setSids(approved);
       if (approved[0]) setSenderId(approved[0].sender_id);
       setRates(r.data);
+      setGroups(g.data || []);
     }).catch(() => {});
   }, []);
 
@@ -32,32 +41,98 @@ export default function BulkSend() {
 
   const parseCsv = () => {
     const lines = csv.trim().split(/\n/);
-    if (lines.length < 2) return [];
+    if (lines.length < 2) return { headers: [], rows: [] };
     const headers = lines[0].split(",").map(h => h.trim());
-    return lines.slice(1).map(line => {
+    const rows = lines.slice(1).map(line => {
       const vals = line.split(",").map(v => v.trim());
       const row = {};
       headers.forEach((h, i) => row[h] = vals[i] || "");
       return row;
     }).filter(r => r.phone);
+    return { headers, rows };
   };
-  const recipients = parseCsv();
-  const segs = Math.max(1, Math.ceil(template.length/153));
+  const parsed = parseCsv();
+  const recipients = parsed.rows;
+  const headers = parsed.headers;
+  const segs = Math.max(1, Math.ceil(template.length / 153));
   const totalCredits = rate * segs * recipients.length;
 
-  const onFile = (e) => {
+  // Load from a saved group
+  const loadFromGroup = async (gid) => {
+    setPickedGroup(gid);
+    if (!gid) return;
+    try {
+      const { data } = await http.get("/contacts");
+      const filtered = data.filter(c => (c.group_ids || []).includes(gid));
+      if (!filtered.length) return toast.error("This group has no contacts yet.");
+      const extraKeys = Array.from(new Set(filtered.flatMap(c => Object.keys(c.extras || {}))));
+      const cols = ["phone", "name", ...extraKeys];
+      const lines = [cols.join(",")];
+      filtered.forEach(c => {
+        const row = [c.phone, c.name || "", ...extraKeys.map(k => c.extras?.[k] || "")];
+        lines.push(row.join(","));
+      });
+      setCsv(lines.join("\n"));
+      toast.success(`Loaded ${filtered.length} contacts from group.`);
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+  };
+
+  // Excel/CSV file import
+  const onFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setCsv(String(reader.result));
-    reader.readAsText(f);
+    if (f.name.match(/\.(xlsx|xls)$/i)) {
+      const data = await f.arrayBuffer();
+      const wb = XLSX.read(data);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!rows.length) return toast.error("Spreadsheet looks empty.");
+      const keys = Object.keys(rows[0]);
+      const cleanKeys = keys.map(k => String(k).trim().replace(/\s+/g, "_").toLowerCase());
+      const csvLines = [cleanKeys.join(",")];
+      rows.forEach(r => {
+        const line = keys.map(k => String(r[k] ?? "").replace(/,/g, " ").trim());
+        csvLines.push(line.join(","));
+      });
+      setCsv(csvLines.join("\n"));
+      toast.success(`Loaded ${rows.length} rows. ${cleanKeys.length} columns detected.`);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => setCsv(String(reader.result));
+      reader.readAsText(f);
+    }
+    e.target.value = "";
   };
+
+  // Insert variable chip at cursor
+  const insertVariable = (col) => {
+    const el = templateRef.current;
+    const token = "{" + col + "}";
+    if (!el) { setTemplate(template + token); return; }
+    const start = el.selectionStart ?? template.length;
+    const end = el.selectionEnd ?? template.length;
+    const next = template.slice(0, start) + token + template.slice(end);
+    setTemplate(next);
+    setTimeout(() => {
+      el.focus();
+      el.selectionStart = el.selectionEnd = start + token.length;
+    }, 0);
+  };
+
+  const usedVariables = useMemo(() => {
+    const matches = template.match(/\{(\w+)\}/g) || [];
+    return Array.from(new Set(matches.map(m => m.slice(1, -1))));
+  }, [template]);
+
+  const unknownVars = usedVariables.filter(v => !headers.includes(v));
 
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return toast.error("Campaign needs a name.");
     if (!senderId) return toast.error("Choose an approved sender ID.");
     if (recipients.length === 0) return toast.error("CSV has no recipients.");
+    if (unknownVars.length > 0)
+      return toast.error(`Your message uses {${unknownVars.join("}, {")}} but that column isn't in your data.`);
     setBusy(true);
     try {
       const { data } = await http.post("/messaging/bulk-send", {
@@ -73,46 +148,92 @@ export default function BulkSend() {
 
   return (
     <div>
-      <PageHeader overline="Campaign" title="Bulk send" desc="Upload a CSV (phone, name, …) and broadcast a personalized message."/>
+      <PageHeader overline="Campaign" title="Bulk send"
+                  desc="Upload a spreadsheet or load a contact group, then personalise your message with merge tags like {name}, {amount_owed}."/>
 
       <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr,380px]" data-testid="bulk-send-form">
         <Card>
           <div className="grid gap-5">
             <Field label="Campaign name">
-              <Input value={name} onChange={(e)=>setName(e.target.value)} placeholder="January Reminders" data-testid="bulk-name"/>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="January Reminders" data-testid="bulk-name"/>
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Channel">
                 <div className="grid grid-cols-2 gap-2">
-                  {["sms","whatsapp"].map(c => (
-                    <button type="button" key={c} onClick={()=>setChannel(c)}
+                  {["sms", "whatsapp"].map(c => (
+                    <button type="button" key={c} onClick={() => setChannel(c)}
                       data-testid={`bulk-channel-${c}`}
-                      className={`h-10 border text-sm uppercase tracking-widest font-medium transition ${channel===c?"border-white bg-white text-black":"border-zinc-800 text-zinc-400 hover:border-zinc-600"}`}>{c}</button>
+                      className={`h-10 border text-sm uppercase tracking-widest font-medium transition ${channel === c ? "border-white bg-white text-black" : "border-zinc-800 text-zinc-400 hover:border-zinc-600"}`}>{c}</button>
                   ))}
                 </div>
               </Field>
               <Field label="Sender ID">
-                <Select value={senderId} onChange={(e)=>setSenderId(e.target.value)} data-testid="bulk-sid">
+                <Select value={senderId} onChange={(e) => setSenderId(e.target.value)} data-testid="bulk-sid">
                   <option value="">— pick approved —</option>
                   {sids.map(s => <option key={s.id} value={s.sender_id}>{s.sender_id}</option>)}
                 </Select>
               </Field>
             </div>
-            <Field label="CSV data" hint="First row = headers. Must include phone. Other columns become {merge tags}.">
-              <div className="mb-2 flex items-center gap-2">
-                <label className="inline-flex items-center gap-2 cursor-pointer border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-600">
-                  <FileSpreadsheet className="h-3.5 w-3.5"/> Upload .csv
-                  <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile} className="hidden" data-testid="bulk-file"/>
+
+            <Field label="Recipients" hint="Load a contact group, upload Excel/CSV, or paste rows directly. The first row is always headers.">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-600">
+                  <FileSpreadsheet className="h-3.5 w-3.5"/> Upload .xlsx / .csv
+                  <input type="file" accept=".csv,.xlsx,.xls,text/csv,text/plain" onChange={onFile} className="hidden" data-testid="bulk-file"/>
                 </label>
-                <span className="font-mono text-[10px] text-zinc-500">{recipients.length} valid rows parsed</span>
+                {groups.length > 0 && (
+                  <div className="inline-flex items-center gap-2">
+                    <ListFilter className="h-3.5 w-3.5 text-zinc-500"/>
+                    <select value={pickedGroup} onChange={(e) => loadFromGroup(e.target.value)}
+                             className="border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-300"
+                             data-testid="bulk-load-group">
+                      <option value="">Load from contact group...</option>
+                      {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+                )}
+                <span className="font-mono text-[10px] text-zinc-500">
+                  {recipients.length} valid rows · {headers.length} columns
+                </span>
               </div>
-              <TextArea value={csv} onChange={(e)=>setCsv(e.target.value)} className="min-h-[160px] font-mono text-xs" data-testid="bulk-csv"/>
+              <TextArea value={csv} onChange={(e) => setCsv(e.target.value)}
+                         className="min-h-[160px] font-mono text-xs" data-testid="bulk-csv"/>
             </Field>
-            <Field label="Template" hint="Use {column_name} as merge tag.">
-              <TextArea value={template} onChange={(e)=>setTemplate(e.target.value)} data-testid="bulk-template"/>
+
+            <Field label="Message template" hint="Click a column chip to insert it as a merge tag at your cursor.">
+              {headers.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1" data-testid="var-chips">
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-500">merge tags:</span>
+                  {headers.filter(h => h !== "phone").map(col => (
+                    <button type="button" key={col} onClick={() => insertVariable(col)}
+                             data-testid={`var-${col}`}
+                             className="inline-flex items-center gap-1 border border-zinc-800 bg-[#141414] px-2 py-0.5 font-mono text-[11px] text-zinc-300 hover:border-white hover:text-white">
+                      <Tag className="h-3 w-3"/>{col}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <TextArea ref={templateRef} value={template}
+                         onChange={(e) => setTemplate(e.target.value)} data-testid="bulk-template"/>
+              {usedVariables.length > 0 && (
+                <div className="mt-2 text-[11px] text-zinc-500">
+                  Using <span className="font-mono text-white">{usedVariables.length}</span> merge tag{usedVariables.length === 1 ? "" : "s"}: {usedVariables.map(v => (
+                    <span key={v}
+                           className={`mx-0.5 font-mono ${headers.includes(v) ? "text-emerald-400" : "text-red-400"}`}>
+                      {"{" + v + "}"}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {unknownVars.length > 0 && (
+                <div className="mt-2 border border-red-500/30 bg-red-500/5 p-2 text-[11px] text-red-300">
+                  Your message uses <span className="font-mono">{"{" + unknownVars.join("}, {") + "}"}</span> but the column isn't in your data.
+                </div>
+              )}
             </Field>
+
             <Field label="Schedule (optional)">
-              <Input type="datetime-local" value={scheduleAt} onChange={(e)=>setScheduleAt(e.target.value)} data-testid="bulk-schedule"/>
+              <Input type="datetime-local" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} data-testid="bulk-schedule"/>
             </Field>
           </div>
         </Card>
@@ -125,8 +246,11 @@ export default function BulkSend() {
               <div><div className="font-mono text-2xl font-medium">{segs}</div><div className="text-xs text-zinc-500">segments / msg</div></div>
             </div>
             <div className="mt-4 border-t border-zinc-900 pt-4 text-xs text-zinc-500">
-              <div className="flex justify-between"><span>Channel</span><Pill status={channel==="sms"?"info":"approved"}>{channel.toUpperCase()}</Pill></div>
+              <div className="flex justify-between"><span>Channel</span><Pill status={channel === "sms" ? "info" : "approved"}>{channel.toUpperCase()}</Pill></div>
               <div className="mt-2 flex justify-between"><span>Rate</span><span className="font-mono text-white">{rate} cr / msg</span></div>
+              <div className="mt-2 flex justify-between"><span>Personalisation</span>
+                <span className="font-mono text-white">{usedVariables.length} field{usedVariables.length === 1 ? "" : "s"}</span>
+              </div>
               <div className="mt-2 flex justify-between"><span>Total</span><span className="font-mono text-emerald-400">{creditsShort(totalCredits)} cr</span></div>
               <div className="mt-2 flex justify-between"><span>When</span><span className="font-mono text-white">{scheduleAt ? new Date(scheduleAt).toLocaleString() : "Now"}</span></div>
             </div>
@@ -140,10 +264,17 @@ export default function BulkSend() {
               {recipients.length === 0 ? <span className="text-zinc-600">Add at least one row in the CSV.</span> : (
                 <>
                   <div className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">TO {recipients[0].phone}</div>
-                  <div className="mt-2 whitespace-pre-wrap break-words">{Object.entries(recipients[0]).reduce((s,[k,v])=>s.replaceAll("{"+k+"}", v), template)}</div>
+                  <div className="mt-2 whitespace-pre-wrap break-words">
+                    {Object.entries(recipients[0]).reduce((s, [k, v]) => s.replaceAll("{" + k + "}", v), template)}
+                  </div>
                 </>
               )}
             </div>
+            {recipients.length > 1 && (
+              <div className="mt-2 text-[11px] text-zinc-500">
+                Preview cycles through your first row — every recipient gets their own personalised message.
+              </div>
+            )}
           </Card>
         </div>
       </form>

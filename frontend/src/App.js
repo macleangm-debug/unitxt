@@ -47,6 +47,7 @@ import CountryDetail from "@/pages/admin/CountryDetail";
 import IntegrationHealth from "@/pages/admin/IntegrationHealth";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import ApplyPage from "@/pages/ApplyPage";
+import NumberLookup from "@/pages/client/NumberLookup";
 import AdminAudit from "@/pages/admin/AdminAudit";
 import SettingsHub from "@/pages/admin/SettingsHub";
 import RoutingEngine from "@/pages/admin/RoutingEngine";
@@ -104,6 +105,7 @@ export default function App() {
             <Route path="bulk-send" element={<BulkSend />} />
             <Route path="campaigns" element={<Campaigns />} />
             <Route path="contacts" element={<Contacts />} />
+            <Route path="number-lookup" element={<NumberLookup />} />
             <Route path="sender-ids" element={<SenderIds />} />
             <Route path="templates" element={<Templates />} />
             <Route path="wallet" element={<Wallet />} />

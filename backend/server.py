@@ -208,7 +208,9 @@ class ContactIn(BaseModel):
     phone: str
     name: Optional[str] = ""
     group_id: Optional[str] = None
+    group_ids: List[str] = []
     tags: List[str] = []
+    extras: Dict[str, Any] = Field(default_factory=dict)  # arbitrary columns for personalization
 
 
 class ContactGroupIn(BaseModel):
@@ -743,6 +745,337 @@ async def import_contacts(rows: List[ContactIn], user: dict = Depends(get_curren
     return {"ok": True, "count": len(docs)}
 
 
+# ----- Group assignment & management -----
+
+class GroupAssignIn(BaseModel):
+    group_ids: List[str] = []  # replace the set; empty clears all groups
+
+
+@contacts_r.post("/{cid}/groups")
+async def assign_contact_to_groups(cid: str, body: GroupAssignIn,
+                                     user: dict = Depends(get_current_user)):
+    """Replace the full set of groups for this contact."""
+    contact = await db.contacts.find_one({"id": cid, "user_id": user["id"]})
+    if not contact:
+        raise HTTPException(404, "Contact not found")
+    # Sanity: every group_id must belong to this user
+    if body.group_ids:
+        n = await db.contact_groups.count_documents({
+            "user_id": user["id"], "id": {"$in": body.group_ids}})
+        if n != len(body.group_ids):
+            raise HTTPException(400, "One or more groups not found")
+    await db.contacts.update_one({"id": cid},
+                                   {"$set": {"group_ids": body.group_ids}})
+    return {"ok": True, "group_ids": body.group_ids}
+
+
+class BulkGroupIn(BaseModel):
+    contact_ids: List[str]
+    action: str = "add"  # "add" | "remove"
+
+
+@contacts_r.post("/groups/{gid}/bulk")
+async def bulk_group(gid: str, body: BulkGroupIn,
+                       user: dict = Depends(get_current_user)):
+    group = await db.contact_groups.find_one({"id": gid, "user_id": user["id"]})
+    if not group:
+        raise HTTPException(404, "Group not found")
+    op = "$addToSet" if body.action == "add" else "$pull"
+    res = await db.contacts.update_many(
+        {"id": {"$in": body.contact_ids}, "user_id": user["id"]},
+        {op: {"group_ids": gid}})
+    return {"ok": True, "modified": res.modified_count,
+             "action": body.action, "group_id": gid}
+
+
+@contacts_r.put("/groups/{gid}")
+async def rename_group(gid: str, body: ContactGroupIn,
+                         user: dict = Depends(get_current_user)):
+    r = await db.contact_groups.find_one({"id": gid, "user_id": user["id"]})
+    if not r:
+        raise HTTPException(404, "Group not found")
+    await db.contact_groups.update_one({"id": gid},
+                                         {"$set": body.model_dump()})
+    return {"ok": True}
+
+
+@contacts_r.delete("/groups/{gid}")
+async def delete_group(gid: str, user: dict = Depends(get_current_user)):
+    r = await db.contact_groups.find_one({"id": gid, "user_id": user["id"]})
+    if not r:
+        raise HTTPException(404, "Group not found")
+    # Remove the group id from all contacts
+    await db.contacts.update_many({"user_id": user["id"], "group_ids": gid},
+                                    {"$pull": {"group_ids": gid}})
+    await db.contact_groups.delete_one({"id": gid})
+    return {"ok": True}
+
+
+# ============================================================
+# NUMBER LOOKUP — "Smart validation" (in-house) + "HLR lookup" (telco-backed, per-country)
+# Pricing & availability are driven from Settings Hub:
+#   numbers.smart_validation_cost  (credits per number; default 1)
+#   numbers.hlr_lookup_cost        (credits per number; default 5)
+#   numbers.hlr_enabled_countries  (list of ISO-2 codes where real HLR is live; default [])
+# ============================================================
+
+PLAIN_DELIVERY_REASONS: Dict[str, str] = {
+    "invalid_number": "Number is not in a valid format.",
+    "unknown_subscriber": "Number is not assigned to any subscriber.",
+    "absent_subscriber": "Phone is off or out of coverage.",
+    "handset_busy": "Handset was busy; try again later.",
+    "memory_full": "Handset inbox is full.",
+    "blocked": "Carrier blocked the message (often spam filter).",
+    "blacklisted": "Number is on your blacklist or the carrier's.",
+    "sender_blacklisted": "Your sender ID is blocked by the carrier.",
+    "expired": "Delivery attempt window expired before reaching the handset.",
+    "no_route": "We have no active route for this country or operator.",
+    "insufficient_funds": "Upstream provider account is out of balance.",
+    "rejected_by_carrier": "Carrier rejected the message (check content rules).",
+    "dnd_list": "Number is on the Do-Not-Disturb list.",
+    "opted_out": "Recipient previously opted out (STOP).",
+    "temporary_error": "Temporary carrier error; will be retried automatically.",
+    "unknown_error": "Delivery failed for an unspecified reason.",
+}
+
+
+def classify_delivery_error(raw: Optional[str]) -> Dict[str, str]:
+    """Map a carrier error string to a stable code + plain English reason."""
+    text = (raw or "").lower().strip()
+    mapping = [
+        ("invalid", "invalid_number"),
+        ("bad number", "invalid_number"),
+        ("malformed", "invalid_number"),
+        ("unknown subscriber", "unknown_subscriber"),
+        ("not assigned", "unknown_subscriber"),
+        ("absent", "absent_subscriber"),
+        ("off", "absent_subscriber"),
+        ("not reachable", "absent_subscriber"),
+        ("out of coverage", "absent_subscriber"),
+        ("busy", "handset_busy"),
+        ("memory", "memory_full"),
+        ("inbox full", "memory_full"),
+        ("blocked", "blocked"),
+        ("spam", "blocked"),
+        ("blacklist", "blacklisted"),
+        ("sender id", "sender_blacklisted"),
+        ("expired", "expired"),
+        ("no route", "no_route"),
+        ("no provider", "no_route"),
+        ("balance", "insufficient_funds"),
+        ("insufficient", "insufficient_funds"),
+        ("rejected", "rejected_by_carrier"),
+        ("dnd", "dnd_list"),
+        ("do not disturb", "dnd_list"),
+        ("opt-out", "opted_out"),
+        ("opted out", "opted_out"),
+        ("stop", "opted_out"),
+        ("temporary", "temporary_error"),
+        ("retry", "temporary_error"),
+    ]
+    for needle, code in mapping:
+        if needle in text:
+            return {"code": code, "reason": PLAIN_DELIVERY_REASONS[code],
+                     "raw": raw or ""}
+    return {"code": "unknown_error",
+             "reason": PLAIN_DELIVERY_REASONS["unknown_error"],
+             "raw": raw or ""}
+
+
+def normalize_phone(raw: str) -> str:
+    p = (raw or "").strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if p and not p.startswith("+"):
+        p = "+" + p
+    return p
+
+
+async def smart_validate_number(phone: str, user_id: Optional[str] = None) -> Dict[str, Any]:
+    """In-house number validation. Uses prefix DB + historical delivery signal.
+    Never claims the number is 'active right now' — that needs real HLR."""
+    e164 = normalize_phone(phone)
+    result: Dict[str, Any] = {
+        "input": phone, "e164": e164, "valid": False, "country": None,
+        "dial_code": None, "operator": None, "is_mobile": None,
+        "carrier_type": None, "risk_flags": [], "first_seen": None,
+        "last_delivery_status": None, "historical_success_rate": None,
+        "service": "smart_validation",
+    }
+    if not e164.startswith("+") or len(e164) < 8 or len(e164) > 16:
+        result["risk_flags"].append("Format looks wrong — check country code and length.")
+        return result
+    if not e164[1:].isdigit():
+        result["risk_flags"].append("Contains non-digit characters.")
+        return result
+
+    # Prefix lookup
+    op = await phone_to_operator(e164)
+    if op:
+        result["country"] = op.get("country")
+        result["operator"] = op.get("operator")
+        result["dial_code"] = op.get("prefix", "")[:4]
+        result["is_mobile"] = True
+        result["carrier_type"] = "mobile"
+        result["valid"] = True
+    else:
+        result["risk_flags"].append("No operator found for this prefix in our database.")
+
+    # Historical delivery signal for this user
+    if user_id:
+        agg = db.messages.aggregate([
+            {"$match": {"user_id": user_id, "to": e164}},
+            {"$group": {"_id": "$status", "n": {"$sum": 1},
+                         "last": {"$max": "$created_at"}}},
+        ])
+        rows = await agg.to_list(10)
+        if rows:
+            total = sum(r["n"] for r in rows)
+            delivered = sum(r["n"] for r in rows if r["_id"] in ("delivered", "sent"))
+            result["historical_success_rate"] = round(delivered / total, 2) if total else None
+            last_rows = sorted(rows, key=lambda r: r.get("last") or "", reverse=True)
+            if last_rows:
+                result["last_delivery_status"] = last_rows[0]["_id"]
+                result["first_seen"] = last_rows[-1].get("last")
+            # Suspicious signal
+            if total >= 3 and (delivered / total) < 0.3:
+                result["risk_flags"].append("Historical delivery to this number is poor.")
+    return result
+
+
+async def hlr_lookup_number(phone: str) -> Dict[str, Any]:
+    """Real HLR via a telco partner — scaffolded but NOT live.
+    Currently returns the smart-validation payload with service='hlr_lookup' so the
+    data model is identical; wire real operator integration later.
+    """
+    base = await smart_validate_number(phone, user_id=None)
+    base["service"] = "hlr_lookup"
+    base["telco_backed"] = False  # flip to True when operator integration lands
+    return base
+
+
+class NumberLookupIn(BaseModel):
+    phone: str
+    service: str = "smart_validation"  # smart_validation | hlr_lookup
+
+
+num_r = APIRouter(prefix="/numbers", tags=["numbers"])
+
+
+async def _charge_lookup(user: dict, service: str, n: int = 1):
+    if service == "hlr_lookup":
+        cost_key = "numbers.hlr_lookup_cost"
+        default = 5
+    else:
+        cost_key = "numbers.smart_validation_cost"
+        default = 1
+    unit = int(await get_setting(cost_key, default) or default)
+    total = unit * n
+    if total <= 0:
+        return 0
+    wallet = await db.wallets.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not wallet or wallet.get("balance", 0) < total:
+        raise HTTPException(402, f"Not enough credits. You need {total} credits.")
+    await adjust_wallet(user["id"], -total, "lookup",
+                         note=f"{service} ({n} number{'s' if n != 1 else ''})")
+    return total
+
+
+@num_r.get("/services")
+async def number_services(user: dict = Depends(get_current_user)):
+    """Tell the client which number services are available and what they cost."""
+    smart_cost = int(await get_setting("numbers.smart_validation_cost", 1) or 1)
+    hlr_cost = int(await get_setting("numbers.hlr_lookup_cost", 5) or 5)
+    hlr_countries = await get_setting("numbers.hlr_enabled_countries", []) or []
+    return {
+        "smart_validation": {
+            "name": "Smart number validation",
+            "description": "Checks format, country, operator and your own delivery history.",
+            "cost_per_lookup": smart_cost, "available_everywhere": True,
+        },
+        "hlr_lookup": {
+            "name": "HLR number lookup",
+            "description": "Real-time check with the mobile operator network — confirms the number is active, ported or roaming.",
+            "cost_per_lookup": hlr_cost,
+            "available_everywhere": False,
+            "available_countries": hlr_countries,
+            "status": "coming_soon" if not hlr_countries else "live",
+        },
+    }
+
+
+@num_r.post("/validate")
+async def validate_single(body: NumberLookupIn,
+                            user: dict = Depends(get_current_user)):
+    if body.service == "hlr_lookup":
+        hlr_countries = await get_setting("numbers.hlr_enabled_countries", []) or []
+        op = await phone_to_operator(normalize_phone(body.phone))
+        country = op["country"] if op else None
+        if not hlr_countries:
+            raise HTTPException(400,
+                "HLR lookup is not live yet. We are onboarding operators — "
+                "please use Smart validation or contact your account manager.")
+        if country and country not in hlr_countries:
+            raise HTTPException(400,
+                f"HLR lookup is not available for {country} yet. "
+                f"Currently live in: {', '.join(hlr_countries) or 'none'}.")
+    charged = await _charge_lookup(user, body.service, 1)
+    result = (await hlr_lookup_number(body.phone)) if body.service == "hlr_lookup" \
+        else (await smart_validate_number(body.phone, user["id"]))
+    result["credits_charged"] = charged
+    await db.number_lookups.insert_one({
+        "id": new_id(), "user_id": user["id"],
+        "service": body.service, "phone": result.get("e164") or body.phone,
+        "valid": result.get("valid"),
+        "credits": charged, "created_at": iso(now_utc()),
+    })
+    return result
+
+
+class BulkLookupIn(BaseModel):
+    phones: List[str]
+    service: str = "smart_validation"
+
+
+@num_r.post("/validate/bulk")
+async def validate_bulk(body: BulkLookupIn,
+                          user: dict = Depends(get_current_user)):
+    if not body.phones:
+        raise HTTPException(400, "No numbers provided.")
+    if len(body.phones) > 5000:
+        raise HTTPException(400, "Maximum 5,000 numbers per batch.")
+    # Filter HLR by availability
+    if body.service == "hlr_lookup":
+        hlr_countries = await get_setting("numbers.hlr_enabled_countries", []) or []
+        if not hlr_countries:
+            raise HTTPException(400,
+                "HLR lookup is not live yet. We are onboarding operators — "
+                "please use Smart validation or contact your account manager.")
+    charged = await _charge_lookup(user, body.service, len(body.phones))
+    results = []
+    for p in body.phones:
+        if body.service == "hlr_lookup":
+            res = await hlr_lookup_number(p)
+        else:
+            res = await smart_validate_number(p, user["id"])
+        results.append(res)
+    await db.number_lookups.insert_one({
+        "id": new_id(), "user_id": user["id"], "service": body.service,
+        "phones_count": len(body.phones),
+        "valid_count": sum(1 for r in results if r.get("valid")),
+        "credits": charged, "created_at": iso(now_utc()),
+    })
+    valid = sum(1 for r in results if r.get("valid"))
+    return {"total": len(results), "valid": valid,
+             "invalid": len(results) - valid, "credits_charged": charged,
+             "results": results}
+
+
+@num_r.get("/history")
+async def lookup_history(user: dict = Depends(get_current_user)):
+    rows = await db.number_lookups.find(
+        {"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
+    return rows
+
+
 # ============================================================
 # SENDER IDS
 # ============================================================
@@ -1186,13 +1519,33 @@ async def campaign_detail(cid: str, user: dict = Depends(get_current_user)):
     if c["user_id"] != user["id"] and user["role"] not in ("super_admin", "country_admin"):
         raise HTTPException(403)
     msgs = await db.messages.find({"campaign_id": cid}, {"_id": 0}).limit(500).to_list(500)
-    return {"campaign": c, "messages": msgs}
+    # Enrich failed messages with plain-English reason
+    for m in msgs:
+        if m.get("status") in ("failed", "undelivered"):
+            reason = classify_delivery_error(m.get("error"))
+            m["failure_code"] = reason["code"]
+            m["failure_reason"] = reason["reason"]
+    # Failure breakdown for the campaign
+    breakdown: Dict[str, Dict[str, Any]] = {}
+    for m in msgs:
+        if m.get("failure_code"):
+            b = breakdown.setdefault(m["failure_code"],
+                {"code": m["failure_code"], "reason": m["failure_reason"], "count": 0})
+            b["count"] += 1
+    return {"campaign": c, "messages": msgs,
+             "failure_breakdown": sorted(breakdown.values(),
+                                          key=lambda x: -x["count"])}
 
 
 @msg_r.get("/messages")
 async def my_messages(limit: int = 100, user: dict = Depends(get_current_user)):
     items = await db.messages.find({"user_id": user["id"]}, {"_id": 0}).sort(
         "created_at", -1).limit(limit).to_list(limit)
+    for m in items:
+        if m.get("status") in ("failed", "undelivered"):
+            reason = classify_delivery_error(m.get("error"))
+            m["failure_code"] = reason["code"]
+            m["failure_reason"] = reason["reason"]
     return items
 
 
@@ -3038,6 +3391,7 @@ api.include_router(wa_r)
 api.include_router(auth_r)
 api.include_router(wallet_r)
 api.include_router(contacts_r)
+api.include_router(num_r)
 api.include_router(sid_r)
 api.include_router(tpl_r)
 api.include_router(msg_r)
@@ -3261,6 +3615,10 @@ async def startup():
         # Economy — credits ↔ USD reference rate. Drives all country P&L calculations.
         # Default 0.01 = $1 per 100 credits (matches Scale pack's blended price).
         ("economy.usd_per_credit", 0.01, "economy"),
+        # Number lookup services — pricing & availability live here.
+        ("numbers.smart_validation_cost", 1, "numbers"),
+        ("numbers.hlr_lookup_cost", 5, "numbers"),
+        ("numbers.hlr_enabled_countries", [], "numbers"),
         # Credits engine — drives all money-related behavior
         ("credits.default_rate", 2, "credits"),
         ("credits.whatsapp_rate", 3, "credits"),

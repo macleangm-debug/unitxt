@@ -1,5 +1,6 @@
-export function PageHeader({ overline, title, desc, actions, testid }) {
-  return (
+import { forwardRef } from "react";
+
+export function PageHeader({ overline, title, desc, actions, testid }) {  return (
     <div className="mb-6 flex flex-col gap-4 border-b border-zinc-900 pb-6 sm:flex-row sm:items-end sm:justify-between" data-testid={testid}>
       <div>
         {overline && <div className="label-overline">{overline}</div>}
@@ -57,9 +58,9 @@ export function Input(props) {
   return <input {...props} className={`h-10 w-full border border-zinc-800 bg-transparent px-3 text-sm text-white outline-none transition focus:border-white ${props.className || ""}`} />;
 }
 
-export function TextArea(props) {
-  return <textarea {...props} className={`min-h-[120px] w-full border border-zinc-800 bg-transparent p-3 text-sm text-white outline-none transition focus:border-white ${props.className || ""}`} />;
-}
+export const TextArea = forwardRef(function TextArea(props, ref) {
+  return <textarea ref={ref} {...props} className={`min-h-[120px] w-full border border-zinc-800 bg-transparent p-3 text-sm text-white outline-none transition focus:border-white ${props.className || ""}`} />;
+});
 
 export function Select(props) {
   return <select {...props} className={`h-10 w-full border border-zinc-800 bg-[#0A0A0A] px-3 text-sm text-white outline-none focus:border-white ${props.className || ""}`}>{props.children}</select>;
