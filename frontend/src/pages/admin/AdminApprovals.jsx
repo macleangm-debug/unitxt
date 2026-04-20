@@ -5,7 +5,7 @@ import {
   PageHeader, Card, Field, Input, TextArea, Btn, Pill, Table, Stat,
 } from "@/components/UI";
 import {
-  Check, X, Inbox, IdCard, MessageCircle, Users, Building2, Activity,
+  Check, X, Inbox, IdCard, MessageCircle, Users, Building2, Activity, Wallet as WalletIcon,
 } from "lucide-react";
 
 const TABS = [
@@ -13,6 +13,7 @@ const TABS = [
   { key: "wa_templates",             label: "WhatsApp templates",      icon: MessageCircle },
   { key: "reseller_applications",    label: "Reseller applications",   icon: Users },
   { key: "institution_applications", label: "Institution applications", icon: Building2 },
+  { key: "topup_requests",           label: "Top-up requests",         icon: WalletIcon },
 ];
 
 /* ---------- Review drawer ---------- */
@@ -29,6 +30,7 @@ function ReviewDrawer({ item, kind, onClose, onDone }) {
     wa_templates:             (id) => `/admin/wa-templates/${id}/review`,
     reseller_applications:    (id) => `/admin/applications/resellers/${id}/review`,
     institution_applications: (id) => `/admin/applications/institutions/${id}/review`,
+    topup_requests:           (id) => `/admin/topups/${id}/review`,
   };
 
   const submit = async () => {
@@ -111,6 +113,7 @@ export default function AdminApprovals() {
   const [tab, setTab] = useState("sender_ids");
   const [data, setData] = useState({ sender_ids: [], wa_templates: [],
                                        reseller_applications: [], institution_applications: [],
+                                       topup_requests: [],
                                        total: 0 });
   const [open, setOpen] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -164,6 +167,17 @@ export default function AdminApprovals() {
       { key: "country", label: "Country", mono: true },
       { key: "created_at", label: "Applied", mono: true,
         render: r => shortDate(r.created_at) },
+    ],
+    topup_requests: [
+      { key: "created_at", label: "When", mono: true, render: r => shortDate(r.created_at) },
+      { key: "user_email", label: "Client", mono: true },
+      { key: "user_country", label: "Country", mono: true },
+      { key: "pack_name", label: "Pack", render: r => r.pack_name || "Custom amount" },
+      { key: "local_amount", label: "Amount", mono: true,
+        render: r => `${r.local_currency} ${Number(r.local_amount).toLocaleString()}` },
+      { key: "credits_on_approval", label: "Credits on approval", mono: true,
+        render: r => Number(r.credits_on_approval).toLocaleString() },
+      { key: "reference", label: "Ref", mono: true, render: r => r.reference || "—" },
     ],
   };
 

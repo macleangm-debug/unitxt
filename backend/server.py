@@ -2127,6 +2127,7 @@ async def list_packs(user: dict = Depends(get_current_user)):
     - Global packs (country == None)
     - Packs scoped to the user's country
     Country-scoped packs are shown first, then globals.
+    Each pack is enriched with local currency pricing (falls back to USD).
     """
     user_country = user.get("country")
     q = {"active": True, "$or": [{"country": None}, {"country": {"$exists": False}}]}
@@ -2134,6 +2135,24 @@ async def list_packs(user: dict = Depends(get_current_user)):
         q["$or"].append({"country": user_country})
     items = await db.credit_packs.find(q, {"_id": 0}).sort([
         ("country", -1), ("credits", 1)]).to_list(80)
+    # Enrich with local pricing (defined later; forward-compatible lookup).
+    from_country = user_country
+    for p in items:
+        c = await db.countries.find_one({"code": from_country}, {"_id": 0}) if from_country else None
+        fx = float(c.get("fx_rate_to_usd", 0) or 0) if c else 0
+        cur = (c.get("currency") if c else None) or "USD"
+        if fx > 0 and cur != "USD":
+            local = float(p["price_usd"]) * fx
+            step = float(c.get("fx_rounding", 1) or 1)
+            if step > 0:
+                local = round(local / step) * step
+            p["local_price"] = round(local, 2)
+            p["local_currency"] = cur
+            p["fx_rate_used"] = fx
+        else:
+            p["local_price"] = round(float(p["price_usd"]), 2)
+            p["local_currency"] = "USD"
+            p["fx_rate_used"] = 1.0
     return items
 
 
@@ -3165,6 +3184,9 @@ async def approvals_inbox(_: dict = Depends(require_roles("super_admin", "compli
         {"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(200)
     inst_apps = await db.institution_applications.find(
         {"status": "pending"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    topups = await db.topup_requests.find(
+        {"status": "pending"}, {"_id": 0, "proof_image": 0}).sort(
+        "created_at", -1).to_list(200)
     # enrich with user info
     async def enrich(rows, user_key="user_id"):
         ids = list({r.get(user_key) for r in rows if r.get(user_key)})
@@ -3183,7 +3205,8 @@ async def approvals_inbox(_: dict = Depends(require_roles("super_admin", "compli
         "wa_templates": await enrich(watpls),
         "reseller_applications": reseller_apps,
         "institution_applications": inst_apps,
-        "total": len(sids) + len(watpls) + len(reseller_apps) + len(inst_apps),
+        "topup_requests": topups,
+        "total": len(sids) + len(watpls) + len(reseller_apps) + len(inst_apps) + len(topups),
     }
 
 
@@ -3544,6 +3567,272 @@ api.include_router(auth_r)
 api.include_router(wallet_r)
 api.include_router(contacts_r)
 api.include_router(num_r)
+
+
+# ============================================================
+# FX & LOCAL CURRENCY per country + Bank transfer top-ups
+# ============================================================
+
+async def convert_usd_to_local(country_code: str, usd: float) -> Dict[str, Any]:
+    """Given USD amount, return {amount, currency, fx_rate, rounded}."""
+    if not country_code:
+        return {"amount": usd, "currency": "USD", "fx_rate": 1.0, "rounded": round(usd, 2)}
+    country = await db.countries.find_one({"code": country_code.upper()}, {"_id": 0})
+    if not country:
+        return {"amount": usd, "currency": "USD", "fx_rate": 1.0, "rounded": round(usd, 2)}
+    fx = float(country.get("fx_rate_to_usd", 0) or 0)
+    cur = country.get("currency") or "USD"
+    if fx <= 0 or cur == "USD":
+        return {"amount": usd, "currency": cur, "fx_rate": 1.0, "rounded": round(usd, 2)}
+    local = usd * fx
+    step = float(country.get("fx_rounding", 1) or 1)
+    if step > 0:
+        local = round(local / step) * step
+    return {"amount": round(local, 2), "currency": cur, "fx_rate": fx, "rounded": local}
+
+
+class CountryFxIn(BaseModel):
+    currency: str
+    fx_rate_to_usd: float = Field(gt=0)
+    fx_rounding: float = 1.0
+
+
+@country_r.put("/{code}/fx")
+async def country_set_fx(code: str, body: CountryFxIn,
+                           admin: dict = Depends(require_roles("super_admin"))):
+    code = code.upper()
+    r = await db.countries.find_one({"code": code})
+    if not r:
+        raise HTTPException(404, "Country not found")
+    await db.countries.update_one({"code": code}, {"$set": {
+        "currency": body.currency.upper(),
+        "fx_rate_to_usd": float(body.fx_rate_to_usd),
+        "fx_rounding": float(body.fx_rounding),
+        "updated_at": iso(now_utc()),
+    }})
+    await add_audit(admin["id"], "country.fx", target=code, meta=body.model_dump())
+    return {"ok": True, **body.model_dump()}
+
+
+# ---------- Bank accounts registry (Settings hub → bank.accounts) ----------
+class BankAccountIn(BaseModel):
+    country: str  # ISO-2
+    bank_name: str
+    account_name: str
+    account_number: str
+    branch: Optional[str] = ""
+    swift: Optional[str] = ""
+    instructions: Optional[str] = ""  # plain-English notes
+    currency: Optional[str] = None
+    active: bool = True
+
+
+bank_r = APIRouter(prefix="/admin/banks", tags=["bank_accounts"])
+
+
+@bank_r.get("")
+async def list_bank_accounts(_: dict = Depends(require_roles("super_admin"))):
+    items = await db.bank_accounts.find({}, {"_id": 0}).sort("country", 1).to_list(200)
+    return items
+
+
+@bank_r.post("")
+async def create_bank_account(body: BankAccountIn,
+                                _: dict = Depends(require_roles("super_admin"))):
+    doc = {"id": new_id(), **body.model_dump(),
+            "country": body.country.upper(),
+            "created_at": iso(now_utc())}
+    await db.bank_accounts.insert_one(doc)
+    return clean(doc)
+
+
+@bank_r.put("/{bid}")
+async def update_bank_account(bid: str, body: BankAccountIn,
+                                _: dict = Depends(require_roles("super_admin"))):
+    await db.bank_accounts.update_one({"id": bid},
+        {"$set": {**body.model_dump(), "country": body.country.upper(),
+                   "updated_at": iso(now_utc())}})
+    return {"ok": True}
+
+
+@bank_r.delete("/{bid}")
+async def delete_bank_account(bid: str,
+                                _: dict = Depends(require_roles("super_admin"))):
+    await db.bank_accounts.delete_one({"id": bid})
+    return {"ok": True}
+
+
+# Public (authed) endpoint for clients: which banks can I pay into?
+pub_bank_r = APIRouter(prefix="/banks", tags=["banks"])
+
+
+@pub_bank_r.get("")
+async def my_banks(user: dict = Depends(get_current_user)):
+    """Return bank accounts for the user's country, falling back to global (country='*')."""
+    country = (user.get("country") or "").upper()
+    q = {"active": True, "$or": [{"country": country}, {"country": "*"}]} if country \
+        else {"active": True, "country": "*"}
+    items = await db.bank_accounts.find(q, {"_id": 0}).to_list(50)
+    return items
+
+
+# ---------- Top-up requests (bank transfer flow with proof upload) ----------
+class TopupRequestIn(BaseModel):
+    pack_id: Optional[str] = None          # if paying a standard pack
+    amount_usd: Optional[float] = None     # or a free-form amount
+    method: str = "bank_transfer"          # bank_transfer | mpesa | airtel_money | ...
+    bank_id: Optional[str] = None          # which bank the user paid into
+    reference: Optional[str] = ""          # bank reference number entered by user
+    note: Optional[str] = ""
+    proof_image: Optional[str] = None      # base64 data URL of receipt / photo
+    promo_code: Optional[str] = None
+
+
+topup_r = APIRouter(prefix="/wallet/topups", tags=["topups"])
+
+
+@topup_r.post("")
+async def submit_topup(body: TopupRequestIn, user: dict = Depends(get_current_user)):
+    # Resolve how much + how many credits to provision on approval
+    credits = 0
+    usd = 0.0
+    pack_name = None
+    if body.pack_id:
+        pack = await db.credit_packs.find_one({"id": body.pack_id, "active": True})
+        if not pack:
+            raise HTTPException(404, "Pack not found or inactive.")
+        usd = float(pack["price_usd"])
+        credits = int(pack["credits"])
+        pack_name = pack["name"]
+    elif body.amount_usd and body.amount_usd > 0:
+        usd = float(body.amount_usd)
+        usd_per_credit = float(await get_setting("economy.usd_per_credit", 0.01) or 0.01)
+        credits = int(round(usd / usd_per_credit))
+    else:
+        raise HTTPException(400, "Pick a pack or enter an amount.")
+
+    local = await convert_usd_to_local(user.get("country"), usd)
+    if body.proof_image:
+        size_kb = len(body.proof_image.encode()) / 1024
+        if size_kb > 4096:
+            raise HTTPException(400, "Proof image is too big (max ~4MB). Compress it and retry.")
+
+    doc = {
+        "id": new_id(), "user_id": user["id"], "user_email": user["email"],
+        "user_country": user.get("country"),
+        "pack_id": body.pack_id, "pack_name": pack_name,
+        "method": body.method, "bank_id": body.bank_id,
+        "reference": body.reference or "", "note": body.note or "",
+        "promo_code": body.promo_code or "",
+        "amount_usd": round(usd, 4),
+        "local_amount": local["rounded"],
+        "local_currency": local["currency"],
+        "fx_rate_used": local["fx_rate"],
+        "credits_on_approval": credits,
+        "proof_image": body.proof_image or "",
+        "status": "pending",
+        "created_at": iso(now_utc()),
+    }
+    await db.topup_requests.insert_one(doc)
+    await add_notification(user["id"], "Top-up request submitted",
+                            f"We received your {local['currency']} {local['rounded']:.0f} top-up request. "
+                            f"You'll get {credits:,} credits once admin verifies your payment.",
+                            "info")
+    d = dict(doc); d.pop("proof_image", None); return clean(d)
+
+
+@topup_r.get("")
+async def my_topups(user: dict = Depends(get_current_user)):
+    rows = await db.topup_requests.find({"user_id": user["id"]},
+        {"_id": 0, "proof_image": 0}).sort("created_at", -1).limit(100).to_list(100)
+    return rows
+
+
+@topup_r.get("/{tid}/proof")
+async def my_topup_proof(tid: str, user: dict = Depends(get_current_user)):
+    r = await db.topup_requests.find_one({"id": tid, "user_id": user["id"]},
+                                           {"_id": 0})
+    if not r:
+        raise HTTPException(404)
+    return {"id": r["id"], "proof_image": r.get("proof_image") or ""}
+
+
+# ---------- Admin side ----------
+adm_topup_r = APIRouter(prefix="/admin/topups", tags=["admin_topups"])
+
+
+@adm_topup_r.get("")
+async def list_topups(status: Optional[str] = None,
+                       _: dict = Depends(require_roles("super_admin", "finance"))):
+    q = {"status": status} if status else {}
+    rows = await db.topup_requests.find(q, {"_id": 0, "proof_image": 0}).sort(
+        "created_at", -1).limit(500).to_list(500)
+    return rows
+
+
+@adm_topup_r.get("/{tid}")
+async def topup_detail(tid: str,
+                         _: dict = Depends(require_roles("super_admin", "finance"))):
+    r = await db.topup_requests.find_one({"id": tid}, {"_id": 0})
+    if not r:
+        raise HTTPException(404)
+    return r
+
+
+class TopupReviewIn(BaseModel):
+    status: str  # approved | rejected
+    note: Optional[str] = ""
+
+
+@adm_topup_r.post("/{tid}/review")
+async def review_topup(tid: str, body: TopupReviewIn,
+                         admin: dict = Depends(require_roles("super_admin", "finance"))):
+    if body.status not in ("approved", "rejected"):
+        raise HTTPException(400, "Invalid status")
+    r = await db.topup_requests.find_one({"id": tid})
+    if not r:
+        raise HTTPException(404)
+    if r["status"] != "pending":
+        raise HTTPException(400, "Already reviewed")
+    update = {"status": body.status, "reviewed_at": iso(now_utc()),
+               "reviewed_by": admin["id"], "review_note": body.note or ""}
+    await db.topup_requests.update_one({"id": tid}, {"$set": update})
+    if body.status == "approved":
+        # Credit wallet + optional promo bonus
+        credits = int(r.get("credits_on_approval", 0))
+        bonus = 0
+        if r.get("promo_code"):
+            promo = await db.promotions.find_one({"code": r["promo_code"].upper(),
+                                                    "active": True})
+            if promo and float(r.get("amount_usd", 0)) >= float(promo.get("min_topup", 0)):
+                if (promo.get("country") in (None, r.get("user_country"))):
+                    if promo["type"] == "bonus_credit":
+                        bonus = int(float(promo["value"]) * 100)
+                    elif promo["type"] == "percent_discount":
+                        bonus = int(credits * float(promo["value"]) / 100.0)
+        total = credits + bonus
+        if total > 0:
+            await adjust_wallet(r["user_id"], total, "topup_bank",
+                                 note=f"Bank transfer · {r['local_currency']} "
+                                      f"{r['local_amount']:.0f} · ref {r.get('reference') or '—'}",
+                                 ref=tid)
+        await add_notification(r["user_id"], "Top-up approved",
+                                 f"+{total:,} credits added to your wallet "
+                                 f"({credits:,} credits" +
+                                 (f" + {bonus:,} promo bonus" if bonus else "") + ").",
+                                 "success")
+    else:
+        await add_notification(r["user_id"], "Top-up rejected",
+                                 body.note or "Please contact support.",
+                                 "warning")
+    await add_audit(admin["id"], f"topup.{body.status}", target=tid, meta={"note": body.note})
+    return {"ok": True}
+
+
+api.include_router(bank_r)
+api.include_router(pub_bank_r)
+api.include_router(topup_r)
+api.include_router(adm_topup_r)
 api.include_router(sid_r)
 api.include_router(tpl_r)
 api.include_router(msg_r)
@@ -3886,6 +4175,35 @@ async def startup():
 
     # kick off background loop
     asyncio.create_task(background_loop())
+
+    # v1.9 FX migration: ensure every country has fx_rate_to_usd + fx_rounding.
+    # Admin can override later via Country hub → Economics.
+    SEED_FX = {
+        "TZ": (2600, 100), "KE": (130, 10), "UG": (3700, 100), "ZM": (26, 1),
+        "GH": (15, 1), "NG": (1550, 10), "ZA": (18, 1), "RW": (1350, 50),
+        "US": (1, 1), "GB": (0.79, 1), "IN": (83, 1), "AE": (3.67, 1),
+    }
+    for code, (rate, step) in SEED_FX.items():
+        await db.countries.update_one(
+            {"code": code, "fx_rate_to_usd": {"$exists": False}},
+            {"$set": {"fx_rate_to_usd": float(rate), "fx_rounding": float(step),
+                       "updated_at": iso(now_utc())}})
+
+    # Seed a default Tanzania bank account on first boot
+    if await db.bank_accounts.count_documents({}) == 0:
+        await db.bank_accounts.insert_one({
+            "id": new_id(),
+            "country": "TZ", "bank_name": "CRDB Bank",
+            "account_name": "Unitxt Tanzania Ltd",
+            "account_number": "0150123456700",
+            "branch": "Dar es Salaam", "swift": "CORUTZTZ",
+            "currency": "TZS",
+            "instructions": "Use your registered email as the payment reference, "
+                             "take a screenshot or photo of the receipt and attach it when submitting "
+                             "your top-up request. Credits are added within one business day of verification.",
+            "active": True,
+            "created_at": iso(now_utc()),
+        })
 
     # v1.3 migration: retire legacy `markup`-based reseller pricing records. Replaced by
     # admin-controlled commission_rate (0.0-1.0). Keep only records that already carry
