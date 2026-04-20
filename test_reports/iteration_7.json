@@ -1,0 +1,118 @@
+{
+  "summary": "Iteration 7 testing complete - Country Hub, Integration Health, Add-Country Wizard, Add-Integration Wizard. All 40 backend tests passed. Frontend UI verified: Country Hub catalog with 16 countries, 4-step add-country wizard, country detail with 5 tabs and kill switch, Integration Health dashboard with 4 providers, add-integration wizard showing ONLY 3 adapters (Twilio, Tigo TZ, Mock), Settings Hub Geographies group.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7_country_hub.py",
+    "/app/test_reports/pytest/iteration7_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRITICAL VERIFICATION PASSED: GET /api/admin/country-hub/integrations/available returns ONLY 3 adapters: twilio, tigo_tz, mock. No Infobip/MessageBird/Africa's Talking.",
+    "Each adapter has required fields: kind, label, description, channels, fields (with key, label, type, required, default)",
+    "GET /api/admin/country-hub returns array of countries with enriched fields: credits_per_sms, routes_count, prefixes_count, operators_count, sender_ids_count, active_sender_ids, health, status",
+    "POST /api/admin/country-hub/wizard creates active country with routes, draft without routes. Writes credits.country_rate setting. Wires provider via $addToSet on countries.",
+    "GET /api/admin/country-hub/{code} returns full country data: country, credits_per_sms, credits_per_whatsapp, routes (with health and kind), operators, prefixes, sender_ids, health",
+    "PUT /api/admin/country-hub/{code}/status sets status to active|paused|draft; rejects invalid",
+    "PUT /api/admin/country-hub/{code}/compliance updates opt_out_footer, allowed_sender_patterns, daily_cap, sender_id_required",
+    "GET /api/admin/integrations/health returns array of providers with health signal (status, success_rate, sent_24h, creds, last_error)",
+    "POST /api/admin/integrations/{provider_id}/test returns {ok, latency_ms, provider_msg_id, status, error}",
+    "Frontend Country Hub catalog shows 16 countries with flags, codes, dial codes, rates, routes, sender IDs, health chips",
+    "Frontend Add-country wizard has 4 steps: Identity, Pricing, Routes, Compliance with proper validation",
+    "Frontend Country detail page has 5 tabs: Overview, Routes, Operators & prefixes, Sender IDs, Compliance",
+    "Frontend Routes tab shows ordered route table with priority, operators, cost/SMS, success 24h %, health chip, active pill, Test button",
+    "Frontend Compliance tab has editable opt_out_footer, allowed_sender_patterns, daily_cap, sender_id_required with Save button",
+    "Frontend Integration Health shows stats (4 integrations, 0 healthy, 2 degraded, 0 down), table with health chips, creds pills, Test buttons",
+    "Frontend Add-integration wizard Step 1 picker shows ONLY 3 adapters with info banner: 'Only adapters actually wired into this codebase are listed. We do not expose unintegrated partners.'",
+    "Frontend Settings Hub has Geographies group with Country hub and Integration health as module-link CTAs",
+    "All iteration 5/6 regression tests passed: auth/me, admin/overview, admin/resellers, commission-audit, settings, providers, countries, reseller/clients, reseller/earnings"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7_country_hub.py"
+  ],
+  "success_rate": {
+    "backend": "100% (40/40 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Countries created during testing: MW (Malawi), ZW (Zimbabwe), BW (Botswana), MZ (Mozambique), ZM (Zambia). Status changes made to MZ (paused, active, draft).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 7 complete. Phase 2 features fully implemented: (1) Country Hub catalog at /admin/country-hub with 16 countries, stats row, search, add-country button; (2) 4-step add-country wizard (Identity, Pricing, Routes, Compliance) - creates active with routes, draft without; (3) Country detail at /admin/country-hub/{code} with 5 tabs (Overview, Routes, Operators & prefixes, Sender IDs, Compliance), kill switch/activate button; (4) Integration Health at /admin/integrations with stats, provider table, health chips, Test buttons; (5) Add-integration wizard showing ONLY 3 adapters (Twilio, Tigo TZ, Mock) - CRITICAL: no Infobip/MessageBird/Africa's Talking; (6) Settings Hub Geographies group with Country hub and Integration health module links. Existing providers in DB: Tigo Tanzania (Direct), TZ Direct Telco, Twilio Global, Infobip Africa - these are seeded providers, NOT adapters. The INTEGRATED_ADAPTERS list is only used in the add-integration wizard picker.",
+  "tests_executed": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "categories": {
+      "integrated_adapters": 6,
+      "country_hub_catalog": 4,
+      "country_wizard": 5,
+      "country_detail": 3,
+      "country_status": 5,
+      "country_compliance": 2,
+      "integration_health": 3,
+      "integration_test": 2,
+      "regression_iteration5_6": 9,
+      "settings_hub": 1
+    }
+  },
+  "frontend_tests_executed": {
+    "country_hub_page_loads": "PASS - navigates to /admin/country-hub",
+    "country_hub_stats_row": "PASS - Countries (16), Active (12), Healthy (0), Unconfigured (9)",
+    "country_hub_search_box": "PASS - search box present",
+    "country_hub_add_button": "PASS - Add country button present",
+    "country_hub_cards": "PASS - 16 country cards with flags, codes, rates, routes, sender IDs, health",
+    "add_country_wizard_opens": "PASS - modal opens on Add country click",
+    "wizard_step1_identity": "PASS - ISO-2 code, name, dial code, currency, timezone fields",
+    "wizard_step2_pricing": "PASS - credits per SMS, credits per WhatsApp fields",
+    "wizard_step3_routes": "PASS - provider cards as toggleable options",
+    "wizard_step4_compliance": "PASS - sender ID required, opt-out footer, patterns, daily cap",
+    "country_detail_loads": "PASS - /admin/country-hub/TZ loads Tanzania detail",
+    "country_detail_tabs": "PASS - 5 tabs: Overview, Routes, Operators & prefixes, Sender IDs, Compliance",
+    "country_detail_kill_switch": "PASS - Activate button present (TZ is paused/draft)",
+    "country_detail_routes_tab": "PASS - route table with provider, kind, priority, operators, cost, success, health, active, test",
+    "country_detail_compliance_tab": "PASS - editable compliance form with Save button",
+    "integration_health_loads": "PASS - /admin/integrations loads",
+    "integration_health_stats": "PASS - 4 Integrations, 0 Healthy, 2 Degraded, 0 Down, 0 Sent 24h",
+    "integration_health_table": "PASS - table with partner, countries, channels, priority, creds, health, sent, active, test",
+    "add_integration_wizard_opens": "PASS - modal opens on Add integration click",
+    "adapter_picker_only_3": "PASS - ONLY Twilio, Tigo TZ, Mock shown",
+    "adapter_picker_info_banner": "PASS - 'Only adapters actually wired into this codebase are listed'",
+    "adapter_picker_no_forbidden": "PASS - NO Infobip, MessageBird, Africa's Talking",
+    "twilio_form_fields": "PASS - Account SID, Auth Token, base URL, priority, cost, active, countries",
+    "settings_hub_geographies_group": "PASS - Geographies tab present",
+    "settings_hub_country_hub_link": "PASS - Country hub with 'Open module' link",
+    "settings_hub_integrations_link": "PASS - Integration health with external link"
+  },
+  "mocked_apis_verified": [
+    "Twilio adapter (stub) - returns ok=true with tw_ prefix msg ID",
+    "Tigo TZ adapter (stub) - returns ok=true with tigo_stub_ prefix msg ID when no creds",
+    "Mock adapter - 95% synthetic success with mock_ prefix msg ID"
+  ],
+  "features_verified": {
+    "integrated_adapters_only_3": "PASS - twilio, tigo_tz, mock",
+    "no_infobip_messagebird_africas_talking": "PASS - forbidden adapters not in list",
+    "adapter_fields_structure": "PASS - kind, label, description, channels, fields",
+    "country_catalog_enriched": "PASS - credits_per_sms, routes_count, health, status",
+    "country_wizard_active_with_routes": "PASS - status=active when routes provided",
+    "country_wizard_draft_without_routes": "PASS - status=draft, missing=['routes']",
+    "country_wizard_writes_rate": "PASS - credits.country_rate setting updated",
+    "country_detail_full_data": "PASS - country, routes, operators, prefixes, sender_ids, health",
+    "country_status_valid_values": "PASS - active, paused, draft accepted; invalid rejected",
+    "country_compliance_update": "PASS - opt_out_footer, patterns, cap, sender_id_required",
+    "integration_health_array": "PASS - returns array of providers with health",
+    "integration_test_endpoint": "PASS - returns ok, latency_ms, provider_msg_id",
+    "regression_all_passed": "PASS - iteration 5/6 endpoints still working"
+  }
+}

@@ -53,6 +53,8 @@ const ADMIN_NAV = [
   { to: "/admin/campaigns", icon: Calendar, label: "Campaigns" },
   { to: "/admin/institutions", icon: Building2, label: "Institutions" },
   { to: "/admin/promotions", icon: Megaphone, label: "Promotions" },
+  { to: "/admin/country-hub", icon: Globe2, label: "Country hub" },
+  { to: "/admin/integrations", icon: Network, label: "Integration health" },
   { to: "/admin/resellers", icon: Users, label: "Resellers" },
   { to: "/admin/whatsapp", icon: MessageCircle, label: "WhatsApp approvals" },
   { to: "/admin/audit", icon: History, label: "Audit logs" },

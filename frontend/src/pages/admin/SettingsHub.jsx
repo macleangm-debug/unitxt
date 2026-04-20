@@ -30,6 +30,8 @@ const CATEGORIES = {
   promotions:    { label: "Promotions",      icon: Megaphone,    desc: "Bonus credits & promo codes.",               linkTo: "/admin/promotions" },
   resellers:     { label: "Resellers",       icon: Users,        desc: "Reseller catalog, commission & audit.",     linkTo: "/admin/resellers" },
   reseller_policy: { label: "Reseller policy", icon: ShieldCheck, desc: "Signup, KYC, commission defaults, limits." },
+  country_hub:   { label: "Country hub",     icon: Globe2,       desc: "Every country we operate in.",               linkTo: "/admin/country-hub" },
+  integrations:  { label: "Integration health", icon: Network,   desc: "Every partner × country with live signal.", linkTo: "/admin/integrations" },
 };
 
 // Organize into logical groups
@@ -45,6 +47,12 @@ const GROUPS = [
     label: "Economy",
     desc: "Credits, reseller commission, referrals and loyalty rewards.",
     items: ["credits", "pricing_cfg", "referrals", "streaks"],
+  },
+  {
+    key: "geographies",
+    label: "Geographies",
+    desc: "Countries we operate in and the partners that power them.",
+    items: ["country_hub", "integrations"],
   },
   {
     key: "messaging",

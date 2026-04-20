@@ -15,6 +15,7 @@ import secrets
 import logging
 import asyncio
 import random
+import time
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Literal, Any, Dict
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Response, Query
@@ -2277,6 +2278,372 @@ async def admin_commission_audit(days: int = 30,
 
 
 # ============================================================
+# COUNTRY HUB — unified per-country cockpit (catalog, detail, health)
+# ============================================================
+
+# Only the adapters actually implemented in this codebase. No defaults / placeholders.
+INTEGRATED_ADAPTERS: List[Dict[str, Any]] = [
+    {
+        "kind": "twilio",
+        "label": "Twilio",
+        "description": "Global SMS/WhatsApp aggregator via Twilio REST API.",
+        "channels": ["sms", "whatsapp"],
+        "fields": [
+            {"key": "api_key", "label": "Account SID", "type": "text", "required": True},
+            {"key": "api_secret", "label": "Auth Token", "type": "password", "required": True},
+            {"key": "base_url", "label": "Messaging base URL", "type": "text",
+             "default": "https://api.twilio.com", "required": False},
+        ],
+    },
+    {
+        "kind": "tigo_tz",
+        "label": "Tigo Tanzania (direct)",
+        "description": "Direct-connect to Tigo TZ SMSC via IPsec VPN.",
+        "channels": ["sms"],
+        "fields": [
+            {"key": "api_key", "label": "Username", "type": "text", "required": True},
+            {"key": "api_secret", "label": "Password", "type": "password", "required": True},
+            {"key": "base_url", "label": "VPN endpoint URL", "type": "text", "required": True},
+        ],
+    },
+    {
+        "kind": "mock",
+        "label": "Mock (test-only)",
+        "description": "Simulated provider — 95% success. Never use in production.",
+        "channels": ["sms", "whatsapp"],
+        "fields": [],
+    },
+]
+
+
+def adapter_kind_from_name(name: str) -> str:
+    n = (name or "").lower()
+    if "twilio" in n: return "twilio"
+    if "tigo" in n: return "tigo_tz"
+    return "mock"
+
+
+async def compute_provider_health(provider: dict, window_hours: int = 24) -> dict:
+    """Compute a lightweight health signal based on real messages + creds + active flag."""
+    if not provider.get("active"):
+        return {"status": "offline", "success_rate": None, "sent_24h": 0,
+                "creds": False, "last_error": None}
+    kind = adapter_kind_from_name(provider.get("name", ""))
+    creds_ok = (kind == "mock" or
+                (bool(provider.get("api_key")) and bool(provider.get("api_secret"))))
+    since = now_utc() - timedelta(hours=window_hours)
+    pipe = [
+        {"$match": {"provider_id": provider["id"], "created_at": {"$gte": iso(since)}}},
+        {"$group": {"_id": "$status", "n": {"$sum": 1}}},
+    ]
+    counts = {row["_id"]: row["n"] async for row in db.messages.aggregate(pipe)}
+    sent = sum(counts.values())
+    delivered = counts.get("delivered", 0) + counts.get("sent", 0)
+    failed = counts.get("failed", 0) + counts.get("undelivered", 0)
+    rate = (delivered / sent) if sent else None
+    last_err = None
+    if failed:
+        err_doc = await db.messages.find_one(
+            {"provider_id": provider["id"], "status": {"$in": ["failed", "undelivered"]}},
+            sort=[("created_at", -1)])
+        if err_doc:
+            last_err = err_doc.get("error")
+    if not creds_ok:
+        status = "degraded"
+    elif sent == 0:
+        status = "idle"
+    elif rate is not None and rate >= 0.9:
+        status = "healthy"
+    elif rate is not None and rate >= 0.5:
+        status = "degraded"
+    else:
+        status = "down"
+    return {
+        "status": status,
+        "success_rate": round(rate, 4) if rate is not None else None,
+        "sent_24h": sent, "delivered_24h": delivered, "failed_24h": failed,
+        "creds": creds_ok, "last_error": last_err,
+    }
+
+
+async def country_health_summary(country_code: str, providers: List[dict]) -> dict:
+    """Aggregate health across all providers of a country."""
+    if not providers:
+        return {"status": "unconfigured", "success_rate": None, "sent_24h": 0,
+                "providers_total": 0, "providers_healthy": 0}
+    results = [await compute_provider_health(p) for p in providers]
+    sent = sum(r["sent_24h"] for r in results)
+    delivered = sum(r.get("delivered_24h", 0) for r in results)
+    healthy = sum(1 for r in results if r["status"] == "healthy")
+    rate = (delivered / sent) if sent else None
+    if all(r["status"] == "offline" for r in results):
+        status = "offline"
+    elif healthy == 0 and sent == 0:
+        status = "idle"
+    elif rate is not None and rate >= 0.9:
+        status = "healthy"
+    elif rate is not None and rate >= 0.5:
+        status = "degraded"
+    elif sent > 0:
+        status = "down"
+    else:
+        status = "idle"
+    return {"status": status, "success_rate": round(rate, 4) if rate is not None else None,
+            "sent_24h": sent, "providers_total": len(results),
+            "providers_healthy": healthy}
+
+
+country_r = APIRouter(prefix="/admin/country-hub", tags=["country_hub"])
+
+
+@country_r.get("/integrations/available")
+async def available_integrations(_: dict = Depends(require_roles("super_admin"))):
+    """Return ONLY the adapters actually implemented. No defaults."""
+    return INTEGRATED_ADAPTERS
+
+
+@country_r.get("")
+async def country_catalog(_: dict = Depends(require_roles("super_admin", "country_admin"))):
+    """Catalog of all countries with enriched summary (routes, prefixes, sender IDs, health)."""
+    countries = await db.countries.find({}, {"_id": 0}).sort("name", 1).to_list(500)
+    out = []
+    for c in countries:
+        code = c["code"]
+        providers = await db.providers.find(
+            {"countries": code, "active": True}, {"_id": 0}).sort("priority", 1).to_list(50)
+        prefixes_count = await db.mobile_prefixes.count_documents({"country": code})
+        operators = await db.mobile_prefixes.distinct("operator", {"country": code})
+        sender_ids = await db.sender_id_requests.count_documents({"country": code})
+        active_sender_ids = await db.sender_id_requests.count_documents(
+            {"country": code, "status": "approved"})
+        health = await country_health_summary(code, providers)
+        rates_setting = await get_setting("credits.country_rate", {}) or {}
+        out.append({
+            **c,
+            "credits_per_sms": rates_setting.get(code,
+                await get_setting("credits.default_rate", 2)),
+            "routes_count": len(providers),
+            "prefixes_count": prefixes_count,
+            "operators_count": len(operators),
+            "sender_ids_count": sender_ids,
+            "active_sender_ids": active_sender_ids,
+            "health": health,
+            "status": c.get("status") or ("active" if c.get("active", True) else "paused"),
+        })
+    return out
+
+
+class CountryWizardIn(BaseModel):
+    # Step 1 — identity
+    code: str
+    name: str
+    dial_code: str = "+1"
+    currency: str = "USD"
+    timezone: Optional[str] = None
+    # Step 2 — pricing
+    credits_per_sms: int = 2
+    credits_per_whatsapp: int = 3
+    # Step 3 — routes (at least one required to go live)
+    routes: List[Dict[str, Any]] = []  # [{provider_id: str, priority: int, operators: [str]}]
+    # Step 4 — compliance
+    sender_id_required: bool = True
+    opt_out_footer: Optional[str] = ""
+    allowed_sender_patterns: List[str] = []
+    daily_cap: int = 100000
+
+
+@country_r.post("/wizard")
+async def country_wizard(body: CountryWizardIn,
+                          _: dict = Depends(require_roles("super_admin"))):
+    """Add/upsert a country via the guided wizard. Requires ALL 4 steps to go live;
+    if any section is missing (no routes, etc.) the country stays in 'draft'."""
+    code = body.code.upper().strip()
+    if not code or not body.name.strip():
+        raise HTTPException(400, "code and name are required")
+    # Determine status — mandatory setup before 'active'
+    has_identity = bool(body.code and body.name and body.dial_code)
+    has_pricing = body.credits_per_sms > 0 and body.credits_per_whatsapp > 0
+    has_routes = len(body.routes) > 0
+    has_compliance = body.opt_out_footer is not None  # footer can be empty string
+    complete = has_identity and has_pricing and has_routes and has_compliance
+    status = "active" if complete else "draft"
+
+    existing = await db.countries.find_one({"code": code})
+    doc = {
+        "code": code, "name": body.name, "dial_code": body.dial_code,
+        "currency": body.currency,
+        "timezone": body.timezone,
+        "sender_id_required": body.sender_id_required,
+        "opt_out_footer": body.opt_out_footer,
+        "allowed_sender_patterns": body.allowed_sender_patterns,
+        "daily_cap": body.daily_cap,
+        "status": status, "active": status == "active",
+        "updated_at": iso(now_utc()),
+    }
+    if existing:
+        await db.countries.update_one({"code": code}, {"$set": doc})
+        country_id = existing["id"]
+    else:
+        doc["id"] = new_id()
+        doc["created_at"] = iso(now_utc())
+        await db.countries.insert_one(doc)
+        country_id = doc["id"]
+
+    # Upsert credits rate
+    rates = await get_setting("credits.country_rate", {}) or {}
+    rates[code] = int(body.credits_per_sms)
+    await db.system_settings.update_one(
+        {"key": "credits.country_rate"},
+        {"$set": {"key": "credits.country_rate", "value": rates, "category": "credits",
+                  "updated_at": iso(now_utc())}},
+        upsert=True)
+
+    # Wire routes: for each route entry, append this country to provider.countries
+    for r in body.routes:
+        pid = r.get("provider_id")
+        if not pid:
+            continue
+        update: Dict[str, Any] = {"$addToSet": {"countries": code}}
+        sets: Dict[str, Any] = {}
+        if "priority" in r:
+            sets["priority"] = int(r["priority"])
+        if "operators" in r and isinstance(r["operators"], list):
+            sets["operators"] = r["operators"]
+        if sets:
+            update["$set"] = sets
+        await db.providers.update_one({"id": pid}, update)
+
+    await add_audit(_["id"], "country.wizard", target=code,
+                     meta={"status": status, "routes": len(body.routes)})
+    return {"ok": True, "code": code, "id": country_id, "status": status,
+            "complete": complete,
+            "missing": [k for k, v in {
+                "identity": has_identity, "pricing": has_pricing,
+                "routes": has_routes, "compliance": has_compliance}.items() if not v]}
+
+
+@country_r.get("/{code}")
+async def country_detail(code: str,
+                          _: dict = Depends(require_roles("super_admin", "country_admin"))):
+    code = code.upper()
+    country = await db.countries.find_one({"code": code}, {"_id": 0})
+    if not country:
+        raise HTTPException(404, "Country not found")
+    providers = await db.providers.find(
+        {"countries": code}, {"_id": 0}).sort("priority", 1).to_list(50)
+    health_list = []
+    for p in providers:
+        h = await compute_provider_health(p)
+        kind = adapter_kind_from_name(p.get("name", ""))
+        health_list.append({**p, "health": h, "kind": kind})
+    prefixes = await db.mobile_prefixes.find(
+        {"country": code}, {"_id": 0}).sort("prefix", 1).to_list(2000)
+    operators: Dict[str, int] = {}
+    for pf in prefixes:
+        operators[pf.get("operator", "Unknown")] = operators.get(pf.get("operator", "Unknown"), 0) + 1
+    sender_ids = await db.sender_id_requests.find(
+        {"country": code}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    rates_setting = await get_setting("credits.country_rate", {}) or {}
+    credits_per_sms = rates_setting.get(code,
+        await get_setting("credits.default_rate", 2))
+    health = await country_health_summary(code, [p for p in providers if p.get("active")])
+    return {
+        "country": country,
+        "credits_per_sms": credits_per_sms,
+        "credits_per_whatsapp": await get_setting("credits.whatsapp_rate", 3),
+        "routes": health_list,
+        "operators": [{"name": k, "prefixes": v} for k, v in
+                       sorted(operators.items(), key=lambda x: -x[1])],
+        "prefixes": prefixes[:500],
+        "sender_ids": sender_ids,
+        "health": health,
+    }
+
+
+class CountryStatusIn(BaseModel):
+    status: str  # active | paused | draft
+
+
+@country_r.put("/{code}/status")
+async def country_status(code: str, body: CountryStatusIn,
+                          admin: dict = Depends(require_roles("super_admin"))):
+    if body.status not in ("active", "paused", "draft"):
+        raise HTTPException(400, "Invalid status")
+    code = code.upper()
+    r = await db.countries.find_one({"code": code})
+    if not r:
+        raise HTTPException(404, "Country not found")
+    await db.countries.update_one({"code": code}, {"$set": {
+        "status": body.status, "active": body.status == "active",
+        "updated_at": iso(now_utc())}})
+    await add_audit(admin["id"], "country.status", target=code, meta={"status": body.status})
+    return {"ok": True, "status": body.status}
+
+
+@country_r.put("/{code}/compliance")
+async def country_compliance(code: str, body: Dict[str, Any],
+                               admin: dict = Depends(require_roles("super_admin"))):
+    allowed = {k: body[k] for k in ["opt_out_footer", "allowed_sender_patterns",
+                                      "daily_cap", "sender_id_required"]
+                if k in body}
+    if not allowed:
+        raise HTTPException(400, "Nothing to update")
+    await db.countries.update_one({"code": code.upper()},
+                                    {"$set": {**allowed, "updated_at": iso(now_utc())}})
+    await add_audit(admin["id"], "country.compliance", target=code.upper(), meta=allowed)
+    return {"ok": True}
+
+
+# ---------- Integration health dashboard ----------
+int_r = APIRouter(prefix="/admin/integrations", tags=["integrations"])
+
+
+@int_r.get("/health")
+async def integrations_health(_: dict = Depends(require_roles("super_admin", "country_admin"))):
+    """Every provider × every country it covers, with health."""
+    providers = await db.providers.find({}, {"_id": 0}).to_list(200)
+    out = []
+    for p in providers:
+        h = await compute_provider_health(p)
+        out.append({
+            "id": p["id"], "name": p["name"],
+            "kind": adapter_kind_from_name(p.get("name", "")),
+            "countries": p.get("countries", []),
+            "channels": p.get("channels", []),
+            "operators": p.get("operators", []),
+            "priority": p.get("priority", 100),
+            "active": p.get("active", True),
+            "cost_per_sms": p.get("cost_per_sms"),
+            "health": h,
+        })
+    out.sort(key=lambda x: (x["health"]["status"] != "healthy", -x["health"]["sent_24h"]))
+    return out
+
+
+@int_r.post("/{provider_id}/test")
+async def integrations_test(provider_id: str,
+                              _: dict = Depends(require_roles("super_admin"))):
+    """Test connection — runs a lightweight adapter.send() with a test number.
+    For stub adapters this returns simulated result; for real Twilio/Tigo calls happen."""
+    p = await db.providers.find_one({"id": provider_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(404, "Provider not found")
+    adapter = adapter_for(p)
+    start = time.time()
+    try:
+        res = await adapter.send("+10000000000", "TEST", "unitxt health ping", "sms")
+        latency_ms = int((time.time() - start) * 1000)
+        return {"ok": bool(res.get("ok")),
+                "latency_ms": latency_ms,
+                "provider_msg_id": res.get("provider_msg_id"),
+                "status": res.get("status"),
+                "error": res.get("error")}
+    except Exception as e:
+        return {"ok": False, "latency_ms": int((time.time() - start) * 1000),
+                "error": str(e)}
+
+
+# ============================================================
 # WHATSAPP TEMPLATES
 # ============================================================
 class WaTemplateIn(BaseModel):
@@ -2345,6 +2712,8 @@ api.include_router(ref_r)
 api.include_router(prof_r)
 api.include_router(res_px_r)
 api.include_router(adm_res_px_r)
+api.include_router(country_r)
+api.include_router(int_r)
 api.include_router(wa_r)
 
 
