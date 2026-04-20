@@ -41,6 +41,7 @@ import AdminWallets from "@/pages/admin/AdminWallets";
 import AdminCampaigns from "@/pages/admin/AdminCampaigns";
 import AdminInstitutions from "@/pages/admin/AdminInstitutions";
 import AdminPromotions from "@/pages/admin/AdminPromotions";
+import AdminResellers from "@/pages/admin/AdminResellers";
 import AdminAudit from "@/pages/admin/AdminAudit";
 import SettingsHub from "@/pages/admin/SettingsHub";
 import RoutingEngine from "@/pages/admin/RoutingEngine";
@@ -142,6 +143,7 @@ export default function App() {
             <Route path="prefixes" element={<AdminMobilePrefixes />} />
             <Route path="margin" element={<AdminMargin />} />
             <Route path="whatsapp" element={<AdminWhatsApp />} />
+            <Route path="resellers" element={<AdminResellers />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

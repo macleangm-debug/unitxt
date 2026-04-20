@@ -28,6 +28,8 @@ const CATEGORIES = {
   sender_ids:    { label: "Sender IDs",      icon: IdCard,       desc: "Approval queue & policies.",                 linkTo: "/admin/sender-ids" },
   institutions:  { label: "Institutions",    icon: Building2,    desc: "Banks, fintechs, mobile money.",             linkTo: "/admin/institutions" },
   promotions:    { label: "Promotions",      icon: Megaphone,    desc: "Bonus credits & promo codes.",               linkTo: "/admin/promotions" },
+  resellers:     { label: "Resellers",       icon: Users,        desc: "Reseller catalog, commission & audit.",     linkTo: "/admin/resellers" },
+  reseller_policy: { label: "Reseller policy", icon: ShieldCheck, desc: "Signup, KYC, commission defaults, limits." },
 };
 
 // Organize into logical groups
@@ -59,8 +61,8 @@ const GROUPS = [
   {
     key: "distribution",
     label: "Distribution & treasury",
-    desc: "Wallets, institutions, promotions and downstream partners.",
-    items: ["wallets", "institutions", "promotions"],
+    desc: "Reseller program, wallets, institutions and promotions.",
+    items: ["resellers", "reseller_policy", "wallets", "institutions", "promotions"],
   },
 ];
 
@@ -103,10 +105,18 @@ export default function SettingsHub() {
 
   const cat = CATEGORIES[active];
   // Settings can live under a category key that isn't in CATEGORIES (e.g. "pricing" setting category).
-  // Match by either active key OR, if active is pricing_cfg, backend category "pricing".
+  // Match by either active key OR, if active is a virtual category, the real backend categories.
   const visible = useMemo(() => {
-    const catKeys = active === "pricing_cfg" ? ["pricing"] : [active];
+    let catKeys;
+    if (active === "pricing_cfg") catKeys = ["pricing"];
+    else if (active === "reseller_policy") catKeys = ["reseller", "pricing"];
+    else catKeys = [active];
     let rows = settings.filter(s => catKeys.includes(s.category));
+    // For reseller_policy, also include the onboarding.reseller_signup_open flag explicitly
+    if (active === "reseller_policy") {
+      const extra = settings.filter(s => s.key === "onboarding.reseller_signup_open");
+      rows = [...extra, ...rows];
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter(s => s.key.toLowerCase().includes(q) ||
@@ -129,8 +139,12 @@ export default function SettingsHub() {
 
   // Count settings per category so we can show a badge
   const countFor = (key) => {
-    const mapKey = key === "pricing_cfg" ? "pricing" : key;
-    return settings.filter(s => s.category === mapKey).length;
+    if (key === "pricing_cfg") return settings.filter(s => s.category === "pricing").length;
+    if (key === "reseller_policy") {
+      return settings.filter(s => s.category === "reseller" || s.category === "pricing"
+                                  || s.key === "onboarding.reseller_signup_open").length;
+    }
+    return settings.filter(s => s.category === key).length;
   };
 
   const activeGroupDef = GROUPS.find(g => g.key === activeGroup);

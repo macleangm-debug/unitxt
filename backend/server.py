@@ -2134,6 +2134,148 @@ async def admin_set_default_commission(reseller_id: str,
     return {"ok": True, "commission_rate": rate}
 
 
+# ----- Reseller catalog, detail, float top-up, commission audit -----
+
+@adm_res_px_r.get("")
+async def admin_list_resellers(_: dict = Depends(require_roles("super_admin"))):
+    """Reseller catalog with stats: float, client count, lifetime commission earned."""
+    resellers = await db.users.find({"role": "reseller"},
+                                      {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(500)
+    out = []
+    for r in resellers:
+        rid = r["id"]
+        wallet = await db.wallets.find_one({"user_id": rid}, {"_id": 0}) or {"balance": 0}
+        clients = await db.users.count_documents({"reseller_id": rid})
+        # lifetime commission: sum of positive wallet tx with type commission_earned or markup_earned
+        pipe = [
+            {"$match": {"user_id": rid,
+                         "kind": {"$in": ["commission_earned", "markup_earned"]}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+        ]
+        agg = await db.wallet_transactions.aggregate(pipe).to_list(1)
+        lifetime = int(agg[0]["total"]) if agg else 0
+        last_seen = r.get("last_active_at") or r.get("created_at")
+        out.append({
+            "id": rid, "email": r["email"], "name": r.get("name", ""),
+            "status": r.get("status", "active"),
+            "business_name": r.get("business_name", ""),
+            "country": r.get("country", ""),
+            "reseller_code": r.get("reseller_code", ""),
+            "commission_rate": float(r.get("commission_rate", 0.15)),
+            "kyc_verified": bool(r.get("kyc_verified", False)),
+            "float_balance": int(wallet.get("balance", 0)),
+            "clients_count": clients,
+            "lifetime_commission": lifetime,
+            "last_active_at": last_seen,
+            "created_at": r.get("created_at"),
+        })
+    return out
+
+
+@adm_res_px_r.get("/{reseller_id}/detail")
+async def admin_reseller_detail(reseller_id: str,
+                                  _: dict = Depends(require_roles("super_admin"))):
+    r = await db.users.find_one({"id": reseller_id, "role": "reseller"},
+                                  {"_id": 0, "password_hash": 0})
+    if not r:
+        raise HTTPException(404, "Reseller not found")
+    wallet = await db.wallets.find_one({"user_id": reseller_id}, {"_id": 0}) or {"balance": 0}
+    clients = await db.users.find({"reseller_id": reseller_id},
+                                    {"_id": 0, "password_hash": 0}).to_list(500)
+    overrides = await db.reseller_pricing.find({"reseller_id": reseller_id},
+                                                 {"_id": 0}).to_list(500)
+    recent_commission = await db.wallet_transactions.find(
+        {"user_id": reseller_id,
+         "kind": {"$in": ["commission_earned", "markup_earned"]}},
+        {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    return {
+        "reseller": r,
+        "wallet": {"balance": int(wallet.get("balance", 0))},
+        "clients": clients,
+        "commission_overrides": overrides,
+        "recent_commission": recent_commission,
+    }
+
+
+class ResellerFloatIn(BaseModel):
+    amount: int  # positive to credit, negative to debit
+    note: Optional[str] = None
+
+
+@adm_res_px_r.post("/{reseller_id}/float")
+async def admin_reseller_float(reseller_id: str, body: ResellerFloatIn,
+                                admin: dict = Depends(require_roles("super_admin"))):
+    r = await db.users.find_one({"id": reseller_id, "role": "reseller"})
+    if not r:
+        raise HTTPException(404, "Reseller not found")
+    if body.amount == 0:
+        raise HTTPException(400, "Amount must be non-zero")
+    kind = "admin_topup" if body.amount > 0 else "admin_clawback"
+    tx = await adjust_wallet(reseller_id, body.amount, kind,
+                             note=body.note or f"Admin {kind}",
+                             ref=admin["id"], by=admin["id"])
+    await add_audit(admin["id"], f"reseller.{kind}", target=reseller_id,
+                     meta={"amount": body.amount, "note": body.note})
+    await add_notification(reseller_id,
+                            "Float credited" if body.amount > 0 else "Float adjusted",
+                            f"{'+' if body.amount > 0 else ''}{body.amount} credits by admin.",
+                            "success" if body.amount > 0 else "info")
+    return tx
+
+
+@adm_res_px_r.put("/{reseller_id}/status")
+async def admin_reseller_status(reseller_id: str, body: dict,
+                                  admin: dict = Depends(require_roles("super_admin"))):
+    status = body.get("status")
+    if status not in ("active", "suspended", "inactive"):
+        raise HTTPException(400, "status must be active, suspended or inactive")
+    r = await db.users.find_one({"id": reseller_id, "role": "reseller"})
+    if not r:
+        raise HTTPException(404, "Reseller not found")
+    await db.users.update_one({"id": reseller_id}, {"$set": {"status": status}})
+    await add_audit(admin["id"], "reseller.status", target=reseller_id,
+                     meta={"status": status})
+    await add_notification(reseller_id, "Account status changed",
+                            f"Your account is now {status}.",
+                            "info" if status == "active" else "warning")
+    return {"ok": True, "status": status}
+
+
+@adm_res_px_r.get("/commission-audit")
+async def admin_commission_audit(days: int = 30,
+                                    _: dict = Depends(require_roles("super_admin"))):
+    """Commission ledger across all resellers (last N days)."""
+    since = now_utc() - timedelta(days=max(1, min(365, days)))
+    rows = await db.wallet_transactions.find({
+        "kind": {"$in": ["commission_earned", "markup_earned"]},
+        "created_at": {"$gte": iso(since)},
+    }, {"_id": 0}).sort("created_at", -1).limit(2000).to_list(2000)
+    # enrich with reseller email
+    ids = list({r["user_id"] for r in rows})
+    users = {}
+    if ids:
+        async for u in db.users.find({"id": {"$in": ids}},
+                                       {"_id": 0, "id": 1, "email": 1, "name": 1}):
+            users[u["id"]] = u
+    # totals by reseller
+    totals: Dict[str, int] = {}
+    for r in rows:
+        totals[r["user_id"]] = totals.get(r["user_id"], 0) + int(r.get("amount", 0))
+    by_reseller = [{
+        "reseller_id": k,
+        "email": users.get(k, {}).get("email", ""),
+        "name": users.get(k, {}).get("name", ""),
+        "total_credits": v,
+    } for k, v in sorted(totals.items(), key=lambda x: -x[1])]
+    # attach email to each tx
+    for r in rows:
+        u = users.get(r["user_id"], {})
+        r["reseller_email"] = u.get("email", "")
+        r["reseller_name"] = u.get("name", "")
+    return {"since": iso(since), "transactions": rows, "by_reseller": by_reseller,
+            "grand_total": sum(totals.values())}
+
+
 # ============================================================
 # WHATSAPP TEMPLATES
 # ============================================================
@@ -2424,6 +2566,12 @@ async def startup():
         ("notifications.low_balance_threshold", 10, "notifications"),
         ("notifications.low_credits_threshold", 100, "notifications"),
         ("onboarding.reseller_signup_open", True, "onboarding"),
+        # Reseller distribution policy (configurable from Settings Hub → Distribution)
+        ("reseller.default_commission", 0.15, "reseller"),
+        ("reseller.kyc_required", True, "reseller"),
+        ("reseller.min_float_topup", 1000, "reseller"),
+        ("reseller.max_sub_clients", 500, "reseller"),
+        ("reseller.allow_invite_clients", True, "reseller"),
         # Reseller commission paid out of admin margin (never inflates client price)
         ("pricing.reseller_commission_default", 0.15, "pricing"),
         # Credits engine — drives all money-related behavior

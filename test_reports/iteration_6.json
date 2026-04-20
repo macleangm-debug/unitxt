@@ -1,0 +1,126 @@
+{
+  "summary": "Iteration 6 testing complete - Admin Reseller Management Workspace. All 32 backend tests passed. Frontend UI verified: 3 tabs (Catalog, Policy, Audit), reseller drawer with float/status/commission controls, Settings Hub Distribution group includes Resellers and Reseller policy.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6_resellers.py",
+    "/app/test_reports/pytest/iteration6_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/admin/resellers returns array with all required fields: id, email, name, status, business_name, country, reseller_code, commission_rate, kyc_verified, float_balance, clients_count, lifetime_commission, last_active_at, created_at",
+    "lifetime_commission correctly aggregates from wallet_transactions where kind in [commission_earned, markup_earned]",
+    "GET /api/admin/resellers/{id}/detail returns {reseller, wallet, clients[], commission_overrides[], recent_commission[]}",
+    "POST /api/admin/resellers/{id}/float with {amount, note} - credits (positive) or claws back (negative); writes wallet_transactions with kind admin_topup/admin_clawback; writes audit log; sends notification. Correctly rejects amount=0",
+    "PUT /api/admin/resellers/{id}/status with {status: active|suspended|inactive} - updates user.status; audits; notifies. Correctly rejects invalid status",
+    "GET /api/admin/resellers/commission-audit?days=30 returns {since, transactions[], by_reseller[], grand_total} aggregated correctly from commission_earned + markup_earned kinds",
+    "Reseller policy settings exist in system_settings (category=reseller): reseller.default_commission=0.15, reseller.kyc_required=true, reseller.min_float_topup=1000, reseller.max_sub_clients=500, reseller.allow_invite_clients=true",
+    "All settings editable via PUT /api/admin/settings",
+    "Frontend /admin/resellers loads with 3 tabs: Reseller catalog, Global policy, Commission audit",
+    "Catalog tab shows stats cards (Resellers count, Total float out, Clients served, Commission paid), search box, refresh button, and table",
+    "Reseller drawer opens on row click with: stats, Suspend/Reactivate toggle, Float adjust form, Default commission input, Override form with add/delete, Sub-clients table",
+    "Global policy tab shows reseller-category settings with appropriate editors (bool->select, number->input)",
+    "Commission audit tab shows days selector (7/30/90/365), stat cards, By reseller table sorted desc, Recent transactions table",
+    "Settings Hub Distribution group includes 'Resellers' (links to /admin/resellers) and 'Reseller policy' (shows inline settings)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration6_resellers.py"
+  ],
+  "success_rate": {
+    "backend": "100% (32/32 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Float adjustments (+100, -50, +10) made to demo reseller during testing; KE/sms and UG/sms commission overrides created and deleted",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 6 complete. Admin Reseller Management Workspace fully implemented. Key features: (1) GET /api/admin/resellers returns reseller catalog with stats; (2) GET /api/admin/resellers/{id}/detail returns full reseller info with wallet, clients, overrides; (3) POST /api/admin/resellers/{id}/float for credit/clawback; (4) PUT /api/admin/resellers/{id}/status for status changes; (5) GET /api/admin/resellers/commission-audit for commission ledger; (6) Reseller policy settings in system_settings category=reseller; (7) Frontend has 3-tab page with drawer for per-reseller management; (8) Settings Hub Distribution group includes Resellers and Reseller policy. Demo reseller has ~509,067 float credits and 4,029 lifetime commission earned.",
+  "tests_executed": {
+    "total": 32,
+    "passed": 32,
+    "failed": 0,
+    "categories": {
+      "admin_list_resellers": 4,
+      "admin_reseller_detail": 4,
+      "admin_reseller_float": 4,
+      "admin_reseller_status": 4,
+      "admin_commission_audit": 3,
+      "reseller_policy_settings": 3,
+      "regression_iteration5": 8,
+      "commission_override_crud": 2
+    }
+  },
+  "frontend_tests_executed": {
+    "admin_resellers_page_loads": "PASS - navigates to /admin/resellers",
+    "three_tabs_present": "PASS - Reseller catalog, Global policy, Commission audit",
+    "catalog_tab_stats_cards": "PASS - shows Resellers count, Total float out, Clients served, Commission paid",
+    "catalog_tab_search_box": "PASS - search box filters rows",
+    "catalog_tab_table": "PASS - shows reseller rows with all columns",
+    "reseller_drawer_opens": "PASS - clicking row opens drawer",
+    "drawer_stats_section": "PASS - shows float, clients, lifetime commission, status",
+    "drawer_status_toggle": "PASS - Suspend/Reactivate button present",
+    "drawer_float_adjust": "PASS - amount input, note input, Credit/Claw back button",
+    "drawer_default_commission": "PASS - rate input and Save button",
+    "drawer_overrides_form": "PASS - country/channel/rate inputs and Add button",
+    "drawer_overrides_table": "PASS - shows overrides with delete buttons",
+    "drawer_clients_table": "PASS - shows sub-clients",
+    "policy_tab_settings": "PASS - shows reseller settings with editors",
+    "audit_tab_days_selector": "PASS - 7/30/90/365 options",
+    "audit_tab_stat_cards": "PASS - grand total, transactions, active resellers",
+    "audit_tab_by_reseller_table": "PASS - sorted desc by total",
+    "audit_tab_transactions_table": "PASS - shows recent transactions",
+    "settings_hub_distribution_group": "PASS - includes Resellers and Reseller policy",
+    "settings_hub_resellers_module_link": "PASS - shows 'Open Resellers' button linking to /admin/resellers",
+    "settings_hub_reseller_policy_inline": "PASS - shows inline settings for reseller + pricing + onboarding.reseller_signup_open"
+  },
+  "mocked_apis_verified": [
+    "Tigo SMS adapter (stub)",
+    "Twilio adapter (stub)",
+    "Stripe checkout (settings only)"
+  ],
+  "features_verified": {
+    "admin_list_resellers_array": "PASS - returns array of resellers",
+    "admin_list_resellers_fields": "PASS - all 14 required fields present",
+    "admin_list_resellers_lifetime_commission": "PASS - aggregated from commission_earned + markup_earned",
+    "admin_list_resellers_requires_super_admin": "PASS - 403 for non-admin",
+    "admin_reseller_detail_structure": "PASS - returns {reseller, wallet, clients, commission_overrides, recent_commission}",
+    "admin_reseller_detail_wallet_balance": "PASS - wallet has balance field",
+    "admin_reseller_detail_clients_array": "PASS - clients is array",
+    "admin_reseller_detail_404": "PASS - 404 for invalid ID",
+    "admin_reseller_float_credit": "PASS - positive amount creates admin_topup tx",
+    "admin_reseller_float_clawback": "PASS - negative amount creates admin_clawback tx",
+    "admin_reseller_float_rejects_zero": "PASS - 400 for amount=0",
+    "admin_reseller_float_404": "PASS - 404 for invalid reseller",
+    "admin_reseller_status_suspended": "PASS - changes status to suspended",
+    "admin_reseller_status_active": "PASS - changes status to active",
+    "admin_reseller_status_rejects_invalid": "PASS - 400 for invalid status",
+    "admin_reseller_status_404": "PASS - 404 for invalid reseller",
+    "admin_commission_audit_structure": "PASS - returns {since, transactions, by_reseller, grand_total}",
+    "admin_commission_audit_days_param": "PASS - respects days parameter",
+    "admin_commission_audit_sorted_desc": "PASS - by_reseller sorted by total_credits desc",
+    "reseller_settings_exist": "PASS - all 5 reseller.* settings present",
+    "reseller_default_commission_value": "PASS - reseller.default_commission = 0.15",
+    "reseller_settings_editable": "PASS - can update via PUT /admin/settings",
+    "regression_auth_me": "PASS",
+    "regression_wallet_me": "PASS",
+    "regression_admin_overview": "PASS",
+    "regression_admin_settings": "PASS",
+    "regression_reseller_clients": "PASS",
+    "regression_reseller_earnings": "PASS",
+    "regression_admin_commission_get": "PASS",
+    "regression_messaging_campaigns": "PASS",
+    "commission_override_create": "PASS",
+    "commission_override_delete": "PASS"
+  }
+}
