@@ -1,57 +1,58 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-18 (iteration 5)
-**Version**: 1.3 (Reseller commission + Settings Hub v2)
+**Last updated**: 2026-04-20 (iteration 6)
+**Version**: 1.4 (Admin Reseller Workspace)
 
 ## Implemented so far (cumulative)
-### v1.0 (first ship)
-- Three portals (Client, Reseller, Admin), JWT+RBAC, messaging engine (quick/bulk/scheduled), pluggable providers, wallets, promos, sender IDs, Settings Hub basics, 12 admin pages.
+### v1.0 → v1.3 (prior)
+Three portals · JWT+RBAC · Credits economy · smart batching (10k in 21s) · scheduled worker · operator-aware routing · referrals · streaks · DLR webhook push · WhatsApp templates · Excel import · reseller commission model (clients pay retail, resellers earn from admin margin) · Settings Hub v2 with 5 grouped sections + search. See CHANGELOG below for details.
 
-### v1.1 (credits economy)
-- Credits-based wallet everywhere (TZ=1, KE=2, US=5, WhatsApp=3, sender ID=500, renewal=500, expiry=365d). 4 credit packs. Tigo TZ adapter (stub). Conversational 4-step Quick Send wizard. DLR webhook. Queue w/ concurrency. Margin & revenue report. Inactivity policy. 65 seeded mobile prefixes with lookup.
+### v1.4 (admin reseller workspace) — **this iteration**
+- **Admin Reseller Workspace** at `/admin/resellers`, surfaced inside Settings Hub → Distribution group. 3 tabs:
+  - **Reseller catalog** — stats (count, total float, clients, lifetime commission), search, table with every reseller (float balance, clients_count, lifetime commission, status). Click any row to open a drawer.
+  - **Global policy** — inline editors for `reseller.default_commission`, `reseller.kyc_required`, `reseller.min_float_topup`, `reseller.max_sub_clients`, `reseller.allow_invite_clients`, `onboarding.reseller_signup_open` and `pricing.reseller_commission_default`.
+  - **Commission audit** — windowed ledger (7/30/90/365 days) with grand total, per-reseller totals, transaction list.
+- **Per-reseller drawer**: float top-up / clawback, default commission editor, country×channel commission overrides CRUD, status toggle (active/suspended), sub-clients list, copy referral code.
+- **New backend endpoints**: `GET /api/admin/resellers`, `GET /api/admin/resellers/{id}/detail`, `POST /api/admin/resellers/{id}/float`, `PUT /api/admin/resellers/{id}/status`, `GET /api/admin/resellers/commission-audit`.
+- **32/32 backend tests pass**; full frontend verified.
 
-### v1.2 (scale + distribution)
-- Smart batching queue (10,000 msgs in 21s, 100% delivery). Scheduled-campaign worker. Client referrals (loss-proof, 5% of pack capped at 500). Send-streak gamification (+100/+1,000/+5,000 at 7/30/90 days). Operator-aware routing via mobile_prefixes. WhatsApp template workflow. DLR webhook push. Excel import for mobile prefixes.
+## Upcoming (Phase 2 — Country Hub, confirmed by user)
+Per user feedback "configuration per country, routes, partners, integration health, all in Settings Hub":
+- **Country catalog** cards (flag/ISO/rate/health/routes/senderIDs) + "Add country" 4-step wizard (identity → pricing → routes → compliance). Mandatory setup; country stays in draft until complete.
+- **Country detail** with live health score, ordered route table (priority, operators, cost, success %, toggle), partners/integrations with "Test connection" button, operators & prefixes, sender IDs, compliance (opt-out footer, patterns, caps), kill switch.
+- **Integration health dashboard** — every provider × every country with simulated health pings (upgrade to real later).
+- **Add integration wizard** — Twilio / Infobip / MessageBird / Africa's Talking / Tigo / custom HTTP.
 
-### v1.3 (distribution economics + UI polish) — **this iteration**
-- **Reseller commission model** — replaces markup. Clients ALWAYS pay the global retail rate; resellers earn a configurable commission (0.0–1.0) paid out of the admin's margin on every client send. Commission resolved per request in this order: country+channel override → default (*+channel) override → reseller's `commission_rate` on user doc → global setting `pricing.reseller_commission_default` (0.15).
-- **Reseller pricing page** is now read-only. Resellers see their default commission + any country/channel overrides. All markup-setting UI removed.
-- **Admin-controlled commission endpoints**: `GET/POST/DELETE /api/admin/resellers/{id}/commissions` + `PUT /api/admin/resellers/{id}/default-commission`. Legacy POST `/api/reseller/pricing` now returns 405.
-- **Startup migration** retires legacy `reseller_pricing` records that carried `markup` without `commission_rate`.
-- **Settings Hub v2** — refactored from a flat 16-item sidebar into 5 logical groups (Platform & Onboarding, Economy, Messaging engine, Governance & lifecycle, Distribution & treasury) with a live search that filters keys/values. Categories show icons, descriptions, count badges. Module-link categories (Providers, Countries, Pricing, Wallets, Sender IDs, Institutions, Promotions) render an "Open module" CTA rather than inline setting editors.
-- **E2E verified** (iteration 5): client bulk-send of 50 TZ SMS → client charged exactly 50 credits (base), reseller earned 10 credits (20% commission override). 18/18 new backend tests pass; full regression on prior 134 endpoints — no breakage.
-
-## What's still mocked / pending user input
-- **Tigo TZ SMS API** — the doc supplied (`TIGO-VPN Form-Filled.docx`) is IPsec networking only; no HTTP spec. Waiting on actual SMS API docs.
-- **Twilio real REST** — stub ready; user to provide Account SID + Auth Token.
-- **Stripe Checkout** — pack purchase credits wallet directly; user to confirm checkout style.
+## Blocked / pending user input
+- **Tigo TZ SMS API** — VPN doc supplied has no HTTP spec; waiting on actual SMS API docs.
+- **Twilio real REST** — stub ready; needs Account SID + Auth Token.
+- **Stripe Checkout** — pack purchase wiring; user to confirm hosted vs embedded style.
 
 ## Backlog
 ### P0
+- Country Hub (Phase 2, see above)
 - Real Twilio + Tigo wiring (credentials/docs pending)
 - Real Stripe Checkout session wiring
-- WhatsApp send via approved templates (currently mock path)
+- WhatsApp send via approved templates
 
 ### P1
-- Country-Admin scoped views
 - CSV column-mapping wizard in Bulk Send
 - Opt-out / DND list
-- Spam-keyword guard enforcement on message body
+- Spam-keyword guard enforcement
 - Daily send-limit enforcement per client
-- Admin UI for reseller commission management (endpoints exist; build the page)
 
 ### P2
 - AI fraud detection
 - Voice + email channels
-- Quality-aware smart routing (delivery-rate feedback)
+- Quality-aware smart routing
 - Multi-currency pack purchasing + FX
 
-## Settings Hub categories (now 17, grouped into 5 groups)
-- **Platform & Onboarding**: platform, onboarding
-- **Economy**: credits, pricing_cfg (reseller margin), referrals, streaks
-- **Messaging engine**: queue, providers →, countries →, pricing →, sender_ids →
-- **Governance & lifecycle**: compliance, inactivity, notifications
-- **Distribution & treasury**: wallets →, institutions →, promotions →
+## Settings Hub layout (current)
+- **Platform & Onboarding** — platform, onboarding
+- **Economy** — credits, pricing_cfg (reseller margin), referrals, streaks
+- **Messaging engine** — queue, providers →, countries →, pricing →, sender_ids →
+- **Governance & lifecycle** — compliance, inactivity, notifications
+- **Distribution & treasury** — resellers →, reseller_policy, wallets →, institutions →, promotions →
 
 ## Test credentials
 See `/app/memory/test_credentials.md`.
