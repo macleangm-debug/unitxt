@@ -21,8 +21,16 @@ function ReviewDrawer({ item, kind, onClose, onDone }) {
   const [status, setStatus] = useState("approved");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [proof, setProof] = useState(null);  // base64 for topup_requests
 
-  useEffect(() => { setStatus("approved"); setNote(""); }, [item?.id]);
+  useEffect(() => { setStatus("approved"); setNote(""); setProof(null); }, [item?.id]);
+  useEffect(() => {
+    if (kind === "topup_requests" && item?.id) {
+      http.get(`/admin/topups/${item.id}`)
+        .then(r => setProof(r.data?.proof_image || ""))
+        .catch(() => setProof(""));
+    }
+  }, [item?.id, kind]);
   if (!item) return null;
 
   const endpoints = {
@@ -63,7 +71,8 @@ function ReviewDrawer({ item, kind, onClose, onDone }) {
             <div className="grid gap-2 text-sm">
               {Object.entries(item)
                 .filter(([k]) => !["id", "_id", "status", "created_at", "reviewed_at",
-                                    "password_hash", "temp_password", "provisioned_user_id"].includes(k))
+                                    "password_hash", "temp_password", "provisioned_user_id",
+                                    "proof_image"].includes(k))
                 .map(([k, v]) => (
                   <div key={k} className="grid grid-cols-[140px,1fr] gap-3 border-b border-zinc-900 py-1.5 text-zinc-400">
                     <span className="font-mono text-[11px] uppercase tracking-widest text-zinc-500">{k.replace(/_/g, " ")}</span>
@@ -78,6 +87,24 @@ function ReviewDrawer({ item, kind, onClose, onDone }) {
               )}
             </div>
           </Card>
+
+          {kind === "topup_requests" && (
+            <Card testid="topup-proof">
+              <div className="label-overline mb-3">Payment proof</div>
+              {proof === null ? (
+                <div className="text-sm text-zinc-500">Loading proof…</div>
+              ) : proof ? (
+                <a href={proof} target="_blank" rel="noreferrer">
+                  <img src={proof} alt="Payment proof"
+                        className="max-h-[420px] w-full border border-zinc-900 bg-[#141414] object-contain"/>
+                </a>
+              ) : (
+                <div className="border border-dashed border-zinc-800 p-6 text-center text-sm text-zinc-500">
+                  No proof image attached.
+                </div>
+              )}
+            </Card>
+          )}
 
           <Card>
             <div className="label-overline mb-3">Decision</div>
@@ -207,12 +234,13 @@ export default function AdminApprovals() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-0 border border-zinc-900 sm:grid-cols-5" data-testid="approvals-stats">
+      <div className="mb-4 grid grid-cols-2 gap-0 border border-zinc-900 sm:grid-cols-6" data-testid="approvals-stats">
         <Stat label="Total pending"             value={data.total} accent="white"/>
         <Stat label="Sender IDs"                value={count("sender_ids")}/>
         <Stat label="WhatsApp templates"        value={count("wa_templates")}/>
         <Stat label="Reseller applications"     value={count("reseller_applications")}/>
         <Stat label="Institution applications"  value={count("institution_applications")}/>
+        <Stat label="Top-up requests"           value={count("topup_requests")}/>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 border-b border-zinc-900 pb-3" data-testid="approval-tabs">

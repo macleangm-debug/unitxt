@@ -1,0 +1,116 @@
+{
+  "summary": "Iteration 11 testing complete - Bank accounts management, Bank transfer top-up flow, Wave A Pre-flight validation, Wave B Saved CSV mappings. Backend: 43/43 tests passed (100%). Frontend: All new features verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Bank Pay Modal", "issues": ["Minor console warning about <span> inside <option> - React hydration warning, non-blocking"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11_banks_topups_preflight.py",
+    "/app/test_reports/pytest/iteration11_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "GET /api/admin/banks returns seeded CRDB Bank row (super_admin required)",
+    "POST /api/admin/banks creates bank with country uppercased; PUT/DELETE work correctly",
+    "GET /api/banks (client auth) returns banks scoped to user.country OR country='*'",
+    "POST /api/wallet/topups creates pending topup_request with local currency amount + credits_on_approval; proof_image excluded from response",
+    "GET /api/wallet/topups returns client's topup history without proof_image",
+    "GET /api/wallet/topups/{tid}/proof returns proof image for owning client",
+    "GET /api/admin/approvals/inbox includes 'topup_requests' in payload and 'total' counts them",
+    "GET /api/admin/topups/{tid} (admin) MUST include proof_image - verified working",
+    "POST /api/admin/topups/{tid}/review with status='approved' adds credits_on_approval to wallet, records tx_kind='topup_bank'",
+    "POST /api/admin/topups/{tid}/review with status='rejected' does NOT credit wallet - verified",
+    "Already-reviewed topups return 400 - verified",
+    "POST /api/messaging/preflight is FREE (no credit deduction) - verified wallet unchanged",
+    "Preflight samples up to 20 numbers, returns checked/total_in_list/valid_pct/buckets/predicted_valid/predicted_failed/countries/operators/warning/results",
+    "Warning is set when valid_pct < 80, null otherwise - verified",
+    "Empty phones returns 400 - verified",
+    "POST /api/messaging/csv-mappings creates mapping; same name upserts",
+    "GET /api/messaging/csv-mappings returns only current user's maps",
+    "POST /api/messaging/csv-mappings/{id}/used sets last_used_at",
+    "DELETE /api/messaging/csv-mappings/{id} removes mapping; 404 for other user's map",
+    "Admin Banks page at /admin/banks renders with seeded CRDB Bank row, supports Add/Edit/Delete via modal",
+    "Settings Hub → Distribution & treasury group shows Bank accounts module link",
+    "Client Wallet shows packs in LOCAL currency (TZS for TZ client) with 'LOCAL VALUE' badge",
+    "Client Wallet has 'Pay by bank transfer' button per pack, opens BankPayModal with bank details, file upload, reference field",
+    "Admin Approvals has 'Top-up requests' tab with count badge",
+    "Client Bulk Send has Pre-flight check block with 'Validate sample before sending' button",
+    "Preflight result shows Checked, Deliverable %, Predicted wasted credits, warning/success message",
+    "Client Bulk Send has Saved column maps card with Apply/Delete buttons"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration11_banks_topups_preflight.py"
+  ],
+  "success_rate": {
+    "backend": "100% (43/43 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "client": "client@unitxt.io / Client@2026 (country TZ)"
+  },
+  "seed_data_creation": "Test topup requests created and approved/rejected during testing; test CSV mappings created and deleted",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 11 complete. New features verified: (1) Bank accounts management - admin CRUD at /admin/banks, seeded CRDB Bank for TZ, Settings Hub link under Distribution & treasury; (2) Bank transfer top-up flow - client submits topup with proof_image, admin reviews in Approvals → Top-up requests tab, approval credits wallet with tx_kind='topup_bank', rejection does not credit; (3) Wave A Pre-flight validation - POST /api/messaging/preflight is FREE (no credit deduction), samples up to 20 numbers, returns validation stats with warning when valid_pct < 80; (4) Wave B Saved CSV mappings - per-user CRUD, upsert by name, last_used_at tracking, 404 for other user's maps. Client Wallet shows LOCAL currency (TZS for TZ client). Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs, not under test).",
+  "tests_executed": {
+    "total": 43,
+    "passed": 43,
+    "failed": 0,
+    "categories": {
+      "setup_auth": 2,
+      "bank_accounts_admin_crud": 6,
+      "client_banks_scoped": 1,
+      "topup_requests_flow": 13,
+      "topup_rejection_flow": 4,
+      "preflight_validation": 6,
+      "csv_mappings_crud": 10,
+      "cleanup": 1
+    }
+  },
+  "frontend_tests_executed": {
+    "admin_banks_page": "PASS - /admin/banks loads with seeded CRDB Bank row",
+    "admin_banks_modal": "PASS - Add/Edit modal with all fields (country, bank_name, account_name, account_number, branch, swift, currency, instructions, active)",
+    "admin_settings_hub_banks_link": "PASS - Distribution & treasury group shows Bank accounts module link",
+    "admin_approvals_topups_tab": "PASS - Top-up requests tab with count badge",
+    "client_wallet_local_currency": "PASS - Packs show TZS prices with LOCAL VALUE badge for TZ client",
+    "client_wallet_bank_transfer_btn": "PASS - 'Pay by bank transfer' button on each pack",
+    "client_wallet_bank_pay_modal": "PASS - Modal with bank select, reference field, proof upload, submit button",
+    "client_wallet_topups_table": "PASS - My top-up requests table visible",
+    "client_bulk_send_preflight_block": "PASS - Pre-flight check block with 'free · sample of 20' label",
+    "client_bulk_send_preflight_btn": "PASS - 'Validate sample before sending' button",
+    "client_bulk_send_preflight_result": "PASS - Shows Checked, Deliverable %, Predicted wasted credits, warning message",
+    "client_bulk_send_saved_maps_card": "PASS - Saved column maps card with Apply/Delete buttons"
+  },
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (not under test)",
+    "Twilio REST adapter (not under test)"
+  ],
+  "features_verified": {
+    "bank_accounts_admin_crud": "PASS - GET/POST/PUT/DELETE /api/admin/banks with country uppercasing",
+    "bank_accounts_client_scoped": "PASS - GET /api/banks returns user's country + global banks",
+    "topup_submit": "PASS - POST /api/wallet/topups creates pending request with proof_image",
+    "topup_list": "PASS - GET /api/wallet/topups returns history without proof_image",
+    "topup_proof": "PASS - GET /api/wallet/topups/{tid}/proof returns proof for owner",
+    "topup_approvals_inbox": "PASS - GET /api/admin/approvals/inbox includes topup_requests",
+    "topup_admin_detail": "PASS - GET /api/admin/topups/{tid} includes proof_image",
+    "topup_approve": "PASS - POST /api/admin/topups/{tid}/review approved credits wallet",
+    "topup_reject": "PASS - POST /api/admin/topups/{tid}/review rejected does NOT credit",
+    "topup_already_reviewed": "PASS - Returns 400 for already-reviewed topups",
+    "preflight_free": "PASS - No credit deduction after preflight",
+    "preflight_stats": "PASS - Returns all required fields",
+    "preflight_warning": "PASS - Warning set when valid_pct < 80",
+    "preflight_empty_400": "PASS - Empty phones returns 400",
+    "preflight_sample_20": "PASS - Samples up to 20 numbers",
+    "csv_mappings_crud": "PASS - Create/Read/Update/Delete mappings",
+    "csv_mappings_upsert": "PASS - Same name upserts",
+    "csv_mappings_user_scoped": "PASS - 404 for other user's map"
+  }
+}

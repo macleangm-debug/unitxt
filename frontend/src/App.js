@@ -51,6 +51,7 @@ import NumberLookup from "@/pages/client/NumberLookup";
 import AdminAudit from "@/pages/admin/AdminAudit";
 import SettingsHub from "@/pages/admin/SettingsHub";
 import RoutingEngine from "@/pages/admin/RoutingEngine";
+import AdminBanks from "@/pages/admin/AdminBanks";
 
 function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
@@ -156,6 +157,7 @@ export default function App() {
             <Route path="country-hub/:code" element={<CountryDetail />} />
             <Route path="integrations" element={<IntegrationHealth />} />
             <Route path="approvals" element={<AdminApprovals />} />
+            <Route path="banks" element={<AdminBanks />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

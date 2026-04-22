@@ -1550,6 +1550,144 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
     return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits}
 
 
+# ---------- Pre-flight: validate a small sample of a bulk list FOR FREE ----------
+class PreflightIn(BaseModel):
+    phones: List[str]
+    sample_size: int = 20
+
+
+@msg_r.post("/preflight")
+async def bulk_preflight(body: PreflightIn, user: dict = Depends(get_current_user)):
+    """Runs smart validation on up to 20 numbers FOR FREE so the client can gauge
+    the quality of a large list before committing credits to a full bulk send.
+    Returns per-number results + aggregated stats and a plain-English warning
+    when the predicted valid rate is below 80%."""
+    if not body.phones:
+        raise HTTPException(400, "Provide at least one number.")
+    cap = max(1, min(int(body.sample_size or 20), 20))
+    # Take a spread sample (first + middle + last slice) so we don't just see the top
+    full = [p for p in body.phones if p and str(p).strip()]
+    if len(full) <= cap:
+        sample = full
+    else:
+        step = max(1, len(full) // cap)
+        sample = [full[i] for i in range(0, len(full), step)][:cap]
+    results = []
+    buckets = {"valid": 0, "invalid_format": 0, "unknown_operator": 0,
+                "dnd_or_flagged": 0, "bad_history": 0}
+    country_counts: Dict[str, int] = {}
+    operator_counts: Dict[str, int] = {}
+    for p in sample:
+        res = await smart_validate_number(p, user["id"])
+        code = res.get("country") or "?"
+        country_counts[code] = country_counts.get(code, 0) + 1
+        op = res.get("operator") or "unknown"
+        operator_counts[op] = operator_counts.get(op, 0) + 1
+        if res.get("valid"):
+            buckets["valid"] += 1
+        else:
+            reason = (res.get("reason") or "").lower()
+            if "format" in reason or "invalid" in reason:
+                buckets["invalid_format"] += 1
+            elif "operator" in reason or "prefix" in reason:
+                buckets["unknown_operator"] += 1
+            elif "dnd" in reason or "opt-out" in reason or "flagged" in reason:
+                buckets["dnd_or_flagged"] += 1
+            else:
+                buckets["bad_history"] += 1
+        results.append(res)
+    n = len(sample) or 1
+    valid_pct = round(buckets["valid"] * 100 / n, 1)
+    # Estimate total list's quality + suggested failures
+    predicted_valid = int(round(len(full) * valid_pct / 100))
+    predicted_failed = len(full) - predicted_valid
+    warning = None
+    if valid_pct < 50:
+        warning = (f"Heads-up: only ~{valid_pct}% of your sample look deliverable. "
+                    f"That's roughly {predicted_failed:,} wasted credits on a list this size. "
+                    f"Clean the list (Contacts → Auto-clean) before you send.")
+    elif valid_pct < 80:
+        warning = (f"~{valid_pct}% of your sample look deliverable. Consider running "
+                    f"Auto-clean on the list or reviewing the flagged rows below.")
+    return {
+        "checked": n,
+        "total_in_list": len(full),
+        "valid_pct": valid_pct,
+        "buckets": buckets,
+        "predicted_valid": predicted_valid,
+        "predicted_failed": predicted_failed,
+        "countries": country_counts,
+        "operators": operator_counts,
+        "warning": warning,
+        "results": results,
+        "free": True,
+    }
+
+
+# ---------- Saved CSV column mappings (per-user presets) ----------
+class CsvMappingIn(BaseModel):
+    name: str
+    phone_column: str
+    column_renames: Dict[str, str] = {}
+    note: Optional[str] = ""
+
+
+@msg_r.get("/csv-mappings")
+async def list_csv_mappings(user: dict = Depends(get_current_user)):
+    rows = await db.csv_mappings.find({"user_id": user["id"]}, {"_id": 0}).sort(
+        "created_at", -1).to_list(200)
+    return rows
+
+
+@msg_r.post("/csv-mappings")
+async def save_csv_mapping(body: CsvMappingIn, user: dict = Depends(get_current_user)):
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "Give your mapping a name (e.g. 'CRM Export').")
+    if not body.phone_column:
+        raise HTTPException(400, "Pick which column holds the phone number.")
+    # Upsert by (user_id, name) so clients can re-save under the same name
+    existing = await db.csv_mappings.find_one({"user_id": user["id"], "name": name})
+    doc = {
+        "id": existing["id"] if existing else new_id(),
+        "user_id": user["id"],
+        "name": name,
+        "phone_column": body.phone_column,
+        "column_renames": body.column_renames or {},
+        "note": body.note or "",
+        "created_at": existing["created_at"] if existing else iso(now_utc()),
+        "updated_at": iso(now_utc()),
+        "last_used_at": existing.get("last_used_at") if existing else None,
+    }
+    if existing:
+        await db.csv_mappings.update_one({"id": existing["id"]}, {"$set": doc})
+    else:
+        await db.csv_mappings.insert_one(doc)
+    return clean(doc)
+
+
+@msg_r.post("/csv-mappings/{mid}/used")
+async def touch_csv_mapping(mid: str, user: dict = Depends(get_current_user)):
+    r = await db.csv_mappings.find_one({"id": mid, "user_id": user["id"]})
+    if not r:
+        raise HTTPException(404)
+    await db.csv_mappings.update_one({"id": mid},
+        {"$set": {"last_used_at": iso(now_utc())}})
+    return {"ok": True}
+
+
+@msg_r.delete("/csv-mappings/{mid}")
+async def delete_csv_mapping(mid: str, user: dict = Depends(get_current_user)):
+    r = await db.csv_mappings.delete_one({"id": mid, "user_id": user["id"]})
+    if r.deleted_count == 0:
+        raise HTTPException(404)
+    return {"ok": True}
+
+
+# ---------- End preflight / csv-mappings ----------
+
+
+
 @msg_r.get("/campaigns")
 async def my_campaigns(limit: int = 100, user: dict = Depends(get_current_user)):
     items = await db.campaigns.find({"user_id": user["id"]}, {"_id": 0, "recipients": 0}).sort(

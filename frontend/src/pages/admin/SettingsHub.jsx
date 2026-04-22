@@ -5,7 +5,7 @@ import { PageHeader, Card, Field, Input, Select, TextArea, Btn, Pill } from "@/c
 import {
   Settings as SettingsIcon, Globe2, Network, DollarSign, Wallet as WalletIcon,
   IdCard, Building2, Bell, ShieldCheck, Megaphone, Save, ChevronRight, Search,
-  Sparkles, Layers, Gauge, Users, Percent, Clock, Rocket, ExternalLink,
+  Sparkles, Layers, Gauge, Users, Percent, Clock, Rocket, ExternalLink, Landmark,
 } from "lucide-react";
 
 // ---------- Category definitions ----------
@@ -35,6 +35,7 @@ const CATEGORIES = {
   routing:       { label: "Routing engine",  icon: Network,      desc: "Per-country priority & failover rules.",     linkTo: "/admin/routing" },
   prefixes:      { label: "Mobile prefixes", icon: SettingsIcon, desc: "Map phone prefixes to operators.",           linkTo: "/admin/prefixes" },
   credit_packs:  { label: "Credit packs",    icon: DollarSign,   desc: "Global & country-specific packages.",        linkTo: "/admin/credit-packs" },
+  banks:         { label: "Bank accounts",   icon: Landmark,     desc: "Receiving bank details clients transfer credit top-ups into.", linkTo: "/admin/banks" },
 };
 
 // Organize into logical groups
@@ -73,7 +74,7 @@ const GROUPS = [
     key: "distribution",
     label: "Distribution & treasury",
     desc: "Reseller program, wallets, institutions and promotions.",
-    items: ["resellers", "reseller_policy", "wallets", "institutions", "promotions"],
+    items: ["resellers", "reseller_policy", "wallets", "banks", "institutions", "promotions"],
   },
 ];
 

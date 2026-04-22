@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import http, { fmtErr, creditsShort } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { PageHeader, Card, Field, Input, TextArea, Select, Btn, Pill, Modal } from "@/components/UI";
-import { Upload, FileSpreadsheet, Tag, ListFilter } from "lucide-react";
+import { Upload, FileSpreadsheet, Tag, ListFilter, ShieldCheck, BookmarkPlus, Bookmark, Trash2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export default function BulkSend() {
   const { user } = useAuth();
@@ -20,18 +20,24 @@ export default function BulkSend() {
   const [pickedGroup, setPickedGroup] = useState("");
   const [rates, setRates] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [preflight, setPreflight] = useState(null);   // {...stats} | null
+  const [preBusy, setPreBusy] = useState(false);
+  const [savedMaps, setSavedMaps] = useState([]);
+  const [saveMapOpen, setSaveMapOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
       http.get("/sender-ids"),
       http.get("/credits/rates"),
       http.get("/contacts/groups"),
-    ]).then(([s, r, g]) => {
+      http.get("/messaging/csv-mappings").catch(() => ({ data: [] })),
+    ]).then(([s, r, g, m]) => {
       const approved = s.data.filter(x => x.status === "approved");
       setSids(approved);
       if (approved[0]) setSenderId(approved[0].sender_id);
       setRates(r.data);
       setGroups(g.data || []);
+      setSavedMaps(m.data || []);
     }).catch(() => {});
   }, []);
 
@@ -128,6 +134,57 @@ export default function BulkSend() {
     });
     setCsv(lines.join("\n"));
     toast.success(`Loaded ${rows.length} rows · ${finalCols.length} columns.`);
+    setPreflight(null);
+  };
+
+  // ---------- Saved CSV mappings ----------
+  const [pendingMapCtx, setPendingMapCtx] = useState(null);  // { rows, headers, phoneCol, renames }
+
+  const reloadMaps = () =>
+    http.get("/messaging/csv-mappings")
+      .then(r => setSavedMaps(r.data || []))
+      .catch(() => {});
+
+  const applySavedMap = (map) => {
+    // Use the saved map against the current CSV/paste area
+    const { rows: parsedRows, headers: parsedHeaders } = parseCsv();
+    if (!parsedHeaders.length)
+      return toast.error("Paste some rows or upload a file first, then apply a saved map.");
+    if (!parsedHeaders.includes(map.phone_column))
+      return toast.error(
+        `Saved map expects a column called "${map.phone_column}", but your file has: ${parsedHeaders.join(", ")}.`
+      );
+    applyImport(parsedRows, parsedHeaders, map.phone_column, map.column_renames || {});
+    http.post(`/messaging/csv-mappings/${map.id}/used`).catch(() => {});
+    toast.success(`Applied mapping "${map.name}".`);
+  };
+
+  const deleteSavedMap = async (map) => {
+    if (!window.confirm(`Delete saved mapping "${map.name}"?`)) return;
+    try {
+      await http.delete(`/messaging/csv-mappings/${map.id}`);
+      toast.success("Deleted.");
+      reloadMaps();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+  };
+
+  // ---------- Pre-flight (free sample validation) ----------
+  const runPreflight = async () => {
+    const phones = recipients.map(r => r.phone).filter(Boolean);
+    if (!phones.length) return toast.error("Add at least one row first.");
+    setPreBusy(true);
+    try {
+      const { data } = await http.post("/messaging/preflight", {
+        phones, sample_size: 20,
+      });
+      setPreflight(data);
+      if (data.valid_pct >= 80) {
+        toast.success(`Sample looks clean — ${data.valid_pct}% deliverable.`);
+      } else {
+        toast.warning(`Only ${data.valid_pct}% deliverable in this sample.`);
+      }
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setPreBusy(false); }
   };
 
   // Insert variable chip at cursor
@@ -222,7 +279,7 @@ export default function BulkSend() {
                   {recipients.length} valid rows · {headers.length} columns
                 </span>
               </div>
-              <TextArea value={csv} onChange={(e) => setCsv(e.target.value)}
+              <TextArea value={csv} onChange={(e) => { setCsv(e.target.value); setPreflight(null); }}
                          className="min-h-[160px] font-mono text-xs" data-testid="bulk-csv"/>
             </Field>
 
@@ -280,6 +337,64 @@ export default function BulkSend() {
               <div className="mt-2 flex justify-between"><span>Total</span><span className="font-mono text-emerald-400">{creditsShort(totalCredits)} cr</span></div>
               <div className="mt-2 flex justify-between"><span>When</span><span className="font-mono text-white">{scheduleAt ? new Date(scheduleAt).toLocaleString() : "Now"}</span></div>
             </div>
+
+            {/* Pre-flight block */}
+            <div className="mt-4 border-t border-zinc-900 pt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="label-overline flex items-center gap-2">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400"/>Pre-flight check
+                </div>
+                <span className="text-[10px] text-zinc-500">free · sample of 20</span>
+              </div>
+              {!preflight ? (
+                <>
+                  <p className="text-[11px] text-zinc-500">
+                    Run free smart-validation on a spread sample so you know what to expect before spending credits.
+                  </p>
+                  <Btn variant="ghost" type="button" onClick={runPreflight} disabled={preBusy || !recipients.length}
+                       className="mt-2 w-full" data-testid="preflight-run">
+                    <ShieldCheck className="h-4 w-4"/>{preBusy ? "Checking…" : "Validate sample before sending"}
+                  </Btn>
+                </>
+              ) : (
+                <div className="text-[12px]" data-testid="preflight-result">
+                  <div className="flex items-center justify-between">
+                    <span>Checked</span>
+                    <span className="font-mono text-white">{preflight.checked} of {preflight.total_in_list}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span>Deliverable</span>
+                    <span className={`font-mono ${preflight.valid_pct >= 80 ? "text-emerald-400" : preflight.valid_pct >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                      {preflight.valid_pct}%
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span>Predicted wasted credits</span>
+                    <span className="font-mono text-red-400">
+                      {(preflight.predicted_failed * rate * segs).toLocaleString()}
+                    </span>
+                  </div>
+                  {preflight.warning && (
+                    <div className="mt-2 flex items-start gap-2 border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0"/>
+                      <span>{preflight.warning}</span>
+                    </div>
+                  )}
+                  {!preflight.warning && (
+                    <div className="mt-2 flex items-start gap-2 border border-emerald-500/30 bg-emerald-500/5 p-2 text-[11px] text-emerald-200">
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0"/>
+                      <span>Looks healthy — safe to send.</span>
+                    </div>
+                  )}
+                  <button type="button" onClick={runPreflight} disabled={preBusy}
+                           className="mt-2 text-[11px] text-zinc-500 underline hover:text-white"
+                           data-testid="preflight-again">
+                    {preBusy ? "Re-checking…" : "Re-run"}
+                  </button>
+                </div>
+              )}
+            </div>
+
             <Btn type="submit" disabled={busy} className="mt-5 w-full" data-testid="bulk-dispatch">
               <Upload className="h-4 w-4"/> {busy ? "Queuing…" : scheduleAt ? "Schedule" : "Send now"}
             </Btn>
@@ -302,22 +417,88 @@ export default function BulkSend() {
               </div>
             )}
           </Card>
+
+          <Card testid="saved-maps-card">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="label-overline flex items-center gap-2">
+                <Bookmark className="h-3.5 w-3.5 text-emerald-400"/>Saved column maps
+              </div>
+              {pendingMapCtx && (
+                <button type="button" onClick={() => setSaveMapOpen(true)}
+                        className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300"
+                        data-testid="save-current-map">
+                  <BookmarkPlus className="h-3.5 w-3.5"/>Save current mapping
+                </button>
+              )}
+            </div>
+            {savedMaps.length === 0 ? (
+              <p className="text-[11px] text-zinc-500">
+                After you map an imported file, save the mapping here to reuse it on future uploads
+                (e.g. "CRM Export", "Shopify Customers").
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {savedMaps.map(m => (
+                  <div key={m.id} className="flex items-center justify-between border border-zinc-900 bg-[#141414] p-2 text-xs"
+                       data-testid={`saved-map-${m.id}`}>
+                    <div className="min-w-0">
+                      <div className="truncate text-white">{m.name}</div>
+                      <div className="truncate font-mono text-[10px] text-zinc-500">
+                        phone: {m.phone_column} · {Object.keys(m.column_renames || {}).length} rename{Object.keys(m.column_renames || {}).length === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => applySavedMap(m)}
+                              className="text-[11px] text-emerald-400 hover:text-emerald-300"
+                              data-testid={`use-map-${m.id}`}>Apply</button>
+                      <button type="button" onClick={() => deleteSavedMap(m)}
+                              className="text-zinc-500 hover:text-red-400"
+                              data-testid={`del-map-${m.id}`}>
+                        <Trash2 className="h-3.5 w-3.5"/>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
       </form>
 
       <ColumnMapModal
         state={mapModal}
+        savedMaps={savedMaps}
         onClose={() => setMapModal(null)}
         onConfirm={(phoneCol, renames) => {
           applyImport(mapModal.rows, mapModal.headers, phoneCol, renames);
+          setPendingMapCtx({ phoneCol, renames, headers: mapModal.headers });
           setMapModal(null);
+        }}
+        onApplySaved={(map) => {
+          applyImport(mapModal.rows, mapModal.headers, map.phone_column,
+                       map.column_renames || {});
+          http.post(`/messaging/csv-mappings/${map.id}/used`).catch(() => {});
+          setMapModal(null);
+          toast.success(`Applied mapping "${map.name}".`);
+        }}
+      />
+
+      <SaveMappingModal
+        open={saveMapOpen}
+        onClose={() => setSaveMapOpen(false)}
+        phoneColumn={pendingMapCtx?.phoneCol || "phone"}
+        columnRenames={pendingMapCtx?.renames || {}}
+        onSaved={(m) => {
+          setSaveMapOpen(false);
+          toast.success(`Saved mapping "${m.name}". You can reuse it next time.`);
+          reloadMaps();
         }}
       />
     </div>
   );
 }
 
-function ColumnMapModal({ state, onClose, onConfirm }) {
+function ColumnMapModal({ state, savedMaps = [], onClose, onConfirm, onApplySaved }) {
   const [phoneCol, setPhoneCol] = useState("");
   const [renames, setRenames] = useState({});
 
@@ -330,6 +511,8 @@ function ColumnMapModal({ state, onClose, onConfirm }) {
 
   if (!state) return null;
   const sample = state.rows[0] || {};
+  // Compatible saved maps = ones whose phone_column exists in our current headers
+  const compatMaps = savedMaps.filter(m => state.headers.includes(m.phone_column));
   const suggest = (h) => {
     const l = h.toLowerCase().trim();
     const map = {
@@ -350,6 +533,33 @@ function ColumnMapModal({ state, onClose, onConfirm }) {
       <p className="mb-4 text-sm text-zinc-400">
         We couldn't find a "phone" column automatically. Tell us which column holds the phone numbers and rename any others you want to use as personalisation tags.
       </p>
+
+      {compatMaps.length > 0 && (
+        <div className="mb-4 border border-zinc-900 bg-[#0e0e0e] p-3">
+          <div className="label-overline mb-2 flex items-center gap-2">
+            <Bookmark className="h-3.5 w-3.5 text-emerald-400"/>
+            Reuse a saved mapping
+          </div>
+          <div className="grid gap-2" data-testid="saved-maps-list">
+            {compatMaps.map(m => (
+              <button key={m.id} type="button" onClick={() => onApplySaved?.(m)}
+                      className="flex items-center justify-between border border-zinc-900 bg-[#141414] px-3 py-2 text-sm text-zinc-300 hover:border-emerald-500/40 hover:text-white"
+                      data-testid={`apply-map-${m.id}`}>
+                <div className="text-left">
+                  <div className="font-medium text-white">{m.name}</div>
+                  <div className="text-[11px] text-zinc-500">
+                    phone column: <span className="font-mono">{m.phone_column}</span>
+                    {" · "}
+                    {Object.keys(m.column_renames || {}).length} rename{Object.keys(m.column_renames || {}).length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <span className="text-[11px] text-emerald-400">Apply →</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-zinc-500">Or configure manually below.</p>
+        </div>
+      )}
 
       <div className="mb-4 border border-zinc-900 bg-[#0e0e0e] p-3">
         <div className="label-overline mb-2">Which column is the phone number?</div>
@@ -388,3 +598,66 @@ function ColumnMapModal({ state, onClose, onConfirm }) {
     </Modal>
   );
 }
+
+function SaveMappingModal({ open, onClose, phoneColumn, columnRenames, onSaved }) {
+  const [name, setName] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) { setName(""); setNote(""); }
+  }, [open]);
+
+  if (!open) return null;
+
+  const save = async (e) => {
+    e?.preventDefault?.();
+    if (!name.trim()) return toast.error("Give this mapping a name, e.g. 'CRM Export'.");
+    setBusy(true);
+    try {
+      const { data } = await http.post("/messaging/csv-mappings", {
+        name: name.trim(), phone_column: phoneColumn,
+        column_renames: columnRenames || {}, note: note.trim(),
+      });
+      onSaved?.(data);
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Save this column mapping" testid="save-map-modal">
+      <form onSubmit={save} className="space-y-3">
+        <p className="text-sm text-zinc-400">
+          Next time you upload a file with the same columns, you'll be able to apply this preset in one click.
+        </p>
+        <Field label="Mapping name">
+          <Input value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. CRM Export, Shopify customers"
+                  data-testid="save-map-name" required/>
+        </Field>
+        <Field label="Note (optional)">
+          <Input value={note} onChange={(e) => setNote(e.target.value)}
+                  placeholder="What kind of file this is for"
+                  data-testid="save-map-note"/>
+        </Field>
+        <div className="border border-zinc-900 bg-[#141414] p-3 text-xs text-zinc-400">
+          <div><span className="text-zinc-500">Phone column:</span> <span className="font-mono text-white">{phoneColumn}</span></div>
+          {Object.keys(columnRenames || {}).length > 0 && (
+            <div className="mt-2">
+              <div className="text-zinc-500">Renames:</div>
+              <ul className="mt-1 space-y-0.5 font-mono">
+                {Object.entries(columnRenames).map(([from, to]) => (
+                  <li key={from}><span className="text-zinc-400">{from}</span> → <span className="text-white">{to}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+        <Btn type="submit" disabled={busy} className="w-full" data-testid="save-map-submit">
+          {busy ? "Saving…" : "Save mapping"}
+        </Btn>
+      </form>
+    </Modal>
+  );
+}
+
