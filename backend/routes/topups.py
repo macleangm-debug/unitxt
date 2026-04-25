@@ -163,6 +163,15 @@ async def review_topup(tid: str, body: TopupReviewIn,
             f"({credits:,} credits" +
             (f" + {bonus:,} promo bonus" if bonus else "") + ").",
             "success")
+        # Affiliate commission on the USD amount of this top-up
+        try:
+            from routes.affiliate import record_topup_commission
+            referee = await db.users.find_one({"id": r["user_id"]})
+            if referee:
+                await record_topup_commission(referee, float(r.get("amount_usd", 0)),
+                                                ref=tid)
+        except Exception:
+            pass
     else:
         await add_notification(r["user_id"], "Top-up rejected",
             body.note or "Please contact support.",

@@ -1,0 +1,142 @@
+{
+  "summary": "Iteration 15 testing complete - Country Economics, Country P&L, and Affiliate Program features all verified. Backend: 21/21 tests passed. Frontend: All new pages and components working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Seeded reseller user",
+        "issue": "Seeded reseller@unitxt.io does not have referral_code field set (only reseller_code). New registrations get referral_code but seeded users don't. Workaround: use affiliate codes instead.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration15_affiliate_economics.py",
+    "/app/test_reports/pytest/iteration15_results.xml"
+  ],
+  "action_items": [
+    "Consider adding referral_code to seeded reseller user in seed_admin() for consistency"
+  ],
+  "critical_code_review_comments": [
+    "BACKEND: GET /api/admin/country-economics/{code} returns correct structure with code, currency, fx_rate_to_usd, vat_rate_pct, sell_per_sms_local, wholesale_per_sms_local",
+    "BACKEND: PUT /api/admin/country-economics/{code} persists values correctly and returns {ok:true}",
+    "BACKEND: GET /api/admin/country-pnl returns {rows:[], total_profit_usd:0} structure correctly",
+    "BACKEND: All 14 affiliate.* settings keys seeded with correct defaults",
+    "BACKEND: GET /api/admin/affiliate/overview returns config + stats correctly",
+    "BACKEND: GET /api/affiliate/me returns config, referrals, earned_usd, available_usd, default_code",
+    "BACKEND: POST /api/affiliate/codes creates codes, duplicate returns 400, cap 5 codes enforced",
+    "BACKEND: Commission engine records affiliate_earnings on credits/buy with referral_code",
+    "BACKEND: POST /api/affiliate/payouts with insufficient balance returns 400 with threshold message",
+    "FRONTEND: Admin /admin/affiliate page has 4-stat strip (affiliates, referred, earned, pending)",
+    "FRONTEND: Admin /admin/affiliate page has 3 model selector cards (time_window selected by default with blue highlight)",
+    "FRONTEND: Admin /admin/affiliate page has welcome bonus card, payout threshold card, save button (data-testid='aff-save'), payout queue table",
+    "FRONTEND: Admin /admin/country-pnl page renders summary card and table with empty state message",
+    "FRONTEND: Country Detail TZ Economics tab has Local-currency economics card (data-testid='local-economics-card')",
+    "FRONTEND: Local economics card has 3 inputs (econ-vat, econ-sell, econ-wholesale) and live blue preview banner",
+    "FRONTEND: Settings Hub has 'Affiliate program' in Distribution & treasury group and 'Country P&L' in Economy group"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration15_affiliate_economics.py"
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 tests passed)",
+    "frontend": "100% (all UI elements and flows verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Created affiliate code 'RESELLER15' for reseller during testing. Created test users for commission engine tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 15 complete. New features tested: (1) Country Economics endpoints at /api/admin/country-economics/{code} for GET/PUT local currency pricing; (2) Country P&L dashboard at /api/admin/country-pnl and /admin/country-pnl; (3) Full Affiliate program with 3 commission models (time_window, first_n, tier_bonus), affiliate codes, commission engine, payout flow. The seeded reseller user doesn't have a referral_code field - use affiliate codes (POST /api/affiliate/codes) instead for testing referral flows. Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs).",
+  "tests_executed": {
+    "backend": {
+      "country_economics": {
+        "get_tz": "PASS - returns code, currency, fx_rate_to_usd, vat_rate_pct, sell_per_sms_local, wholesale_per_sms_local",
+        "get_unknown_404": "PASS - returns 404 for unknown country code",
+        "put_tz": "PASS - persists values and returns {ok:true}",
+        "requires_admin": "PASS - returns 403 for non-admin"
+      },
+      "country_pnl": {
+        "get_pnl": "PASS - returns {rows:[], total_profit_usd:0}",
+        "requires_admin": "PASS - returns 403 for non-admin"
+      },
+      "affiliate_settings": {
+        "seed_keys_exist": "PASS - all 14 affiliate.* keys present with defaults"
+      },
+      "affiliate_admin": {
+        "overview": "PASS - returns config, affiliates_count, referred_users_count, earnings",
+        "payouts_list": "PASS - returns list (empty initially)"
+      },
+      "affiliate_self_service": {
+        "me": "PASS - returns config, referrals, earned_usd, available_usd, default_code",
+        "codes_list": "PASS - lists own codes",
+        "codes_create_delete": "PASS - creates and deletes codes",
+        "codes_duplicate_400": "PASS - rejects duplicate codes",
+        "codes_cap_5": "PASS - enforces 5 code limit"
+      },
+      "commission_engine": {
+        "register_with_referral": "PASS - referred_by set on new user",
+        "commission_on_buy": "PASS - affiliate_earnings created on credits/buy"
+      },
+      "payout_flow": {
+        "below_threshold_400": "PASS - returns 400 with threshold message"
+      },
+      "regression": {
+        "admin_settings_hub": "PASS",
+        "client_wallet": "PASS",
+        "admin_banks": "PASS",
+        "admin_approvals": "PASS"
+      }
+    },
+    "frontend": {
+      "admin_affiliate_page": {
+        "4_stat_strip": "PASS - affiliates, referred, earned, pending all present",
+        "3_model_cards": "PASS - time_window, first_n, tier_bonus all present",
+        "time_window_default": "PASS - selected with blue highlight",
+        "welcome_bonus_card": "PASS",
+        "payout_threshold_card": "PASS",
+        "save_button": "PASS - data-testid='aff-save'",
+        "payout_queue_table": "PASS",
+        "model_switching": "PASS - switching models shows correct fields"
+      },
+      "admin_country_pnl_page": {
+        "summary_card": "PASS - data-testid='pnl-summary'",
+        "table": "PASS - data-testid='pnl-table'",
+        "empty_state": "PASS - shows 'No deliveries yet' message"
+      },
+      "country_detail_economics": {
+        "local_economics_card": "PASS - data-testid='local-economics-card'",
+        "econ_vat_input": "PASS - data-testid='econ-vat'",
+        "econ_sell_input": "PASS - data-testid='econ-sell'",
+        "econ_wholesale_input": "PASS - data-testid='econ-wholesale'",
+        "save_button": "PASS - data-testid='econ-save'",
+        "live_preview_banner": "PASS - shows math calculation in blue banner"
+      },
+      "settings_hub_links": {
+        "affiliate_in_distribution": "PASS - found in Distribution & treasury group",
+        "country_pnl_in_economy": "PASS - found in Economy group"
+      },
+      "regression": {
+        "admin_login": "PASS",
+        "settings_hub_loads": "PASS",
+        "admin_banks_loads": "PASS",
+        "admin_approvals_loads": "PASS",
+        "client_login": "PASS",
+        "client_wallet_loads": "PASS",
+        "client_bulk_send_loads": "PASS"
+      }
+    }
+  },
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (not under test)",
+    "Twilio REST adapter (not under test)"
+  ]
+}

@@ -36,6 +36,9 @@ const CATEGORIES = {
   prefixes:      { label: "Mobile prefixes", icon: SettingsIcon, desc: "Map phone prefixes to operators.",           linkTo: "/admin/prefixes" },
   credit_packs:  { label: "Credit packs",    icon: DollarSign,   desc: "Global & country-specific packages.",        linkTo: "/admin/credit-packs" },
   banks:         { label: "Bank accounts",   icon: Landmark,     desc: "Receiving bank details clients transfer credit top-ups into.", linkTo: "/admin/banks" },
+  affiliate:     { label: "Affiliate program",   icon: Users,    desc: "Promo-code-driven commissions: model, rate, payouts.",         linkTo: "/admin/affiliate" },
+  country_pnl:   { label: "Country P&L",      icon: DollarSign,  desc: "Per-country profit dashboard with VAT-aware true cost.",        linkTo: "/admin/country-pnl" },
+  affiliate_old: { label: "Legacy referrals", icon: Users,        desc: "Loss-proof referral rewards (replaced by Affiliate).        Read-only." },
 };
 
 // Organize into logical groups
@@ -50,7 +53,7 @@ const GROUPS = [
     key: "economy",
     label: "Economy",
     desc: "Credits, reseller commission, referrals and loyalty rewards.",
-    items: ["credits", "pricing_cfg", "credit_packs", "referrals", "streaks"],
+    items: ["credits", "pricing_cfg", "credit_packs", "country_pnl", "referrals", "streaks"],
   },
   {
     key: "geographies",
@@ -73,8 +76,8 @@ const GROUPS = [
   {
     key: "distribution",
     label: "Distribution & treasury",
-    desc: "Reseller program, wallets, institutions and promotions.",
-    items: ["resellers", "reseller_policy", "wallets", "banks", "institutions", "promotions"],
+    desc: "Affiliate program, wallets, institutions and promotions.",
+    items: ["affiliate", "resellers", "reseller_policy", "wallets", "banks", "institutions", "promotions"],
   },
 ];
 

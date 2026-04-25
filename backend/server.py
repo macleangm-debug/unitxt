@@ -259,6 +259,7 @@ class ProviderIn(BaseModel):
     api_secret: Optional[str] = ""
     base_url: Optional[str] = ""
     cost_per_sms: float = 0.01
+    buy_price_local_pre_vat: float = 0.0   # pre-VAT cost in destination country's currency
     priority: int = 100
     active: bool = True
     supports_unicode: bool = True
@@ -522,9 +523,18 @@ async def register(body: RegisterIn, response: Response):
             reseller_id = r["id"]
     referred_by = None
     if body.referral_code:
-        ref = await db.users.find_one({"referral_code": body.referral_code.upper()})
-        if ref and ref["id"] != body.email:
-            referred_by = ref["id"]
+        ref_owner = None
+        code_u = body.referral_code.upper().strip()
+        # Affiliate code first (preferred new path)
+        ac = await db.affiliate_codes.find_one({"code": code_u, "active": True})
+        if ac:
+            ref_owner = await db.users.find_one({"id": ac["owner_user_id"]})
+            await db.affiliate_codes.update_one({"id": ac["id"]}, {"$inc": {"uses": 1}})
+        # Legacy: a user's auto-generated referral_code
+        if not ref_owner:
+            ref_owner = await db.users.find_one({"referral_code": code_u})
+        if ref_owner and ref_owner["email"] != email:
+            referred_by = ref_owner["id"]
     user = {
         "id": new_id(),
         "email": email,
@@ -548,6 +558,20 @@ async def register(body: RegisterIn, response: Response):
         user["commission_rate"] = 0.10
     await db.users.insert_one(user)
     await get_or_create_wallet(user["id"])
+    # Welcome bonus for being referred via an affiliate code
+    if referred_by:
+        try:
+            wb_pct = float(await get_setting("affiliate.welcome_bonus_pct", 5))
+            wb_max = int(await get_setting("affiliate.welcome_bonus_max_credits", 500))
+            # Bonus is delivered on the user's FIRST paid top-up (not on signup) so
+            # we can scale it to pack size — store the rule on the user doc.
+            await db.users.update_one(
+                {"id": user["id"]},
+                {"$set": {"welcome_bonus_pct": wb_pct,
+                           "welcome_bonus_max_credits": wb_max,
+                           "welcome_bonus_used": False}})
+        except Exception:
+            pass
     await add_notification(user["id"], "Welcome to unitxt",
                            "Your account is ready. Top up your wallet to start sending.", "success")
     if reseller_id:
@@ -2199,6 +2223,15 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
             elif promo["type"] == "percent_discount":
                 bonus = int(pack["credits"] * float(promo["value"]) / 100.0)
     total_credits = int(pack["credits"]) + int(bonus)
+    # Affiliate welcome bonus on first paid top-up
+    if user.get("referred_by") and not user.get("welcome_bonus_used", True):
+        wb_pct = float(user.get("welcome_bonus_pct", 0))
+        wb_cap = int(user.get("welcome_bonus_max_credits", 0))
+        wb = min(int(pack["credits"] * wb_pct / 100.0), wb_cap)
+        if wb > 0:
+            total_credits += wb
+            await db.users.update_one({"id": user["id"]},
+                {"$set": {"welcome_bonus_used": True}})
     await adjust_wallet(user["id"], total_credits, "pack_purchase",
                         note=f"Pack {pack['name']} · {pack['credits']} credits"
                              + (f" + {bonus} promo" if bonus else ""),
@@ -2209,26 +2242,13 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
         "price_usd": float(pack["price_usd"]), "method": "mock",
         "promo_code": body.promo_code, "created_at": iso(now_utc()),
     })
-    # Referral reward (loss-proof: % of pack credits, capped, only if enabled)
-    referrer_id = user.get("referred_by")
-    if referrer_id and await get_setting("referral.active", True):
-        pct = float(await get_setting("referral.percent_of_pack", 5))
-        cap = int(await get_setting("referral.max_credits_per_referral", 500))
-        reward = min(int(pack["credits"] * pct / 100.0), cap)
-        if reward > 0:
-            await adjust_wallet(referrer_id, reward, "referral_reward",
-                                note=f"Referral: {user['email']} bought {pack['name']}",
-                                ref=user["id"], by=user["id"])
-            await db.users.update_one({"id": referrer_id},
-                                        {"$inc": {"referral_earned_credits": reward}})
-            await db.referral_earnings.insert_one({
-                "id": new_id(), "referrer_id": referrer_id, "referred_user_id": user["id"],
-                "pack_id": pack["id"], "reward_credits": reward,
-                "created_at": iso(now_utc()),
-            })
-            await add_notification(referrer_id, "Referral reward",
-                                    f"+{reward} credits — {user['email']} bought {pack['name']}.",
-                                    "success")
+    # Affiliate commission (replaces legacy referral_reward).
+    # Pulls model + rate from Settings Hub keys (affiliate.*).
+    try:
+        from routes.affiliate import record_topup_commission
+        await record_topup_commission(user, float(pack["price_usd"]), ref=pack["id"])
+    except Exception:
+        pass
     await add_notification(user["id"], "Credits added",
                            f"+{total_credits} credits purchased. Happy sending!", "success")
     return {"ok": True, "credits_added": total_credits, "bonus": bonus}
@@ -3618,6 +3638,105 @@ async def country_set_fx(code: str, body: CountryFxIn,
     return {"ok": True, **body.model_dump()}
 
 
+# ---------- Country economics: VAT + local pricing per SMS ----------
+class CountryEconomicsIn(BaseModel):
+    vat_rate_pct: float = Field(ge=0, le=100)
+    sell_per_sms_local: float = Field(ge=0)        # what direct clients pay (gross, VAT-incl)
+    wholesale_per_sms_local: float = Field(ge=0)   # internal reference for resellers/affiliates
+
+
+# Distinct prefixes so /pnl doesn't get eaten by country_r's /{code} catch-all
+econ_r = APIRouter(prefix="/admin/country-economics", tags=["country_economics"])
+pnl_r  = APIRouter(prefix="/admin/country-pnl",       tags=["country_pnl"])
+
+
+@pnl_r.get("")
+async def country_pnl(_: dict = Depends(require_roles("super_admin"))):
+    """Aggregated per-country profit & loss: sent / revenue / cost / margin."""
+    countries = await db.countries.find({}, {"_id": 0}).to_list(200)
+    rows = []
+    for c in countries:
+        code = c["code"]
+        sent = await db.messages.count_documents(
+            {"country": code, "status": {"$in": ["sent", "delivered"]}})
+        if sent == 0:
+            continue
+        agg = await db.messages.aggregate([
+            {"$match": {"country": code, "status": {"$in": ["sent", "delivered"]}}},
+            {"$group": {
+                "_id": None,
+                "rev_local":  {"$sum": "$revenue_local"},
+                "cost_local": {"$sum": "$cost_incl_vat_local"},
+            }},
+        ]).to_list(1)
+        rev_local  = float(agg[0]["rev_local"])  if agg else 0.0
+        cost_local = float(agg[0]["cost_local"]) if agg else 0.0
+        if rev_local == 0 and cost_local == 0:
+            e = c.get("economics") or {}
+            rev_local  = sent * float(e.get("sell_per_sms_local", 0) or 0)
+            buy_pre    = float(e.get("avg_buy_pre_vat", 0) or 0)
+            vat        = float(e.get("vat_rate_pct", 0) or 0)
+            cost_local = sent * buy_pre * (1 + vat / 100.0)
+        profit_local = rev_local - cost_local
+        margin_pct   = (profit_local / rev_local * 100.0) if rev_local else 0.0
+        fx = float(c.get("fx_rate_to_usd", 0) or 0)
+        profit_usd = (profit_local / fx) if fx > 0 else 0.0
+        rows.append({
+            "code": code, "name": c.get("name"),
+            "currency": c.get("currency"),
+            "sent": sent,
+            "revenue_local": round(rev_local, 2),
+            "cost_local":    round(cost_local, 2),
+            "profit_local":  round(profit_local, 2),
+            "margin_pct":    round(margin_pct, 1),
+            "profit_usd":    round(profit_usd, 2),
+        })
+    rows.sort(key=lambda x: x["profit_usd"], reverse=True)
+    total_usd = round(sum(r["profit_usd"] for r in rows), 2)
+    return {"rows": rows, "total_profit_usd": total_usd}
+
+
+@econ_r.get("/{code}")
+async def get_country_economics(code: str,
+                                  _: dict = Depends(require_roles("super_admin", "country_admin"))):
+    code = code.upper()
+    r = await db.countries.find_one({"code": code}, {"_id": 0})
+    if not r:
+        raise HTTPException(404)
+    e = r.get("economics") or {}
+    return {
+        "code": code,
+        "currency": r.get("currency"),
+        "fx_rate_to_usd": r.get("fx_rate_to_usd"),
+        "vat_rate_pct": e.get("vat_rate_pct", 0),
+        "sell_per_sms_local": e.get("sell_per_sms_local", 0),
+        "wholesale_per_sms_local": e.get("wholesale_per_sms_local", 0),
+    }
+
+
+@econ_r.put("/{code}")
+async def set_country_economics(code: str, body: CountryEconomicsIn,
+                                  admin: dict = Depends(require_roles("super_admin"))):
+    code = code.upper()
+    r = await db.countries.find_one({"code": code})
+    if not r:
+        raise HTTPException(404)
+    await db.countries.update_one({"code": code}, {"$set": {
+        "economics": {
+            "vat_rate_pct":            float(body.vat_rate_pct),
+            "sell_per_sms_local":      float(body.sell_per_sms_local),
+            "wholesale_per_sms_local": float(body.wholesale_per_sms_local),
+        },
+        "updated_at": iso(now_utc()),
+    }})
+    await add_audit(admin["id"], "country.economics", target=code, meta=body.model_dump())
+    return {"ok": True}
+
+
+api.include_router(econ_r)
+api.include_router(pnl_r)
+
+
 # ---------- Banks & top-up routes have moved to routes/banks.py and routes/topups.py ----------
 # (See bottom of file for the import + include_router statements.)
 
@@ -3631,6 +3750,9 @@ api.include_router(routes_banks.client_r)
 api.include_router(routes_topups.client_r)
 api.include_router(routes_topups.admin_r)
 api.include_router(routes_msg_extras.router)
+from routes import affiliate as routes_affiliate
+api.include_router(routes_affiliate.self_r)
+api.include_router(routes_affiliate.admin_r)
 api.include_router(sid_r)
 api.include_router(tpl_r)
 api.include_router(msg_r)
@@ -3891,6 +4013,28 @@ async def startup():
         ("messaging.preflight_amber_threshold", 80, "queue"),
         # Top-up flow (manual bank transfer) — receipt size cap, in KB
         ("topups.max_proof_kb", 4096, "compliance"),
+        # ── AFFILIATE PROGRAM (replaces legacy referral.*) ─────────────────
+        # Default model = time_window (Option A: 6 months @ 10%)
+        ("affiliate.active",                     True,          "affiliate"),
+        ("affiliate.model",                      "time_window", "affiliate"),
+        ("affiliate.commission_pct",             10,            "affiliate"),
+        # Option A — time_window
+        ("affiliate.window_months",              6,             "affiliate"),
+        # Option B — first_n_topups
+        ("affiliate.first_n",                    3,             "affiliate"),
+        # Option C — tier_bonus
+        ("affiliate.tier_first_pct",             15,            "affiliate"),
+        ("affiliate.tier_bonus_1_threshold_usd", 200,           "affiliate"),
+        ("affiliate.tier_bonus_1_amount_usd",    20,            "affiliate"),
+        ("affiliate.tier_bonus_2_threshold_usd", 1000,          "affiliate"),
+        ("affiliate.tier_bonus_2_amount_usd",    50,            "affiliate"),
+        ("affiliate.tier_window_months",         12,            "affiliate"),
+        # Welcome bonus delivered to the REFERRED user on their first paid top-up
+        ("affiliate.welcome_bonus_pct",          5,             "affiliate"),
+        ("affiliate.welcome_bonus_max_credits",  500,           "affiliate"),
+        # Payouts & limits
+        ("affiliate.payout_threshold_usd",       50,            "affiliate"),
+        ("affiliate.max_codes_per_user",         5,             "affiliate"),
     ]
     for k, v, cat in defaults:
         await db.system_settings.update_one(

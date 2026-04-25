@@ -52,6 +52,8 @@ import AdminAudit from "@/pages/admin/AdminAudit";
 import SettingsHub from "@/pages/admin/SettingsHub";
 import RoutingEngine from "@/pages/admin/RoutingEngine";
 import AdminBanks from "@/pages/admin/AdminBanks";
+import AdminAffiliate from "@/pages/admin/AdminAffiliate";
+import AdminCountryPnL from "@/pages/admin/AdminCountryPnL";
 
 function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
@@ -158,6 +160,8 @@ export default function App() {
             <Route path="integrations" element={<IntegrationHealth />} />
             <Route path="approvals" element={<AdminApprovals />} />
             <Route path="banks" element={<AdminBanks />} />
+            <Route path="affiliate" element={<AdminAffiliate />} />
+            <Route path="country-pnl" element={<AdminCountryPnL />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

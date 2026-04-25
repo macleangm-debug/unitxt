@@ -361,7 +361,101 @@ function EconomicsPanel({ code }) {
                    render: r => r.margin_pct != null ? `${r.margin_pct}%` : "—" },
                ]}/>
       </Card>
+
+      <LocalEconomicsCard code={code} />
     </div>
+  );
+}
+
+/* ---------- Local-currency economics (VAT + sell + wholesale) ---------- */
+function LocalEconomicsCard({ code }) {
+  const [v, setV] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = () => http.get(`/admin/country-economics/${code}`).then(r => setV(r.data)).catch(() => {});
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [code]);
+
+  if (!v) return null;
+  const set = (k, val) => setV({ ...v, [k]: val });
+
+  // Live margin preview math
+  const sell  = Number(v.sell_per_sms_local) || 0;
+  const vat   = Number(v.vat_rate_pct) || 0;
+  // Approx pre-VAT cost = wholesale (placeholder); real cost is per-route, see Routes
+  const whole = Number(v.wholesale_per_sms_local) || 0;
+  const trueCostFromWhole = whole * (1 + vat / 100);
+  const margin = sell - trueCostFromWhole;
+  const marginPct = sell ? (margin / sell) * 100 : 0;
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await http.put(`/admin/country-economics/${code}`, {
+        vat_rate_pct: Number(v.vat_rate_pct || 0),
+        sell_per_sms_local: Number(v.sell_per_sms_local || 0),
+        wholesale_per_sms_local: Number(v.wholesale_per_sms_local || 0),
+      });
+      toast.success("Country economics saved");
+      load();
+    } catch (err) { toast.error(fmtErr(err.response?.data?.detail)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Card testid="local-economics-card">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="label-overline">Local-currency economics</div>
+          <h3 className="mt-1 font-display text-base font-semibold">
+            Set prices in {v.currency || "local currency"} — system handles credit math.
+          </h3>
+          <p className="mt-1 max-w-xl text-xs text-zinc-500">
+            VAT applies to your buy (cost) side. Per-route buy prices live in
+            Settings hub → Routes & operators. Selling price is what your direct
+            clients pay (VAT-inclusive).
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <Field label={`VAT rate (%)`} hint="Country VAT applied to operator-cost side.">
+          <Input type="number" step="0.5" min="0" max="100"
+                  value={v.vat_rate_pct}
+                  onChange={(e) => set("vat_rate_pct", e.target.value)}
+                  data-testid="econ-vat"/>
+        </Field>
+        <Field label={`Sell / SMS (${v.currency || "local"})`}
+                hint="What your direct clients pay per SMS, gross / VAT-incl.">
+          <Input type="number" step="0.5" min="0"
+                  value={v.sell_per_sms_local}
+                  onChange={(e) => set("sell_per_sms_local", e.target.value)}
+                  data-testid="econ-sell"/>
+        </Field>
+        <Field label={`Wholesale / SMS (${v.currency || "local"})`}
+                hint="Reference rate used for affiliate / quote calculations.">
+          <Input type="number" step="0.5" min="0"
+                  value={v.wholesale_per_sms_local}
+                  onChange={(e) => set("wholesale_per_sms_local", e.target.value)}
+                  data-testid="econ-wholesale"/>
+        </Field>
+      </div>
+
+      {/* Live margin preview */}
+      {sell > 0 && (
+        <div className="mt-4 rounded-md border border-blue-500/20 bg-blue-500/[0.04] p-3 text-[12px] leading-relaxed text-blue-200/90">
+          <span className="font-medium text-blue-300">Live preview:</span>
+          {" "}clients in {code} pay <strong>{v.currency} {sell.toLocaleString()}</strong> per SMS.
+          {" "}Wholesale {v.currency} {whole.toLocaleString()} + {vat}% VAT = <strong>{v.currency} {trueCostFromWhole.toFixed(2)}</strong> true cost.
+          {" "}Gross profit per SMS = <strong className={margin >= 0 ? "text-emerald-300" : "text-red-300"}>{v.currency} {margin.toFixed(2)} ({marginPct.toFixed(1)}%)</strong>.
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <Btn onClick={save} disabled={busy} data-testid="econ-save">
+          {busy ? "Saving…" : "Save economics"}
+        </Btn>
+      </div>
+    </Card>
   );
 }
 
