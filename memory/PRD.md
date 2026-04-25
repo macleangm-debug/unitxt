@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-25 (iteration 13)
-**Version**: 1.12 (Corporate redesign · Grouped sidebars · Blue accent system)
+**Last updated**: 2026-04-25 (iteration 14)
+**Version**: 1.13 (In-app API docs · Mobile-friendly Wallet)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.4
@@ -17,7 +17,22 @@ Country Hub + Integration Health · Ops-only admin + unified approvals + public 
 - 'Made with Emergent' badge removed.
 - Iteration 12: 25/25 + 43/43 tests pass.
 
-### v1.12 — Corporate UI redesign + Grouped sidebars — **this iteration**
+### v1.12 — Corporate UI redesign + Grouped sidebars
+Visual system overhaul (Plus Jakarta Sans + zinc + blue-500 accent), grouped sidebars for all three portals, polished topbar. Iter 13: 100% frontend regression green.
+
+### v1.13 — In-app API docs + Mobile-friendly Wallet — **this iteration**
+- **In-app API documentation** (`/client/api-keys` redesigned as a 4-tab integrator console for banks / CRMs / e-commerce):
+  - **Your keys**: existing CRUD with mobile card-list view.
+  - **Quick start**: 3 hero sections (Authenticate, Send first SMS, Check balance) with cURL / Python / Node sub-tabs and copy-to-clipboard. Snippets are pre-filled with the user's actual API key + their REACT_APP_BACKEND_URL.
+  - **Endpoints**: searchable catalog grouped by use case (Messaging, Sender IDs, Number lookup, Wallet, Webhooks/DLR). Each endpoint has color-coded method badge (GET=emerald, POST=blue) and expands to show a pre-filled curl. Common-integrations callout for banks / CRMs / e-commerce.
+  - **Sender ID flow**: 3-step lifecycle (Submit → Review → Send), explanation banner, three pre-filled curl blocks (submit / poll / renew), and a CTA deep-linking to the Sender IDs dashboard.
+  - "Swagger reference" header link opens FastAPI's `/api/docs` in a new tab.
+- **Wallet redesigned for mobile + desktop breathability**:
+  - Responsive 2-col layout (balance left, packs right) on desktop; balance stacks above packs on mobile with single-column pack grid.
+  - "My top-up requests" and "Activity" are now collapsible sections (chevron toggle on mobile, always-open on desktop).
+  - Tables convert to card-list views on small screens — every transaction / top-up shown as a touch-friendly card.
+  - Bank Pay Modal polished with copy buttons on bank details (account number, SWIFT), proof-image preview, and instructions panel.
+- **Testing (iteration 14)**: 100% frontend regression — desktop AND mobile passes for both pages, Bank Pay Modal E2E green, all data-testids intact. See `/app/test_reports/iteration_14.json`.
 - **Visual system overhaul** — moved from "robotic / terminal-style" aesthetic (mono fonts everywhere, sharp 0-radius corners, neon green accent, all-caps tracked labels) to **corporate B2B SaaS** look:
   - Typography: **Plus Jakarta Sans** primary, **Inter** fallback, **JetBrains Mono** reserved strictly for tabular numbers.
   - Color palette: **zinc-based dark** (#0B0D10 page, #14171C surface) with a single **blue-500 accent** (#3B82F6) for CTA, active states and key data.
