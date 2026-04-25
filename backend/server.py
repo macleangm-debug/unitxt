@@ -3834,6 +3834,14 @@ async def startup():
             await db.users.update_one({"email": res_email},
                                        {"$set": {"password_hash": hash_password(res_pwd)}})
 
+    # Make sure the demo reseller has at least one affiliate code (idempotent)
+    if not await db.affiliate_codes.find_one({"owner_user_id": res_user["id"]}):
+        await db.affiliate_codes.insert_one({
+            "id": new_id(), "code": "RDEMO1", "note": "Demo reseller default code",
+            "active": True, "owner_user_id": res_user["id"],
+            "created_at": iso(now_utc()), "uses": 0,
+        })
+
     # seed demo client
     cli_email = os.environ.get("DEMO_CLIENT_EMAIL", "client@unitxt.io")
     cli_pwd = os.environ.get("DEMO_CLIENT_PASSWORD", "Client@2026")
