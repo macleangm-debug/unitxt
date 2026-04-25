@@ -1,0 +1,82 @@
+{
+  "summary": "Iteration 13 frontend regression testing complete - Corporate redesign with grouped sidebar navigation. All 3 portals (Client, Reseller, Admin) verified with correct sidebar grouping and all nav data-testids preserved. All 5 critical user flows working. Visual design elements verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_13.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CLIENT PORTAL: All 6 sidebar groups present (WORKSPACE, SEND, AUDIENCE, MESSAGING ASSETS, REPORTS & INTEGRATION, ACCOUNT)",
+    "CLIENT PORTAL: All 14 nav items with data-testids preserved (nav-dashboard, nav-quick-send, nav-bulk-send, nav-campaigns, nav-contacts, nav-number-lookup, nav-sender-ids, nav-sms-templates, nav-whatsapp, nav-reports, nav-api-keys, nav-webhooks, nav-credits, nav-referrals)",
+    "RESELLER PORTAL: All 5 sidebar groups present (WORKSPACE, NETWORK, SEND, ASSETS, PRICING & INSIGHTS)",
+    "RESELLER PORTAL: All 12 nav items with data-testids preserved (nav-dashboard, nav-clients, nav-earnings, nav-referrals, nav-quick-send, nav-bulk-send, nav-campaigns, nav-contacts, nav-sender-ids, nav-client-pricing, nav-float-credits, nav-reports)",
+    "ADMIN PORTAL: All 3 sidebar groups present (PLATFORM OPS, INSIGHTS, CONFIGURATION)",
+    "ADMIN PORTAL: All 8 nav items with data-testids preserved (nav-users, nav-resellers, nav-institutions, nav-approvals, nav-overview, nav-margin-&-revenue, nav-audit-logs, nav-settings-hub)",
+    "TOPBAR: Brand 'unitxt' with gradient blue square logo, search box with ⌘K hint, wallet chip (client/reseller only), notification bell, user chip with blue gradient avatar",
+    "NO 'Made with Emergent' badge anywhere",
+    "Visual design: Buttons rounded-md, primary solid blue (bg-blue-600), pills rounded-full with subtle muted backgrounds, cards rounded-lg, inputs rounded-md with blue focus ring"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (backend not tested per request)",
+    "frontend": "100% (all UI elements and flows verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "None - used existing seeded data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 13 complete. Corporate redesign verified: (1) Plus Jakarta Sans typography with mono only for tabular numbers; (2) Zinc color palette with single blue accent; (3) Grouped sidebar navigation for all 3 portals - Client (6 groups), Reseller (5 groups), Admin (3 groups); (4) All nav data-testids preserved; (5) Topbar with gradient brand mark, search with ⌘K, wallet chip, notification bell, user pill; (6) No 'Made with Emergent' badge. Critical flows verified: Client Bulk send preflight (preflight-run/preflight-result), Client Wallet bank transfer modal (pay-bank-*, bank-select, bank-pay-modal), Admin Approvals Top-up requests tab (atab-topup_requests), Admin Settings hub group tabs (settings-group-*), Admin Banks page (/admin/banks). Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs, not under test).",
+  "tests_executed": {
+    "frontend_regression": {
+      "client_portal_sidebar": {
+        "groups_verified": ["WORKSPACE", "SEND", "AUDIENCE", "MESSAGING ASSETS", "REPORTS & INTEGRATION", "ACCOUNT"],
+        "nav_items_verified": 14,
+        "status": "PASS"
+      },
+      "reseller_portal_sidebar": {
+        "groups_verified": ["WORKSPACE", "NETWORK", "SEND", "ASSETS", "PRICING & INSIGHTS"],
+        "nav_items_verified": 12,
+        "status": "PASS"
+      },
+      "admin_portal_sidebar": {
+        "groups_verified": ["PLATFORM OPS", "INSIGHTS", "CONFIGURATION"],
+        "nav_items_verified": 8,
+        "status": "PASS"
+      },
+      "critical_flows": {
+        "client_bulk_send_preflight": "PASS - preflight-run and preflight-result working",
+        "client_wallet_bank_transfer": "PASS - 7 pay-bank-* buttons, bank-select in modal, bank-pay-modal visible",
+        "admin_approvals_topup_tab": "PASS - atab-topup_requests tab found and clickable",
+        "admin_settings_hub_groups": "PASS - 6 settings-group-* tabs found and switchable",
+        "admin_banks_page": "PASS - /admin/banks loads with CRDB Bank row, Add bank account button"
+      },
+      "visual_design": {
+        "brand_logo": "PASS - unitxt with gradient blue square",
+        "search_box": "PASS - with ⌘K hint",
+        "wallet_chip": "PASS - visible for client/reseller, hidden for admin",
+        "notification_bell": "PASS",
+        "user_chip": "PASS - rounded-full pill with blue gradient avatar",
+        "no_emergent_badge": "PASS - no 'Made with Emergent' badge found",
+        "buttons": "PASS - rounded-md, primary solid blue",
+        "pills": "PASS - rounded-full with subtle muted backgrounds",
+        "cards": "PASS - rounded-lg corners"
+      }
+    }
+  },
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (not under test)",
+    "Twilio REST adapter (not under test)"
+  ]
+}
