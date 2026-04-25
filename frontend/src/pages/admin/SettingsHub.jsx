@@ -305,7 +305,7 @@ export default function SettingsHub() {
       <Card className="mt-6" testid="settings-banner">
         <div className="flex items-center gap-3">
           <Layers className="h-4 w-4 text-zinc-400" strokeWidth={1.5}/>
-          <Pill status="info">CONFIG SPINE</Pill>
+          <Pill status="info">CONFIGURATION</Pill>
           <div className="text-sm text-zinc-400">
             Add new setting keys from any module. The hub auto-renders editors based on value type
             (boolean, number, list, string, JSON).

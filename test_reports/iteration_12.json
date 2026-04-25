@@ -1,0 +1,101 @@
+{
+  "summary": "Iteration 12 testing complete - Router refactor regression + new tunable settings. Backend: 25/25 tests passed (100%). Frontend: All features verified working. Iteration 11 regression: 43/43 tests passed (100%).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration12_refactor_settings.py",
+    "/app/backend/tests/test_iteration11_banks_topups_preflight.py",
+    "/app/test_reports/pytest/iteration12_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Router refactor successful - banks.py, topups.py, messaging_extras.py extracted from server.py",
+    "All 4 migrated routers (admin_banks, client_banks, topups, messaging_extras) work correctly",
+    "New tunable settings seeded: messaging.preflight_free_sample=20, messaging.preflight_red_threshold=50, messaging.preflight_amber_threshold=80, topups.max_proof_kb=4096",
+    "PUT /api/admin/settings can update all new tunable keys",
+    "Tunable behavior verified: amber_threshold=100 triggers warning for <100% valid_pct",
+    "Tunable behavior verified: max_proof_kb enforcement returns 400 with size limit in error message",
+    "Landing page hero: 'Reach every customer. In every country.' - no old marketing copy",
+    "Login page left-rail: 'Send your next campaign in under a minute.' - no 'control room' copy",
+    "'Made with Emergent' badge fully removed from index.html",
+    "Settings Hub banner: 'CONFIGURATION' (not 'CONFIG SPINE')",
+    "Bank accounts module link present in Distribution & treasury group, navigates to /admin/banks",
+    "Client Bulk Send: PRE-FLIGHT CHECK block + SAVED COLUMN MAPS card render correctly"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration12_refactor_settings.py"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 iteration 12 tests + 43/43 iteration 11 regression tests)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "client": "client@unitxt.io / Client@2026 (country TZ)"
+  },
+  "seed_data_creation": "Test banks, topups, and CSV mappings created and cleaned up during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 12 complete. Refactor verified: (1) banks.py - admin CRUD at /admin/banks + client scoped at /banks; (2) topups.py - client submit/list/proof at /wallet/topups + admin list/detail/review at /admin/topups; (3) messaging_extras.py - preflight at /messaging/preflight + csv-mappings CRUD at /messaging/csv-mappings. New tunable settings: messaging.preflight_free_sample (20), messaging.preflight_red_threshold (50), messaging.preflight_amber_threshold (80), topups.max_proof_kb (4096). Frontend copy rewritten: Landing hero='Reach every customer. In every country.', Login left-rail='Send your next campaign in under a minute.', no 'control room/configurable spine/Bloomberg' anywhere. 'Made with Emergent' badge removed. Settings Hub banner='CONFIGURATION'. Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs, not under test).",
+  "tests_executed": {
+    "iteration_12": {
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "categories": {
+        "setup_auth": 2,
+        "new_tunable_settings": 7,
+        "tunable_behavior": 5,
+        "regression_other_endpoints": 3,
+        "regression_migrated_routers": 7,
+        "cleanup": 1
+      }
+    },
+    "iteration_11_regression": {
+      "total": 43,
+      "passed": 43,
+      "failed": 0
+    }
+  },
+  "frontend_tests_executed": {
+    "landing_page_hero": "PASS - 'Reach every customer. In every country.'",
+    "landing_page_no_old_copy": "PASS - No 'bulk messaging operating system', 'control room', 'configurable spine', 'Bloomberg of SMS', 'CMS'",
+    "landing_page_new_copy": "PASS - '12 countries, 98.7% delivery, transparent per-message pricing'",
+    "landing_page_no_badge": "PASS - No 'Made with Emergent' badge",
+    "login_page_left_rail": "PASS - 'Send your next campaign in under a minute.'",
+    "login_page_no_old_copy": "PASS - No 'control room access', 'twelve countries three providers'",
+    "login_page_no_badge": "PASS - No 'Made with Emergent' badge",
+    "settings_hub_banner": "PASS - 'CONFIGURATION' (not 'CONFIG SPINE')",
+    "settings_hub_banks_link": "PASS - Bank accounts module link in Distribution & treasury group",
+    "admin_banks_page": "PASS - /admin/banks loads with seeded CRDB Bank",
+    "client_bulk_send_preflight": "PASS - PRE-FLIGHT CHECK block with 'free · sample of 20'",
+    "client_bulk_send_saved_maps": "PASS - SAVED COLUMN MAPS card renders"
+  },
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (not under test)",
+    "Twilio REST adapter (not under test)"
+  ],
+  "features_verified": {
+    "router_refactor_banks_admin": "PASS - GET/POST/PUT/DELETE /api/admin/banks",
+    "router_refactor_banks_client": "PASS - GET /api/banks (scoped by country)",
+    "router_refactor_topups_client": "PASS - POST/GET/proof /api/wallet/topups",
+    "router_refactor_topups_admin": "PASS - GET/detail/review /api/admin/topups",
+    "router_refactor_preflight": "PASS - POST /api/messaging/preflight (FREE)",
+    "router_refactor_csv_mappings": "PASS - GET/POST/used/DELETE /api/messaging/csv-mappings",
+    "settings_preflight_free_sample": "PASS - Seeded with default 20",
+    "settings_preflight_red_threshold": "PASS - Seeded with default 50",
+    "settings_preflight_amber_threshold": "PASS - Seeded with default 80, updatable, affects runtime",
+    "settings_max_proof_kb": "PASS - Seeded with default 4096, updatable, enforced on topup submit",
+    "regression_auth_login": "PASS - POST /api/auth/login",
+    "regression_auth_me": "PASS - GET /api/auth/me",
+    "regression_credits_packs": "PASS - GET /api/credits/packs (local currency for TZ)",
+    "regression_approvals_inbox": "PASS - GET /api/admin/approvals/inbox (includes topup_requests)"
+  }
+}

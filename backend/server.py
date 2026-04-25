@@ -1550,142 +1550,8 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
     return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits}
 
 
-# ---------- Pre-flight: validate a small sample of a bulk list FOR FREE ----------
-class PreflightIn(BaseModel):
-    phones: List[str]
-    sample_size: int = 20
-
-
-@msg_r.post("/preflight")
-async def bulk_preflight(body: PreflightIn, user: dict = Depends(get_current_user)):
-    """Runs smart validation on up to 20 numbers FOR FREE so the client can gauge
-    the quality of a large list before committing credits to a full bulk send.
-    Returns per-number results + aggregated stats and a plain-English warning
-    when the predicted valid rate is below 80%."""
-    if not body.phones:
-        raise HTTPException(400, "Provide at least one number.")
-    cap = max(1, min(int(body.sample_size or 20), 20))
-    # Take a spread sample (first + middle + last slice) so we don't just see the top
-    full = [p for p in body.phones if p and str(p).strip()]
-    if len(full) <= cap:
-        sample = full
-    else:
-        step = max(1, len(full) // cap)
-        sample = [full[i] for i in range(0, len(full), step)][:cap]
-    results = []
-    buckets = {"valid": 0, "invalid_format": 0, "unknown_operator": 0,
-                "dnd_or_flagged": 0, "bad_history": 0}
-    country_counts: Dict[str, int] = {}
-    operator_counts: Dict[str, int] = {}
-    for p in sample:
-        res = await smart_validate_number(p, user["id"])
-        code = res.get("country") or "?"
-        country_counts[code] = country_counts.get(code, 0) + 1
-        op = res.get("operator") or "unknown"
-        operator_counts[op] = operator_counts.get(op, 0) + 1
-        if res.get("valid"):
-            buckets["valid"] += 1
-        else:
-            reason = (res.get("reason") or "").lower()
-            if "format" in reason or "invalid" in reason:
-                buckets["invalid_format"] += 1
-            elif "operator" in reason or "prefix" in reason:
-                buckets["unknown_operator"] += 1
-            elif "dnd" in reason or "opt-out" in reason or "flagged" in reason:
-                buckets["dnd_or_flagged"] += 1
-            else:
-                buckets["bad_history"] += 1
-        results.append(res)
-    n = len(sample) or 1
-    valid_pct = round(buckets["valid"] * 100 / n, 1)
-    # Estimate total list's quality + suggested failures
-    predicted_valid = int(round(len(full) * valid_pct / 100))
-    predicted_failed = len(full) - predicted_valid
-    warning = None
-    if valid_pct < 50:
-        warning = (f"Heads-up: only ~{valid_pct}% of your sample look deliverable. "
-                    f"That's roughly {predicted_failed:,} wasted credits on a list this size. "
-                    f"Clean the list (Contacts → Auto-clean) before you send.")
-    elif valid_pct < 80:
-        warning = (f"~{valid_pct}% of your sample look deliverable. Consider running "
-                    f"Auto-clean on the list or reviewing the flagged rows below.")
-    return {
-        "checked": n,
-        "total_in_list": len(full),
-        "valid_pct": valid_pct,
-        "buckets": buckets,
-        "predicted_valid": predicted_valid,
-        "predicted_failed": predicted_failed,
-        "countries": country_counts,
-        "operators": operator_counts,
-        "warning": warning,
-        "results": results,
-        "free": True,
-    }
-
-
-# ---------- Saved CSV column mappings (per-user presets) ----------
-class CsvMappingIn(BaseModel):
-    name: str
-    phone_column: str
-    column_renames: Dict[str, str] = {}
-    note: Optional[str] = ""
-
-
-@msg_r.get("/csv-mappings")
-async def list_csv_mappings(user: dict = Depends(get_current_user)):
-    rows = await db.csv_mappings.find({"user_id": user["id"]}, {"_id": 0}).sort(
-        "created_at", -1).to_list(200)
-    return rows
-
-
-@msg_r.post("/csv-mappings")
-async def save_csv_mapping(body: CsvMappingIn, user: dict = Depends(get_current_user)):
-    name = (body.name or "").strip()
-    if not name:
-        raise HTTPException(400, "Give your mapping a name (e.g. 'CRM Export').")
-    if not body.phone_column:
-        raise HTTPException(400, "Pick which column holds the phone number.")
-    # Upsert by (user_id, name) so clients can re-save under the same name
-    existing = await db.csv_mappings.find_one({"user_id": user["id"], "name": name})
-    doc = {
-        "id": existing["id"] if existing else new_id(),
-        "user_id": user["id"],
-        "name": name,
-        "phone_column": body.phone_column,
-        "column_renames": body.column_renames or {},
-        "note": body.note or "",
-        "created_at": existing["created_at"] if existing else iso(now_utc()),
-        "updated_at": iso(now_utc()),
-        "last_used_at": existing.get("last_used_at") if existing else None,
-    }
-    if existing:
-        await db.csv_mappings.update_one({"id": existing["id"]}, {"$set": doc})
-    else:
-        await db.csv_mappings.insert_one(doc)
-    return clean(doc)
-
-
-@msg_r.post("/csv-mappings/{mid}/used")
-async def touch_csv_mapping(mid: str, user: dict = Depends(get_current_user)):
-    r = await db.csv_mappings.find_one({"id": mid, "user_id": user["id"]})
-    if not r:
-        raise HTTPException(404)
-    await db.csv_mappings.update_one({"id": mid},
-        {"$set": {"last_used_at": iso(now_utc())}})
-    return {"ok": True}
-
-
-@msg_r.delete("/csv-mappings/{mid}")
-async def delete_csv_mapping(mid: str, user: dict = Depends(get_current_user)):
-    r = await db.csv_mappings.delete_one({"id": mid, "user_id": user["id"]})
-    if r.deleted_count == 0:
-        raise HTTPException(404)
-    return {"ok": True}
-
-
-# ---------- End preflight / csv-mappings ----------
-
+# Pre-flight (Wave A) and saved CSV mappings (Wave B) are mounted from
+# routes.messaging_extras at the bottom of this file.
 
 
 @msg_r.get("/campaigns")
@@ -3752,225 +3618,19 @@ async def country_set_fx(code: str, body: CountryFxIn,
     return {"ok": True, **body.model_dump()}
 
 
-# ---------- Bank accounts registry (Settings hub → bank.accounts) ----------
-class BankAccountIn(BaseModel):
-    country: str  # ISO-2
-    bank_name: str
-    account_name: str
-    account_number: str
-    branch: Optional[str] = ""
-    swift: Optional[str] = ""
-    instructions: Optional[str] = ""  # plain-English notes
-    currency: Optional[str] = None
-    active: bool = True
+# ---------- Banks & top-up routes have moved to routes/banks.py and routes/topups.py ----------
+# (See bottom of file for the import + include_router statements.)
 
 
-bank_r = APIRouter(prefix="/admin/banks", tags=["bank_accounts"])
+from routes import banks as routes_banks            # bank accounts CRUD + client lookup
+from routes import topups as routes_topups          # bank-transfer top-up flow (client + admin)
+from routes import messaging_extras as routes_msg_extras  # preflight + saved CSV mappings
 
-
-@bank_r.get("")
-async def list_bank_accounts(_: dict = Depends(require_roles("super_admin"))):
-    items = await db.bank_accounts.find({}, {"_id": 0}).sort("country", 1).to_list(200)
-    return items
-
-
-@bank_r.post("")
-async def create_bank_account(body: BankAccountIn,
-                                _: dict = Depends(require_roles("super_admin"))):
-    doc = {"id": new_id(), **body.model_dump(),
-            "country": body.country.upper(),
-            "created_at": iso(now_utc())}
-    await db.bank_accounts.insert_one(doc)
-    return clean(doc)
-
-
-@bank_r.put("/{bid}")
-async def update_bank_account(bid: str, body: BankAccountIn,
-                                _: dict = Depends(require_roles("super_admin"))):
-    await db.bank_accounts.update_one({"id": bid},
-        {"$set": {**body.model_dump(), "country": body.country.upper(),
-                   "updated_at": iso(now_utc())}})
-    return {"ok": True}
-
-
-@bank_r.delete("/{bid}")
-async def delete_bank_account(bid: str,
-                                _: dict = Depends(require_roles("super_admin"))):
-    await db.bank_accounts.delete_one({"id": bid})
-    return {"ok": True}
-
-
-# Public (authed) endpoint for clients: which banks can I pay into?
-pub_bank_r = APIRouter(prefix="/banks", tags=["banks"])
-
-
-@pub_bank_r.get("")
-async def my_banks(user: dict = Depends(get_current_user)):
-    """Return bank accounts for the user's country, falling back to global (country='*')."""
-    country = (user.get("country") or "").upper()
-    q = {"active": True, "$or": [{"country": country}, {"country": "*"}]} if country \
-        else {"active": True, "country": "*"}
-    items = await db.bank_accounts.find(q, {"_id": 0}).to_list(50)
-    return items
-
-
-# ---------- Top-up requests (bank transfer flow with proof upload) ----------
-class TopupRequestIn(BaseModel):
-    pack_id: Optional[str] = None          # if paying a standard pack
-    amount_usd: Optional[float] = None     # or a free-form amount
-    method: str = "bank_transfer"          # bank_transfer | mpesa | airtel_money | ...
-    bank_id: Optional[str] = None          # which bank the user paid into
-    reference: Optional[str] = ""          # bank reference number entered by user
-    note: Optional[str] = ""
-    proof_image: Optional[str] = None      # base64 data URL of receipt / photo
-    promo_code: Optional[str] = None
-
-
-topup_r = APIRouter(prefix="/wallet/topups", tags=["topups"])
-
-
-@topup_r.post("")
-async def submit_topup(body: TopupRequestIn, user: dict = Depends(get_current_user)):
-    # Resolve how much + how many credits to provision on approval
-    credits = 0
-    usd = 0.0
-    pack_name = None
-    if body.pack_id:
-        pack = await db.credit_packs.find_one({"id": body.pack_id, "active": True})
-        if not pack:
-            raise HTTPException(404, "Pack not found or inactive.")
-        usd = float(pack["price_usd"])
-        credits = int(pack["credits"])
-        pack_name = pack["name"]
-    elif body.amount_usd and body.amount_usd > 0:
-        usd = float(body.amount_usd)
-        usd_per_credit = float(await get_setting("economy.usd_per_credit", 0.01) or 0.01)
-        credits = int(round(usd / usd_per_credit))
-    else:
-        raise HTTPException(400, "Pick a pack or enter an amount.")
-
-    local = await convert_usd_to_local(user.get("country"), usd)
-    if body.proof_image:
-        size_kb = len(body.proof_image.encode()) / 1024
-        if size_kb > 4096:
-            raise HTTPException(400, "Proof image is too big (max ~4MB). Compress it and retry.")
-
-    doc = {
-        "id": new_id(), "user_id": user["id"], "user_email": user["email"],
-        "user_country": user.get("country"),
-        "pack_id": body.pack_id, "pack_name": pack_name,
-        "method": body.method, "bank_id": body.bank_id,
-        "reference": body.reference or "", "note": body.note or "",
-        "promo_code": body.promo_code or "",
-        "amount_usd": round(usd, 4),
-        "local_amount": local["rounded"],
-        "local_currency": local["currency"],
-        "fx_rate_used": local["fx_rate"],
-        "credits_on_approval": credits,
-        "proof_image": body.proof_image or "",
-        "status": "pending",
-        "created_at": iso(now_utc()),
-    }
-    await db.topup_requests.insert_one(doc)
-    await add_notification(user["id"], "Top-up request submitted",
-                            f"We received your {local['currency']} {local['rounded']:.0f} top-up request. "
-                            f"You'll get {credits:,} credits once admin verifies your payment.",
-                            "info")
-    d = dict(doc); d.pop("proof_image", None); return clean(d)
-
-
-@topup_r.get("")
-async def my_topups(user: dict = Depends(get_current_user)):
-    rows = await db.topup_requests.find({"user_id": user["id"]},
-        {"_id": 0, "proof_image": 0}).sort("created_at", -1).limit(100).to_list(100)
-    return rows
-
-
-@topup_r.get("/{tid}/proof")
-async def my_topup_proof(tid: str, user: dict = Depends(get_current_user)):
-    r = await db.topup_requests.find_one({"id": tid, "user_id": user["id"]},
-                                           {"_id": 0})
-    if not r:
-        raise HTTPException(404)
-    return {"id": r["id"], "proof_image": r.get("proof_image") or ""}
-
-
-# ---------- Admin side ----------
-adm_topup_r = APIRouter(prefix="/admin/topups", tags=["admin_topups"])
-
-
-@adm_topup_r.get("")
-async def list_topups(status: Optional[str] = None,
-                       _: dict = Depends(require_roles("super_admin", "finance"))):
-    q = {"status": status} if status else {}
-    rows = await db.topup_requests.find(q, {"_id": 0, "proof_image": 0}).sort(
-        "created_at", -1).limit(500).to_list(500)
-    return rows
-
-
-@adm_topup_r.get("/{tid}")
-async def topup_detail(tid: str,
-                         _: dict = Depends(require_roles("super_admin", "finance"))):
-    r = await db.topup_requests.find_one({"id": tid}, {"_id": 0})
-    if not r:
-        raise HTTPException(404)
-    return r
-
-
-class TopupReviewIn(BaseModel):
-    status: str  # approved | rejected
-    note: Optional[str] = ""
-
-
-@adm_topup_r.post("/{tid}/review")
-async def review_topup(tid: str, body: TopupReviewIn,
-                         admin: dict = Depends(require_roles("super_admin", "finance"))):
-    if body.status not in ("approved", "rejected"):
-        raise HTTPException(400, "Invalid status")
-    r = await db.topup_requests.find_one({"id": tid})
-    if not r:
-        raise HTTPException(404)
-    if r["status"] != "pending":
-        raise HTTPException(400, "Already reviewed")
-    update = {"status": body.status, "reviewed_at": iso(now_utc()),
-               "reviewed_by": admin["id"], "review_note": body.note or ""}
-    await db.topup_requests.update_one({"id": tid}, {"$set": update})
-    if body.status == "approved":
-        # Credit wallet + optional promo bonus
-        credits = int(r.get("credits_on_approval", 0))
-        bonus = 0
-        if r.get("promo_code"):
-            promo = await db.promotions.find_one({"code": r["promo_code"].upper(),
-                                                    "active": True})
-            if promo and float(r.get("amount_usd", 0)) >= float(promo.get("min_topup", 0)):
-                if (promo.get("country") in (None, r.get("user_country"))):
-                    if promo["type"] == "bonus_credit":
-                        bonus = int(float(promo["value"]) * 100)
-                    elif promo["type"] == "percent_discount":
-                        bonus = int(credits * float(promo["value"]) / 100.0)
-        total = credits + bonus
-        if total > 0:
-            await adjust_wallet(r["user_id"], total, "topup_bank",
-                                 note=f"Bank transfer · {r['local_currency']} "
-                                      f"{r['local_amount']:.0f} · ref {r.get('reference') or '—'}",
-                                 ref=tid)
-        await add_notification(r["user_id"], "Top-up approved",
-                                 f"+{total:,} credits added to your wallet "
-                                 f"({credits:,} credits" +
-                                 (f" + {bonus:,} promo bonus" if bonus else "") + ").",
-                                 "success")
-    else:
-        await add_notification(r["user_id"], "Top-up rejected",
-                                 body.note or "Please contact support.",
-                                 "warning")
-    await add_audit(admin["id"], f"topup.{body.status}", target=tid, meta={"note": body.note})
-    return {"ok": True}
-
-
-api.include_router(bank_r)
-api.include_router(pub_bank_r)
-api.include_router(topup_r)
-api.include_router(adm_topup_r)
+api.include_router(routes_banks.admin_r)
+api.include_router(routes_banks.client_r)
+api.include_router(routes_topups.client_r)
+api.include_router(routes_topups.admin_r)
+api.include_router(routes_msg_extras.router)
 api.include_router(sid_r)
 api.include_router(tpl_r)
 api.include_router(msg_r)
@@ -4225,6 +3885,12 @@ async def startup():
         ("streak.7_day_bonus", 100, "streaks"),
         ("streak.30_day_bonus", 1000, "streaks"),
         ("streak.90_day_bonus", 5000, "streaks"),
+        # Messaging — pre-flight (free sample validation) thresholds
+        ("messaging.preflight_free_sample", 20, "queue"),
+        ("messaging.preflight_red_threshold", 50, "queue"),
+        ("messaging.preflight_amber_threshold", 80, "queue"),
+        # Top-up flow (manual bank transfer) — receipt size cap, in KB
+        ("topups.max_proof_kb", 4096, "compliance"),
     ]
     for k, v, cat in defaults:
         await db.system_settings.update_one(

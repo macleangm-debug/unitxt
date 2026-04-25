@@ -4,33 +4,33 @@ import { ArrowUpRight, Globe2, Zap, ShieldCheck, Layers, MessageSquare, BarChart
 const FEATURES = [
   {
     icon: Globe2,
-    title: "Multi-country routing",
-    body: "Plug your Tanzania telco. Add Twilio for the world. Smart failover, per-country pricing — configurable, never hardcoded.",
+    title: "Reach 12 countries today",
+    body: "Direct local routes plus global fallbacks deliver to every operator we cover — no patchy networks, no surprise blocks.",
   },
   {
     icon: Zap,
-    title: "SMS + WhatsApp",
-    body: "One queue, two channels. Quick send, bulk upload, scheduling, merge tags, recurring sends. Built like a dispatch engine.",
+    title: "SMS + WhatsApp · one queue",
+    body: "Quick send, bulk upload, scheduling, merge tags, recurring campaigns. Hit 100k recipients in under a minute.",
   },
   {
     icon: Layers,
-    title: "Reseller economics",
-    body: "White-label resellers fund clients, earn margin or commission, and operate inside their own portal with full visibility.",
+    title: "Reseller-ready",
+    body: "Run a white-label messaging business: float wallets, fund clients, set your own retail prices, earn margin or commission — all baked in.",
   },
   {
     icon: ShieldCheck,
-    title: "Sender ID workflow",
-    body: "Country-aware approvals, document checklist, provider compatibility — compliance is a process, not a guess.",
+    title: "Sender IDs that actually get approved",
+    body: "Country-aware applications, document checklist, provider compatibility. We track the lifecycle so you don't lose another campaign to compliance.",
   },
   {
     icon: MessageSquare,
-    title: "Institution integrations",
-    body: "Banks, mobile-money, fintech and CRMs connect through a common adapter. Users link their own systems when allowed.",
+    title: "Plug into your stack",
+    body: "REST API, webhooks for delivery reports, ready-made adapters for banks, mobile-money and CRMs. Go live this week, not next quarter.",
   },
   {
     icon: BarChart3,
-    title: "Settings hub as the brain",
-    body: "Every threshold, every promo, every provider key. The platform behaves how you configure — no code deploys.",
+    title: "See every credit, every message",
+    body: "Live delivery dashboards with failure-reason breakdowns, per-campaign P&L, and audit logs your finance team can sign off on.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function Landing() {
             </div>
             <span className="font-display text-lg font-bold tracking-tight">unitxt</span>
             <span className="ml-2 hidden font-mono text-[10px] tracking-widest text-zinc-500 sm:inline">
-              GLOBAL MESSAGING OS
+              SMS · WHATSAPP · 12 COUNTRIES
             </span>
           </Link>
           <div className="flex items-center gap-6 text-sm">
@@ -83,16 +83,16 @@ export default function Landing() {
         <div className="relative mx-auto max-w-7xl px-6 pb-32 pt-24 sm:pt-32">
           <div className="rise inline-flex items-center gap-2 border border-zinc-800 bg-zinc-950/60 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-400">
             <span className="signal-dot" style={{ color: "#34C759" }} />
-            v1.0 · LIVE ROUTING ACROSS 12 COUNTRIES
+            v1.0 · LIVE IN 12 COUNTRIES
           </div>
           <h1 className="rise rise-1 mt-8 font-display text-5xl font-bold leading-[0.95] tracking-tighter sm:text-7xl md:text-8xl">
-            The bulk messaging<br />
-            <span className="text-zinc-500">operating system.</span>
+            Reach every customer.<br />
+            <span className="text-zinc-500">In every country.</span>
           </h1>
           <p className="rise rise-2 mt-8 max-w-2xl text-lg leading-relaxed text-zinc-400">
-            One platform to route SMS and WhatsApp across countries and providers, run reseller networks,
-            manage wallets, sender IDs, and institutional integrations — all from a settings hub built like
-            a control room, not a CMS.
+            unitxt is the fastest way to send SMS and WhatsApp at scale. Local routes in
+            12 countries, 98.7% delivery, transparent per-message pricing — and a free
+            workspace you can launch a campaign from in 60 seconds.
           </p>
           <div className="rise rise-3 mt-12 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -131,26 +131,26 @@ export default function Landing() {
       {/* PORTAL CARDS */}
       <section id="platform" className="border-t border-zinc-900 bg-[#0A0A0A]">
         <div className="mx-auto max-w-7xl px-6 py-24">
-          <div className="label-overline">Three portals · One spine</div>
+          <div className="label-overline">For the people who actually send</div>
           <h2 className="mt-4 max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-            Built for clients, resellers, and the people who run the show.
+            Built for the businesses you run, not the boxes you tick.
           </h2>
           <div className="mt-12 grid gap-px overflow-hidden border border-zinc-900 bg-zinc-900 md:grid-cols-3">
             {[
               {
-                tag: "CLIENT",
-                title: "Send anything, anywhere.",
-                points: ["Quick & bulk SMS", "WhatsApp campaigns", "Sender ID workflow", "Wallet & invoices"],
+                tag: "FOR BRANDS",
+                title: "Reach customers in seconds.",
+                points: ["Bulk SMS to 100k+", "WhatsApp campaigns", "Personalised merge tags", "Live delivery reports"],
               },
               {
-                tag: "RESELLER",
-                title: "Run a messaging business.",
-                points: ["Float wallet", "Onboard & fund clients", "Set client pricing", "Earn margin"],
+                tag: "FOR RESELLERS",
+                title: "Launch a messaging business.",
+                points: ["Brand it as your own", "Onboard & fund clients", "Set your retail pricing", "Earn margin every send"],
               },
               {
-                tag: "ADMIN",
-                title: "The Bloomberg of SMS.",
-                points: ["Country & provider control", "Routing intelligence", "Settings hub", "Revenue & risk"],
+                tag: "FOR ENTERPRISES",
+                title: "Scale without the headaches.",
+                points: ["Local routes, global fallback", "Per-team wallets", "API + webhooks", "SLA-backed support"],
               },
             ].map((c, i) => (
               <div key={c.tag} className="bg-[#0A0A0A] p-8">
@@ -177,14 +177,15 @@ export default function Landing() {
         <div className="mx-auto max-w-7xl px-6 py-24">
           <div className="grid gap-16 lg:grid-cols-[1fr,1.4fr]">
             <div>
-              <div className="label-overline">Capabilities</div>
+              <div className="label-overline">What you get</div>
               <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight">
-                A configurable spine, not a fixed product.
+                Send more. Lose less. Sleep better.
               </h2>
               <p className="mt-6 max-w-md text-zinc-400">
-                Most of the platform's behaviour is driven by configuration tables — countries, providers,
-                pricing, sender IDs, promotions. Add a country in the morning, route a million messages by
-                lunch.
+                Pre-flight validation catches bad numbers before you spend a credit. Smart
+                routing picks the best operator route for every message. Plain-English
+                delivery reports tell you exactly where things went right — and what to
+                fix when they don't.
               </p>
             </div>
             <div className="grid gap-px overflow-hidden border border-zinc-900 bg-zinc-900 sm:grid-cols-2">
@@ -233,7 +234,7 @@ export default function Landing() {
 
       <footer className="border-t border-zinc-900 py-10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 text-xs text-zinc-600 sm:flex-row">
-          <div className="font-mono tracking-widest">© 2026 UNITXT · GLOBAL MESSAGING OS</div>
+          <div className="font-mono tracking-widest">© 2026 UNITXT · SMS & WHATSAPP, GLOBAL</div>
           <div className="flex gap-4">
             <span>Privacy</span>
             <span>Compliance</span>

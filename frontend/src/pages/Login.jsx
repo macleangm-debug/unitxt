@@ -43,12 +43,12 @@ export default function Login() {
             <span className="font-display text-lg font-bold">unitxt</span>
           </Link>
           <div>
-            <div className="label-overline">Control room access</div>
+            <div className="label-overline">Welcome back</div>
             <p className="mt-4 max-w-md font-display text-3xl font-semibold tracking-tight">
-              Twelve countries. Three providers. One console.
+              Send your next campaign in under a minute.
             </p>
             <p className="mt-3 max-w-md text-sm text-zinc-400">
-              Sign in to dispatch messages, manage resellers, or run the platform.
+              Sign in to dispatch SMS and WhatsApp, manage your team, or run a reseller business.
             </p>
           </div>
           <div className="font-mono text-[10px] tracking-widest text-zinc-600">SECURE LINK · TLS 1.3 · v1.0</div>
