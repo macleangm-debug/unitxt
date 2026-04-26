@@ -558,6 +558,18 @@ async def register(body: RegisterIn, response: Response):
         user["commission_rate"] = 0.10
     await db.users.insert_one(user)
     await get_or_create_wallet(user["id"])
+    # Mint a default primary affiliate code for affiliate-eligible roles
+    if role in ("reseller", "affiliate"):
+        existing = await db.affiliate_codes.find_one({"owner_user_id": user["id"]})
+        if not existing:
+            seed = (user.get("referral_code") or
+                     ("U" + secrets.token_hex(3).upper()))
+            await db.affiliate_codes.insert_one({
+                "id": new_id(), "code": seed.upper(),
+                "note": "Primary affiliate code (default)",
+                "active": True, "owner_user_id": user["id"],
+                "created_at": iso(now_utc()), "uses": 0,
+            })
     # Welcome bonus for being referred via an affiliate code
     if referred_by:
         try:
@@ -2236,8 +2248,9 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
                         note=f"Pack {pack['name']} · {pack['credits']} credits"
                              + (f" + {bonus} promo" if bonus else ""),
                         ref=pack["id"], by=user["id"])
+    payment_id = new_id()
     await db.platform_payments.insert_one({
-        "id": new_id(), "user_id": user["id"], "pack_id": pack["id"],
+        "id": payment_id, "user_id": user["id"], "pack_id": pack["id"],
         "credits": pack["credits"], "bonus": bonus,
         "price_usd": float(pack["price_usd"]), "method": "mock",
         "promo_code": body.promo_code, "created_at": iso(now_utc()),
@@ -2246,7 +2259,7 @@ async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
     # Pulls model + rate from Settings Hub keys (affiliate.*).
     try:
         from routes.affiliate import record_topup_commission
-        await record_topup_commission(user, float(pack["price_usd"]), ref=pack["id"])
+        await record_topup_commission(user, float(pack["price_usd"]), ref=payment_id)
     except Exception:
         pass
     await add_notification(user["id"], "Credits added",

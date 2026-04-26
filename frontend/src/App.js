@@ -21,6 +21,11 @@ import ApiKeys from "@/pages/client/ApiKeys";
 import ResellerDashboard from "@/pages/reseller/ResellerDashboard";
 import ResellerClients from "@/pages/reseller/ResellerClients";
 import ResellerEarnings from "@/pages/reseller/ResellerEarnings";
+import AffiliateDashboard from "@/pages/reseller/AffiliateDashboard";
+import AffiliateCodes from "@/pages/reseller/AffiliateCodes";
+import AffiliateReferrals from "@/pages/reseller/AffiliateReferrals";
+import AffiliateEarnings from "@/pages/reseller/AffiliateEarnings";
+import AffiliatePayouts from "@/pages/reseller/AffiliatePayouts";
 
 import AdminCreditPacks from "@/pages/admin/AdminCreditPacks";
 import AdminMobilePrefixes from "@/pages/admin/AdminMobilePrefixes";
@@ -119,11 +124,17 @@ export default function App() {
             <Route path="webhooks" element={<WebhookSettings />} />
           </Route>
 
-          {/* Reseller */}
+          {/* Reseller / Affiliate workspace */}
           <Route path="/reseller" element={<ProtectedRoute roles={["reseller"]}><AppShell /></ProtectedRoute>}>
-            <Route path="dashboard" element={<ResellerDashboard />} />
+            <Route path="dashboard" element={<AffiliateDashboard />} />
+            <Route path="codes" element={<AffiliateCodes />} />
+            <Route path="referrals" element={<AffiliateReferrals />} />
+            <Route path="earnings" element={<AffiliateEarnings />} />
+            <Route path="payouts" element={<AffiliatePayouts />} />
+            {/* Optional: legacy reseller pages still available for backward-compat */}
             <Route path="clients" element={<ResellerClients />} />
-            <Route path="earnings" element={<ResellerEarnings />} />
+            <Route path="reseller-earnings" element={<ResellerEarnings />} />
+            <Route path="legacy-dashboard" element={<ResellerDashboard />} />
             <Route path="wallet" element={<Wallet />} />
             <Route path="campaigns" element={<Campaigns />} />
             <Route path="quick-send" element={<QuickSend />} />
@@ -131,8 +142,6 @@ export default function App() {
             <Route path="sender-ids" element={<SenderIds />} />
             <Route path="contacts" element={<Contacts />} />
             <Route path="reports" element={<Reports />} />
-            <Route path="pricing" element={<ResellerPricing />} />
-            <Route path="referrals" element={<Referrals />} />
           </Route>
 
           {/* Admin */}

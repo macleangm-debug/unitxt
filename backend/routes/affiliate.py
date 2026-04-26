@@ -38,6 +38,10 @@ class CodeIn(BaseModel):
     active: bool = True
 
 
+class PrimaryCodeIn(BaseModel):
+    code: str = Field(min_length=3, max_length=24)
+
+
 class PayoutRequestIn(BaseModel):
     method: str = Field(default="bank")  # bank | mobile_money | crypto
     payout_details: dict = {}            # account #, mpesa #, wallet addr, etc.
@@ -216,6 +220,9 @@ async def my_overview(user: dict = Depends(get_current_user)):
         {"$group": {"_id": "$status", "t": {"$sum": "$amount_usd"}}},
     ]).to_list(10)
     by_status = {r["_id"]: round(r["t"], 4) for r in earned}
+    # Find the user's primary code (first code created, or matching their referral_code)
+    primary = await db.affiliate_codes.find_one(
+        {"owner_user_id": user["id"]}, {"_id": 0}, sort=[("created_at", 1)])
     return {
         "config": cfg,
         "referrals": referred,
@@ -224,7 +231,48 @@ async def my_overview(user: dict = Depends(get_current_user)):
         "paid_usd": by_status.get("paid", 0),
         "available_usd": by_status.get("earned", 0),
         "default_code": user.get("referral_code"),
+        "primary_code": primary["code"] if primary else None,
+        "primary_code_renamed": bool(user.get("primary_code_renamed", False)),
     }
+
+
+@self_r.post("/primary-code")
+async def rename_primary_code(body: PrimaryCodeIn, user: dict = Depends(get_current_user)):
+    """One-shot rename of the affiliate's primary code (the system-issued default).
+
+    Once changed, the primary code is locked. Affiliates can still mint up to
+    `affiliate.max_codes_per_user` additional codes via POST /affiliate/codes.
+    """
+    if user.get("primary_code_renamed"):
+        raise HTTPException(400,
+            "You can only change your primary promo code once. "
+            "Use the secondary codes section to add more.")
+    new_code = body.code.strip().upper()
+    if len(new_code) < 3 or len(new_code) > 24:
+        raise HTTPException(400, "Code must be 3–24 characters.")
+    # Uniqueness across the platform
+    if await db.affiliate_codes.find_one({"code": new_code, "owner_user_id": {"$ne": user["id"]}}):
+        raise HTTPException(400, f"Code '{new_code}' is already taken.")
+    if await db.users.find_one({"referral_code": new_code, "id": {"$ne": user["id"]}}):
+        raise HTTPException(400, f"Code '{new_code}' clashes with another user.")
+    if await db.promotions.find_one({"code": new_code}):
+        raise HTTPException(400, f"Code '{new_code}' is reserved by a promotion.")
+    primary = await db.affiliate_codes.find_one(
+        {"owner_user_id": user["id"]}, sort=[("created_at", 1)])
+    if not primary:
+        # No code yet — mint one as the primary
+        await db.affiliate_codes.insert_one({
+            "id": new_id(), "code": new_code, "note": "Primary affiliate code",
+            "active": True, "owner_user_id": user["id"],
+            "created_at": iso(now_utc()), "uses": 0,
+        })
+    else:
+        await db.affiliate_codes.update_one(
+            {"id": primary["id"]},
+            {"$set": {"code": new_code, "note": "Primary affiliate code"}})
+    await db.users.update_one({"id": user["id"]},
+        {"$set": {"primary_code_renamed": True, "referral_code": new_code}})
+    return {"ok": True, "code": new_code}
 
 
 @self_r.get("/codes")

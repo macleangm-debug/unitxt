@@ -65,11 +65,12 @@ const RESELLER_NAV = [
     ],
   },
   {
-    group: "Network",
+    group: "Affiliate",
     items: [
-      { to: "/reseller/clients",   icon: Users,    label: "Clients" },
+      { to: "/reseller/codes",     icon: IdCard,     label: "Promo codes" },
+      { to: "/reseller/referrals", icon: Users,      label: "Referrals" },
       { to: "/reseller/earnings",  icon: DollarSign, label: "Earnings" },
-      { to: "/reseller/referrals", icon: Gift,     label: "Referrals" },
+      { to: "/reseller/payouts",   icon: WalletIcon, label: "Payouts" },
     ],
   },
   {
@@ -88,11 +89,10 @@ const RESELLER_NAV = [
     ],
   },
   {
-    group: "Pricing & insights",
+    group: "Account",
     items: [
-      { to: "/reseller/pricing", icon: DollarSign, label: "Client pricing" },
-      { to: "/reseller/wallet",  icon: Coins,      label: "Float credits" },
-      { to: "/reseller/reports", icon: BarChart3,  label: "Reports" },
+      { to: "/reseller/wallet",  icon: Coins,     label: "Credits" },
+      { to: "/reseller/reports", icon: BarChart3, label: "Reports" },
     ],
   },
 ];

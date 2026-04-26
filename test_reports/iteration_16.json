@@ -1,0 +1,142 @@
+{
+  "summary": "Iteration 16 testing complete - Affiliate Self-Service Portal fully verified. Backend: 11/11 tests passed. Frontend: All new pages and components working correctly. Fixed a bug in commission recording where pack_id was used instead of unique payment_id for idempotency.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration16_affiliate_portal.py",
+    "/app/test_reports/pytest/iteration16_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BACKEND BUG FIXED: credits/buy was using pack['id'] as ref for commission idempotency, causing only first purchase of each pack to record commission. Fixed to use unique payment_id.",
+    "BACKEND: POST /api/affiliate/primary-code correctly enforces one-shot rename with 400 error 'only change your primary promo code once'",
+    "BACKEND: Code uniqueness check works - returns 400 'already taken' or 'clashes' for duplicate codes",
+    "BACKEND: Code validation enforces 3-24 character range (422 for invalid length)",
+    "BACKEND: Auto-mint on reseller registration creates affiliate_codes row with U-prefixed 7-char code",
+    "BACKEND: GET /api/affiliate/me returns primary_code, primary_code_renamed, default_code correctly",
+    "BACKEND: Public attribution works - referral_code on registration sets referred_by to affiliate's user id",
+    "BACKEND: Commission recording works - affiliate_earnings created with kind='topup', model_used='time_window', status='earned', amount_usd=10% of pack price",
+    "BACKEND: Secondary codes CRUD works with 5 code cap enforced",
+    "FRONTEND: /reseller/dashboard renders AffiliateDashboard with hero card, primary code, share link, Copy button, 4 stat tiles, commission rules banner",
+    "FRONTEND: /reseller/codes renders AffiliateCodes with PRIMARY PROMO CODE block showing 'customised · locked' pill and 'Locked' icon for renamed codes",
+    "FRONTEND: /reseller/referrals renders table on desktop (data-testid='referrals-table') and card list on mobile",
+    "FRONTEND: /reseller/earnings renders earnings ledger with 4 status filter tabs (data-testid='earnings-tab-{key}') that filter rows correctly",
+    "FRONTEND: /reseller/payouts shows available amount, 'Request payout' button disabled when below $50 threshold",
+    "FRONTEND: /register?ref=RDEMO1 shows 'Promo applied' green banner, promo code field pre-filled and DISABLED",
+    "FRONTEND: /register without ?ref shows editable promo code field, no banner",
+    "FRONTEND: Mobile (390x844) - dashboard and earnings render without horizontal scrolling, tables convert to card lists"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration16_affiliate_portal.py",
+    "/app/backend/server.py (fixed commission ref to use payment_id instead of pack_id)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (all UI elements and flows verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026 (primary_code=RDEMO1, already renamed)",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Created multiple test users during backend testing for commission and referral flows",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 16 complete. Affiliate Self-Service Portal fully tested. Key fix: commission recording now uses unique payment_id instead of pack_id for idempotency. Demo reseller (reseller@unitxt.io) has primary_code='RDEMO1' with primary_code_renamed=true. To test first-time rename flow, register a new reseller. Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs).",
+  "tests_executed": {
+    "backend": {
+      "primary_code_rename": {
+        "already_renamed_400": "PASS - returns 400 'only change your primary promo code once'",
+        "fresh_reseller_can_rename": "PASS - returns {ok:true, code:'CUSTOMXXX'}",
+        "second_rename_rejected": "PASS - returns 400 after first rename"
+      },
+      "code_validation": {
+        "too_short": "PASS - returns 422 for code < 3 chars",
+        "too_long": "PASS - returns 422 for code > 24 chars"
+      },
+      "code_uniqueness": {
+        "duplicate_rejected": "PASS - returns 400 'already taken' or 'clashes'"
+      },
+      "auto_mint": {
+        "new_reseller_gets_code": "PASS - primary_code matches referral_code (U-prefixed 7-char), primary_code_renamed=false"
+      },
+      "public_attribution": {
+        "referral_code_sets_referred_by": "PASS - new user has referred_by set to affiliate's id"
+      },
+      "commission_on_topup": {
+        "commission_created": "PASS - affiliate_earnings created with kind='topup', model_used='time_window', status='earned', amount_usd=10%"
+      },
+      "secondary_codes": {
+        "create_delete": "PASS",
+        "cap_5_enforced": "PASS - returns 400 on 6th code"
+      },
+      "affiliate_me": {
+        "returns_correct_fields": "PASS - config, referrals, earned_usd, available_usd, primary_code, primary_code_renamed"
+      }
+    },
+    "frontend": {
+      "reseller_dashboard": {
+        "hero_card": "PASS - data-testid='aff-hero'",
+        "primary_code": "PASS - data-testid='aff-primary-code' shows 'RDEMO1'",
+        "copy_link": "PASS - data-testid='aff-copy-link'",
+        "stat_tiles": "PASS - aff-stat-referrals, aff-stat-earned, aff-stat-requested, aff-stat-paid",
+        "rules_banner": "PASS - data-testid='aff-rules'"
+      },
+      "reseller_codes": {
+        "primary_code_card": "PASS - data-testid='primary-code-card'",
+        "primary_code_value": "PASS - data-testid='primary-code-value' shows 'RDEMO1'",
+        "customised_locked_pill": "PASS - shows 'customised · locked'",
+        "locked_icon": "PASS - shows 'Locked' text",
+        "rename_btn_hidden": "PASS - not present for already renamed user",
+        "add_code_btn": "PASS - data-testid='add-code-btn'"
+      },
+      "reseller_referrals": {
+        "desktop_table": "PASS - data-testid='referrals-table'",
+        "mobile_cards": "PASS - 13 referral cards on mobile"
+      },
+      "reseller_earnings": {
+        "filter_tabs": "PASS - earnings-tab-all, earnings-tab-earned, earnings-tab-requested, earnings-tab-paid",
+        "tab_filtering": "PASS - clicking tabs filters rows",
+        "empty_state": "PASS - shows 'No earnings in this view' for empty tabs"
+      },
+      "reseller_payouts": {
+        "hero": "PASS - data-testid='payout-hero'",
+        "available_amount": "PASS - data-testid='payout-available' shows '$5.50'",
+        "request_btn_disabled": "PASS - disabled when below $50 threshold"
+      },
+      "register_with_ref": {
+        "promo_banner": "PASS - 'Promo applied' banner shown",
+        "code_prefilled": "PASS - 'RDEMO1' pre-filled",
+        "code_disabled": "PASS - field is disabled",
+        "role_dropdown": "PASS - 'Send messages' and 'Earn as affiliate' options"
+      },
+      "register_no_ref": {
+        "no_banner": "PASS - no 'Promo applied' banner",
+        "code_editable": "PASS - field is editable"
+      },
+      "mobile_responsive": {
+        "dashboard_no_scroll": "PASS - no horizontal scrolling at 390x844",
+        "earnings_no_scroll": "PASS - no horizontal scrolling at 390x844"
+      }
+    }
+  },
+  "bugs_fixed": [
+    {
+      "location": "/app/backend/server.py line 2261",
+      "issue": "Commission recording used pack['id'] as ref for idempotency, causing only first purchase of each pack to record commission",
+      "fix": "Changed to use unique payment_id instead of pack['id']",
+      "impact": "All subsequent purchases of the same pack now correctly record affiliate commission"
+    }
+  ],
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (not under test)",
+    "Twilio REST adapter (not under test)"
+  ]
+}
