@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-26 (iteration 18)
-**Version**: 1.17 (Per-message cost/revenue snapshots · Automated route-health monitor · Phase-2 routes split verified)
+**Last updated**: 2026-04-26 (iteration 19)
+**Version**: 1.18 (Phase-3 routes split · Settings Hub route-health panel · Per-message snapshots · Auto route-health alerts)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.10
@@ -95,12 +95,24 @@ Country VAT + sell + wholesale fields per country, per-route `buy_price_local_pr
 - **New helper** `set_setting(key, value)` for use by background workers.
 - **Testing (iteration 18)**: 23/23 new backend + 25/25 regression. See `/app/test_reports/iteration_18.json`.
 
+## v1.18 — Phase-3 routes split + Settings Hub route-health panel — **this iteration**
+- **Phase-3 routes split** — six more routers extracted from `server.py` (now 3,951 lines, down from 4,170):
+  - `routes/credits.py` — `/api/credits/{packs,rates,buy,recover}` (client pack purchase + recovery)
+  - `routes/dlr.py` — `/api/dlr/{provider_id}` (delivery-receipt webhook)
+  - `routes/referrals.py` — `/api/referrals/me` (legacy invite codes, kept for compat)
+  - `routes/profile.py` — `/api/profile/{streak,webhook}` (streak overview + DLR webhook config)
+  - `routes/wa_templates.py` — `/api/wa-templates` and `/api/admin/wa-templates` (client + admin WA template review)
+  - `routes/country_economics.py` — `/api/admin/country-economics/{code}` and `/api/admin/country-pnl`
+- **Settings Hub UI** — new `alerts.route_health_*` keys auto-render under Notifications tab (Governance & lifecycle group). The existing generic editor handles boolean/number editors out of the box, so no custom panel was needed. Runtime keys (`last_run_at`, per-provider `last_alert.{pid}`) are deliberately uncategorised so they never clutter the admin UI.
+- One-shot migration moves any pre-existing route-health settings from category `alerts` → `notifications` so they show in the right tab.
+- **Testing (iteration 19)**: 32/32 phase-3 + 25/25 iter-17 + 23/23 iter-18 regression all pass. See `/app/test_reports/iteration_19.json`.
+
 ## Backlog
 ### P0 (blocked on creds / decisions)
 - Real Twilio · Real Tigo TZ · Real Stripe · WhatsApp send via approved templates
 
 ### P1
-- Phase-3 routes split (extract msg_r, adm_r, adm_r2, country_r, econ_r, pnl_r out of server.py)
+- Phase-4 routes split (msg_r, adm_r, adm_r2 — the heaviest remaining ~2,000 lines)
 - Real-time provider health pings (active probe vs current passive monitor)
 - Email channel for route-health alerts (currently in-app only)
 - Opt-out / DND / spam-keyword / daily-send-limit enforcement
