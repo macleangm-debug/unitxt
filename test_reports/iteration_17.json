@@ -1,0 +1,118 @@
+{
+  "summary": "Iteration 17 regression testing complete. Phase-2 routes split verified - all extracted routes (/api/notifications, /api/api-keys, /api/prefixes) working correctly. New features tested: Per-Contact-Group stats endpoint and modal, Affiliate local-currency display. Backend: 25/25 tests passed. Frontend: All 3 roles login successfully, dashboards render, new features working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration17_regression.py",
+    "/app/test_reports/pytest/iteration17_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BACKEND: Phase-2 routes split successful - notifications.py, api_keys.py, prefixes.py all properly extracted and registered via include_router",
+    "BACKEND: GET /api/notifications returns {items:[], unread:int} - working correctly",
+    "BACKEND: GET /api/api-keys returns list, POST creates key with 'uxk_' prefix, DELETE removes key",
+    "BACKEND: GET /api/prefixes returns list with country/operator/prefix, supports ?country= filter",
+    "BACKEND: GET /api/prefixes/lookup?phone= returns operator match - working correctly",
+    "BACKEND: POST /api/prefixes requires super_admin role (403 for non-admin)",
+    "BACKEND: GET /api/contacts/groups/{gid}/stats returns group_id, group_name, contact_count, lifetime_sends, delivered, failed, delivery_rate, top_failure_reasons, last_send_at",
+    "BACKEND: GET /api/affiliate/me returns local_currency, local_fx_rate, earned_local, requested_local, paid_local fields",
+    "FRONTEND: Admin dashboard (/admin/overview) renders with Platform overview, stats, provider health",
+    "FRONTEND: Reseller dashboard (/reseller/dashboard) shows primary code 'RDEMO1', local currency '≈ TZS 14,300' under USD amounts",
+    "FRONTEND: Reseller earnings (/reseller/earnings) shows filter tabs with local currency, earnings table with referral details",
+    "FRONTEND: Client contacts (/client/contacts) has Stats button on groups, modal shows Contacts in group, Lifetime sends, Delivered, Failed, Delivery rate",
+    "FRONTEND: Group stats modal correctly shows 'No messages have been sent to anyone in this group yet' for empty groups"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration17_regression.py"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 tests passed)",
+    "frontend": "100% (all UI elements and flows verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Created test groups and contacts during testing, cleaned up after",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 17 complete. Phase-2 routes split verified - notifications, api_keys, prefixes all extracted to /app/backend/routes/ and working. New features: (1) GET /api/contacts/groups/{gid}/stats returns aggregated send metrics for contact groups; (2) Affiliate dashboard and earnings pages show local-currency equivalents (e.g., '≈ TZS 14,300') alongside USD. All 3 roles (admin, reseller, client) login and dashboard flows working. Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs).",
+  "tests_executed": {
+    "backend": {
+      "phase2_routes_split": {
+        "notifications_get": "PASS - returns {items:[], unread:int}",
+        "notifications_read_all": "PASS - marks all as read",
+        "notifications_auth": "PASS - requires auth (401)",
+        "api_keys_list": "PASS - returns list",
+        "api_keys_create_delete": "PASS - creates with uxk_ prefix, deletes",
+        "api_keys_auth": "PASS - requires auth (401)",
+        "prefixes_list": "PASS - returns list with country/operator/prefix",
+        "prefixes_filter_country": "PASS - ?country=TZ filters correctly",
+        "prefixes_lookup": "PASS - returns operator match",
+        "prefixes_admin_only": "PASS - POST requires super_admin (403)",
+        "prefixes_admin_crud": "PASS - admin can create/delete"
+      },
+      "contact_group_stats": {
+        "stats_endpoint": "PASS - returns all expected fields",
+        "stats_404": "PASS - returns 404 for nonexistent group"
+      },
+      "affiliate_local_currency": {
+        "me_has_local_fields": "PASS - local_currency, local_fx_rate, earned_local, requested_local, paid_local"
+      },
+      "smoke_all_roles": {
+        "admin_login": "PASS - role=super_admin",
+        "reseller_login": "PASS - role=reseller",
+        "client_login": "PASS - role=client, wallet balance returned"
+      },
+      "regression": {
+        "wallet_topup": "PASS",
+        "banks_list": "PASS",
+        "admin_banks": "PASS",
+        "affiliate_overview": "PASS",
+        "country_economics": "PASS",
+        "contacts_crud": "PASS",
+        "sender_ids": "PASS",
+        "templates_crud": "PASS"
+      }
+    },
+    "frontend": {
+      "admin_dashboard": {
+        "login_redirect": "PASS - redirects to /admin/overview",
+        "platform_overview": "PASS - shows stats, provider health"
+      },
+      "reseller_dashboard": {
+        "aff_hero": "PASS - data-testid='aff-hero' found",
+        "primary_code": "PASS - shows 'RDEMO1'",
+        "local_currency_earned": "PASS - shows '≈ TZS 14,300'",
+        "stat_tiles": "PASS - referrals, earned, in_review, paid"
+      },
+      "reseller_earnings": {
+        "filter_tabs": "PASS - all, earned, requested, paid",
+        "local_currency_in_filters": "PASS - TZS amounts shown",
+        "earnings_table": "PASS - shows referral, kind, model, amount, status"
+      },
+      "client_contacts": {
+        "page_loads": "PASS",
+        "new_group_btn": "PASS",
+        "stats_button": "PASS - found on groups",
+        "stats_modal": "PASS - opens with metrics",
+        "stats_modal_content": "PASS - shows contacts_in_group, lifetime_sends, delivered, failed, delivery_rate"
+      },
+      "client_dashboard": {
+        "loads": "PASS - shows credits, campaigns, delivery rate"
+      }
+    }
+  },
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (not under test)",
+    "Twilio REST adapter (not under test)"
+  ]
+}
