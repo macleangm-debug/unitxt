@@ -459,6 +459,11 @@ async def get_setting(key: str, default=None):
     return s["value"] if s else default
 
 
+async def set_setting(key: str, value):
+    await db.system_settings.update_one(
+        {"key": key}, {"$set": {"key": key, "value": value}}, upsert=True)
+
+
 async def country_price(country: str, channel: str, role: str) -> float:
     """Admin USD cost per message segment (provider cost). Used for margin reports."""
     plan = await db.pricing_plans.find_one(
@@ -1450,8 +1455,18 @@ async def execute_campaign(campaign: dict):
     batch_size = int(await get_setting("queue.batch_size", 1000) or 1000)
     max_conc = int(await get_setting("queue.max_concurrency", 200) or 200)
     provider_usd_cache: Dict[str, float] = {}
+    provider_buy_local_cache: Dict[str, float] = {}
     # Pre-cache providers by msg; we still need an adapter per provider
     adapter_cache: Dict[str, ProviderAdapter] = {}
+
+    # ---- Snapshot per-country economics for accurate P&L (no derivation later) ----
+    country_doc = await db.countries.find_one({"code": country}, {"_id": 0}) or {}
+    econ = country_doc.get("economics") or {}
+    local_currency      = country_doc.get("currency") or "USD"
+    fx_rate_to_usd      = float(country_doc.get("fx_rate_to_usd", 0) or 0)
+    sell_per_sms_local  = float(econ.get("sell_per_sms_local", 0) or 0)
+    vat_rate_pct        = float(econ.get("vat_rate_pct", 0) or 0)
+    vat_multiplier      = 1 + (vat_rate_pct / 100.0)
 
     sent = delivered = failed = 0
     credits_used = 0
@@ -1475,13 +1490,17 @@ async def execute_campaign(campaign: dict):
         if not provider:
             return {"ok": False, "status": "failed", "error": "NO_PROVIDER",
                     "seg": seg, "credits_cost": credits_cost, "usd_cost": 0,
+                    "buy_pre_vat_local": 0,
                     "phone": r.get("phone"), "body": text, "provider_id": None,
                     "provider_msg_id": None}
         if provider["id"] not in adapter_cache:
             adapter_cache[provider["id"]] = adapter_for(provider)
             provider_usd_cache[provider["id"]] = float(provider.get("cost_per_sms", 0.01))
+            provider_buy_local_cache[provider["id"]] = float(
+                provider.get("buy_price_local_pre_vat", 0) or 0)
         adapter = adapter_cache[provider["id"]]
         usd_cost = round(provider_usd_cache[provider["id"]] * seg, 6)
+        buy_pre_vat_local = round(provider_buy_local_cache[provider["id"]] * seg, 6)
         # send with retry under semaphore
         async with sem:
             last = None
@@ -1498,6 +1517,7 @@ async def execute_campaign(campaign: dict):
                     await asyncio.sleep(0.1 * (attempt + 1))
             res = last or {"ok": False, "status": "failed", "error": "UNKNOWN"}
         return {**res, "seg": seg, "credits_cost": credits_cost, "usd_cost": usd_cost,
+                "buy_pre_vat_local": buy_pre_vat_local,
                 "phone": r.get("phone"), "body": text, "provider_id": provider["id"]}
 
     # Process in batches
@@ -1517,11 +1537,21 @@ async def execute_campaign(campaign: dict):
             usd_cost_total += res["usd_cost"]
             if commission > 0 and res["ok"]:
                 reseller_accum += res["credits_cost"] * commission
+            buy_pre_local  = float(res.get("buy_pre_vat_local", 0) or 0)
+            cost_incl_vat_local = round(buy_pre_local * vat_multiplier, 6)
+            revenue_local       = round(sell_per_sms_local * res["seg"], 6)
             msg_docs.append({
                 "id": new_id(), "campaign_id": cid, "user_id": user_id,
                 "to": res["phone"], "channel": channel, "sender_id": sender_id,
+                "country": country,
                 "body": res["body"], "segments": res["seg"],
                 "cost": res["credits_cost"], "usd_cost": res["usd_cost"],
+                "currency": local_currency,
+                "fx_rate_to_usd": fx_rate_to_usd,
+                "vat_rate_pct": vat_rate_pct,
+                "cost_pre_vat_local":  buy_pre_local,
+                "cost_incl_vat_local": cost_incl_vat_local,
+                "revenue_local":       revenue_local,
                 "status": res.get("status") or ("sent" if res.get("ok") else "failed"),
                 "provider_id": res.get("provider_id"),
                 "provider_msg_id": res.get("provider_msg_id"),
@@ -1534,6 +1564,10 @@ async def execute_campaign(campaign: dict):
                 "reseller_id": user.get("reseller_id"),
                 "country": country, "channel": channel,
                 "credits": res["credits_cost"], "usd_cost": res["usd_cost"],
+                "currency": local_currency,
+                "cost_pre_vat_local":  buy_pre_local,
+                "cost_incl_vat_local": cost_incl_vat_local,
+                "revenue_local":       revenue_local,
                 "provider_id": res.get("provider_id"),
                 "created_at": iso(now_utc()),
             })
@@ -2515,9 +2549,81 @@ async def background_loop():
                     await add_notification(u["id"], "Inactivity warning",
                                             f"You've been inactive for {warn_days}+ days. "
                                             f"Send something or your account will pause.", "warning")
+            # 4. ROUTE HEALTH MONITOR — runs every N minutes (configurable)
+            await _check_route_health(now)
         except Exception as e:
             log.exception(f"background_loop error: {e}")
         await asyncio.sleep(60)  # every minute (for scheduler responsiveness)
+
+
+async def _check_route_health(now):
+    """Aggregates delivery rate per provider over the last N minutes.
+    Notifies all super_admins (in-app) when a route's delivery rate drops below
+    the configured threshold. Cool-down per provider prevents alert spam.
+    """
+    if not bool(await get_setting("alerts.route_health_enabled", True)):
+        return
+    window_min   = int(await get_setting("alerts.route_health_window_min", 15) or 15)
+    min_msgs     = int(await get_setting("alerts.route_health_min_msgs", 10) or 10)
+    threshold    = float(await get_setting("alerts.route_health_threshold_pct", 80) or 80)
+    cooldown_min = int(await get_setting("alerts.route_health_cooldown_min", 60) or 60)
+    last_run_iso = await get_setting("alerts.route_health_last_run_at", None)
+    if last_run_iso:
+        try:
+            last_run = datetime.fromisoformat(last_run_iso.replace("Z", "+00:00"))
+            if (now - last_run).total_seconds() < window_min * 60:
+                return
+        except Exception:
+            pass
+
+    since = iso(now - timedelta(minutes=window_min))
+    pipe = [
+        {"$match": {"created_at": {"$gte": since},
+                    "status": {"$in": ["sent", "delivered", "failed"]}}},
+        {"$group": {
+            "_id": "$provider_id",
+            "total":     {"$sum": 1},
+            "delivered": {"$sum": {"$cond": [
+                {"$in": ["$status", ["sent", "delivered"]]}, 1, 0]}},
+            "failed":    {"$sum": {"$cond": [
+                {"$eq": ["$status", "failed"]}, 1, 0]}},
+            "reasons":   {"$push": "$error"},
+        }},
+    ]
+    rows = await db.messages.aggregate(pipe).to_list(200)
+    admins = await db.users.find({"role": "super_admin"}, {"_id": 0, "id": 1}).to_list(50)
+    for row in rows:
+        pid = row.get("_id")
+        if not pid or row["total"] < min_msgs:
+            continue
+        rate = (row["delivered"] / row["total"]) * 100.0
+        if rate >= threshold:
+            continue
+        # cool-down per provider
+        cool_key = f"alerts.route_health_last_alert.{pid}"
+        last_alert_iso = await get_setting(cool_key, None)
+        if last_alert_iso:
+            try:
+                last_alert = datetime.fromisoformat(last_alert_iso.replace("Z", "+00:00"))
+                if (now - last_alert).total_seconds() < cooldown_min * 60:
+                    continue
+            except Exception:
+                pass
+        prov = await db.providers.find_one({"id": pid}, {"_id": 0, "name": 1, "country": 1})
+        prov_name = (prov or {}).get("name") or pid
+        # top reasons (plain text)
+        from collections import Counter
+        reasons = [r for r in row.get("reasons") or [] if r]
+        top = ", ".join(f"{r} ({c})" for r, c in Counter(reasons).most_common(3))
+        title = f"Route degraded: {prov_name}"
+        body = (f"Delivery rate {rate:.1f}% over the last {window_min} min "
+                f"({row['delivered']}/{row['total']}). "
+                f"Top failures: {top or 'n/a'}.")
+        for a in admins:
+            await add_notification(a["id"], title, body, "warning")
+        await set_setting(cool_key, iso(now))
+        log.warning(f"[route_health] {prov_name}: {rate:.1f}% — alert raised")
+    await set_setting("alerts.route_health_last_run_at", iso(now))
 
 
 api.include_router(credits_r)
