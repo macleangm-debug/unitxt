@@ -6,7 +6,7 @@ import {
 } from "@/components/UI";
 import {
   Plus, Trash2, Users, Folder, Edit, Check, X, UserPlus, FolderPlus,
-  Search,
+  Search, BarChart3,
 } from "lucide-react";
 
 export default function Contacts() {
@@ -15,6 +15,7 @@ export default function Contacts() {
   const [activeGroup, setActiveGroup] = useState("all");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(new Set());
+  const [statsFor, setStatsFor] = useState(null);   // group object whose stats are open
 
   const [addOpen, setAddOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
@@ -178,6 +179,8 @@ export default function Contacts() {
                 active={activeGroup === g.id} onClick={() => setActiveGroup(g.id)}
                 testid={`group-${g.id}`}/>
               <div className="flex pr-3 opacity-0 transition group-hover/item:opacity-100">
+                <button onClick={(e) => { e.stopPropagation(); setStatsFor(g); }}
+                        className="p-1 text-zinc-500 hover:text-blue-400" data-testid={`stats-group-${g.id}`} title="Send stats"><BarChart3 className="h-3 w-3"/></button>
                 <button onClick={() => { setEditGroup(g); setGroupForm({ name: g.name, description: g.description || "" }); setGroupOpen(true); }}
                         className="p-1 text-zinc-500 hover:text-white" data-testid={`edit-group-${g.id}`}><Edit className="h-3 w-3"/></button>
                 <button onClick={() => delGroup(g)}
@@ -333,6 +336,77 @@ export default function Contacts() {
           </Btn>
         </form>
       </Modal>
+
+      <GroupStatsModal group={statsFor} onClose={() => setStatsFor(null)} />
+    </div>
+  );
+}
+
+function GroupStatsModal({ group, onClose }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    if (!group) { setData(null); return; }
+    setData(null);
+    http.get(`/contacts/groups/${group.id}/stats`)
+      .then(r => setData(r.data))
+      .catch(() => setData({ error: true }));
+  }, [group?.id]);
+  if (!group) return null;
+  return (
+    <Modal open={!!group} onClose={onClose} title={`Send stats — ${group.name}`} testid="group-stats-modal">
+      {!data ? (
+        <div className="py-8 text-center text-sm text-zinc-500">Crunching numbers…</div>
+      ) : data.error ? (
+        <div className="py-8 text-center text-sm text-red-400">Could not load stats.</div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <MiniStat label="Contacts in group" value={data.contact_count.toLocaleString()} />
+            <MiniStat label="Lifetime sends"    value={data.lifetime_sends.toLocaleString()} />
+            <MiniStat label="Delivered"         value={data.delivered.toLocaleString()} accent="green"/>
+            <MiniStat label="Failed"            value={data.failed.toLocaleString()} accent={data.failed > 0 ? "red" : "default"}/>
+          </div>
+          <div className="rounded-md border border-blue-500/20 bg-blue-500/[0.04] p-3 text-sm">
+            <div className="text-[10px] uppercase tracking-wider text-blue-300">Delivery rate</div>
+            <div className="mt-1 font-mono text-3xl font-medium text-zinc-100">{data.delivery_rate}%</div>
+            {data.last_send_at && (
+              <div className="mt-1 text-[11px] text-zinc-500">
+                Last send: {new Date(data.last_send_at).toLocaleString()}
+              </div>
+            )}
+          </div>
+          {data.top_failure_reasons.length > 0 && (
+            <div>
+              <div className="label-overline mb-2">Top failure reasons</div>
+              <div className="space-y-1.5">
+                {data.top_failure_reasons.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between rounded border border-zinc-800/80 bg-zinc-950/30 px-3 py-2 text-xs">
+                    <span className="text-zinc-200">{r.label}</span>
+                    <span className="font-mono text-zinc-400">{r.count.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.lifetime_sends === 0 && (
+            <div className="rounded-md border border-dashed border-zinc-800 px-4 py-6 text-center text-sm text-zinc-500">
+              No messages have been sent to anyone in this group yet.
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function MiniStat({ label, value, accent = "default" }) {
+  const acc =
+    accent === "green" ? "text-emerald-400" :
+    accent === "red"   ? "text-red-400"     : "text-zinc-100";
+  return (
+    <div className="rounded-md border border-zinc-800/80 bg-zinc-950/30 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className={`mt-1 font-mono text-xl font-medium ${acc}`}>{value}</div>
     </div>
   );
 }

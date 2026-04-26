@@ -92,9 +92,9 @@ export default function AffiliateDashboard() {
       {/* STAT GRID */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat icon={Users}      label="Referrals"       value={me.referrals}                    testid="aff-stat-referrals"/>
-        <Stat icon={DollarSign} label="Earned"          value={money(me.earned_usd)}            testid="aff-stat-earned"  green/>
-        <Stat icon={WalletIcon} label="In review"       value={money(me.requested_usd)}         testid="aff-stat-requested"/>
-        <Stat icon={CheckCircle2} label="Paid out"      value={money(me.paid_usd)}              testid="aff-stat-paid" green/>
+        <Stat icon={DollarSign} label="Earned"          value={money(me.earned_usd)}    sub={fmtLocal(me.earned_local, me.local_currency)}    testid="aff-stat-earned"  green/>
+        <Stat icon={WalletIcon} label="In review"       value={money(me.requested_usd)} sub={fmtLocal(me.requested_local, me.local_currency)} testid="aff-stat-requested"/>
+        <Stat icon={CheckCircle2} label="Paid out"      value={money(me.paid_usd)}      sub={fmtLocal(me.paid_local, me.local_currency)}     testid="aff-stat-paid" green/>
       </div>
 
       {/* COMMISSION RULES BANNER */}
@@ -172,7 +172,7 @@ export default function AffiliateDashboard() {
   );
 }
 
-function Stat({ icon: Icon, label, value, green, testid }) {
+function Stat({ icon: Icon, label, value, sub, green, testid }) {
   return (
     <div className="card-surface p-4" data-testid={testid}>
       <div className="flex items-center gap-1.5 text-zinc-500">
@@ -182,8 +182,14 @@ function Stat({ icon: Icon, label, value, green, testid }) {
       <div className={`mt-2 font-mono text-xl font-medium ${green ? "text-emerald-400" : "text-zinc-100"}`}>
         {value}
       </div>
+      {sub && <div className="mt-0.5 font-mono text-[10px] text-zinc-500">{sub}</div>}
     </div>
   );
+}
+
+function fmtLocal(amount, currency) {
+  if (amount == null || !currency || currency === "USD") return null;
+  return `≈ ${currency} ${Number(amount).toLocaleString()}`;
 }
 
 function QuickLink({ to, icon: Icon, label, desc }) {

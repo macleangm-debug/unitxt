@@ -10,10 +10,14 @@ const KIND_LABEL = {
 
 export default function AffiliateEarnings() {
   const [rows, setRows] = useState([]);
+  const [me, setMe] = useState(null);
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    http.get("/affiliate/earnings").then(r => setRows(r.data || [])).catch(() => {});
+    Promise.all([
+      http.get("/affiliate/earnings"),
+      http.get("/affiliate/me"),
+    ]).then(([e, m]) => { setRows(e.data || []); setMe(m.data); }).catch(() => {});
   }, []);
 
   const totals = useMemo(() => {
@@ -42,7 +46,6 @@ export default function AffiliateEarnings() {
         title="Earnings ledger"
         desc="Every commission you've earned, with status. Click 'Available' to see what you can request a payout on right now."
       />
-
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="earnings-filters">
         {filters.map(f => (
           <button
@@ -59,6 +62,9 @@ export default function AffiliateEarnings() {
             <div className={`mt-1.5 font-mono text-xl font-medium ${f.key === "earned" ? "text-emerald-400" : "text-zinc-100"}`}>
               {money(f.v)}
             </div>
+            {localTotal(f.v, me) && (
+              <div className="mt-0.5 font-mono text-[10px] text-zinc-500">{localTotal(f.v, me)}</div>
+            )}
           </button>
         ))}
       </div>
@@ -107,3 +113,12 @@ export default function AffiliateEarnings() {
     </div>
   );
 }
+
+function localTotal(usd, me) {
+  if (!me?.local_currency || me.local_currency === "USD") return null;
+  const fx = Number(me.local_fx_rate) || 0;
+  if (fx <= 0) return null;
+  const v = usd * fx;
+  return `≈ ${me.local_currency} ${Math.round(v).toLocaleString()}`;
+}
+

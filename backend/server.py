@@ -848,6 +848,78 @@ async def delete_group(gid: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+@contacts_r.get("/groups/{gid}/stats")
+async def group_stats(gid: str, user: dict = Depends(get_current_user)):
+    """Per-Contact-Group send stats: last send, lifetime sends, delivery rate,
+    top failure reasons. Aggregates across messages whose recipient phone
+    belongs to a contact in this group."""
+    group = await db.contact_groups.find_one({"id": gid, "user_id": user["id"]})
+    if not group:
+        raise HTTPException(404, "Group not found")
+    contacts = await db.contacts.find(
+        {"user_id": user["id"], "group_ids": gid},
+        {"_id": 0, "phone": 1}
+    ).to_list(50000)
+    phones = [c["phone"] for c in contacts if c.get("phone")]
+    contact_count = len(phones)
+    if not phones:
+        return {
+            "group_id": gid,
+            "group_name": group["name"],
+            "contact_count": 0,
+            "last_send_at": None,
+            "lifetime_sends": 0, "delivered": 0, "failed": 0,
+            "delivery_rate": 0,
+            "top_failure_reasons": [],
+        }
+    # Run aggregation directly on the messages collection
+    pipe = [
+        {"$match": {"user_id": user["id"], "to": {"$in": phones}}},
+        {"$facet": {
+            "totals": [
+                {"$group": {
+                    "_id": None,
+                    "lifetime": {"$sum": 1},
+                    "delivered": {"$sum": {"$cond": [{"$eq": ["$status", "delivered"]}, 1, 0]}},
+                    "failed":    {"$sum": {"$cond": [{"$eq": ["$status", "failed"]},    1, 0]}},
+                    "last_at":   {"$max": "$created_at"},
+                }},
+            ],
+            "reasons": [
+                {"$match": {"status": "failed"}},
+                {"$group": {"_id": "$reason", "n": {"$sum": 1}}},
+                {"$sort": {"n": -1}},
+                {"$limit": 5},
+            ],
+        }},
+    ]
+    cur = db.messages.aggregate(pipe)
+    rows = await cur.to_list(1)
+    f = (rows[0] if rows else {"totals": [], "reasons": []})
+    t = f["totals"][0] if f["totals"] else {}
+    lifetime = int(t.get("lifetime", 0))
+    delivered = int(t.get("delivered", 0))
+    failed = int(t.get("failed", 0))
+    rate = round(delivered * 100.0 / lifetime, 1) if lifetime else 0
+    reasons = [
+        {"reason": (r["_id"] or "unknown"),
+         "label":  PLAIN_DELIVERY_REASONS.get(r["_id"], r["_id"] or "Unknown") if (r["_id"] is not None) else "Unknown",
+         "count":  int(r["n"])}
+        for r in f.get("reasons", [])
+    ]
+    return {
+        "group_id": gid,
+        "group_name": group["name"],
+        "contact_count": contact_count,
+        "last_send_at": t.get("last_at"),
+        "lifetime_sends": lifetime,
+        "delivered": delivered,
+        "failed": failed,
+        "delivery_rate": rate,
+        "top_failure_reasons": reasons,
+    }
+
+
 # ============================================================
 # NUMBER LOOKUP — "Smart validation" (in-house) + "HLR lookup" (telco-backed, per-country)
 # Pricing & availability are driven from Settings Hub:
@@ -2090,58 +2162,13 @@ async def public_countries():
 
 
 # ============================================================
-# NOTIFICATIONS
+# NOTIFICATIONS — moved to routes/notifications.py
 # ============================================================
-notif_r = APIRouter(prefix="/notifications", tags=["notifications"])
-
-
-@notif_r.get("")
-async def my_notifs(user: dict = Depends(get_current_user)):
-    items = await db.notifications.find(
-        {"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
-    unread = sum(1 for i in items if not i["read"])
-    return {"items": items, "unread": unread}
-
-
-@notif_r.post("/read-all")
-async def mark_all_read(user: dict = Depends(get_current_user)):
-    await db.notifications.update_many({"user_id": user["id"], "read": False},
-                                        {"$set": {"read": True}})
-    return {"ok": True}
-
-
-@notif_r.post("/{nid}/read")
-async def mark_one_read(nid: str, user: dict = Depends(get_current_user)):
-    await db.notifications.update_one({"id": nid, "user_id": user["id"]},
-                                       {"$set": {"read": True}})
-    return {"ok": True}
 
 
 # ============================================================
-# API KEYS
+# API KEYS — moved to routes/api_keys.py
 # ============================================================
-key_r = APIRouter(prefix="/api-keys", tags=["api_keys"])
-
-
-@key_r.get("")
-async def my_keys(user: dict = Depends(get_current_user)):
-    items = await db.api_keys.find({"user_id": user["id"]}, {"_id": 0}).to_list(50)
-    return items
-
-
-@key_r.post("")
-async def create_key(body: ApiKeyIn, user: dict = Depends(get_current_user)):
-    key = "uxk_" + secrets.token_urlsafe(24)
-    doc = {"id": new_id(), "user_id": user["id"], "name": body.name,
-           "key": key, "active": True, "created_at": iso(now_utc())}
-    await db.api_keys.insert_one(doc)
-    return clean(doc)
-
-
-@key_r.delete("/{kid}")
-async def del_key(kid: str, user: dict = Depends(get_current_user)):
-    await db.api_keys.delete_one({"id": kid, "user_id": user["id"]})
-    return {"ok": True}
 
 
 # ============================================================
@@ -2286,58 +2313,8 @@ async def recover_account(user: dict = Depends(get_current_user)):
 
 
 # ============================================================
-# MOBILE PREFIXES
+# MOBILE PREFIXES — moved to routes/prefixes.py
 # ============================================================
-prefix_r = APIRouter(prefix="/prefixes", tags=["prefixes"])
-
-
-class PrefixIn(BaseModel):
-    country: str
-    operator: str
-    prefix: str
-    active: bool = True
-
-
-@prefix_r.get("")
-async def list_prefixes(country: Optional[str] = None,
-                         user: dict = Depends(get_current_user)):
-    q = {"country": country} if country else {}
-    return await db.mobile_prefixes.find(q, {"_id": 0}).sort("prefix", 1).to_list(5000)
-
-
-@prefix_r.post("")
-async def add_prefix(body: PrefixIn, user: dict = Depends(require_roles("super_admin"))):
-    doc = {"id": new_id(), **body.model_dump(), "created_at": iso(now_utc())}
-    await db.mobile_prefixes.insert_one(doc)
-    return clean(doc)
-
-
-@prefix_r.patch("/{pid}")
-async def update_prefix(pid: str, body: Dict[str, Any],
-                         user: dict = Depends(require_roles("super_admin"))):
-    await db.mobile_prefixes.update_one({"id": pid}, {"$set": body})
-    return {"ok": True}
-
-
-@prefix_r.delete("/{pid}")
-async def del_prefix(pid: str, user: dict = Depends(require_roles("super_admin"))):
-    await db.mobile_prefixes.delete_one({"id": pid})
-    return {"ok": True}
-
-
-@prefix_r.post("/import")
-async def import_prefixes(rows: List[PrefixIn],
-                           user: dict = Depends(require_roles("super_admin"))):
-    docs = [{"id": new_id(), **r.model_dump(), "created_at": iso(now_utc())} for r in rows]
-    if docs:
-        await db.mobile_prefixes.insert_many(docs)
-    return {"ok": True, "count": len(docs)}
-
-
-@prefix_r.get("/lookup")
-async def lookup(phone: str, user: dict = Depends(get_current_user)):
-    match = await phone_to_operator(phone)
-    return {"match": match}
 
 
 # ============================================================
@@ -2544,7 +2521,8 @@ async def background_loop():
 
 
 api.include_router(credits_r)
-api.include_router(prefix_r)
+from routes import prefixes as routes_prefixes
+api.include_router(routes_prefixes.router)
 api.include_router(dlr_r)
 api.include_router(adm_r2)
 
@@ -3771,8 +3749,10 @@ api.include_router(tpl_r)
 api.include_router(msg_r)
 api.include_router(res_r)
 api.include_router(adm_r)
-api.include_router(notif_r)
-api.include_router(key_r)
+from routes import notifications as routes_notif
+from routes import api_keys as routes_keys
+api.include_router(routes_notif.router)
+api.include_router(routes_keys.router)
 
 
 @api.get("/")

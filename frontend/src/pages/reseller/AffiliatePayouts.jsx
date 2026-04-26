@@ -63,6 +63,11 @@ export default function AffiliatePayouts() {
             <div className={`mt-2 font-mono text-4xl font-medium tracking-tight ${canRequest ? "text-emerald-400" : "text-zinc-100"}`} data-testid="payout-available">
               {money(me.earned_usd)}
             </div>
+            {me.local_currency && me.local_currency !== "USD" && me.earned_local != null && (
+              <div className="mt-1 font-mono text-xs text-zinc-500" data-testid="payout-available-local">
+                ≈ {me.local_currency} {Number(me.earned_local).toLocaleString()}
+              </div>
+            )}
             <div className="mt-1.5 text-xs text-zinc-500">
               {canRequest
                 ? `Above the ${money(threshold)} minimum — ready to request a payout.`

@@ -220,18 +220,38 @@ async def my_overview(user: dict = Depends(get_current_user)):
         {"$group": {"_id": "$status", "t": {"$sum": "$amount_usd"}}},
     ]).to_list(10)
     by_status = {r["_id"]: round(r["t"], 4) for r in earned}
-    # Find the user's primary code (first code created, or matching their referral_code)
     primary = await db.affiliate_codes.find_one(
         {"owner_user_id": user["id"]}, {"_id": 0}, sort=[("created_at", 1)])
+
+    # Local-currency conversion for the affiliate's home country
+    country = await db.countries.find_one(
+        {"code": (user.get("country") or "").upper()}, {"_id": 0})
+    local_currency = (country or {}).get("currency")
+    fx_rate = float((country or {}).get("fx_rate_to_usd", 0) or 0)
+    def to_local(usd):
+        if fx_rate <= 0 or not local_currency or local_currency == "USD":
+            return None
+        return round(usd * fx_rate, 0)
+
+    earned_usd  = by_status.get("earned", 0)
+    requested   = by_status.get("requested", 0)
+    paid        = by_status.get("paid", 0)
     return {
         "config": cfg,
         "referrals": referred,
-        "earned_usd": by_status.get("earned", 0),
-        "requested_usd": by_status.get("requested", 0),
-        "paid_usd": by_status.get("paid", 0),
-        "available_usd": by_status.get("earned", 0),
-        "default_code": user.get("referral_code"),
-        "primary_code": primary["code"] if primary else None,
+        "earned_usd":     earned_usd,
+        "requested_usd":  requested,
+        "paid_usd":       paid,
+        "available_usd":  earned_usd,
+        # Local-currency view (None when home country is USD or has no FX rate)
+        "local_currency":     local_currency,
+        "local_fx_rate":      fx_rate,
+        "earned_local":       to_local(earned_usd),
+        "requested_local":    to_local(requested),
+        "paid_local":         to_local(paid),
+        "available_local":    to_local(earned_usd),
+        "default_code":       user.get("referral_code"),
+        "primary_code":       primary["code"] if primary else None,
         "primary_code_renamed": bool(user.get("primary_code_renamed", False)),
     }
 
