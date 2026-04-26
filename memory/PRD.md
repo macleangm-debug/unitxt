@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-25 (iteration 15)
-**Version**: 1.14 (Country economics + VAT · Per-route buy-price · Affiliate program v1)
+**Last updated**: 2026-04-26 (iteration 16)
+**Version**: 1.15 (Affiliate self-service portal · Public promo-code attribution · One-shot primary-code rename)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.10
@@ -16,7 +16,25 @@ Plus Jakarta Sans + zinc + blue accent system. Grouped sidebars all 3 portals.
 ### v1.13 — In-app API docs + Mobile-friendly Wallet
 4-tab API integrator console (Keys / Quick start / Endpoints / Sender ID flow) with cURL/Python/Node code snippets and Sender ID lifecycle. Wallet redesigned for mobile: collapsible sections, table → card-list views, Bank Pay modal polish.
 
-### v1.14 — Country economics + Affiliate program — **this iteration**
+### v1.14 — Country economics + Affiliate program backend
+Country VAT + sell + wholesale fields per country, per-route `buy_price_local_pre_vat`, Country P&L dashboard, affiliate program backend with 3 commission models. 21/21 + 100% pass.
+
+### v1.15 — Affiliate self-service portal — **this iteration**
+- **Affiliate portal** (replaces the old reseller portal):
+  - **Dashboard** — primary code hero with one-click share-link copy, 4-stat overview (referrals, earned, in-review, paid), plain-English "How you earn" banner that adapts to the active commission model, recent earnings, quick-action sidebar.
+  - **Promo codes** — primary code with one-shot rename (modal warns "you can only do this once"); after rename, the card flips to a "customised · Locked" pill and a `Lock` icon. Secondary codes CRUD up to a configurable cap (default 5), each with optional note + use-count + per-card copy.
+  - **Referrals** — table (desktop) / card list (mobile) of referred users with country, sign-up date, top-up count, lifetime spend, and commission earned per user.
+  - **Earnings** — ledger with 4 status filter tabs (All / Available / In review / Paid), per-row top-up amount, model used, and status pill.
+  - **Payouts** — available-balance hero, "Request payout" CTA disabled below threshold, modal with 3 method options (bank / mobile money / crypto) and method-specific fields, history table/card list.
+- **Public registration** — `/register?ref=CODE` shows a green "Promo applied" banner on the left rail and pre-fills + LOCKS the promo code field. Without `?ref` the field is freely editable. Account-type selector now shows "Send messages" or "Earn as affiliate".
+- **One-shot primary-code rename** — backend endpoint `POST /api/affiliate/primary-code` enforces:
+  - 3–24 character range
+  - cross-platform uniqueness (vs other affiliate codes, other users' referral codes, and reserved promotion codes)
+  - one-shot via `users.primary_code_renamed` flag — second attempt returns plain-English 400
+- **Auto-minted default codes** — every newly registered `reseller`/`affiliate` gets a unitxt-generated default promo code (a U-prefixed 7-char hex) so they can start sharing immediately.
+- **Sidebar regrouped** for the reseller role: Workspace · Affiliate (Promo codes / Referrals / Earnings / Payouts) · Send · Assets · Account.
+- **Bug fix (caught by test agent)**: commission idempotency was keyed on `pack_id` so only the first purchase of each pack earned commission; now keyed on unique payment id.
+- **Testing (iteration 16)**: 11/11 backend + 100% frontend pass. See `/app/test_reports/iteration_16.json`.
 - **Country economics in local currency** (no more USD math for admins):
   - Per country: `vat_rate_pct`, `sell_per_sms_local`, `wholesale_per_sms_local` (currency + FX rate already existed)
   - New endpoints: `GET /api/admin/country-economics/{code}`, `PUT /api/admin/country-economics/{code}`
