@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-26 (iteration 16)
-**Version**: 1.15 (Affiliate self-service portal · Public promo-code attribution · One-shot primary-code rename)
+**Last updated**: 2026-04-26 (iteration 18)
+**Version**: 1.17 (Per-message cost/revenue snapshots · Automated route-health monitor · Phase-2 routes split verified)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.10
@@ -70,17 +70,40 @@ Country VAT + sell + wholesale fields per country, per-route `buy_price_local_pr
 - **Twilio real REST** — needs Account SID + Auth Token.
 - **Stripe Checkout** — credit-pack purchase wiring.
 
+## v1.16 — Phase-2 routes split + Per-Contact-Group stats + Affiliate local-currency
+- Extracted `notifications`, `api_keys`, `prefixes` into `/app/backend/routes/`
+- New endpoint `GET /api/contacts/groups/{gid}/stats` + Stats modal on `/client/contacts`
+- Affiliate dashboard + earnings now show local-currency previews (e.g. "≈ TZS 14,300")
+- Iteration 17 testing: 25/25 backend + 100% frontend pass.
+
+## v1.17 — Cost/revenue snapshots + Automated route-health alerts — **this iteration**
+- **Per-message snapshots at send-time** (no more derivation in P&L). Every message in `db.messages` now carries:
+  - `currency`, `fx_rate_to_usd`, `vat_rate_pct`
+  - `cost_pre_vat_local` (provider buy × segments)
+  - `cost_incl_vat_local` (cost_pre_vat_local × (1 + VAT))
+  - `revenue_local` (sell_per_sms_local × segments)
+  - `country` (denormalised from campaign)
+  Same fields are mirrored on `platform_revenue_log` so legacy USD reports keep working.
+- **Country P&L** now sources from message-level snapshots — exact, not estimated. The legacy "× delivered count" fallback still kicks in only for pre-snapshot messages.
+- **Automated route-health monitor**: every 15 min the background loop aggregates delivery rate per provider over the rolling window. Below threshold → in-app warning notification to all super_admins, with top failure reasons embedded in the body. Per-provider 60-min cool-down to prevent spam.
+- **Settings keys** (configurable via `PUT /api/admin/settings`):
+  - `alerts.route_health_enabled` (bool, default true)
+  - `alerts.route_health_window_min` (int, default 15)
+  - `alerts.route_health_min_msgs` (int, default 10)
+  - `alerts.route_health_threshold_pct` (int, default 80)
+  - `alerts.route_health_cooldown_min` (int, default 60)
+- **New helper** `set_setting(key, value)` for use by background workers.
+- **Testing (iteration 18)**: 23/23 new backend + 25/25 regression. See `/app/test_reports/iteration_18.json`.
+
 ## Backlog
 ### P0 (blocked on creds / decisions)
 - Real Twilio · Real Tigo TZ · Real Stripe · WhatsApp send via approved templates
 
 ### P1
-- Affiliate portal UI (rewrite reseller portal — Codes/Referrals/Earnings/Payouts pages on top of new endpoints)
-- Public Apply page promo-code field for affiliate sign-ups
-- Per-Contact-Group send stats
-- Automated failure-reason email alerts (15-min loop)
+- Phase-3 routes split (extract msg_r, adm_r, adm_r2, country_r, econ_r, pnl_r out of server.py)
+- Real-time provider health pings (active probe vs current passive monitor)
+- Email channel for route-health alerts (currently in-app only)
 - Opt-out / DND / spam-keyword / daily-send-limit enforcement
-- Snapshot `cost_pre_vat_local` + `revenue_local` on each message at send-time (so P&L is exact, not derived) — currently P&L falls back to economics × delivered count
 
 ### P2
 - AI fraud detection · Voice + email channels · Quality-aware smart routing · Real-time provider health pings · Institutions API integrations Phase 2
