@@ -1,0 +1,124 @@
+{
+  "summary": "Iteration 19 testing complete. Phase-3 routes split verified - all 6 extracted route modules working correctly. Settings Hub UI shows all 5 alerts.route_health_* keys in Notifications tab with correct editors. All regression tests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration19_phase3_routes.py",
+    "/app/test_reports/pytest/iteration19_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BACKEND: Phase-3 routes split successful - credits.py, dlr.py, referrals.py, profile.py, wa_templates.py, country_economics.py all properly extracted and registered via include_router",
+    "BACKEND: GET /api/credits/packs returns packs with local_price, local_currency, fx_rate_used enrichment",
+    "BACKEND: GET /api/credits/rates returns all credit rate settings (country_rate, default_rate, whatsapp_rate, sender_id_cost, etc.)",
+    "BACKEND: POST /api/credits/buy handles pack purchase with promo codes and affiliate commission attribution",
+    "BACKEND: POST /api/credits/recover handles account recovery for inactive users",
+    "BACKEND: POST /api/dlr/{provider_id} handles delivery receipt webhooks from providers",
+    "BACKEND: GET /api/referrals/me returns referral code, referred_count, earned, percent_of_pack, max_per_referral, active",
+    "BACKEND: GET /api/profile/streak returns streak, last_send_date, bonuses (7/30/90 day)",
+    "BACKEND: GET/PUT /api/profile/webhook handles DLR webhook configuration",
+    "BACKEND: GET/POST/DELETE /api/wa-templates handles client WA template CRUD",
+    "BACKEND: GET /api/admin/wa-templates lists all templates, POST /{tid}/review handles admin review",
+    "BACKEND: GET/PUT /api/admin/country-economics/{code} handles per-country VAT, sell, wholesale rates",
+    "BACKEND: GET /api/admin/country-pnl returns aggregated P&L from message-level snapshots",
+    "BACKEND: All 5 alerts.route_health_* keys present in settings with category=notifications",
+    "BACKEND: Runtime keys (last_run_at, last_alert.*) correctly excluded from notifications category",
+    "FRONTEND: Settings Hub Notifications tab shows all 5 route_health keys with correct editors (boolean select for enabled, number inputs for others)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration19_phase3_routes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (32/32 iteration 19 tests passed, 25/25 iteration 17 regression passed, 23/23 iteration 18 regression passed)",
+    "frontend": "100% (Settings Hub UI verified)"
+  },
+  "test_credentials": {
+    "admin": "admin@unitxt.io / Admin@2026",
+    "reseller": "reseller@unitxt.io / Reseller@2026",
+    "client": "client@unitxt.io / Client@2026"
+  },
+  "seed_data_creation": "Created test WA templates during testing, cleaned up after",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 19 complete. Phase-3 routes split verified - 6 route modules extracted from server.py: credits.py (packs, rates, buy, recover), dlr.py (delivery receipts), referrals.py (legacy referral codes), profile.py (streak, webhook), wa_templates.py (client + admin WA template CRUD), country_economics.py (per-country economics + P&L). Settings Hub UI correctly renders alerts.route_health_* keys in Notifications tab with appropriate editors. All iteration 17/18 features still working. Tigo TZ SMS provider and Twilio REST remain MOCKED (stubs).",
+  "tests_executed": {
+    "iteration_19_phase3_routes": {
+      "credits_routes": {
+        "packs_list": "PASS - returns packs with local_price, local_currency, fx_rate_used",
+        "rates": "PASS - returns all credit rate settings",
+        "buy_invalid_pack": "PASS - returns 404 for nonexistent pack",
+        "recover_already_active": "PASS - returns ok=True with 'already active' message"
+      },
+      "dlr_routes": {
+        "dlr_update": "PASS - POST /api/dlr/{provider_id} accepts delivery receipt"
+      },
+      "referrals_routes": {
+        "referrals_me": "PASS - returns code, referred_count, earned, percent_of_pack, max_per_referral, active"
+      },
+      "profile_routes": {
+        "streak": "PASS - returns streak, last_send_date, bonuses",
+        "webhook_get": "PASS - returns dlr_webhook_url, dlr_webhook_secret",
+        "webhook_put": "PASS - updates webhook config"
+      },
+      "wa_templates_routes": {
+        "list": "PASS - returns user's templates",
+        "create_delete": "PASS - creates template with status=pending, deletes",
+        "admin_list": "PASS - returns all templates",
+        "admin_review": "PASS - approves template"
+      },
+      "country_economics_routes": {
+        "get": "PASS - returns code, currency, fx_rate_to_usd, vat_rate_pct, sell_per_sms_local, wholesale_per_sms_local",
+        "put": "PASS - updates economics",
+        "404": "PASS - returns 404 for invalid country",
+        "pnl": "PASS - returns rows with revenue_local, cost_local, profit_local, margin_pct, profit_usd"
+      },
+      "settings_hub_route_health": {
+        "keys_exist": "PASS - all 5 alerts.route_health_* keys found in settings",
+        "category_notifications": "PASS - all keys have category=notifications",
+        "enabled_is_boolean": "PASS - alerts.route_health_enabled is boolean",
+        "numbers_are_numeric": "PASS - window_min, min_msgs, threshold_pct, cooldown_min are numeric",
+        "update_works": "PASS - PUT /api/admin/settings updates route_health settings",
+        "runtime_keys_excluded": "PASS - last_run_at, last_alert.* not in notifications category"
+      }
+    },
+    "iteration_17_regression": {
+      "notifications": "PASS - 3/3 tests",
+      "api_keys": "PASS - 3/3 tests",
+      "prefixes": "PASS - 5/5 tests",
+      "contact_group_stats": "PASS - 2/2 tests",
+      "affiliate_local_currency": "PASS - 1/1 tests",
+      "smoke_all_roles": "PASS - 3/3 tests",
+      "topups_banks": "PASS - 3/3 tests",
+      "other_endpoints": "PASS - 5/5 tests"
+    },
+    "iteration_18_regression": {
+      "per_message_snapshots": "PASS - 1/1 tests",
+      "country_pnl": "PASS - 2/2 tests",
+      "route_health_monitor": "PASS - 3/3 tests",
+      "all_other_regression": "PASS - 17/17 tests"
+    },
+    "frontend": {
+      "settings_hub_notifications": {
+        "page_loads": "PASS",
+        "governance_group_click": "PASS",
+        "notifications_tab_click": "PASS",
+        "route_health_keys_visible": "PASS - all 5 keys visible",
+        "enabled_has_boolean_editor": "PASS - select dropdown",
+        "numeric_keys_have_number_inputs": "PASS - all 4 numeric keys",
+        "runtime_keys_not_visible": "PASS - last_run_at, last_alert not shown",
+        "save_functionality": "PASS - toast shows 'Saved alerts.route_health_enabled'"
+      }
+    }
+  },
+  "mocked_apis_verified": [
+    "Tigo TZ SMS provider stub (returns 'delivered' for all sends)",
+    "Twilio REST adapter (not under test)"
+  ]
+}

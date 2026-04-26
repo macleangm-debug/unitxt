@@ -2206,144 +2206,8 @@ async def public_countries():
 
 
 # ============================================================
-# CREDITS (packs, buy, recover)
+# CREDITS — moved to routes/credits.py
 # ============================================================
-credits_r = APIRouter(prefix="/credits", tags=["credits"])
-
-
-class BuyPackIn(BaseModel):
-    pack_id: str
-    promo_code: Optional[str] = None
-
-
-class AdminTransferIn(BaseModel):
-    target_user_id: str
-    credits: int = Field(gt=0)
-    note: Optional[str] = None
-
-
-@credits_r.get("/packs")
-async def list_packs(user: dict = Depends(get_current_user)):
-    """Return packs visible to this user:
-    - Global packs (country == None)
-    - Packs scoped to the user's country
-    Country-scoped packs are shown first, then globals.
-    Each pack is enriched with local currency pricing (falls back to USD).
-    """
-    user_country = user.get("country")
-    q = {"active": True, "$or": [{"country": None}, {"country": {"$exists": False}}]}
-    if user_country:
-        q["$or"].append({"country": user_country})
-    items = await db.credit_packs.find(q, {"_id": 0}).sort([
-        ("country", -1), ("credits", 1)]).to_list(80)
-    # Enrich with local pricing (defined later; forward-compatible lookup).
-    from_country = user_country
-    for p in items:
-        c = await db.countries.find_one({"code": from_country}, {"_id": 0}) if from_country else None
-        fx = float(c.get("fx_rate_to_usd", 0) or 0) if c else 0
-        cur = (c.get("currency") if c else None) or "USD"
-        if fx > 0 and cur != "USD":
-            local = float(p["price_usd"]) * fx
-            step = float(c.get("fx_rounding", 1) or 1)
-            if step > 0:
-                local = round(local / step) * step
-            p["local_price"] = round(local, 2)
-            p["local_currency"] = cur
-            p["fx_rate_used"] = fx
-        else:
-            p["local_price"] = round(float(p["price_usd"]), 2)
-            p["local_currency"] = "USD"
-            p["fx_rate_used"] = 1.0
-    return items
-
-
-@credits_r.get("/rates")
-async def my_rates(user: dict = Depends(get_current_user)):
-    rates = await get_setting("credits.country_rate", {}) or {}
-    return {
-        "country_rate": rates,
-        "default_rate": await get_setting("credits.default_rate", 2),
-        "whatsapp_rate": await get_setting("credits.whatsapp_rate", 3),
-        "sender_id_cost": await get_setting("credits.sender_id_cost", 500),
-        "sender_id_renewal": await get_setting("credits.sender_id_renewal", 500),
-        "sender_id_expiry_days": await get_setting("credits.sender_id_expiry_days", 365),
-        "inactivity_warn_days": await get_setting("credits.inactivity_warn_days", 30),
-        "inactivity_suspend_days": await get_setting("credits.inactivity_suspend_days", 60),
-        "inactivity_recovery_cost": await get_setting("credits.inactivity_recovery_cost", 1000),
-    }
-
-
-@credits_r.post("/buy")
-async def buy_pack(body: BuyPackIn, user: dict = Depends(get_current_user)):
-    """Mock payment — credits the wallet immediately with the pack's credits,
-    applies promo bonus if applicable, records payment in platform_payments.
-    Also pays referral reward (from pack profit) to the referrer if configured."""
-    pack = await db.credit_packs.find_one({"id": body.pack_id, "active": True}, {"_id": 0})
-    if not pack:
-        raise HTTPException(404, "Pack not found")
-    bonus = 0
-    if body.promo_code:
-        promo = await db.promotions.find_one({"code": body.promo_code.upper(), "active": True})
-        if promo and float(pack.get("price_usd", 0)) >= float(promo.get("min_topup", 0)):
-            promo_country = promo.get("country")
-            user_country = user.get("country")
-            # Enforce country scope: None = global; otherwise must match user country
-            if promo_country and promo_country != user_country:
-                raise HTTPException(400,
-                    f"This promo code is only valid for customers in {promo_country}.")
-            if promo["type"] == "bonus_credit":
-                bonus = int(float(promo["value"]) * 100)
-            elif promo["type"] == "percent_discount":
-                bonus = int(pack["credits"] * float(promo["value"]) / 100.0)
-    total_credits = int(pack["credits"]) + int(bonus)
-    # Affiliate welcome bonus on first paid top-up
-    if user.get("referred_by") and not user.get("welcome_bonus_used", True):
-        wb_pct = float(user.get("welcome_bonus_pct", 0))
-        wb_cap = int(user.get("welcome_bonus_max_credits", 0))
-        wb = min(int(pack["credits"] * wb_pct / 100.0), wb_cap)
-        if wb > 0:
-            total_credits += wb
-            await db.users.update_one({"id": user["id"]},
-                {"$set": {"welcome_bonus_used": True}})
-    await adjust_wallet(user["id"], total_credits, "pack_purchase",
-                        note=f"Pack {pack['name']} · {pack['credits']} credits"
-                             + (f" + {bonus} promo" if bonus else ""),
-                        ref=pack["id"], by=user["id"])
-    payment_id = new_id()
-    await db.platform_payments.insert_one({
-        "id": payment_id, "user_id": user["id"], "pack_id": pack["id"],
-        "credits": pack["credits"], "bonus": bonus,
-        "price_usd": float(pack["price_usd"]), "method": "mock",
-        "promo_code": body.promo_code, "created_at": iso(now_utc()),
-    })
-    # Affiliate commission (replaces legacy referral_reward).
-    # Pulls model + rate from Settings Hub keys (affiliate.*).
-    try:
-        from routes.affiliate import record_topup_commission
-        await record_topup_commission(user, float(pack["price_usd"]), ref=payment_id)
-    except Exception:
-        pass
-    await add_notification(user["id"], "Credits added",
-                           f"+{total_credits} credits purchased. Happy sending!", "success")
-    return {"ok": True, "credits_added": total_credits, "bonus": bonus}
-
-
-@credits_r.post("/recover")
-async def recover_account(user: dict = Depends(get_current_user)):
-    if user.get("status") != "inactive":
-        return {"ok": True, "message": "Account already active."}
-    cost = int(await get_setting("credits.inactivity_recovery_cost", 1000) or 0)
-    w = await get_or_create_wallet(user["id"])
-    if w["balance"] < cost:
-        raise HTTPException(400, f"Recovery needs {cost} credits. You have {int(w['balance'])}.")
-    await adjust_wallet(user["id"], -cost, "account_recovery",
-                        note="Inactivity recovery fee", by=user["id"])
-    await db.users.update_one({"id": user["id"]},
-                               {"$set": {"status": "active",
-                                          "last_active_at": iso(now_utc())}})
-    await add_notification(user["id"], "Account restored",
-                           "Welcome back. You're active again.", "success")
-    return {"ok": True}
 
 
 # ============================================================
@@ -2354,23 +2218,8 @@ async def recover_account(user: dict = Depends(get_current_user)):
 # ============================================================
 # DLR WEBHOOK  (providers call this to update delivery status)
 # ============================================================
-dlr_r = APIRouter(prefix="/dlr", tags=["dlr"])
+# DLR webhook moved to routes/dlr.py
 
-
-class DlrIn(BaseModel):
-    provider_msg_id: str
-    status: str  # delivered | failed | undelivered | expired
-    error: Optional[str] = None
-
-
-@dlr_r.post("/{provider_id}")
-async def dlr_update(provider_id: str, body: DlrIn):
-    # NB: in production, verify signature header against provider secret
-    res = await db.messages.update_one(
-        {"provider_id": provider_id, "provider_msg_id": body.provider_msg_id},
-        {"$set": {"status": body.status, "error": body.error,
-                  "delivered_at": iso(now_utc())}})
-    return {"updated": res.modified_count}
 
 
 # ============================================================
@@ -2626,70 +2475,20 @@ async def _check_route_health(now):
     await set_setting("alerts.route_health_last_run_at", iso(now))
 
 
-api.include_router(credits_r)
+from routes import credits as routes_credits
+api.include_router(routes_credits.router)
 from routes import prefixes as routes_prefixes
+from routes import dlr as routes_dlr
 api.include_router(routes_prefixes.router)
-api.include_router(dlr_r)
+api.include_router(routes_dlr.router)
 api.include_router(adm_r2)
 
 
 # ============================================================
 # REFERRALS (client-to-client)
 # ============================================================
-ref_r = APIRouter(prefix="/referrals", tags=["referrals"])
-
-
-@ref_r.get("/me")
-async def my_referral(user: dict = Depends(get_current_user)):
-    code = user.get("referral_code")
-    if not code:
-        code = "U" + secrets.token_hex(3).upper()
-        await db.users.update_one({"id": user["id"]},
-                                   {"$set": {"referral_code": code}})
-    # count referrals
-    n = await db.users.count_documents({"referred_by": user["id"]})
-    earned = int(user.get("referral_earned_credits", 0) or 0)
-    return {"code": code, "referred_count": n, "earned": earned,
-            "percent_of_pack": await get_setting("referral.percent_of_pack", 5),
-            "max_per_referral": await get_setting("referral.max_credits_per_referral", 500),
-            "active": await get_setting("referral.active", True)}
-
-
-# ============================================================
-# STREAK + PROFILE
-# ============================================================
-prof_r = APIRouter(prefix="/profile", tags=["profile"])
-
-
-class WebhookIn(BaseModel):
-    dlr_webhook_url: Optional[str] = ""
-    dlr_webhook_secret: Optional[str] = ""
-
-
-@prof_r.get("/streak")
-async def my_streak(user: dict = Depends(get_current_user)):
-    return {"streak": int(user.get("send_streak_days", 0) or 0),
-            "last_send_date": user.get("last_send_date"),
-            "bonuses": {
-                "7": await get_setting("streak.7_day_bonus", 100),
-                "30": await get_setting("streak.30_day_bonus", 1000),
-                "90": await get_setting("streak.90_day_bonus", 5000),
-            }}
-
-
-@prof_r.put("/webhook")
-async def set_webhook(body: WebhookIn, user: dict = Depends(get_current_user)):
-    await db.users.update_one({"id": user["id"]}, {"$set": {
-        "dlr_webhook_url": body.dlr_webhook_url or None,
-        "dlr_webhook_secret": body.dlr_webhook_secret or None,
-    }})
-    return {"ok": True}
-
-
-@prof_r.get("/webhook")
-async def get_webhook(user: dict = Depends(get_current_user)):
-    return {"dlr_webhook_url": user.get("dlr_webhook_url") or "",
-            "dlr_webhook_secret": user.get("dlr_webhook_secret") or ""}
+# Referrals (legacy) moved to routes/referrals.py
+# Profile + DLR webhook config moved to routes/profile.py
 
 
 # ============================================================
@@ -3605,72 +3404,14 @@ async def country_del_prefix(code: str, pid: str,
 
 
 # ============================================================
-# WHATSAPP TEMPLATES
+# WHATSAPP TEMPLATES — moved to routes/wa_templates.py
 # ============================================================
-class WaTemplateIn(BaseModel):
-    name: str
-    body: str
-    category: str = "utility"  # utility | marketing | authentication
-    language: str = "en"
 
 
-class WaTemplateReviewIn(BaseModel):
-    status: str  # approved | rejected
-    note: Optional[str] = None
-
-
-wa_r = APIRouter(prefix="/wa-templates", tags=["wa_templates"])
-
-
-@wa_r.get("")
-async def list_wa(user: dict = Depends(get_current_user)):
-    return await db.wa_templates.find(
-        {"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
-
-
-@wa_r.post("")
-async def add_wa(body: WaTemplateIn, user: dict = Depends(get_current_user)):
-    doc = {"id": new_id(), "user_id": user["id"], **body.model_dump(),
-           "status": "pending", "created_at": iso(now_utc())}
-    await db.wa_templates.insert_one(doc)
-    admins = await db.users.find({"role": "super_admin"}, {"id": 1}).to_list(20)
-    for a in admins:
-        await add_notification(a["id"], "WhatsApp template submitted",
-                                f"{body.name} by {user['email']}", "info")
-    return clean(doc)
-
-
-@wa_r.delete("/{tid}")
-async def del_wa(tid: str, user: dict = Depends(get_current_user)):
-    await db.wa_templates.delete_one({"id": tid, "user_id": user["id"]})
-    return {"ok": True}
-
-
-@adm_r.get("/wa-templates")
-async def adm_wa(user: dict = Depends(require_roles("super_admin", "compliance"))):
-    return await db.wa_templates.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-
-
-@adm_r.post("/wa-templates/{tid}/review")
-async def adm_wa_review(tid: str, body: WaTemplateReviewIn,
-                         user: dict = Depends(require_roles("super_admin", "compliance"))):
-    if body.status not in ("approved", "rejected"):
-        raise HTTPException(400, "Invalid status")
-    rec = await db.wa_templates.find_one({"id": tid})
-    if not rec:
-        raise HTTPException(404)
-    await db.wa_templates.update_one({"id": tid}, {"$set": {
-        "status": body.status, "review_note": body.note,
-        "reviewed_by": user["id"], "reviewed_at": iso(now_utc())
-    }})
-    await add_notification(rec["user_id"], f"WhatsApp template {body.status}",
-                           f"{rec['name']} {body.status}.",
-                           "success" if body.status == "approved" else "warning")
-    return {"ok": True}
-
-
-api.include_router(ref_r)
-api.include_router(prof_r)
+from routes import referrals as routes_referrals
+from routes import profile as routes_profile
+api.include_router(routes_referrals.router)
+api.include_router(routes_profile.router)
 api.include_router(res_px_r)
 api.include_router(adm_res_px_r)
 api.include_router(country_r)
@@ -3678,7 +3419,9 @@ api.include_router(int_r)
 api.include_router(approv_r)
 api.include_router(app_r)
 api.include_router(pub_r)
-api.include_router(wa_r)
+from routes import wa_templates as routes_wa_templates
+api.include_router(routes_wa_templates.user_router)
+api.include_router(routes_wa_templates.admin_router)
 
 
 # ============================================================
@@ -3735,103 +3478,11 @@ async def country_set_fx(code: str, body: CountryFxIn,
     return {"ok": True, **body.model_dump()}
 
 
-# ---------- Country economics: VAT + local pricing per SMS ----------
-class CountryEconomicsIn(BaseModel):
-    vat_rate_pct: float = Field(ge=0, le=100)
-    sell_per_sms_local: float = Field(ge=0)        # what direct clients pay (gross, VAT-incl)
-    wholesale_per_sms_local: float = Field(ge=0)   # internal reference for resellers/affiliates
+# ---------- Country economics + P&L moved to routes/country_economics.py ----------
+from routes import country_economics as routes_country_economics
+api.include_router(routes_country_economics.econ_router)
+api.include_router(routes_country_economics.pnl_router)
 
-
-# Distinct prefixes so /pnl doesn't get eaten by country_r's /{code} catch-all
-econ_r = APIRouter(prefix="/admin/country-economics", tags=["country_economics"])
-pnl_r  = APIRouter(prefix="/admin/country-pnl",       tags=["country_pnl"])
-
-
-@pnl_r.get("")
-async def country_pnl(_: dict = Depends(require_roles("super_admin"))):
-    """Aggregated per-country profit & loss: sent / revenue / cost / margin."""
-    countries = await db.countries.find({}, {"_id": 0}).to_list(200)
-    rows = []
-    for c in countries:
-        code = c["code"]
-        sent = await db.messages.count_documents(
-            {"country": code, "status": {"$in": ["sent", "delivered"]}})
-        if sent == 0:
-            continue
-        agg = await db.messages.aggregate([
-            {"$match": {"country": code, "status": {"$in": ["sent", "delivered"]}}},
-            {"$group": {
-                "_id": None,
-                "rev_local":  {"$sum": "$revenue_local"},
-                "cost_local": {"$sum": "$cost_incl_vat_local"},
-            }},
-        ]).to_list(1)
-        rev_local  = float(agg[0]["rev_local"])  if agg else 0.0
-        cost_local = float(agg[0]["cost_local"]) if agg else 0.0
-        if rev_local == 0 and cost_local == 0:
-            e = c.get("economics") or {}
-            rev_local  = sent * float(e.get("sell_per_sms_local", 0) or 0)
-            buy_pre    = float(e.get("avg_buy_pre_vat", 0) or 0)
-            vat        = float(e.get("vat_rate_pct", 0) or 0)
-            cost_local = sent * buy_pre * (1 + vat / 100.0)
-        profit_local = rev_local - cost_local
-        margin_pct   = (profit_local / rev_local * 100.0) if rev_local else 0.0
-        fx = float(c.get("fx_rate_to_usd", 0) or 0)
-        profit_usd = (profit_local / fx) if fx > 0 else 0.0
-        rows.append({
-            "code": code, "name": c.get("name"),
-            "currency": c.get("currency"),
-            "sent": sent,
-            "revenue_local": round(rev_local, 2),
-            "cost_local":    round(cost_local, 2),
-            "profit_local":  round(profit_local, 2),
-            "margin_pct":    round(margin_pct, 1),
-            "profit_usd":    round(profit_usd, 2),
-        })
-    rows.sort(key=lambda x: x["profit_usd"], reverse=True)
-    total_usd = round(sum(r["profit_usd"] for r in rows), 2)
-    return {"rows": rows, "total_profit_usd": total_usd}
-
-
-@econ_r.get("/{code}")
-async def get_country_economics(code: str,
-                                  _: dict = Depends(require_roles("super_admin", "country_admin"))):
-    code = code.upper()
-    r = await db.countries.find_one({"code": code}, {"_id": 0})
-    if not r:
-        raise HTTPException(404)
-    e = r.get("economics") or {}
-    return {
-        "code": code,
-        "currency": r.get("currency"),
-        "fx_rate_to_usd": r.get("fx_rate_to_usd"),
-        "vat_rate_pct": e.get("vat_rate_pct", 0),
-        "sell_per_sms_local": e.get("sell_per_sms_local", 0),
-        "wholesale_per_sms_local": e.get("wholesale_per_sms_local", 0),
-    }
-
-
-@econ_r.put("/{code}")
-async def set_country_economics(code: str, body: CountryEconomicsIn,
-                                  admin: dict = Depends(require_roles("super_admin"))):
-    code = code.upper()
-    r = await db.countries.find_one({"code": code})
-    if not r:
-        raise HTTPException(404)
-    await db.countries.update_one({"code": code}, {"$set": {
-        "economics": {
-            "vat_rate_pct":            float(body.vat_rate_pct),
-            "sell_per_sms_local":      float(body.sell_per_sms_local),
-            "wholesale_per_sms_local": float(body.wholesale_per_sms_local),
-        },
-        "updated_at": iso(now_utc()),
-    }})
-    await add_audit(admin["id"], "country.economics", target=code, meta=body.model_dump())
-    return {"ok": True}
-
-
-api.include_router(econ_r)
-api.include_router(pnl_r)
 
 
 # ---------- Banks & top-up routes have moved to routes/banks.py and routes/topups.py ----------
@@ -4142,6 +3793,16 @@ async def startup():
         # Payouts & limits
         ("affiliate.payout_threshold_usd",       50,            "affiliate"),
         ("affiliate.max_codes_per_user",         5,             "affiliate"),
+        # ── AUTOMATED ROUTE-HEALTH ALERTS ─────────────────────────────────
+        # Background loop checks delivery rate per provider every N minutes.
+        # If rate < threshold over the rolling window (with min msg volume)
+        # all super_admins receive an in-app "Route degraded" warning, with
+        # top failure reasons embedded.  Cool-down stops alert spam.
+        ("alerts.route_health_enabled",       True, "notifications"),
+        ("alerts.route_health_window_min",      15, "notifications"),
+        ("alerts.route_health_min_msgs",        10, "notifications"),
+        ("alerts.route_health_threshold_pct",   80, "notifications"),
+        ("alerts.route_health_cooldown_min",    60, "notifications"),
     ]
     for k, v, cat in defaults:
         await db.system_settings.update_one(
@@ -4149,6 +3810,20 @@ async def startup():
             {"$setOnInsert": {"key": k, "value": v, "category": cat,
                               "updated_at": iso(now_utc())}},
             upsert=True)
+    # MIGRATION: older route-health alert keys were saved under "alerts"; move
+    # them under "notifications" so they appear in the Settings Hub UI tab.
+    # Exclude runtime-only keys (last_run_at, last_alert.*) which the worker
+    # writes via set_setting() — keep them out of the admin UI.
+    await db.system_settings.update_many(
+        {"key": {"$in": [
+            "alerts.route_health_enabled",
+            "alerts.route_health_window_min",
+            "alerts.route_health_min_msgs",
+            "alerts.route_health_threshold_pct",
+            "alerts.route_health_cooldown_min",
+        ]},
+         "category": {"$ne": "notifications"}},
+        {"$set": {"category": "notifications"}})
 
     # seed credit packs
     if await db.credit_packs.count_documents({}) == 0:

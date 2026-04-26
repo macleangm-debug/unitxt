@@ -19,7 +19,7 @@ const CATEGORIES = {
   queue:         { label: "Queue engine",    icon: Gauge,        desc: "Concurrency, batch size, retries." },
   onboarding:    { label: "Onboarding",      icon: Rocket,       desc: "Signup flow, KYC requirements." },
   compliance:    { label: "Compliance",      icon: ShieldCheck,  desc: "Spam, KYC, daily limits, retention." },
-  notifications: { label: "Notifications",   icon: Bell,         desc: "Triggers, thresholds, templates." },
+  notifications: { label: "Notifications",   icon: Bell,         desc: "Low-balance pings & route-health alerts (delivery rate floor, cool-down)." },
   // module links
   providers:     { label: "Providers",       icon: Network,      desc: "Adapter configuration & failover.",         linkTo: "/admin/providers" },
   countries:     { label: "Countries",       icon: Globe2,       desc: "Geographies and dial codes.",                linkTo: "/admin/countries" },
