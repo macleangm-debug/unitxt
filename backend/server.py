@@ -3748,8 +3748,8 @@ async def startup():
     await db.providers.create_index("priority")
 
     # seed admin
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@unitxt.io")
-    admin_pwd = os.environ.get("ADMIN_PASSWORD", "Admin@2026")
+    admin_email = os.environ.get("ADMIN_EMAIL", "elohim@iam.com")
+    admin_pwd = os.environ.get("ADMIN_PASSWORD", "iamthatiam")
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
         admin = {
