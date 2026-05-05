@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-04-26 (iteration 19)
-**Version**: 1.18 (Phase-3 routes split · Settings Hub route-health panel · Per-message snapshots · Auto route-health alerts)
+**Last updated**: 2026-05-05 (iteration 20)
+**Version**: 1.19 (SMPP transport for Tigo TZ · Compliance enforcement · Active provider probes)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.10
@@ -107,15 +107,36 @@ Country VAT + sell + wholesale fields per country, per-route `buy_price_local_pr
 - One-shot migration moves any pre-existing route-health settings from category `alerts` → `notifications` so they show in the right tab.
 - **Testing (iteration 19)**: 32/32 phase-3 + 25/25 iter-17 + 23/23 iter-18 regression all pass. See `/app/test_reports/iteration_19.json`.
 
+## v1.19 — SMPP transport + Compliance + Active probes — **this iteration**
+- **SMPP transport (direct telco binds)**:
+  - New provider field `transport: "http" | "smpp"` plus a full SMPP credential block: `smpp_host`, `smpp_port`, `smpp_system_id`, `smpp_password`, `smpp_system_type`, `smpp_bind_mode` (tx/rx/trx), `smpp_use_tls`, `smpp_source_ton`, `smpp_source_npi`, `smpp_dest_ton`, `smpp_dest_npi`, `smpp_throughput_per_sec`, `smpp_window_size`, `smpp_notes`.
+  - `SMPPOutboxAdapter` enqueues each send as a row in `db.smpp_outbox` and returns `status="queued"`.
+  - **Standalone relay daemon** at `/app/backend/smpp_relay/` (relay.py + README.md + systemd unit) — deployed on the VPN-attached host (e.g. Datavision-YTS Server `41.220.143.37` for Tigo TZ), holds the SMPP TRX bind, drains the outbox, writes DLRs back via `provider_msg_id` correlation, and heartbeats `providers.last_smpp_heartbeat` every 30 s.
+  - **Tigo specifics from VPN form**: SMSC = `smpp01.tigo.co.tz:10501`, accessible only via IPSec from `41.220.143.37/32`.
+- **Compliance enforcement** (gates every quick-send / bulk-send before reservation):
+  - **Spam keyword block** — body containing any keyword from `compliance.spam_keywords` returns HTTP 400 with the keyword surfaced in the error.
+  - **Daily send limit** — `compliance.daily_send_limit` truncates over-cap recipients; full block returns 400.
+  - **Opt-out filter** — phones in `db.opt_outs` are silently dropped from the recipient list. All-opted batches return HTTP 400.
+  - **Inbound STOP / UNSUBSCRIBE / UNSUB / OPTOUT / CANCEL** keywords on `POST /api/optout/inbound` auto-add the sender to the opt-out list. Non-STOP inbound is logged in `db.inbound_messages`.
+  - **Opt-out admin** — new page `/admin/opt-out` (count + manual add + table) plus tile in Settings Hub → Governance & lifecycle.
+- **Active provider probes**:
+  - Background loop now runs `_active_probe_providers` every 60 s.
+  - HTTP providers: HEAD/GET `${base_url}/healthz` — 5xx = down, 4xx = degraded.
+  - SMPP providers: heartbeat staleness — >180 s = down, >90 s = degraded.
+  - Routing (`pick_provider_for`) skips `probe_status="down"` providers; falls back to ignore-probe if all are down.
+  - Settings keys: `alerts.active_probe_enabled`, `alerts.active_probe_interval_sec`, `alerts.active_probe_http_timeout_sec`.
+- **Testing (iteration 20)**: 35/35 new backend + 32/32 iter-19 + 23/23 iter-18 + 25/25 iter-17 regression. Frontend SMPP form & Opt-out page verified. See `/app/test_reports/iteration_20.json`.
+
 ## Backlog
 ### P0 (blocked on creds / decisions)
 - Real Twilio · Real Tigo TZ · Real Stripe · WhatsApp send via approved templates
 
 ### P1
 - Phase-4 routes split (msg_r, adm_r, adm_r2 — the heaviest remaining ~2,000 lines)
-- Real-time provider health pings (active probe vs current passive monitor)
+- **Deploy SMPP relay daemon** on Datavision-YTS Server (production handover)
 - Email channel for route-health alerts (currently in-app only)
-- Opt-out / DND / spam-keyword / daily-send-limit enforcement
+- Inbound DLR/STOP routing per-provider — wire individual providers to call `/api/optout/inbound`
+- Operator-aware SMPP routing (currently routes by country only when SMPP is the picked transport)
 
 ### P2
 - AI fraud detection · Voice + email channels · Quality-aware smart routing · Real-time provider health pings · Institutions API integrations Phase 2
