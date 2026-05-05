@@ -39,6 +39,7 @@ const CATEGORIES = {
   affiliate:     { label: "Affiliate program",   icon: Users,    desc: "Promo-code-driven commissions: model, rate, payouts.",         linkTo: "/admin/affiliate" },
   country_pnl:   { label: "Country P&L",      icon: DollarSign,  desc: "Per-country profit dashboard with VAT-aware true cost.",        linkTo: "/admin/country-pnl" },
   affiliate_old: { label: "Legacy referrals", icon: Users,        desc: "Loss-proof referral rewards (replaced by Affiliate).        Read-only." },
+  opt_out:       { label: "Opt-out list",     icon: ShieldCheck,  desc: "Phones that opted out via STOP/UNSUB or manual entry.", linkTo: "/admin/opt-out" },
 };
 
 // Organize into logical groups
@@ -71,7 +72,7 @@ const GROUPS = [
     key: "governance",
     label: "Governance & lifecycle",
     desc: "Compliance, inactivity handling and notification rules.",
-    items: ["compliance", "inactivity", "notifications"],
+    items: ["compliance", "inactivity", "notifications", "opt_out"],
   },
   {
     key: "distribution",

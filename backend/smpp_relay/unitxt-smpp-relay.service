@@ -1,0 +1,19 @@
+[Unit]
+Description=unitxt SMPP relay daemon
+After=network-online.target ipsec.service
+Wants=network-online.target ipsec.service
+
+[Service]
+Type=simple
+User=unitxt
+Group=unitxt
+WorkingDirectory=/opt/unitxt-smpp-relay
+ExecStart=/opt/unitxt-smpp-relay/venv/bin/python /opt/unitxt-smpp-relay/relay.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/opt/unitxt-smpp-relay/relay.env
+
+[Install]
+WantedBy=multi-user.target

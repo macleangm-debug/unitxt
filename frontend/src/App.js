@@ -59,6 +59,7 @@ import RoutingEngine from "@/pages/admin/RoutingEngine";
 import AdminBanks from "@/pages/admin/AdminBanks";
 import AdminAffiliate from "@/pages/admin/AdminAffiliate";
 import AdminCountryPnL from "@/pages/admin/AdminCountryPnL";
+import AdminOptOut from "@/pages/admin/AdminOptOut";
 
 function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
@@ -171,6 +172,7 @@ export default function App() {
             <Route path="banks" element={<AdminBanks />} />
             <Route path="affiliate" element={<AdminAffiliate />} />
             <Route path="country-pnl" element={<AdminCountryPnL />} />
+            <Route path="opt-out" element={<AdminOptOut />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

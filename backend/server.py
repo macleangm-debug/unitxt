@@ -255,15 +255,33 @@ class ProviderIn(BaseModel):
     type: str = "aggregator"  # direct_telco | aggregator | api_partner
     countries: List[str] = []
     channels: List[str] = ["sms"]
+    # ── HTTP transport (default) ─────────────────────────────────────
     api_key: Optional[str] = ""
     api_secret: Optional[str] = ""
     base_url: Optional[str] = ""
+    # ── Common economics ────────────────────────────────────────────
     cost_per_sms: float = 0.01
     buy_price_local_pre_vat: float = 0.0   # pre-VAT cost in destination country's currency
     priority: int = 100
     active: bool = True
     supports_unicode: bool = True
     supports_dlr: bool = True
+    # ── Transport switch & SMPP config ─────────────────────────────
+    transport: str = "http"   # "http" | "smpp"
+    smpp_host: Optional[str] = ""
+    smpp_port: Optional[int] = 2775
+    smpp_system_id: Optional[str] = ""
+    smpp_password: Optional[str] = ""
+    smpp_system_type: Optional[str] = ""
+    smpp_bind_mode: Optional[str] = "trx"   # tx | rx | trx
+    smpp_use_tls: bool = False
+    smpp_source_ton: Optional[int] = 5      # 5 = alphanumeric
+    smpp_source_npi: Optional[int] = 0
+    smpp_dest_ton: Optional[int] = 1        # 1 = international
+    smpp_dest_npi: Optional[int] = 1        # 1 = ISDN/E.164
+    smpp_throughput_per_sec: Optional[int] = 30
+    smpp_window_size: Optional[int] = 10
+    smpp_notes: Optional[str] = ""
 
 
 class PricingPlanIn(BaseModel):
@@ -434,7 +452,29 @@ class TigoTZAdapter(ProviderAdapter):
                 "status": "sent", "error": None}
 
 
+class SMPPOutboxAdapter(ProviderAdapter):
+    """SMPP transport — does NOT bind to the SMSC from this pod.
+
+    Returns `status="queued"`; the bulk loop then writes a row into
+    `db.smpp_outbox` keyed by the message id.  A standalone SMPP relay
+    daemon (deployed on the VPN-attached host with the whitelisted source
+    IP) drains the outbox, holds the SMPP bind, submits PDUs, and writes
+    DLRs back into `db.messages`.
+
+    See `/app/backend/smpp_relay/README.md` for deployment.
+    """
+    async def send(self, to: str, sender_id: str, message: str, channel: str) -> dict:
+        # Produce a synthetic provider_msg_id that the daemon can match on
+        # when it submit_sm's and gets a real SMSC id back.
+        return {"ok": True, "status": "queued",
+                "provider_msg_id": f"smpp_q_{secrets.token_hex(6)}",
+                "error": None,
+                "_smpp_pending": True}
+
+
 def adapter_for(provider: dict) -> ProviderAdapter:
+    if provider.get("transport") == "smpp":
+        return SMPPOutboxAdapter(provider)
     name = (provider.get("name") or "").lower()
     if "twilio" in name:
         return TwilioAdapter(provider)
@@ -1303,13 +1343,24 @@ def render(template: str, vars_: dict) -> str:
 
 async def pick_provider_for(country: str, channel: str, operator: Optional[str] = None) -> Optional[dict]:
     """Operator-aware routing. Prefer providers that explicitly target the operator
-    (via `operators` array). Fall back to country-only providers. Then catch-all."""
+    (via `operators` array). Fall back to country-only providers. Then catch-all.
+    Providers whose `probe_status == "down"` are skipped automatically."""
     cur = db.providers.find({
         "active": True,
         "channels": channel,
+        "probe_status": {"$ne": "down"},
         "$or": [{"countries": country}, {"countries": "*"}, {"countries": []}],
     }, {"_id": 0}).sort("priority", 1)
     providers = await cur.to_list(100)
+    if not providers:
+        # All down? Fall back to ignoring probe_status so the campaign still
+        # tries — we'd rather attempt-and-fail than block silently.
+        cur = db.providers.find({
+            "active": True,
+            "channels": channel,
+            "$or": [{"countries": country}, {"countries": "*"}, {"countries": []}],
+        }, {"_id": 0}).sort("priority", 1)
+        providers = await cur.to_list(100)
     if not providers:
         return None
     if operator:
@@ -1529,7 +1580,12 @@ async def execute_campaign(campaign: dict):
         rev_docs = []
         for res in results:
             sent += 1
-            if res["ok"]:
+            # SMPP-pending = "queued" — not yet delivered or failed; the relay
+            # daemon will update message.status via DLR.  Count them as
+            # in-flight (neither delivered nor failed) until the DLR lands.
+            if res.get("_smpp_pending"):
+                pass
+            elif res["ok"]:
                 delivered += 1
             else:
                 failed += 1
@@ -1574,6 +1630,25 @@ async def execute_campaign(campaign: dict):
         if msg_docs:
             await db.messages.insert_many(msg_docs, ordered=False)
             await db.platform_revenue_log.insert_many(rev_docs, ordered=False)
+            # ── SMPP outbox: enqueue queued messages for the relay daemon ──
+            outbox_docs = []
+            for m, r in zip(msg_docs, results):
+                if r.get("_smpp_pending"):
+                    outbox_docs.append({
+                        "id": new_id(),
+                        "message_id": m["id"],
+                        "provider_id": m["provider_id"],
+                        "to": m["to"],
+                        "sender_id": m["sender_id"],
+                        "body": m["body"],
+                        "channel": m["channel"],
+                        "correlation_token": m["provider_msg_id"],
+                        "status": "queued",
+                        "attempts": 0,
+                        "created_at": iso(now_utc()),
+                    })
+            if outbox_docs:
+                await db.smpp_outbox.insert_many(outbox_docs, ordered=False)
         # progress update
         await db.campaigns.update_one({"id": cid}, {"$set": {
             "sent": sent, "delivered": delivered, "failed": failed,
@@ -1638,6 +1713,10 @@ async def quick_send(body: QuickSendIn, user: dict = Depends(get_current_user)):
     recipients = [{"phone": p.strip()} for p in body.recipients if p.strip()]
     if not recipients:
         raise HTTPException(400, "No recipients")
+    # ── Compliance gate (spam keywords, daily limit, opt-out filter) ──
+    recipients, _block_reason = await compliance_check(user, recipients, body.message)
+    if not recipients:
+        raise HTTPException(400, _block_reason or "All recipients blocked by compliance.")
     seg = gsm_segments(body.message)
     rate = await credits_per_msg(user.get("country", "TZ"), body.channel)
     est_credits = rate * seg * len(recipients)
@@ -1658,7 +1737,8 @@ async def quick_send(body: QuickSendIn, user: dict = Depends(get_current_user)):
     await db.campaigns.insert_one(campaign)
     asyncio.create_task(execute_campaign(campaign))
     await db.users.update_one({"id": user["id"]}, {"$set": {"last_active_at": iso(now_utc())}})
-    return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits}
+    return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits,
+            "recipients_after_compliance": len(recipients)}
 
 
 @msg_r.post("/bulk-send")
@@ -1667,10 +1747,14 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
         raise HTTPException(403, "Account inactive. Restore it from Wallet → Recover.")
     if not body.recipients:
         raise HTTPException(400, "No recipients")
-    sample = render(body.template, body.recipients[0]) if body.recipients else body.template
+    # ── Compliance gate (spam keywords, daily limit, opt-out filter) ──
+    filtered, _block_reason = await compliance_check(user, body.recipients, body.template)
+    if not filtered:
+        raise HTTPException(400, _block_reason or "All recipients blocked by compliance.")
+    sample = render(body.template, filtered[0])
     seg = gsm_segments(sample)
     rate = await credits_per_msg(user.get("country", "TZ"), body.channel)
-    est_credits = rate * seg * len(body.recipients)
+    est_credits = rate * seg * len(filtered)
     w = await get_or_create_wallet(user["id"])
     if w["balance"] < est_credits:
         raise HTTPException(400, f"Need {est_credits} credits, you have {int(w['balance'])}.")
@@ -1679,7 +1763,7 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
         "channel": body.channel, "sender_id": body.sender_id,
         "country": user.get("country", "TZ"),
         "message": body.template, "template": body.template,
-        "recipients": body.recipients, "total": len(body.recipients),
+        "recipients": filtered, "total": len(filtered),
         "status": "scheduled" if body.schedule_at else "running",
         "created_at": iso(now_utc()),
         "sent": 0, "delivered": 0, "failed": 0, "total_cost": 0,
@@ -1689,7 +1773,54 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
     if not body.schedule_at:
         asyncio.create_task(execute_campaign(campaign))
     await db.users.update_one({"id": user["id"]}, {"$set": {"last_active_at": iso(now_utc())}})
-    return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits}
+    return {"ok": True, "campaign_id": campaign["id"], "estimated_credits": est_credits,
+            "recipients_after_compliance": len(filtered)}
+
+
+# ============================================================
+# COMPLIANCE GATE — spam keywords, daily limit, opt-out filter
+# ============================================================
+async def compliance_check(user: dict, recipients: list, body_text: str):
+    """Returns (filtered_recipients, error_string_or_None).
+    Raises HTTPException 400 if a hard block triggers (spam keyword / daily
+    limit). Soft-filters opt-out phones silently.
+    """
+    # 1. Spam keywords (admin Settings Hub key compliance.spam_keywords)
+    spam_kw = await get_setting("compliance.spam_keywords", []) or []
+    if body_text and spam_kw:
+        low = body_text.lower()
+        for kw in spam_kw:
+            if kw and kw.lower() in low:
+                raise HTTPException(400,
+                    f"Message blocked by compliance: contains banned keyword '{kw}'. "
+                    f"Edit the text or contact support.")
+    # 2. Daily send limit per user
+    limit = int(await get_setting("compliance.daily_send_limit", 100000) or 0)
+    if limit > 0:
+        from datetime import date
+        today = date.today().isoformat()
+        sent_today = await db.messages.count_documents({
+            "user_id": user["id"],
+            "created_at": {"$gte": f"{today}T00:00:00+00:00"},
+        })
+        remaining = limit - sent_today
+        if remaining <= 0:
+            raise HTTPException(400,
+                f"Daily send limit ({limit:,}) reached. Resets at midnight UTC.")
+        if len(recipients) > remaining:
+            recipients = recipients[:remaining]
+    # 3. Opt-out filter (silent)
+    phones = [r.get("phone") for r in recipients if r.get("phone")]
+    if phones:
+        opted_out = await db.opt_outs.find(
+            {"phone": {"$in": phones}}, {"_id": 0, "phone": 1}
+        ).to_list(len(phones))
+        opted_out_set = {o["phone"] for o in opted_out}
+        if opted_out_set:
+            recipients = [r for r in recipients if r.get("phone") not in opted_out_set]
+    if not recipients:
+        return [], "All recipients are on the opt-out list."
+    return recipients, None
 
 
 # Pre-flight (Wave A) and saved CSV mappings (Wave B) are mounted from
@@ -2400,6 +2531,8 @@ async def background_loop():
                                             f"Send something or your account will pause.", "warning")
             # 4. ROUTE HEALTH MONITOR — runs every N minutes (configurable)
             await _check_route_health(now)
+            # 5. ACTIVE PROVIDER PROBES — light TCP / HTTP / SMPP heartbeat
+            await _active_probe_providers(now)
         except Exception as e:
             log.exception(f"background_loop error: {e}")
         await asyncio.sleep(60)  # every minute (for scheduler responsiveness)
@@ -2479,9 +2612,80 @@ from routes import credits as routes_credits
 api.include_router(routes_credits.router)
 from routes import prefixes as routes_prefixes
 from routes import dlr as routes_dlr
+from routes import optout as routes_optout
 api.include_router(routes_prefixes.router)
 api.include_router(routes_dlr.router)
+api.include_router(routes_optout.router)
 api.include_router(adm_r2)
+
+
+async def _active_probe_providers(now):
+    """Lightweight health probe of every active provider.
+
+    HTTP providers:  HEAD/GET  base_url + /healthz (3s timeout)
+    SMPP providers:  inspect last_smpp_heartbeat (written by the relay
+                     daemon every 30s) — stale > 90s ⇒ down.
+
+    Updates `providers.probe_status` ∈ {ok, degraded, down} and
+    `providers.last_probe_at`.  Run every ~60s (controlled by the outer
+    background_loop sleep).
+    """
+    if not bool(await get_setting("alerts.active_probe_enabled", True)):
+        return
+    # debounce: only run probe every N seconds
+    cool = int(await get_setting("alerts.active_probe_interval_sec", 60) or 60)
+    last = await get_setting("alerts.active_probe_last_at", None)
+    if last:
+        try:
+            t = datetime.fromisoformat(last.replace("Z", "+00:00"))
+            if (now - t).total_seconds() < cool:
+                return
+        except Exception:
+            pass
+    cur = db.providers.find({"active": True}, {"_id": 0})
+    import httpx
+    timeout = float(await get_setting("alerts.active_probe_http_timeout_sec", 3) or 3)
+    async for p in cur:
+        status = "ok"
+        detail = ""
+        try:
+            if p.get("transport") == "smpp":
+                hb = p.get("last_smpp_heartbeat")
+                if not hb:
+                    status, detail = "down", "no heartbeat from relay daemon"
+                else:
+                    try:
+                        last_hb = datetime.fromisoformat(hb.replace("Z", "+00:00"))
+                        age = (now - last_hb).total_seconds()
+                        if age > 180:
+                            status, detail = "down", f"heartbeat stale ({int(age)}s)"
+                        elif age > 90:
+                            status, detail = "degraded", f"heartbeat lagging ({int(age)}s)"
+                    except Exception:
+                        status, detail = "down", "invalid heartbeat timestamp"
+            else:
+                base = (p.get("base_url") or "").rstrip("/")
+                if not base:
+                    status, detail = "ok", "no base_url configured"
+                else:
+                    url = base + "/healthz" if not base.endswith("/healthz") else base
+                    try:
+                        async with httpx.AsyncClient(timeout=timeout) as cli:
+                            r = await cli.get(url)
+                        if r.status_code >= 500:
+                            status, detail = "down", f"HTTP {r.status_code}"
+                        elif r.status_code >= 400:
+                            status, detail = "degraded", f"HTTP {r.status_code}"
+                    except Exception as e:
+                        status, detail = "down", f"probe error: {type(e).__name__}"
+        except Exception:
+            log.exception(f"active probe failed for {p.get('id')}")
+            status, detail = "degraded", "probe exception"
+        await db.providers.update_one({"id": p["id"]}, {"$set": {
+            "probe_status": status, "probe_detail": detail,
+            "last_probe_at": iso(now),
+        }})
+    await set_setting("alerts.active_probe_last_at", iso(now))
 
 
 # ============================================================
@@ -3803,6 +4007,10 @@ async def startup():
         ("alerts.route_health_min_msgs",        10, "notifications"),
         ("alerts.route_health_threshold_pct",   80, "notifications"),
         ("alerts.route_health_cooldown_min",    60, "notifications"),
+        # ── ACTIVE PROVIDER PROBES ────────────────────────────────────────
+        ("alerts.active_probe_enabled",            True, "notifications"),
+        ("alerts.active_probe_interval_sec",         60, "notifications"),
+        ("alerts.active_probe_http_timeout_sec",      3, "notifications"),
     ]
     for k, v, cat in defaults:
         await db.system_settings.update_one(
