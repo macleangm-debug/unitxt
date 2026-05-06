@@ -1783,7 +1783,7 @@ async def bulk_send(body: BulkSendIn, user: dict = Depends(get_current_user)):
 async def compliance_check(user: dict, recipients: list, body_text: str):
     """Returns (filtered_recipients, error_string_or_None).
     Raises HTTPException 400 if a hard block triggers (spam keyword / daily
-    limit). Soft-filters opt-out phones silently.
+    limit / unserviced country). Soft-filters opt-out phones silently.
     """
     # 1. Spam keywords (admin Settings Hub key compliance.spam_keywords)
     spam_kw = await get_setting("compliance.spam_keywords", []) or []
@@ -1818,9 +1818,79 @@ async def compliance_check(user: dict, recipients: list, body_text: str):
         opted_out_set = {o["phone"] for o in opted_out}
         if opted_out_set:
             recipients = [r for r in recipients if r.get("phone") not in opted_out_set]
+    # 4. Unserviced-country block (hard).  Resolve each recipient to its
+    #    destination country via the prefixes table, then reject upfront
+    #    if no active provider explicitly covers that country.
+    unserviced = await _unserviced_countries(recipients)
+    if unserviced:
+        # Friendly names where we have them
+        real_codes = [c for c in unserviced if c != "__unknown__"]
+        docs = []
+        if real_codes:
+            docs = await db.countries.find(
+                {"code": {"$in": real_codes}}, {"_id": 0, "code": 1, "name": 1}
+            ).to_list(len(real_codes))
+        name_for = {d["code"]: d.get("name") or d["code"] for d in docs}
+        parts = []
+        for c in real_codes:
+            parts.append(name_for.get(c, c))
+        msg = ""
+        if parts:
+            msg = ("We don't deliver to the following "
+                   f"{'country' if len(parts)==1 else 'countries'} yet: "
+                   + ", ".join(parts) + ". ")
+        if "__unknown__" in unserviced:
+            msg += unserviced["__unknown__"] + " "
+        msg += "Contact support to request coverage."
+        raise HTTPException(400, msg.strip())
     if not recipients:
         return [], "All recipients are on the opt-out list."
     return recipients, None
+
+
+async def _unserviced_countries(recipients: list) -> dict:
+    """Returns a dict mapping unserviced destination country codes to a
+    friendly reason string. 'unknown' is a pseudo-country for recipients
+    whose phone prefix isn't in our prefixes table.
+
+    A country is considered serviced only when at least one active provider
+    lists that exact country code in its `countries` array.  Wildcard `*`
+    providers do NOT count as coverage — they're a fallback, not a
+    guarantee.  This prevents false "covered" reports when the only global
+    provider is a stub without live credentials.
+    """
+    unknowns = 0
+    dest_countries = set()
+    for r in recipients:
+        phone = r.get("phone")
+        if not phone:
+            continue
+        match = await phone_to_operator(phone)
+        if not match or not match.get("country"):
+            unknowns += 1
+            continue
+        dest_countries.add(match["country"])
+
+    result: dict = {}
+    if unknowns > 0:
+        result["__unknown__"] = (
+            f"{unknowns} recipient{'s' if unknowns != 1 else ''} "
+            f"{'have' if unknowns != 1 else 'has'} an unrecognised number "
+            "format (we couldn't match the phone prefix to any country/operator)."
+        )
+    if not dest_countries:
+        return result
+    # Explicit country coverage only (ignore wildcard providers)
+    rows = await db.providers.find(
+        {"active": True}, {"_id": 0, "countries": 1}).to_list(500)
+    explicit = set()
+    for p in rows:
+        for c in p.get("countries") or []:
+            if c and c != "*":
+                explicit.add(c)
+    for c in dest_countries - explicit:
+        result[c] = "no active provider covers this country"
+    return result
 
 
 # Pre-flight (Wave A) and saved CSV mappings (Wave B) are mounted from

@@ -1,7 +1,7 @@
 # unitxt — PRD
 
-**Last updated**: 2026-05-05 (iteration 20)
-**Version**: 1.19 (SMPP transport for Tigo TZ · Compliance enforcement · Active provider probes)
+**Last updated**: 2026-05-05 (iteration 21)
+**Version**: 1.20 (Tigo TZ credentials applied · Country-coverage block · Unknown-prefix block)
 
 ## Implemented so far (cumulative)
 ### v1.0 → v1.10
@@ -126,6 +126,16 @@ Country VAT + sell + wholesale fields per country, per-route `buy_price_local_pr
   - Routing (`pick_provider_for`) skips `probe_status="down"` providers; falls back to ignore-probe if all are down.
   - Settings keys: `alerts.active_probe_enabled`, `alerts.active_probe_interval_sec`, `alerts.active_probe_http_timeout_sec`.
 - **Testing (iteration 20)**: 35/35 new backend + 32/32 iter-19 + 23/23 iter-18 + 25/25 iter-17 regression. Frontend SMPP form & Opt-out page verified. See `/app/test_reports/iteration_20.json`.
+
+## v1.20 — Tigo TZ live config + Country-coverage block — **this iteration**
+- **Tigo TZ SMPP credentials** applied to the Tigo TZ SMPP provider:
+  `system_id=dvidev`, `password=dvidev255` (subject to user confirming these are SMPP creds, not SSH).
+  `buy_price_local_pre_vat=3.0` TZS, `cost_per_sms=$0.00115`, priority=1.
+- **TZ economics confirmed**: 20 TZS sell, 15 TZS wholesale, 18% VAT, FX 2,600 TZS/USD.
+  → Per-SMS true cost = 3 × 1.18 = **3.54 TZS**. Margin = **16.46 TZS / SMS (82.3%)**.
+- **Country-coverage block** at send-time. `compliance_check` now resolves every recipient phone to a destination country via the prefixes table and rejects with a clear English error if any country has no active provider explicitly covering it. Wildcard `*` providers no longer count as coverage (a stub global aggregator without creds shouldn't make 200+ countries appear "serviced").
+- **Unknown-prefix block**. Recipients whose phone format isn't matched by any prefix are also rejected with a friendly error so admins know to add the prefix.
+- **Same routing logic for any country/channel**: add the country to a Provider's `countries`, set `transport=http|smpp`, fill the credentials, set `buy_price_local_pre_vat`, save. Set per-country economics at `/admin/country-economics/{code}`. That's the entire onboarding for a new country.
 
 ## Backlog
 ### P0 (blocked on creds / decisions)
