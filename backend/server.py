@@ -2683,9 +2683,11 @@ api.include_router(routes_credits.router)
 from routes import prefixes as routes_prefixes
 from routes import dlr as routes_dlr
 from routes import optout as routes_optout
+from routes import smpp_relay_api as routes_smpp_relay_api
 api.include_router(routes_prefixes.router)
 api.include_router(routes_dlr.router)
 api.include_router(routes_optout.router)
+api.include_router(routes_smpp_relay_api.router)
 api.include_router(adm_r2)
 
 

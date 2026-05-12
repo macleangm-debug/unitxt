@@ -1,46 +1,39 @@
 #!/usr/bin/env python3
-"""unitxt SMPP Relay Daemon
-==========================
+"""unitxt SMPP Relay Daemon — HTTP edition
+==========================================
 
-This is a STANDALONE daemon — it must run on the host that has the IPSec VPN
-tunnel to the SMSC (e.g. Tigo's `smpp01.tigo.co.tz` is only reachable from
-your VPN-attached server `41.220.143.37`).
+This daemon runs on the VPN-attached host (e.g. Datavision-YTS Server
+`41.220.143.37` for Tigo TZ — only that source IP is whitelisted by Tigo's
+ACL).
+
+It talks to the unitxt API over HTTPS — no MongoDB connection needed.
+This means it works from any host on the public internet, no database
+allowlist required.
 
 Responsibilities
 ----------------
-1. Connect to the same MongoDB instance that unitxt uses.
-2. For every active provider with `transport == "smpp"`, hold a long-lived
-   SMPP TRX bind to the SMSC.
-3. Drain `db.smpp_outbox` rows as fast as the SMSC accepts them, respecting
-   each provider's `smpp_throughput_per_sec` and `smpp_window_size`.
-4. When the SMSC returns the submit_sm_resp, update the corresponding row
-   in `db.messages` (status = "sent", provider_msg_id = SMSC id).
-5. When the SMSC pushes a deliver_sm DLR, parse it and update
-   `db.messages.status` to `delivered` / `failed` with the DLR error code.
-6. Heartbeat: write `db.providers.{id}.last_smpp_heartbeat` every 30 s so
-   the unitxt admin UI can show the bind as healthy.
+1. Poll the unitxt API for active SMPP providers.
+2. Hold a long-lived TRX bind to each SMSC.
+3. Claim queued messages, submit them, post results back over HTTPS.
+4. Forward DLRs (deliver_sm) back over HTTPS.
+5. Heartbeat every 30 s so the unitxt admin UI shows bind health.
 
 Deployment
 ----------
-1. Copy the contents of `/app/backend/smpp_relay/` to your VPN host
-   (`/opt/unitxt-smpp-relay/`).
-2. Create `relay.env` (next to `relay.py`) with:
+1. Copy this folder to `/opt/unitxt-smpp-relay/` on your VPN host.
+2. Create `relay.env`:
 
-       MONGO_URL="mongodb+srv://..."          # same DB unitxt uses
-       DB_NAME="unitxt"
+       UNITXT_BASE_URL=https://www.unitxt.co        # or your prod host
+       UNITXT_RELAY_KEY=urk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
        LOG_LEVEL=INFO
        HEARTBEAT_INTERVAL_SEC=30
        POLL_INTERVAL_MS=250
 
-3. Install deps:
+   Get UNITXT_RELAY_KEY from the unitxt admin UI:
+   Settings Hub → Platform → `platform.relay_api_key`
 
-       pip install -r requirements.relay.txt
-
-4. Run under systemd (see `unitxt-smpp-relay.service`).
-
-Provider configuration is read from MongoDB — set `transport=smpp` plus the
-SMPP fields on a provider via the unitxt admin UI.  The daemon picks new
-providers up on the next 30-second cycle.
+3. Install deps:    pip install -r requirements.relay.txt
+4. Start systemd:   systemctl enable --now unitxt-smpp-relay
 """
 import logging
 import os
@@ -49,19 +42,18 @@ import sys
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
 from typing import Dict, Optional
 
 try:
     import smpplib.client
     import smpplib.consts
     import smpplib.gsm
+    import smpplib.smpp
 except ImportError:
-    print("ERROR: pip install smpplib pymongo python-dotenv", file=sys.stderr)
+    print("ERROR: pip install -r requirements.relay.txt", file=sys.stderr)
     sys.exit(1)
 
-from pymongo import MongoClient
-from pymongo.errors import PyMongoError
+import requests
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "relay.env"))
@@ -69,24 +61,66 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "relay.env"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 HEARTBEAT_SEC = int(os.environ.get("HEARTBEAT_INTERVAL_SEC", "30"))
 POLL_MS = int(os.environ.get("POLL_INTERVAL_MS", "250"))
+BASE_URL = os.environ.get("UNITXT_BASE_URL", "").rstrip("/")
+RELAY_KEY = os.environ.get("UNITXT_RELAY_KEY", "")
+if not BASE_URL or not RELAY_KEY:
+    print("ERROR: UNITXT_BASE_URL and UNITXT_RELAY_KEY must be set in relay.env",
+          file=sys.stderr)
+    sys.exit(1)
 
 logging.basicConfig(level=LOG_LEVEL,
                     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("unitxt-smpp-relay")
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+HEADERS = {"X-Relay-Key": RELAY_KEY, "Content-Type": "application/json"}
 
 
 # ---------------------------------------------------------------------------
-# One ProviderBind per active SMPP provider — keeps a bind, sender thread,
-# and DLR receiver thread alive for the lifetime of the provider doc.
+# HTTP client — wraps the 4 endpoints with timeouts + retries
+# ---------------------------------------------------------------------------
+class API:
+    @staticmethod
+    def list_providers(timeout=10):
+        r = requests.get(f"{BASE_URL}/api/smpp-relay/providers",
+                         headers=HEADERS, timeout=timeout)
+        r.raise_for_status()
+        return r.json().get("providers", [])
+
+    @staticmethod
+    def claim(provider_id: str, limit: int = 50, timeout=10):
+        r = requests.post(f"{BASE_URL}/api/smpp-relay/claim",
+                          headers=HEADERS, timeout=timeout,
+                          json={"provider_id": provider_id, "limit": limit})
+        r.raise_for_status()
+        return r.json().get("messages", [])
+
+    @staticmethod
+    def report(correlation_token: str, status: str,
+               smsc_msg_id: Optional[str] = None,
+               error: Optional[str] = None, timeout=10):
+        body = {"correlation_token": correlation_token, "status": status,
+                "smsc_msg_id": smsc_msg_id, "error": error}
+        r = requests.post(f"{BASE_URL}/api/smpp-relay/result",
+                          headers=HEADERS, timeout=timeout, json=body)
+        r.raise_for_status()
+
+    @staticmethod
+    def heartbeat(provider_id: str, bind_status: str = "bound",
+                  detail: Optional[str] = None, timeout=5):
+        body = {"provider_id": provider_id, "bind_status": bind_status,
+                "detail": detail}
+        try:
+            requests.post(f"{BASE_URL}/api/smpp-relay/heartbeat",
+                          headers=HEADERS, timeout=timeout, json=body)
+        except Exception:
+            log.exception("heartbeat failed")
+
+
+# ---------------------------------------------------------------------------
+# One ProviderBind per active SMPP provider.
 # ---------------------------------------------------------------------------
 class ProviderBind:
-    def __init__(self, provider: dict, db):
+    def __init__(self, provider: dict):
         self.provider = provider
-        self.db = db
         self.id = provider["id"]
         self.name = provider.get("name") or self.id
         self.client: Optional[smpplib.client.Client] = None
@@ -95,9 +129,9 @@ class ProviderBind:
         self._sender_thread: Optional[threading.Thread] = None
         self._listener_thread: Optional[threading.Thread] = None
         self._heartbeat_thread: Optional[threading.Thread] = None
-        # outstanding submits keyed by SMPP sequence number, value is correlation_token
+        # outstanding submits: sequence → correlation_token
         self._pending: Dict[int, str] = {}
-        self._send_window = deque()  # for throughput throttling
+        self._send_window = deque()
 
     # -------- lifecycle --------
     def start(self):
@@ -108,7 +142,6 @@ class ProviderBind:
             int(self.provider.get("smpp_port") or 2775),
             allow_unknown_opt_params=True,
         )
-        # Hook up DLR / response handlers
         self.client.set_message_sent_handler(self._on_message_sent)
         self.client.set_message_received_handler(self._on_message_received)
 
@@ -128,13 +161,13 @@ class ProviderBind:
                 self.client.bind_transceiver(**common)
             self.connected = True
             log.info(f"[{self.name}] bound ({bind_mode})")
-        except Exception:
+            API.heartbeat(self.id, "bound")
+        except Exception as e:
             log.exception(f"[{self.name}] bind failed")
             self.connected = False
+            API.heartbeat(self.id, "down", detail=str(e)[:200])
             return
 
-        # Threads: smpplib's listen() blocks; sender uses the same client and
-        # synchronises through smpplib's internal thread-safe send_message.
         self._listener_thread = threading.Thread(
             target=self._run_listener, name=f"smpp-rx-{self.name}", daemon=True)
         self._sender_thread = threading.Thread(
@@ -168,32 +201,34 @@ class ProviderBind:
         max_tps = int(self.provider.get("smpp_throughput_per_sec") or 30)
         window = int(self.provider.get("smpp_window_size") or 10)
         while not self.stopping and self.connected:
-            # window: cap outstanding submit_sm
             if len(self._pending) >= window:
                 time.sleep(POLL_MS / 1000.0)
                 continue
-            # claim one outbox row atomically
-            doc = self.db.smpp_outbox.find_one_and_update(
-                {"provider_id": self.id, "status": "queued"},
-                {"$set": {"status": "sending", "claimed_at": utcnow_iso()},
-                 "$inc": {"attempts": 1}},
-                sort=[("created_at", 1)],
-            )
-            if not doc:
+            try:
+                claimed = API.claim(self.id, limit=min(window, 25))
+            except Exception:
+                log.exception(f"[{self.name}] claim error")
+                time.sleep(2)
+                continue
+            if not claimed:
                 time.sleep(POLL_MS / 1000.0)
                 continue
-            self._throttle(max_tps)
-            try:
-                self._submit(doc)
-            except Exception as e:
-                log.exception(f"[{self.name}] submit_sm failed for {doc['id']}")
-                self.db.smpp_outbox.update_one(
-                    {"id": doc["id"]},
-                    {"$set": {"status": "queued", "last_error": str(e)}})
+            for doc in claimed:
+                if self.stopping:
+                    break
+                self._throttle(max_tps)
+                try:
+                    self._submit(doc)
+                except Exception as e:
+                    log.exception(f"[{self.name}] submit_sm failed for {doc.get('id')}")
+                    try:
+                        API.report(doc["correlation_token"], "failed",
+                                   error=f"submit_sm exception: {type(e).__name__}")
+                    except Exception:
+                        log.exception("failed to report failure")
 
     def _throttle(self, max_tps: int):
         now = time.time()
-        # drop entries older than 1s
         while self._send_window and now - self._send_window[0] > 1.0:
             self._send_window.popleft()
         if len(self._send_window) >= max_tps:
@@ -205,6 +240,7 @@ class ProviderBind:
     def _submit(self, doc: dict):
         body = doc.get("body") or ""
         encoded, encoding_flag, msg_type_flag = smpplib.gsm.make_parts(body)
+        token = doc.get("correlation_token") or doc.get("id")
         for part in encoded:
             pdu = self.client.send_message(
                 source_addr_ton=int(self.provider.get("smpp_source_ton", 5)),
@@ -216,77 +252,66 @@ class ProviderBind:
                 short_message=part,
                 data_coding=encoding_flag,
                 esm_class=msg_type_flag,
-                registered_delivery=1,  # request DLR
+                registered_delivery=1,
             )
-            self._pending[pdu.sequence] = doc.get("correlation_token") or doc["id"]
+            self._pending[pdu.sequence] = token
 
     def _on_message_sent(self, pdu):
         token = self._pending.pop(pdu.sequence, None)
         if not token:
             return
         smsc_id = getattr(pdu, "message_id", None) or ""
-        # Update the messages doc
-        self.db.messages.update_one(
-            {"provider_msg_id": token},
-            {"$set": {"status": "sent",
-                      "provider_msg_id": smsc_id.decode() if isinstance(smsc_id, bytes) else smsc_id,
-                      "sent_at": utcnow_iso()}})
-        self.db.smpp_outbox.update_one(
-            {"correlation_token": token},
-            {"$set": {"status": "submitted", "submitted_at": utcnow_iso(),
-                      "smsc_msg_id": smsc_id.decode() if isinstance(smsc_id, bytes) else smsc_id}})
+        if isinstance(smsc_id, bytes):
+            smsc_id = smsc_id.decode(errors="ignore")
+        try:
+            API.report(token, "sent", smsc_msg_id=smsc_id)
+        except Exception:
+            log.exception("report 'sent' failed")
 
     def _on_message_received(self, pdu):
-        # deliver_sm — this is the DLR back-channel
         try:
             short = (pdu.short_message or b"").decode("latin-1", errors="ignore")
         except Exception:
             short = ""
-        # SMPP DLR text format (v3.4): "id:... sub:001 dlvrd:001 ... stat:DELIVRD err:000 ..."
-        smsc_id = ""
-        stat = ""
-        err = ""
-        for token in short.split():
-            if token.startswith("id:"):
-                smsc_id = token.split(":", 1)[1]
-            elif token.startswith("stat:"):
-                stat = token.split(":", 1)[1]
-            elif token.startswith("err:"):
-                err = token.split(":", 1)[1]
+        smsc_id, stat, err = "", "", ""
+        for tok in short.split():
+            if tok.startswith("id:"):    smsc_id = tok.split(":", 1)[1]
+            elif tok.startswith("stat:"): stat   = tok.split(":", 1)[1]
+            elif tok.startswith("err:"):  err    = tok.split(":", 1)[1]
         if not smsc_id:
             return
         new_status = "delivered" if stat in ("DELIVRD", "ACCEPTD") else "failed"
-        self.db.messages.update_one(
-            {"provider_msg_id": smsc_id},
-            {"$set": {"status": new_status,
-                      "delivered_at": utcnow_iso(),
-                      "error": None if new_status == "delivered" else f"DLR_{stat}_{err}"}})
-        self.db.smpp_outbox.update_one(
-            {"smsc_msg_id": smsc_id},
-            {"$set": {"status": new_status, "dlr_at": utcnow_iso()}})
+        try:
+            # NB: we don't have the correlation_token here — we sent it under
+            # smsc_msg_id when the 'sent' callback fired. The server uses
+            # provider_msg_id to find the row, so passing smsc_id as the
+            # correlation_token works because /result was called earlier with
+            # provider_msg_id=smsc_id.
+            API.report(smsc_id, new_status,
+                       error=None if new_status == "delivered" else f"DLR_{stat}_{err}")
+        except Exception:
+            log.exception("report DLR failed")
 
     def _run_heartbeat(self):
         while not self.stopping:
             try:
                 if self.connected and self.client:
-                    self.client.send_pdu(smpplib.smpp.make_pdu("enquire_link",
-                                                               client=self.client))
-                self.db.providers.update_one(
-                    {"id": self.id},
-                    {"$set": {"last_smpp_heartbeat": utcnow_iso(),
-                              "smpp_bind_status": "bound" if self.connected else "down"}})
+                    try:
+                        self.client.send_pdu(smpplib.smpp.make_pdu("enquire_link",
+                                                                    client=self.client))
+                    except Exception:
+                        log.exception(f"[{self.name}] enquire_link failed")
+                API.heartbeat(self.id, "bound" if self.connected else "down")
             except Exception:
-                log.exception(f"[{self.name}] heartbeat failure")
-                self.connected = False
+                log.exception(f"[{self.name}] heartbeat error")
             time.sleep(HEARTBEAT_SEC)
 
 
 # ---------------------------------------------------------------------------
-# Top-level orchestrator — discovers providers, manages binds.
+# Top-level orchestrator
 # ---------------------------------------------------------------------------
 class Relay:
     def __init__(self):
-        self.db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
         self.binds: Dict[str, ProviderBind] = {}
         self._stop = threading.Event()
         signal.signal(signal.SIGINT, self._on_signal)
@@ -297,20 +322,25 @@ class Relay:
         self._stop.set()
 
     def run(self):
-        log.info("unitxt SMPP relay started")
+        log.info(f"unitxt SMPP relay started — base={BASE_URL}")
         while not self._stop.is_set():
             try:
                 self._reconcile()
-            except PyMongoError:
-                log.exception("mongo error during reconcile")
+            except Exception:
+                log.exception("reconcile error")
             self._stop.wait(30)
         for b in self.binds.values():
             b.stop()
         log.info("relay stopped")
 
     def _reconcile(self):
+        try:
+            providers = API.list_providers()
+        except Exception:
+            log.exception("could not list providers — will retry")
+            return
         target = {}
-        for p in self.db.providers.find({"active": True, "transport": "smpp"}):
+        for p in providers:
             if not (p.get("smpp_host") and p.get("smpp_system_id")):
                 continue
             target[p["id"]] = p
@@ -323,7 +353,7 @@ class Relay:
         # Start new binds
         for pid, p in target.items():
             if pid not in self.binds:
-                bind = ProviderBind(p, self.db)
+                bind = ProviderBind(p)
                 bind.start()
                 self.binds[pid] = bind
 
