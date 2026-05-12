@@ -10,7 +10,7 @@ import {
 
 // ---------- Category definitions ----------
 const CATEGORIES = {
-  platform:      { label: "Platform",        icon: SettingsIcon, desc: "Brand, currency, timezone, maintenance." },
+  platform:      { label: "Platform",        icon: SettingsIcon, desc: "Brand, public base URL (used for affiliate / referral share links), currency, timezone, maintenance." },
   credits:       { label: "Credits",         icon: DollarSign,   desc: "Rates per country, WhatsApp, sender ID, unicode." },
   pricing_cfg:   { label: "Reseller margin", icon: Percent,      desc: "Default commission paid out of platform margin." },
   referrals:     { label: "Referrals",       icon: Users,        desc: "Loss-proof referral rewards from pack revenue." },

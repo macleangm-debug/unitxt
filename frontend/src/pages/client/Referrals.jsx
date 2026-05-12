@@ -6,11 +6,18 @@ import { Copy, Share2, Gift, Users } from "lucide-react";
 
 export default function Referrals() {
   const [data, setData] = useState(null);
+  const [baseUrl, setBaseUrl] = useState(null);
   useEffect(() => {
-    http.get("/referrals/me").then(r => setData(r.data)).catch(()=>{});
+    Promise.all([
+      http.get("/referrals/me"),
+      http.get("/public/branding"),
+    ]).then(([r, b]) => {
+      setData(r.data);
+      setBaseUrl(b.data?.base_url || window.location.origin);
+    }).catch(()=>{});
   }, []);
   if (!data) return <div className="font-mono text-xs text-zinc-500">LOADING…</div>;
-  const link = `${window.location.origin}/register?ref=${data.code}`;
+  const link = `${(baseUrl || window.location.origin).replace(/\/$/, "")}/register?ref=${data.code}`;
   const copy = (s) => { navigator.clipboard.writeText(s); toast.success("Copied"); };
 
   return (

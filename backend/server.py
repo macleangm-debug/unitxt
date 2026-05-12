@@ -3422,6 +3422,17 @@ class ResellerApplicationIn(BaseModel):
 pub_r = APIRouter(prefix="/public", tags=["public_apply"])
 
 
+@pub_r.get("/branding")
+async def public_branding():
+    """Public branding bundle for unauthenticated pages and share-link
+    generation.  Anyone can read these — they're not secrets."""
+    return {
+        "name":           await get_setting("platform.name", "unitxt"),
+        "base_url":       await get_setting("platform.base_url", "https://www.unitxt.co"),
+        "support_email":  await get_setting("platform.support_email", "support@unitxt.io"),
+    }
+
+
 @pub_r.post("/apply/reseller")
 async def apply_reseller(body: ResellerApplicationIn):
     if not body.agree_terms:
@@ -3988,6 +3999,7 @@ async def startup():
     defaults = [
         ("platform.name", "unitxt", "platform"),
         ("platform.support_email", "support@unitxt.io", "platform"),
+        ("platform.base_url", "https://www.unitxt.co", "platform"),
         ("platform.default_currency", "USD", "platform"),
         ("platform.default_timezone", "Africa/Dar_es_Salaam", "platform"),
         ("platform.maintenance_mode", False, "platform"),

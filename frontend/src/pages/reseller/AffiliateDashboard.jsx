@@ -13,19 +13,25 @@ export default function AffiliateDashboard() {
   const [me, setMe] = useState(null);
   const [recent, setRecent] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [baseUrl, setBaseUrl] = useState(null);
 
   useEffect(() => {
     Promise.all([
       http.get("/affiliate/me"),
       http.get("/affiliate/earnings"),
-    ]).then(([m, e]) => { setMe(m.data); setRecent((e.data || []).slice(0, 5)); }).catch(() => {});
+      http.get("/public/branding"),
+    ]).then(([m, e, b]) => {
+      setMe(m.data);
+      setRecent((e.data || []).slice(0, 5));
+      setBaseUrl(b.data?.base_url || window.location.origin);
+    }).catch(() => {});
   }, []);
 
   if (!me) return <div className="text-zinc-500">Loading…</div>;
   const cfg = me.config || {};
 
   const shareLink = me.primary_code
-    ? `${window.location.origin}/register?ref=${me.primary_code}`
+    ? `${(baseUrl || window.location.origin).replace(/\/$/, "")}/register?ref=${me.primary_code}`
     : null;
 
   const copyShare = () => {
