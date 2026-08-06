@@ -509,6 +509,66 @@ class LoopCoreFlowTest extends TestCase
             ->assertOk()
             ->assertSee('Starter')
             ->assertSee('25,000');
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee(__('loop.pricing_title'));
+    }
+
+    public function test_owner_can_upgrade_plan_and_admin_can_export_reports(): void
+    {
+        foreach (\App\Support\Plans::catalog() as $key => $plan) {
+            \App\Models\Plan::query()->create([
+                'key' => $key,
+                'name' => $plan['name'],
+                'tagline' => $plan['tagline'],
+                'price_monthly' => $plan['price_monthly'],
+                'currency' => $plan['currency'],
+                'max_shops' => $plan['max_shops'],
+                'max_members' => $plan['max_members'],
+                'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
+                'is_public' => true,
+                'sort_order' => $plan['sort_order'],
+                'features' => $plan['features'],
+            ]);
+        }
+        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, \App\Support\BillingSettings::defaults());
+
+        [$owner, $business] = array_slice($this->seedBusiness(), 0, 2);
+        $business->update(['plan_key' => 'free', 'billing_status' => 'trialing', 'trial_ends_at' => now()->addDays(3)]);
+
+        $this->actingAs($owner)
+            ->get(route('billing.show'))
+            ->assertOk()
+            ->assertSee(__('loop.upgrade_title'));
+
+        $this->actingAs($owner)
+            ->post(route('billing.choose'), ['plan_key' => 'growth'])
+            ->assertRedirect(route('billing.show'));
+
+        $this->assertDatabaseHas('businesses', [
+            'id' => $business->id,
+            'plan_key' => 'growth',
+            'billing_status' => 'active',
+        ]);
+
+        $admin = User::factory()->admin()->create(['phone' => '710000222', 'password' => 'password']);
+        $this->actingAs($admin)
+            ->get(route('admin.reports.export', ['type' => 'customers_by_sector', 'format' => 'csv']))
+            ->assertOk()
+            ->assertHeader('content-disposition');
+
+        $this->actingAs($admin)
+            ->get(route('admin.reports.export', ['type' => 'overview', 'format' => 'json']))
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->get(route('admin.reports.export', [
+                'reports' => ['overview', 'customers_by_sector'],
+                'formats' => ['csv', 'json'],
+            ]))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/zip');
     }
 
     private function seedBusiness(): array

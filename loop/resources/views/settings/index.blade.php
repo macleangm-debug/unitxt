@@ -20,13 +20,21 @@
             <p class="mt-3 font-display text-3xl font-semibold">{{ $staffCount }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_staff') }}</p>
         </a>
-        <a href="{{ route('settings.referrals') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5 sm:col-span-2 lg:col-span-1">
+        <a href="{{ route('settings.referrals') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.referrals') }}</p>
             <p class="mt-3 font-display text-3xl font-semibold">{{ $referralCount }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_referrals') }}</p>
             @if ($referralCredits > 0)
                 <p class="mt-2 text-xs font-semibold text-mint-deep">{{ __('loop.free_months_short', ['count' => $referralCredits]) }}</p>
             @endif
+        </a>
+        <a href="{{ route('billing.show') }}" class="loop-panel group relative block overflow-hidden p-6 transition hover:-translate-y-0.5">
+            <div class="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-mint/20 blur-2xl"></div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
+            <p class="mt-3 font-display text-2xl font-semibold capitalize">{{ $planKey }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_billing') }}</p>
+            <p class="mt-2 text-xs font-semibold capitalize text-ink-muted">{{ $billingStatus }}</p>
+            <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.upgrade_now') }} →</p>
         </a>
     </div>
 </x-app-layout>

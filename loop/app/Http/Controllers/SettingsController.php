@@ -20,6 +20,8 @@ class SettingsController extends Controller
             'staffCount' => $business->staff()->count(),
             'referralCount' => $business->referralsMade()->count(),
             'referralCredits' => (int) $business->referral_credit_months,
+            'planKey' => $business->plan_key,
+            'billingStatus' => $business->billing_status,
         ]);
     }
 }

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Business;
 use App\Models\Membership;
 use App\Models\Visit;
+use App\Services\PlanLimitService;
 use App\Services\ReferralService;
+use App\Support\Plans;
 use App\Support\Sectors;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -40,6 +42,12 @@ class DashboardController extends Controller
                 'visits as today_visits_count' => fn ($q) => $q->whereDate('created_at', today()),
             ])->latest()->take(5)->get();
 
+            $limits = app(PlanLimitService::class);
+            if ($user->isOwner()) {
+                $limits->syncTrialStatus($business->fresh());
+                $business = $business->fresh();
+            }
+
             return view('dashboard.business', [
                 'business' => $business,
                 'shopCount' => $business->shops()->count(),
@@ -58,6 +66,14 @@ class DashboardController extends Controller
                 'referralShareUrl' => $user->isOwner()
                     ? app(ReferralService::class)->shareUrl($business)
                     : null,
+                'needsUpgrade' => $user->isOwner() && (
+                    $limits->trialExpired($business) || $business->billing_status === 'past_due'
+                    || ($business->billing_status === 'trialing' && ! Plans::isPaidPlan($business->plan_key))
+                ),
+                'trialExpired' => $user->isOwner() && $limits->trialExpired($business),
+                'trialDaysLeft' => ($user->isOwner() && $business->trial_ends_at && $business->trial_ends_at->isFuture())
+                    ? (int) now()->diffInDays($business->trial_ends_at)
+                    : 0,
             ]);
         }
 

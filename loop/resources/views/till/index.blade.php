@@ -8,7 +8,17 @@
         </div>
     </x-slot>
 
-    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel max-w-xl space-y-4 p-6 animate-fade-up">
+    @if (! empty($tillLocked))
+        <div class="mb-6 max-w-xl rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-4">
+            <p class="font-display text-lg font-semibold">{{ __('loop.till_locked_title') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_locked_body') }}</p>
+            @if (! empty($isOwner))
+                <a href="{{ route('billing.show') }}" class="mt-4 inline-flex rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">{{ __('loop.upgrade_now') }}</a>
+            @endif
+        </div>
+    @endif
+
+    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel max-w-xl space-y-4 p-6 animate-fade-up {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
         @csrf
         <div>
             <label class="loop-label">{{ __('loop.shop') }}</label>

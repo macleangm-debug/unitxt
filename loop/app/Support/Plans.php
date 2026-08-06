@@ -98,4 +98,44 @@ class Plans
     {
         return in_array($planKey, [self::STARTER, self::GROWTH, self::SCALE], true);
     }
+
+    /**
+     * Public plans for pricing surfaces. Falls back to the catalog when the table is empty/missing.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Plan>
+     */
+    public static function publicPlans()
+    {
+        if (\Illuminate\Support\Facades\Schema::hasTable('plans')) {
+            $plans = \App\Models\Plan::query()
+                ->where('is_public', true)
+                ->orderBy('sort_order')
+                ->get();
+
+            if ($plans->isNotEmpty()) {
+                return $plans;
+            }
+        }
+
+        return collect(self::catalog())
+            ->map(function (array $plan, string $key) {
+                $model = new \App\Models\Plan([
+                    'key' => $key,
+                    'name' => $plan['name'],
+                    'tagline' => $plan['tagline'],
+                    'price_monthly' => $plan['price_monthly'],
+                    'currency' => $plan['currency'],
+                    'max_shops' => $plan['max_shops'],
+                    'max_members' => $plan['max_members'],
+                    'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
+                    'is_public' => true,
+                    'sort_order' => $plan['sort_order'],
+                    'features' => $plan['features'],
+                ]);
+                $model->exists = false;
+
+                return $model;
+            })
+            ->values();
+    }
 }

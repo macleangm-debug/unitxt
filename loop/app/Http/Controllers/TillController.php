@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\PlanLimitService;
 use App\Services\TillService;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
@@ -11,9 +12,15 @@ use Illuminate\View\View;
 
 class TillController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, PlanLimitService $limits): View
     {
         $business = $request->user()->workplace();
+        if ($business && $request->user()->isOwner()) {
+            $limits->syncTrialStatus($business->fresh());
+            $business = $business->fresh();
+        }
+
+        $tillLocked = $business ? ! $limits->canUseTill($business) : false;
 
         return view('till.index', [
             'business' => $business,
@@ -22,6 +29,8 @@ class TillController extends Controller
             'recent' => $business
                 ? $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get()
                 : collect(),
+            'tillLocked' => $tillLocked,
+            'isOwner' => $request->user()->isOwner(),
         ]);
     }
 

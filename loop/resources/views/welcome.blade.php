@@ -18,6 +18,7 @@
     <x-site-header>
         <x-slot:actions>
             <a href="{{ route('discover') }}" class="hidden text-sm font-semibold text-ink-muted hover:text-ink md:inline">{{ __('loop.browse_campaigns') }}</a>
+            <a href="{{ route('home') }}#pricing" class="hidden text-sm font-semibold text-ink-muted hover:text-ink md:inline">{{ __('loop.pricing') }}</a>
         </x-slot:actions>
     </x-site-header>
 
@@ -84,6 +85,20 @@
                 <li class="flex gap-3"><span class="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-coral/15 text-coral">●</span>{{ __('loop.for_customers_3') }}</li>
             </ul>
             <a href="{{ route('customer.login') }}" class="mt-8 inline-flex rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white">{{ __('loop.cta_customer') }}</a>
+        </div>
+    </section>
+
+    <section id="pricing" class="relative z-10 border-t border-ink/10 bg-white/60">
+        <div class="loop-shell py-14 sm:py-20">
+            <div class="mx-auto max-w-2xl text-center">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-mint-deep">{{ __('loop.pricing') }}</p>
+                <h2 class="mt-3 font-display text-3xl font-semibold sm:text-4xl">{{ __('loop.pricing_title') }}</h2>
+                <p class="mt-3 text-ink-muted">{{ __('loop.pricing_blurb') }}</p>
+            </div>
+            <x-pricing-grid :plans="$plans" :cta-route="route('business.register')" />
+            <div class="mt-8 text-center">
+                <a href="{{ route('pricing') }}" class="text-sm font-semibold text-mint-deep underline underline-offset-4">{{ __('loop.see_full_pricing') }}</a>
+            </div>
         </div>
     </section>
 

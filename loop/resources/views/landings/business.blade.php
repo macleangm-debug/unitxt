@@ -36,6 +36,7 @@
                 <p class="mt-5 max-w-lg text-lg text-ink-muted">{{ __('loop.business_hero_body') }}</p>
                 <div class="mt-8 flex flex-wrap gap-3">
                     <a href="{{ route('business.register') }}" class="loop-btn-mint">{{ __('loop.cta_business') }}</a>
+                    <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
                     <a href="{{ route('staff.login') }}" class="loop-btn-ghost">{{ __('loop.staff_login') }}</a>
                 </div>
             </div>
@@ -57,6 +58,17 @@
             <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-mint/40 to-coral/25 font-display text-lg">◉</div>
             <p class="mt-4 font-display text-lg font-semibold">{{ __('loop.one_phone') }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.one_phone_body') }}</p>
+        </div>
+    </section>
+
+    <section id="pricing" class="border-t border-ink/10 bg-white/70">
+        <div class="loop-shell py-16">
+            <div class="mx-auto max-w-2xl text-center">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.pricing') }}</p>
+                <h2 class="mt-3 font-display text-3xl font-semibold">{{ __('loop.pricing_title') }}</h2>
+                <p class="mt-3 text-ink-muted">{{ __('loop.pricing_blurb') }}</p>
+            </div>
+            <x-pricing-grid :plans="$plans" :cta-route="route('business.register')" :cta-label="__('loop.cta_business')" />
         </div>
     </section>
 </main>

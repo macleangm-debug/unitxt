@@ -1,7 +1,9 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_reports') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.admin_reports_blurb') }}</p>
+        <div>
+            <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_reports') }}</h1>
+            <p class="mt-1 text-ink-muted">{{ __('loop.admin_reports_blurb') }}</p>
+        </div>
     </x-slot>
 
     @include('admin.partials.nav')
@@ -25,6 +27,44 @@
             <p class="mt-2 font-display text-2xl font-semibold">{{ $overview['paid_active'] }} / {{ $overview['trialing'] }}</p>
         </div>
     </div>
+
+    <section class="mt-10 loop-panel p-6">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.export_reports') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.export_reports_blurb') }}</p>
+            </div>
+        </div>
+
+        <form method="GET" action="{{ route('admin.reports.export') }}" class="mt-6 space-y-6">
+            <div>
+                <p class="loop-label">{{ __('loop.export_report') }}</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach ($exportTypes as $key => $label)
+                        <label class="flex items-center gap-3 rounded-xl border border-ink/10 bg-chalk/60 px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                            <input type="checkbox" name="reports[]" value="{{ $key }}" class="rounded border-ink/20 text-mint-deep focus:ring-mint" @checked($key === 'customers_by_sector')>
+                            <span>{{ $label }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div>
+                <p class="loop-label">{{ __('loop.export_format') }}</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    @foreach (['csv' => 'CSV', 'tsv' => 'TSV', 'json' => 'JSON'] as $value => $label)
+                        <label class="inline-flex items-center gap-2 rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm font-medium has-[:checked]:border-mint has-[:checked]:bg-mint-soft/50">
+                            <input type="checkbox" name="formats[]" value="{{ $value }}" class="rounded border-ink/20 text-mint-deep focus:ring-mint" @checked($value === 'csv')>
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.export_zip_hint') }}</p>
+            </div>
+
+            <button class="loop-btn-mint">{{ __('loop.download') }}</button>
+        </form>
+    </section>
 
     <div class="mt-10 grid gap-8 lg:grid-cols-2">
         <section>

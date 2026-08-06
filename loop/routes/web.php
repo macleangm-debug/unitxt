@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\SettingsHubController as AdminSettingsHubControll
 use App\Http\Controllers\Auth\BusinessRegisterController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\StaffSessionController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
@@ -23,10 +24,22 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TillController;
+use App\Models\Plan;
+use App\Support\Plans;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => view('welcome'))->name('home');
-Route::get('/for-business', fn () => view('landings.business'))->name('landing.business');
+Route::get('/', function () {
+    return view('welcome', [
+        'plans' => Plans::publicPlans(),
+    ]);
+})->name('home');
+
+Route::get('/for-business', function () {
+    return view('landings.business', [
+        'plans' => Plans::publicPlans(),
+    ]);
+})->name('landing.business');
+
 Route::get('/for-customers', fn () => view('landings.customer'))->name('landing.customer');
 Route::get('/pricing', PricingController::class)->name('pricing');
 Route::get('/locale/{locale}', [PreferenceController::class, 'locale'])->name('locale');
@@ -58,6 +71,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
         Route::get('/businesses', [AdminBusinessController::class, 'index'])->name('businesses.index');
         Route::patch('/businesses/{business}', [AdminBusinessController::class, 'update'])->name('businesses.update');
         Route::get('/referrals', [AdminReferralController::class, 'index'])->name('referrals.index');
@@ -80,6 +94,8 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/settings', SettingsController::class)->name('settings');
         Route::get('/settings/referrals', ReferralHubController::class)->name('settings.referrals');
+        Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
+        Route::post('/billing/choose', [BillingController::class, 'choose'])->name('billing.choose');
         Route::resource('shops', ShopController::class)->except(['show']);
         Route::resource('campaigns', CampaignController::class);
         Route::get('/offers', [RewardController::class, 'index'])->name('rewards.index');
