@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
                     'currency' => $plan['currency'],
                     'max_shops' => $plan['max_shops'],
                     'max_members' => $plan['max_members'],
+                    'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
                     'is_public' => true,
                     'sort_order' => $plan['sort_order'],
                     'features' => $plan['features'],

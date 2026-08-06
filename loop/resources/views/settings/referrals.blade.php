@@ -33,6 +33,23 @@
         </div>
     </div>
 
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div class="loop-panel p-5">
+            <p class="text-sm font-semibold">{{ __('loop.referrer_gets') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.referrer_gets_body', [
+                'months' => $program['referrer_months_per_referral'],
+                'goal' => $program['goal_count'],
+            ]) }}</p>
+        </div>
+        <div class="loop-panel p-5">
+            <p class="text-sm font-semibold">{{ __('loop.referred_gets') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.referred_gets_body', [
+                'days' => $program['referred_extra_trial_days'],
+                'months' => $program['referred_bonus_months'],
+            ]) }}</p>
+        </div>
+    </div>
+
     <section class="mt-10">
         <h2 class="font-display text-xl font-semibold">{{ __('loop.businesses_you_referred') }}</h2>
         <div class="mt-4 space-y-3">

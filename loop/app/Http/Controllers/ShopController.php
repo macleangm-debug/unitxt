@@ -21,9 +21,16 @@ class ShopController extends Controller
         ]);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): View|RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+        $limits = app(\App\Services\PlanLimitService::class);
+
+        if (! $limits->canAddShop($business)) {
+            return redirect()
+                ->route('shops.index')
+                ->withErrors(['plan' => $limits->shopLimitMessage($business)]);
+        }
 
         return view('shops.create', [
             'business' => $business,
@@ -34,10 +41,17 @@ class ShopController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+        $limits = app(\App\Services\PlanLimitService::class);
+
+        if (! $limits->canAddShop($business)) {
+            return redirect()
+                ->route('shops.index')
+                ->withErrors(['plan' => $limits->shopLimitMessage($business)]);
+        }
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'address' => ['nullable', 'string', 'max:255'],
+            'address' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:80'],
             'phone' => ['nullable', 'string', 'max:40'],
             'logo' => ['nullable', 'image', 'max:2048'],
@@ -50,7 +64,7 @@ class ShopController extends Controller
 
         $business->shops()->create([
             'name' => $data['name'],
-            'address' => $data['address'] ?? null,
+            'address' => $data['address'],
             'city' => $data['city'],
             'phone' => $data['phone'] ?? null,
             'logo_path' => $logoPath,

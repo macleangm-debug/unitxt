@@ -13,7 +13,8 @@ class Plans
     public const SCALE = 'scale';
 
     /**
-     * Launch pricing for Tanzania SMEs (TZS). Keep generous free tier for virality.
+     * Launch pricing for Tanzania SMEs (TZS).
+     * Free = one physical location + member/visit caps so "one account, many branches" hits a wall.
      *
      * @return array<string, array<string, mixed>>
      */
@@ -22,16 +23,17 @@ class Plans
         return [
             self::FREE => [
                 'name' => 'Free',
-                'tagline' => 'Start looping — no card needed.',
+                'tagline' => 'One physical shop — start looping, no card needed.',
                 'price_monthly' => 0,
                 'currency' => 'TZS',
                 'max_shops' => 1,
                 'max_members' => 150,
+                'max_monthly_visits' => 300,
                 'sort_order' => 1,
                 'features' => [
-                    '1 shop',
+                    '1 physical shop location',
                     'Up to 150 members',
-                    'Campaigns & offers',
+                    'Up to 300 sales / month',
                     'Till + Discover listing',
                 ],
             ],
@@ -42,10 +44,11 @@ class Plans
                 'currency' => 'TZS',
                 'max_shops' => 1,
                 'max_members' => null,
+                'max_monthly_visits' => null,
                 'sort_order' => 2,
                 'features' => [
-                    '1 shop',
-                    'Unlimited members',
+                    '1 physical shop',
+                    'Unlimited members & sales',
                     'Priority support',
                     'Remove Loop branding on receipts',
                 ],
@@ -57,10 +60,11 @@ class Plans
                 'currency' => 'TZS',
                 'max_shops' => 5,
                 'max_members' => null,
+                'max_monthly_visits' => null,
                 'sort_order' => 3,
                 'features' => [
-                    'Up to 5 shops',
-                    'Unlimited members',
+                    'Up to 5 shop locations',
+                    'Unlimited members & sales',
                     'Referral rewards unlocked',
                     'Campaign templates + analytics',
                 ],
@@ -72,27 +76,16 @@ class Plans
                 'currency' => 'TZS',
                 'max_shops' => null,
                 'max_members' => null,
+                'max_monthly_visits' => null,
                 'sort_order' => 4,
                 'features' => [
-                    'Unlimited shops',
+                    'Unlimited shop locations',
                     'Dedicated success check-ins',
                     'Custom sector offer packs',
                     'Highest referral rewards',
                 ],
             ],
         ];
-    }
-
-    /** Free months granted per qualified business referral. */
-    public static function referralFreeMonths(): int
-    {
-        return 1;
-    }
-
-    /** Percent off next invoice when free months are not used (admin can choose). */
-    public static function referralDiscountPercent(): int
-    {
-        return 50;
     }
 
     public static function trialDays(): int

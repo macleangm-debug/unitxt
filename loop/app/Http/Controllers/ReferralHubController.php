@@ -22,6 +22,8 @@ class ReferralHubController extends Controller
             'code' => $code,
             'referrals' => $business->referralsMade()->with('referred')->latest()->get(),
             'plan' => Plan::query()->where('key', $business->plan_key)->first(),
+            'program' => $referrals->progress($business)['program'],
+            'progress' => $referrals->progress($business),
         ]);
     }
 }

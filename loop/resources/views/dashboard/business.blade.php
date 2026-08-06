@@ -16,6 +16,39 @@
         <div class="loop-stat"><p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p><p class="mt-2 font-display text-3xl font-semibold">{{ $visitCount }}</p></div>
     </div>
 
+    @if ($isOwner && $referralProgress)
+        <section class="mt-6 overflow-hidden rounded-[1.75rem] border border-ink/10 bg-gradient-to-br from-ink via-ink-soft to-mint/20 p-6 text-white shadow-[0_24px_70px_rgba(11,31,42,0.12)]">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="max-w-xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.referrals') }}</p>
+                    <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.referral_dash_title', ['goal' => $referralProgress['goal']]) }}</h2>
+                    <p class="mt-2 text-sm text-white/70">{{ __('loop.referral_dash_body') }}</p>
+                </div>
+                <a href="{{ route('settings.referrals') }}" class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-ink hover:bg-mint-deep">{{ __('loop.invite_businesses') }}</a>
+            </div>
+
+            <div class="mt-5">
+                <div class="flex items-center justify-between text-sm">
+                    <span>{{ __('loop.referral_joined_count', ['count' => $referralProgress['joined'], 'goal' => $referralProgress['goal']]) }}</span>
+                    <span class="text-white/60">{{ $referralProgress['percent'] }}%</span>
+                </div>
+                <div class="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+                    <div class="h-full rounded-full bg-mint transition-all" style="width: {{ $referralProgress['percent'] }}%"></div>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @for ($i = 1; $i <= $referralProgress['goal']; $i++)
+                        <span class="rounded-lg px-2.5 py-1 text-xs font-semibold {{ $referralProgress['joined'] >= $i ? 'bg-mint text-ink' : 'bg-white/10 text-white/70' }}">
+                            {{ $i }} {{ __('loop.business') }}
+                        </span>
+                    @endfor
+                </div>
+                @if ($referralProgress['pending'] > 0)
+                    <p class="mt-3 text-xs text-white/55">{{ __('loop.referral_pending_count', ['count' => $referralProgress['pending']]) }}</p>
+                @endif
+            </div>
+        </section>
+    @endif
+
     <div class="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <section class="loop-panel p-6">
             <div class="flex items-center justify-between">

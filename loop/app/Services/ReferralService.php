@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\BusinessReferral;
 use App\Support\Plans;
+use App\Support\ReferralProgram;
 use Illuminate\Support\Str;
 
 class ReferralService
@@ -43,7 +44,14 @@ class ReferralService
             return null;
         }
 
-        $newBusiness->update(['referred_by_business_id' => $referrer->id]);
+        $program = ReferralProgram::settings();
+
+        // Referred businesses get a longer trial + optional free-month credits.
+        $newBusiness->update([
+            'referred_by_business_id' => $referrer->id,
+            'trial_ends_at' => now()->addDays(Plans::trialDays() + (int) $program['referred_extra_trial_days']),
+            'referral_credit_months' => ($newBusiness->referral_credit_months ?? 0) + (int) $program['referred_bonus_months'],
+        ]);
 
         return BusinessReferral::create([
             'referrer_business_id' => $referrer->id,
@@ -53,9 +61,6 @@ class ReferralService
         ]);
     }
 
-    /**
-     * Qualify when the referred business completes onboarding (first real setup).
-     */
     public function qualifyForBusiness(Business $business): ?BusinessReferral
     {
         $referral = BusinessReferral::query()
@@ -75,23 +80,21 @@ class ReferralService
         return $this->reward($referral->fresh());
     }
 
-    /**
-     * Grant reward to referrer (free month by default).
-     */
     public function reward(BusinessReferral $referral): BusinessReferral
     {
         if ($referral->isRewarded()) {
             return $referral;
         }
 
-        $months = Plans::referralFreeMonths();
+        $program = ReferralProgram::settings();
+        $months = (int) $program['referrer_months_per_referral'];
         $referrer = $referral->referrer;
 
         $referrer->update([
             'referral_credit_months' => ($referrer->referral_credit_months ?? 0) + $months,
             'referral_discount_percent' => max(
                 (int) $referrer->referral_discount_percent,
-                Plans::referralDiscountPercent()
+                (int) $program['referrer_discount_percent']
             ),
         ]);
 
@@ -102,7 +105,63 @@ class ReferralService
             'reward_value' => $months,
         ]);
 
+        $this->applyMilestones($referrer->fresh());
+
         return $referral->fresh();
+    }
+
+    public function applyMilestones(Business $referrer): void
+    {
+        $program = ReferralProgram::settings();
+        $rewardedCount = $referrer->referralsMade()
+            ->where('status', BusinessReferral::STATUS_REWARDED)
+            ->count();
+
+        $applied = collect($referrer->referral_milestones_applied ?? [])
+            ->map(fn ($v) => (int) $v)
+            ->all();
+
+        $toAdd = 0;
+        foreach ($program['milestones'] as $milestone) {
+            $count = (int) $milestone['count'];
+            if ($rewardedCount >= $count && ! in_array($count, $applied, true)) {
+                $toAdd += (int) $milestone['bonus_months'];
+                $applied[] = $count;
+            }
+        }
+
+        if ($toAdd <= 0) {
+            return;
+        }
+
+        $referrer->update([
+            'referral_credit_months' => ($referrer->referral_credit_months ?? 0) + $toAdd,
+            'referral_milestones_applied' => array_values(array_unique($applied)),
+        ]);
+    }
+
+    /**
+     * @return array{goal: int, joined: int, pending: int, remaining: int, percent: int, program: array<string, mixed>}
+     */
+    public function progress(Business $business): array
+    {
+        $program = ReferralProgram::settings();
+        $goal = (int) $program['goal_count'];
+        $joined = $business->referralsMade()
+            ->whereIn('status', [BusinessReferral::STATUS_QUALIFIED, BusinessReferral::STATUS_REWARDED])
+            ->count();
+        $pending = $business->referralsMade()
+            ->where('status', BusinessReferral::STATUS_PENDING)
+            ->count();
+
+        return [
+            'goal' => $goal,
+            'joined' => $joined,
+            'pending' => $pending,
+            'remaining' => max(0, $goal - $joined),
+            'percent' => $goal > 0 ? min(100, (int) round(($joined / $goal) * 100)) : 0,
+            'program' => $program,
+        ];
     }
 
     public function shareUrl(Business $business): string

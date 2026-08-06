@@ -24,6 +24,9 @@
                 <p class="mt-4 text-xs text-ink-muted">
                     {{ __('loop.max_shops') }}: {{ $plan->max_shops ?? __('loop.unlimited') }} ·
                     {{ __('loop.max_members') }}: {{ $plan->max_members ?? __('loop.unlimited') }}
+                    @if ($plan->max_monthly_visits)
+                        · {{ __('loop.max_monthly_visits') }}: {{ $plan->max_monthly_visits }}
+                    @endif
                 </p>
             </div>
         @endforeach

@@ -21,7 +21,8 @@
         </div>
         <div>
             <label class="loop-label">Address</label>
-            <input name="address" value="{{ old('address') }}" class="loop-input">
+            <input name="address" value="{{ old('address') }}" class="loop-input" required>
+            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.shop_address_required_help') }}</p>
         </div>
         <div>
             <label class="loop-label">Phone</label>

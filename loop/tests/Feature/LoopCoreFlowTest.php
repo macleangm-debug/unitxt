@@ -319,6 +319,7 @@ class LoopCoreFlowTest extends TestCase
                 'currency' => $plan['currency'],
                 'max_shops' => $plan['max_shops'],
                 'max_members' => $plan['max_members'],
+                'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
                 'is_public' => true,
                 'sort_order' => $plan['sort_order'],
                 'features' => $plan['features'],
@@ -355,6 +356,8 @@ class LoopCoreFlowTest extends TestCase
         $referred = \App\Models\Business::query()->where('name', 'New Cafe Co')->first();
         $this->assertNotNull($referred);
         $this->assertSame($business->id, $referred->referred_by_business_id);
+        $this->assertSame(1, $referred->referral_credit_months);
+        $this->assertTrue($referred->trial_ends_at->greaterThan(now()->addDays(45)));
         $this->assertDatabaseHas('business_referrals', [
             'referrer_business_id' => $business->id,
             'referred_business_id' => $referred->id,
@@ -371,9 +374,52 @@ class LoopCoreFlowTest extends TestCase
         $this->assertSame(1, $business->fresh()->referral_credit_months);
 
         $this->actingAs($owner)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee(__('loop.referral_dash_title', ['goal' => 3]));
+
+        $this->actingAs($owner)
             ->get(route('settings.referrals'))
             ->assertOk()
             ->assertSee('INVITE88');
+
+        $this->actingAs($admin)
+            ->get(route('admin.referrals.program'))
+            ->assertOk()
+            ->assertSee(__('loop.admin_referral_program'));
+    }
+
+    public function test_free_plan_blocks_second_shop(): void
+    {
+        foreach (\App\Support\Plans::catalog() as $key => $plan) {
+            \App\Models\Plan::query()->create([
+                'key' => $key,
+                'name' => $plan['name'],
+                'tagline' => $plan['tagline'],
+                'price_monthly' => $plan['price_monthly'],
+                'currency' => $plan['currency'],
+                'max_shops' => $plan['max_shops'],
+                'max_members' => $plan['max_members'],
+                'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
+                'is_public' => true,
+                'sort_order' => $plan['sort_order'],
+                'features' => $plan['features'],
+            ]);
+        }
+
+        [$owner, $business] = array_slice($this->seedBusiness(), 0, 2);
+        $business->update(['plan_key' => 'free', 'billing_status' => 'free']);
+
+        $this->actingAs($owner)
+            ->post(route('shops.store'), [
+                'name' => 'Second Branch',
+                'city' => 'Dar es Salaam',
+                'address' => 'Another Street 12',
+            ])
+            ->assertRedirect(route('shops.index'))
+            ->assertSessionHasErrors('plan');
+
+        $this->assertSame(1, $business->shops()->count());
     }
 
     public function test_pricing_page_renders(): void
@@ -387,6 +433,7 @@ class LoopCoreFlowTest extends TestCase
                 'currency' => $plan['currency'],
                 'max_shops' => $plan['max_shops'],
                 'max_members' => $plan['max_members'],
+                'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
                 'is_public' => true,
                 'sort_order' => $plan['sort_order'],
                 'features' => $plan['features'],

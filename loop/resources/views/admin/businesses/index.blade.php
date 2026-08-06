@@ -32,6 +32,9 @@
                         {{ $business->is_active ? __('loop.live') : __('loop.off') }}
                     </span>
                 </div>
+                @if (!empty($abuseFlags[$business->id]))
+                    <p class="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-xs font-medium text-ink">{{ __('loop.admin_multi_branch_flag') }}</p>
+                @endif
 
                 <form method="POST" action="{{ route('admin.businesses.update', $business) }}" class="mt-4 grid gap-3 sm:grid-cols-4">
                     @csrf

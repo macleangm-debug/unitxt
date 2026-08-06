@@ -5,13 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Plan;
+use App\Services\PlanLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BusinessController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, PlanLimitService $limits): View
     {
         $q = trim((string) $request->query('q', ''));
 
@@ -29,10 +30,16 @@ class BusinessController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $flags = [];
+        foreach ($businesses as $business) {
+            $flags[$business->id] = $limits->looksLikeMultiBranchAbuse($business);
+        }
+
         return view('admin.businesses.index', [
             'businesses' => $businesses,
             'plans' => Plan::query()->orderBy('sort_order')->get(),
             'q' => $q,
+            'abuseFlags' => $flags,
         ]);
     }
 

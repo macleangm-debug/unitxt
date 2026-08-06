@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Business;
 use App\Models\Membership;
 use App\Models\Visit;
+use App\Services\ReferralService;
 use App\Support\Sectors;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -51,6 +52,12 @@ class DashboardController extends Controller
                 'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
                 'showWelcome' => $request->session()->pull('show_welcome', false) || $request->boolean('welcome'),
+                'referralProgress' => $user->isOwner()
+                    ? app(ReferralService::class)->progress($business)
+                    : null,
+                'referralShareUrl' => $user->isOwner()
+                    ? app(ReferralService::class)->shareUrl($business)
+                    : null,
             ]);
         }
 

@@ -75,11 +75,25 @@ class TillService
             throw ValidationException::withMessages(['shop' => 'This shop does not belong to your business.']);
         }
 
+        $limits = app(PlanLimitService::class);
+        if (! $limits->canRecordVisit($business)) {
+            throw ValidationException::withMessages(['plan' => $limits->visitLimitMessage($business)]);
+        }
+
         if ($amountSpent <= 0 && ! $applyPointsAsPayment) {
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
-        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend) {
+        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $limits) {
+            $existingMembership = Membership::query()
+                ->where('business_id', $business->id)
+                ->where('customer_id', $customer->id)
+                ->exists();
+
+            if (! $existingMembership && ! $limits->canAcceptMember($business)) {
+                throw ValidationException::withMessages(['plan' => $limits->memberLimitMessage($business)]);
+            }
+
             $membership = $this->memberships->join($business, $customer, $shop);
             $campaign = $this->findEarnCampaign($shop);
             $pointsEarned = $campaign ? $campaign->pointsForSpend($amountSpent) : 0;
