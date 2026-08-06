@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Services\PlanLimitService;
 use App\Services\TillService;
+use App\Support\Confirm;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,16 +21,18 @@ class TillController extends Controller
         }
 
         $tillLocked = $business ? ! $limits->canUseTill($business) : false;
+        $isOwner = $request->user()->isOwner();
 
         return view('till.index', [
             'business' => $business,
             'shops' => $business?->shops()->where('is_active', true)->orderBy('name')->get() ?? collect(),
             'countries' => Countries::OPTIONS,
-            'recent' => $business
+            'recent' => ($isOwner && $business)
                 ? $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get()
                 : collect(),
+            'showRecent' => $isOwner,
             'tillLocked' => $tillLocked,
-            'isOwner' => $request->user()->isOwner(),
+            'isOwner' => $isOwner,
         ]);
     }
 
@@ -60,6 +62,22 @@ class TillController extends Controller
             ->orderByDesc('points_per_step')
             ->first();
 
+        $membership = $customer
+            ? $business->memberships()
+                ->where('customer_id', $customer->id)
+                ->where('shop_id', $shop->id)
+                ->first()
+            : null;
+
+        $rewards = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+        $nextOffer = null;
+        if ($membership) {
+            $nextOffer = $rewards
+                ->filter(fn ($r) => $r->points_cost > $membership->points_balance)
+                ->sortBy('points_cost')
+                ->first();
+        }
+
         return view('till.sale', [
             'business' => $business,
             'shop' => $shop,
@@ -67,14 +85,10 @@ class TillController extends Controller
             'country_code' => $data['country_code'],
             'phone' => $phone,
             'customer' => $customer,
-            'membership' => $customer
-                ? $business->memberships()
-                    ->where('customer_id', $customer->id)
-                    ->where('shop_id', $shop->id)
-                    ->first()
-                : null,
-            'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
+            'membership' => $membership,
+            'rewards' => $rewards,
             'campaign' => $campaign,
+            'nextOffer' => $nextOffer,
         ]);
     }
 
@@ -141,14 +155,25 @@ class TillController extends Controller
             $payWithPoints ? ($data['points_to_spend'] ?? null) : null,
         );
 
-        $message = "{$visit->customer->name}: +{$visit->points_earned} pts";
+        $body = __('loop.sale_done_body', [
+            'name' => $visit->customer->name,
+            'earned' => $visit->points_earned,
+        ]);
         if ($visit->points_redeemed > 0) {
-            $message .= " · −{$visit->points_redeemed} pts";
+            $body .= ' '.__('loop.sale_done_redeemed', ['redeemed' => $visit->points_redeemed]);
             if ($visit->discount_amount > 0) {
-                $message .= " ({$business->currency} ".number_format((float) $visit->discount_amount, 0).' off)';
+                $body .= ' ('.$business->currency.' '.number_format((float) $visit->discount_amount, 0).')';
             }
         }
+        if ($visit->notes) {
+            $body .= ' — '.$visit->notes;
+        }
 
-        return redirect()->route('till.index')->with('status', $message);
+        return redirect()->route('till.index')->with('confirm', Confirm::make(
+            __('loop.sale_done_title'),
+            $body,
+            __('loop.next_sale'),
+            route('till.index'),
+        ));
     }
 }

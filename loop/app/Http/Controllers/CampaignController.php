@@ -65,6 +65,8 @@ class CampaignController extends Controller
             'spend_step' => ['nullable', 'integer', 'min:1'],
             'points_per_step' => ['nullable', 'integer', 'min:1'],
             'bonus_points' => ['nullable', 'integer', 'min:0'],
+            'streak_target' => ['nullable', 'integer', 'min:2', 'max:30'],
+            'streak_period' => ['nullable', 'in:week,month'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'shop_ids' => ['nullable', 'array'],
@@ -76,6 +78,14 @@ class CampaignController extends Controller
             $request->validate([
                 'spend_step' => ['required', 'integer', 'min:1'],
                 'points_per_step' => ['required', 'integer', 'min:1'],
+            ]);
+        }
+
+        if ($data['type'] === 'streak') {
+            $request->validate([
+                'streak_target' => ['required', 'integer', 'min:2'],
+                'streak_period' => ['required', 'in:week,month'],
+                'bonus_points' => ['required', 'integer', 'min:1'],
             ]);
         }
 
@@ -92,6 +102,8 @@ class CampaignController extends Controller
             'spend_step' => $data['spend_step'] ?? null,
             'points_per_step' => $data['points_per_step'] ?? null,
             'bonus_points' => $data['bonus_points'] ?? 0,
+            'streak_target' => $data['type'] === 'streak' ? ($data['streak_target'] ?? 3) : null,
+            'streak_period' => $data['type'] === 'streak' ? ($data['streak_period'] ?? 'week') : null,
             'starts_at' => $data['starts_at'],
             'ends_at' => $data['ends_at'] ?? null,
             'is_active' => true,

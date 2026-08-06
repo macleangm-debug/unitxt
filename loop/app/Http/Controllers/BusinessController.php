@@ -28,6 +28,7 @@ class BusinessController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
             'city' => ['nullable', 'string', 'max:80'],
+            'hotline' => ['nullable', 'string', 'max:40'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
@@ -40,6 +41,7 @@ class BusinessController extends Controller
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'city' => $data['city'] ?? $business->city,
+            'hotline' => $data['hotline'] ?? null,
             'logo_path' => $business->logo_path,
             'is_active' => $request->boolean('is_active', $business->is_active),
         ]);

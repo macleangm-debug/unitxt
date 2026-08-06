@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\StaffSessionController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BusinessController;
+use App\Http\Controllers\BusinessInviteController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -124,5 +125,6 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:customer')->group(function () {
         Route::get('/wallets', [MembershipController::class, 'index'])->name('memberships.index');
         Route::get('/wallets/{business:slug}', [MembershipController::class, 'show'])->name('memberships.show');
+        Route::post('/invite-business', [BusinessInviteController::class, 'store'])->name('business-invites.store');
     });
 });

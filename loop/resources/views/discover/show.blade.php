@@ -21,9 +21,8 @@
 <main class="pb-16">
     <section class="loop-shell">
         <div class="relative overflow-hidden rounded-[2rem] bg-ink text-white shadow-[0_30px_80px_rgba(11,31,42,0.18)]">
-            <div class="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-mint/20 blur-3xl"></div>
-            <div class="pointer-events-none absolute -left-10 bottom-0 h-56 w-56 rounded-full bg-coral/20 blur-3xl"></div>
-            <div class="relative grid gap-8 p-6 sm:p-10 lg:grid-cols-[auto_1fr] lg:items-center">
+            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(45,212,168,0.28),transparent_40%),radial-gradient(circle_at_10%_80%,rgba(255,107,74,0.22),transparent_35%)]"></div>
+            <div class="relative grid gap-8 p-6 sm:p-10 lg:grid-cols-[auto_1fr_auto] lg:items-center">
                 <div class="mx-auto lg:mx-0">
                     @if ($business->logo_path)
                         <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}" class="h-36 w-36 rounded-[1.75rem] object-cover ring-4 ring-white/15 sm:h-44 sm:w-44">
@@ -47,12 +46,19 @@
                     @endif
                     @if ($isCustomer && $totalPoints !== null && $totalPoints > 0)
                         <div class="mt-5 inline-flex items-center gap-2 rounded-2xl bg-mint px-4 py-2 text-sm font-semibold text-ink">
-                            {{ number_format($totalPoints) }} pts
+                            {{ number_format($totalPoints) }} {{ __('loop.pts') }}
                         </div>
-                    @elseif (! $isCustomer)
-                        <p class="mt-5 text-xs text-white/55">{{ __('loop.sign_in_for_points') }}</p>
                     @endif
                 </div>
+                @if ($business->hotline)
+                    <div class="lg:text-right">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/50">{{ __('loop.hotline') }}</p>
+                        <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mt-2 inline-flex rounded-2xl bg-white px-5 py-3 font-display text-lg font-semibold text-ink">
+                            {{ $business->hotline }}
+                        </a>
+                        <p class="mt-2 text-xs text-white/55">{{ __('loop.call_to_redeem') }}</p>
+                    </div>
+                @endif
             </div>
         </div>
     </section>
@@ -68,10 +74,13 @@
                             <p class="mt-1 text-sm text-ink-muted">
                                 @if ($shop->address){{ $shop->address }} · @endif{{ $shop->city }}
                             </p>
+                            @if ($shop->phone)
+                                <a href="tel:{{ preg_replace('/\s+/', '', $shop->phone) }}" class="mt-2 inline-block text-sm font-semibold text-mint-deep">{{ $shop->phone }}</a>
+                            @endif
                         </div>
                         @if ($isCustomer && $memberships->has($shop->id))
                             <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold">
-                                {{ number_format($memberships->get($shop->id)->points_balance) }} pts
+                                {{ number_format($memberships->get($shop->id)->points_balance) }} {{ __('loop.pts') }}
                             </span>
                         @endif
                     </div>
@@ -85,7 +94,7 @@
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
             @forelse ($campaigns as $campaign)
                 <div class="rounded-2xl bg-gradient-to-br from-mint/20 to-white p-5 ring-1 ring-mint/20">
-                    <p class="font-semibold">{{ $campaign->name }}</p>
+                    <p class="font-semibold">{{ $campaign->displayName() }}</p>
                     <p class="mt-1 text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
                 </div>
             @empty
@@ -100,9 +109,9 @@
             @forelse ($rewards as $reward)
                 <div class="rounded-2xl bg-gradient-to-br from-coral/15 to-white p-5 ring-1 ring-coral/15">
                     <p class="font-semibold">{{ $reward->name }}</p>
-                    <p class="text-sm text-ink-muted">{{ $reward->points_cost }} pts · {{ $reward->label() }}</p>
-                    @if ($reward->product_name)
-                        <p class="mt-1 text-xs text-ink-muted">{{ $reward->product_name }}</p>
+                    <p class="text-sm text-ink-muted">{{ $reward->points_cost }} {{ __('loop.pts') }} · {{ $reward->label() }}</p>
+                    @if ($business->hotline)
+                        <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mt-3 inline-flex text-sm font-semibold text-mint-deep">{{ __('loop.call_to_redeem') }} →</a>
                     @endif
                 </div>
             @empty
@@ -112,8 +121,8 @@
     </section>
 
     @if ($related->isNotEmpty())
-        <section class="loop-shell mt-10">
-            <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.related_shops') }}</h2>
+        <section class="loop-shell mt-12">
+            <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.more_nearby') }}</h2>
             <div class="loop-shop-grid">
                 @foreach ($related as $item)
                     <x-discover-tile :business="$item" />

@@ -1,10 +1,11 @@
 <x-guest-layout>
-    <x-site-header class="!border-0" />
+    <x-slot name="asideTitle">{{ __('loop.customer_aside_title') }}</x-slot>
+    <x-slot name="asideBody">{{ __('loop.customer_aside_body') }}</x-slot>
     <form method="POST" action="{{ route('customer.send') }}" class="space-y-4">
         @csrf
         <div>
             <h1 class="font-display text-2xl font-semibold">{{ __('loop.cta_customer') }}</h1>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('Your phone is your Loop ID. Then use a PIN.') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.customer_login_blurb') }}</p>
         </div>
         <div>
             <label class="loop-label">{{ __('loop.country') }}</label>

@@ -43,6 +43,17 @@ class CampaignTemplates
                 'spend_step' => null,
                 'points_per_step' => null,
                 'bonus_points' => 30,
+                'streak_target' => 3,
+                'streak_period' => 'week',
+            ],
+            'monthly_streak' => [
+                'intention' => self::INTENTION_RETENTION,
+                'type' => 'streak',
+                'spend_step' => null,
+                'points_per_step' => null,
+                'bonus_points' => 50,
+                'streak_target' => 3,
+                'streak_period' => 'month',
             ],
             'birthday_treat' => [
                 'intention' => self::INTENTION_RETENTION,

@@ -18,6 +18,8 @@ use Illuminate\Support\Carbon;
     'spend_step',
     'points_per_step',
     'bonus_points',
+    'streak_target',
+    'streak_period',
     'max_earns_per_day',
     'starts_at',
     'ends_at',
@@ -32,6 +34,8 @@ class Campaign extends Model
 
     public const TYPE_WELCOME = 'welcome';
 
+    public const TYPE_STREAK = 'streak';
+
     protected function casts(): array
     {
         return [
@@ -41,6 +45,7 @@ class Campaign extends Model
             'spend_step' => 'integer',
             'points_per_step' => 'integer',
             'bonus_points' => 'integer',
+            'streak_target' => 'integer',
             'max_earns_per_day' => 'integer',
         ];
     }
@@ -117,7 +122,11 @@ class Campaign extends Model
             ]),
             self::TYPE_BIRTHDAY => __('loop.rule_birthday', ['points' => $this->bonus_points]),
             self::TYPE_WELCOME => __('loop.rule_welcome', ['points' => $this->bonus_points]),
-            'streak' => __('loop.rule_streak', ['points' => $this->bonus_points]),
+            self::TYPE_STREAK => __('loop.rule_streak_detail', [
+                'points' => $this->bonus_points,
+                'target' => $this->streak_target ?: 3,
+                'period' => __('loop.streak_period_'.($this->streak_period ?: 'week')),
+            ]),
             default => $this->displayName(),
         };
     }

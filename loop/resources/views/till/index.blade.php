@@ -1,10 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.sale') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.sale_blurb') }}</p>
-            </div>
+        <div>
+            <h1 class="font-display text-3xl font-semibold">{{ __('loop.sale') }}</h1>
+            <p class="mt-1 text-ink-muted">{{ __('loop.sale_blurb_short') }}</p>
         </div>
     </x-slot>
 
@@ -18,7 +16,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel max-w-xl space-y-4 p-6 animate-fade-up {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
+    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 animate-fade-up {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
         @csrf
         <div>
             <label class="loop-label">{{ __('loop.shop') }}</label>
@@ -41,10 +39,10 @@
         </div>
         <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
             <div>
-                <label class="loop-label">{{ __('loop.code') }}</label>
+                <label class="loop-label">{{ __('loop.country_prefix') }}</label>
                 <select name="country_code" class="loop-input">
                     @foreach ($countries as $meta)
-                        <option value="{{ $meta['dial'] }}" @selected($meta['dial'] === '+255')>{{ $meta['dial'] }}</option>
+                        <option value="{{ $meta['dial'] }}" @selected($meta['dial'] === '+255')>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
                     @endforeach
                 </select>
             </div>
@@ -56,25 +54,29 @@
         <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>
     </form>
 
-    <section class="mt-8">
-        <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_till') }}</h2>
-        <div class="mt-4 space-y-3">
-            @forelse ($recent as $visit)
-                <div class="loop-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                    <div>
-                        <p class="font-semibold">{{ $visit->customer->name }} · {{ $visit->shop->name }}</p>
-                        <p class="text-sm text-ink-muted">
-                            {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                            · {{ $visit->channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
-                            · {{ $visit->recorder?->name }}
-                            · {{ $visit->created_at->format('d M Y · H:i') }}
-                        </p>
+    @if (! empty($showRecent))
+        <section class="mx-auto mt-10 max-w-xl">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_till') }}</h2>
+                <a href="{{ route('transactions.index') }}" class="text-sm font-semibold text-mint-deep">{{ __('loop.view_all') }} →</a>
+            </div>
+            <div class="space-y-3">
+                @forelse ($recent as $visit)
+                    <div class="loop-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                        <div>
+                            <p class="font-semibold">{{ $visit->customer->name }} · {{ $visit->shop->name }}</p>
+                            <p class="text-sm text-ink-muted">
+                                {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                                · {{ $visit->channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
+                                · {{ $visit->created_at->format('d M Y · H:i') }}
+                            </p>
+                        </div>
+                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold">+{{ $visit->points_earned }} {{ __('loop.pts') }}</span>
                     </div>
-                    <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold">+{{ $visit->points_earned }} pts</span>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_sales_yet') }}</p>
-            @endforelse
-        </div>
-    </section>
+                @empty
+                    <p class="text-sm text-ink-muted">{{ __('loop.no_sales_yet') }}</p>
+                @endforelse
+            </div>
+        </section>
+    @endif
 </x-app-layout>

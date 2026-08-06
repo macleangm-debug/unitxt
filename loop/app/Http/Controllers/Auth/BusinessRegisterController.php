@@ -47,11 +47,17 @@ class BusinessRegisterController extends Controller
             'business_name' => ['required', 'string', 'max:120'],
             'sector' => ['required', 'in:'.implode(',', array_keys(Sectors::OPTIONS))],
             'sector_other' => ['nullable', 'required_if:sector,other', 'string', 'max:80'],
+            'hotline_country_code' => ['nullable', 'string', 'max:8'],
+            'hotline' => ['nullable', 'string', 'max:40'],
             'referral_code' => ['nullable', 'string', 'max:16'],
         ]);
 
         $countryCode = Countries::dial($data['country']);
         $phone = Countries::normalizePhone($data['phone']);
+        $hotline = null;
+        if (! blank($data['hotline'] ?? null)) {
+            $hotline = trim(($data['hotline_country_code'] ?? $countryCode).' '.Countries::normalizePhone($data['hotline']));
+        }
 
         if (User::query()->where('country_code', $countryCode)->where('phone', $phone)->exists()) {
             return back()->withInput()->withErrors([
@@ -59,7 +65,7 @@ class BusinessRegisterController extends Controller
             ]);
         }
 
-        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $referrals) {
+        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $hotline, $referrals) {
             $owner = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -83,6 +89,7 @@ class BusinessRegisterController extends Controller
                 'country' => $data['country'],
                 'currency' => Countries::currency($data['country']),
                 'city' => null,
+                'hotline' => $hotline,
                 'plan_key' => Plans::FREE,
                 'billing_status' => 'trialing',
                 'trial_ends_at' => now()->addDays(Plans::trialDays()),

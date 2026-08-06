@@ -1,29 +1,51 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.your_loop') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ $totalPoints }} pts · {{ $memberships->count() }} {{ __('loop.places') }}</p>
+        <div class="relative overflow-hidden rounded-[2rem] bg-ink px-6 py-8 text-white shadow-[0_24px_70px_rgba(11,31,42,0.16)] sm:px-8">
+            <div class="pointer-events-none absolute -right-10 top-0 h-48 w-48 rounded-full bg-mint/25 blur-3xl"></div>
+            <div class="pointer-events-none absolute -left-8 bottom-0 h-40 w-40 rounded-full bg-coral/20 blur-3xl"></div>
+            <div class="relative flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint">Loop</p>
+                    <h1 class="mt-2 font-display text-4xl font-semibold">{{ __('loop.your_loop') }}</h1>
+                    <p class="mt-2 text-white/70">{{ number_format($totalPoints) }} {{ __('loop.pts') }} · {{ $memberships->count() }} {{ __('loop.places') }}</p>
+                </div>
+                <a href="{{ route('discover') }}" class="rounded-2xl bg-mint px-4 py-2.5 text-sm font-semibold text-ink">{{ __('loop.browse_campaigns') }}</a>
+            </div>
+        </div>
     </x-slot>
 
     @if ($showWelcome ?? false)
-        <div x-data="{ i: 0 }" class="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-ink to-ink-soft p-6 text-white shadow-[0_18px_50px_rgba(11,31,42,0.12)]">
+        <div x-data="{ i: 0 }" class="mb-8 overflow-hidden rounded-3xl border border-ink/8 bg-white/90 p-6 shadow-[0_18px_50px_rgba(11,31,42,0.06)]">
             <div x-show="i===0" x-transition.opacity>
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint">Loop</p>
-                <p class="mt-3 font-display text-2xl font-semibold">{{ __('loop.tagline') }}</p>
-                <p class="mt-2 text-sm text-white/70">{{ __('loop.customer_welcome_1') }}</p>
+                <p class="font-display text-2xl font-semibold">{{ __('loop.tagline') }}</p>
+                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.customer_welcome_1') }}</p>
             </div>
             <div x-show="i===1" x-cloak x-transition.opacity>
                 <p class="font-display text-2xl font-semibold">{{ __('loop.customer_welcome_2_title') }}</p>
-                <p class="mt-2 text-sm text-white/70">{{ __('loop.customer_welcome_2') }}</p>
+                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.customer_welcome_2') }}</p>
             </div>
             <div class="mt-5 flex justify-between">
                 <div class="flex gap-1.5">
-                    <button type="button" class="h-1.5 w-6 rounded-full" :class="i===0 ? 'bg-mint' : 'bg-white/25'" @click="i=0"></button>
-                    <button type="button" class="h-1.5 w-6 rounded-full" :class="i===1 ? 'bg-mint' : 'bg-white/25'" @click="i=1"></button>
+                    <button type="button" class="h-1.5 w-6 rounded-full" :class="i===0 ? 'bg-mint' : 'bg-ink/15'" @click="i=0"></button>
+                    <button type="button" class="h-1.5 w-6 rounded-full" :class="i===1 ? 'bg-mint' : 'bg-ink/15'" @click="i=1"></button>
                 </div>
-                <button type="button" class="text-sm font-semibold text-mint" @click="i = i === 0 ? 1 : 0">{{ __('loop.next') }} →</button>
+                <button type="button" class="text-sm font-semibold text-mint-deep" @click="i = i === 0 ? 1 : 0">{{ __('loop.next') }} →</button>
             </div>
         </div>
     @endif
+
+    <section class="mb-10 rounded-[2rem] border border-ink/8 bg-gradient-to-br from-white to-mint/10 p-6 sm:p-7">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.be_a_loop_scout') }}</p>
+        <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.invite_a_business') }}</h2>
+        <p class="mt-2 max-w-xl text-sm text-ink-muted">{{ __('loop.invite_a_business_body') }}</p>
+        <form method="POST" action="{{ route('business-invites.store') }}" class="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+            @csrf
+            <input name="business_name" class="loop-input" placeholder="{{ __('loop.business_name') }}" required>
+            <button class="loop-btn-mint">{{ __('loop.send_invite') }}</button>
+            <input name="city" value="{{ auth()->user()->city }}" type="hidden">
+            <input name="phone" class="loop-input sm:col-span-2" placeholder="{{ __('loop.phone_optional') }}">
+        </form>
+    </section>
 
     <section>
         <div class="mb-3 flex items-center justify-between">
@@ -63,7 +85,7 @@
                     @endif
                     <p class="mt-3 truncate text-sm font-semibold">{{ $membership->business->name }}</p>
                     <p class="font-display text-xl font-semibold">{{ $membership->points_balance }}</p>
-                    <p class="text-[11px] text-ink-muted">pts</p>
+                    <p class="text-[11px] text-ink-muted">{{ __('loop.pts') }}</p>
                 </a>
             @empty
                 <div class="loop-panel w-full p-6 text-sm text-ink-muted">{{ __('loop.visit_or_browse') }}</div>

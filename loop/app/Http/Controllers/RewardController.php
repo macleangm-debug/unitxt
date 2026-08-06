@@ -75,7 +75,6 @@ class RewardController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
             'product_name' => ['nullable', 'string', 'max:120'],
-            'product_sku' => ['nullable', 'string', 'max:80'],
             'points_cost' => ['required', 'integer', 'min:1'],
             'reward_type' => ['required', 'in:percent_off,fixed_off,free_item,custom'],
             'reward_value' => ['nullable', 'numeric', 'min:0'],
@@ -85,6 +84,7 @@ class RewardController extends Controller
 
         $reward = $business->rewards()->create([
             ...$data,
+            'product_sku' => null,
             'is_active' => true,
         ]);
 

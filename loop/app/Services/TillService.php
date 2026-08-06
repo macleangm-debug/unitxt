@@ -103,13 +103,20 @@ class TillService
 
             $membership = $this->memberships->join($business, $customer, $shop);
             $campaign = $this->findEarnCampaign($shop);
-            $pointsEarned = $campaign ? $campaign->pointsForSpend($amountSpent) : 0;
+            $basePoints = $campaign ? $campaign->pointsForSpend($amountSpent) : 0;
+            $pointsEarned = $basePoints;
+            $bonuses = [];
+
+            if ($basePoints > 0) {
+                $bonuses[] = __('loop.bonus_from_purchase', ['points' => $basePoints]);
+            }
 
             $birthdayCampaign = $this->findBirthdayCampaign($business);
             if ($birthdayCampaign && $customer->birth_month && $customer->birth_day
                 && (int) $customer->birth_month === (int) now()->month
                 && (int) $customer->birth_day === (int) now()->day) {
                 $pointsEarned += $birthdayCampaign->bonus_points;
+                $bonuses[] = __('loop.bonus_from_birthday', ['points' => $birthdayCampaign->bonus_points]);
             }
 
             $welcomeCampaign = $this->findWelcomeCampaign($business);
@@ -118,6 +125,13 @@ class TillService
                 ->exists();
             if ($welcomeCampaign && $isFirstVisit) {
                 $pointsEarned += $welcomeCampaign->bonus_points;
+                $bonuses[] = __('loop.bonus_from_welcome', ['points' => $welcomeCampaign->bonus_points]);
+            }
+
+            $streakBonus = $this->applyStreakBonuses($business, $membership, $shop);
+            if ($streakBonus['points'] > 0) {
+                $pointsEarned += $streakBonus['points'];
+                $bonuses = array_merge($bonuses, $streakBonus['labels']);
             }
 
             $reward = null;
@@ -137,6 +151,16 @@ class TillService
                 $membershipFresh = Membership::query()->findOrFail($membership->id);
                 if ($membershipFresh->points_balance < $reward->points_cost) {
                     throw ValidationException::withMessages(['reward_id' => 'Customer does not have enough points yet.']);
+                }
+
+                if ($reward->max_redemptions_per_member) {
+                    $used = Redemption::query()
+                        ->where('reward_id', $reward->id)
+                        ->where('membership_id', $membership->id)
+                        ->count();
+                    if ($used >= $reward->max_redemptions_per_member) {
+                        throw ValidationException::withMessages(['reward_id' => __('loop.offer_max_reached')]);
+                    }
                 }
 
                 $pointsRedeemed = $reward->points_cost;
@@ -170,6 +194,7 @@ class TillService
                 'discount_amount' => $discount,
                 'receipt_ref' => $receiptRef,
                 'channel' => $channel,
+                'notes' => $bonuses !== [] ? implode(' · ', $bonuses) : null,
             ]);
 
             if ($pointsRedeemed > 0) {
@@ -178,7 +203,7 @@ class TillService
                     $pointsRedeemed,
                     $staff,
                     $visit,
-                    $reward ? "Applied offer: {$reward->name}" : 'Paid with points'
+                    $reward ? __('loop.applied_offer', ['name' => $reward->name]) : __('loop.paid_with_points')
                 );
 
                 if ($reward && $reward->stock !== null) {
@@ -192,7 +217,7 @@ class TillService
                         'customer_id' => $customer->id,
                         'visit_id' => $visit->id,
                         'recorded_by' => $staff->id,
-                        'points_spent' => $pointsRedeemed,
+                        'points_spent' => $reward->points_cost,
                         'discount_amount' => $discount,
                         'status' => 'applied',
                     ]);
@@ -202,17 +227,66 @@ class TillService
             }
 
             if ($pointsEarned > 0) {
+                $earnLabel = $bonuses !== []
+                    ? implode(' · ', $bonuses)
+                    : __('loop.sale_at_shop', ['shop' => $shop->name]);
+
                 $this->points->earn(
                     $membership,
                     $pointsEarned,
                     $staff,
                     $visit,
-                    "Sale at {$shop->name} · ".number_format($amountSpent, 0).' '.$business->currency
+                    $earnLabel
                 );
             }
 
             return $visit->fresh(['customer', 'shop', 'campaign', 'reward', 'membership']);
         });
+    }
+
+    /**
+     * @return array{points: int, labels: list<string>}
+     */
+    private function applyStreakBonuses(Business $business, Membership $membership, Shop $shop): array
+    {
+        $points = 0;
+        $labels = [];
+
+        $streaks = Campaign::query()
+            ->active()
+            ->where('business_id', $business->id)
+            ->where('type', Campaign::TYPE_STREAK)
+            ->get();
+
+        foreach ($streaks as $streak) {
+            $target = max(1, (int) ($streak->streak_target ?: 3));
+            $period = $streak->streak_period === 'month' ? 'month' : 'week';
+            $from = $period === 'month' ? now()->startOfMonth() : now()->startOfWeek();
+
+            $visitCount = Visit::query()
+                ->where('membership_id', $membership->id)
+                ->where('created_at', '>=', $from)
+                ->count() + 1; // include this sale
+
+            if ($visitCount === $target) {
+                $alreadyAwarded = Visit::query()
+                    ->where('membership_id', $membership->id)
+                    ->where('created_at', '>=', $from)
+                    ->where('notes', 'like', '%'.$streak->displayName().'%')
+                    ->exists();
+
+                if (! $alreadyAwarded) {
+                    $points += $streak->bonus_points;
+                    $labels[] = __('loop.bonus_from_streak', [
+                        'points' => $streak->bonus_points,
+                        'target' => $target,
+                        'period' => __('loop.streak_period_'.$period),
+                    ]);
+                }
+            }
+        }
+
+        return ['points' => $points, 'labels' => $labels];
     }
 
     private function findEarnCampaign(Shop $shop): ?Campaign

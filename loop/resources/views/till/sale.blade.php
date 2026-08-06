@@ -25,15 +25,23 @@
             <div class="rounded-[1.5rem] bg-gradient-to-br from-ink to-ink-soft p-5 text-white">
                 <p class="text-sm text-white/70">{{ __('loop.balance') }}</p>
                 <p class="mt-2 font-display text-4xl font-semibold">{{ $membership->points_balance }}</p>
-                <p class="text-xs text-white/55">pts</p>
+                <p class="text-xs text-white/55">{{ __('loop.pts') }}</p>
             </div>
             <div class="loop-panel p-5 sm:col-span-2">
                 <p class="text-sm font-semibold">{{ __('loop.ready_to_redeem') }}</p>
                 <div class="mt-3 flex flex-wrap gap-2">
                     @forelse ($availableOffers as $reward)
-                        <span class="rounded-xl bg-mint-soft px-3 py-1.5 text-sm font-semibold text-ink">{{ $reward->name }} · {{ $reward->points_cost }} pts</span>
+                        <span class="rounded-xl bg-mint-soft px-3 py-1.5 text-sm font-semibold text-ink">{{ $reward->name }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</span>
                     @empty
-                        <span class="text-sm text-ink-muted">{{ __('loop.none_unlocked') }}</span>
+                        <div class="w-full rounded-2xl border border-dashed border-coral/40 bg-coral/10 px-4 py-4">
+                            <p class="font-display text-lg font-semibold text-ink">{{ __('loop.none_unlocked') }}</p>
+                            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
+                            @if ($nextOffer)
+                                <p class="mt-3 text-sm font-semibold text-mint-deep">
+                                    {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                                </p>
+                            @endif
+                        </div>
                     @endforelse
                 </div>
             </div>
@@ -51,6 +59,7 @@
             pointsToSpend: '{{ old('points_to_spend', '') }}',
             balance: {{ $membership->points_balance ?? 0 }},
             rate: {{ $campaign?->currencyPerPoint() ?? 0 }},
+            currency: @js($business->currency),
             formatAmount() {
                 let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
                 const parts = raw.split('.');
@@ -111,7 +120,6 @@
                 <div>
                     <label class="loop-label">{{ __('loop.email_optional') }}</label>
                     <input type="email" name="email" value="{{ old('email') }}" class="loop-input">
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.email_optional_hint') }}</p>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click="step = 1">{{ __('loop.back') }}</button>
@@ -159,7 +167,7 @@
                                 <input type="radio" value="{{ $reward->id }}" class="mt-1 text-mint focus:ring-mint" x-model="selectedOffer">
                                 <span>
                                     <span class="block text-sm font-semibold">{{ $reward->name }}</span>
-                                    <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} pts · {{ $reward->label() }}</span>
+                                    <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} {{ __('loop.pts') }} · {{ $reward->label() }}</span>
                                 </span>
                             </label>
                         @endforeach
@@ -174,13 +182,19 @@
 
             @if ($membership && $membership->points_balance > 0 && $campaign && $campaign->currencyPerPoint() > 0)
                 <div class="rounded-2xl border border-ink/10 bg-chalk/70 p-4">
-                    <label class="flex items-center gap-3 text-sm font-semibold">
-                        <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="rounded border-ink/20 text-mint focus:ring-mint">
-                        {{ __('loop.pay_with_points') }}
+                    <label class="flex items-start gap-3 text-sm font-semibold">
+                        <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="mt-0.5 rounded border-ink/20 text-mint focus:ring-mint">
+                        <span>
+                            {{ __('loop.pay_with_points') }}
+                            <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.pay_with_points_hint', ['rate' => number_format($campaign->currencyPerPoint(), 0), 'currency' => $business->currency]) }}</span>
+                        </span>
                     </label>
                     <div x-show="payWithPoints" x-cloak class="mt-3 space-y-2">
                         <label class="loop-label">{{ __('loop.points_to_spend') }} (max {{ $membership->points_balance }})</label>
                         <input type="number" name="points_to_spend" min="1" max="{{ $membership->points_balance }}" x-model="pointsToSpend" class="loop-input">
+                        <p class="text-sm font-semibold text-mint-deep" x-show="pointsValue() > 0">
+                            ≈ <span x-text="currency"></span> <span x-text="pointsDiscount().toLocaleString()"></span>
+                        </p>
                     </div>
                 </div>
             @endif

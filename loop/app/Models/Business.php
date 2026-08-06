@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
     'country',
     'currency',
     'city',
+    'hotline',
     'branch_count',
     'description',
     'logo_path',

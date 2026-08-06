@@ -18,7 +18,7 @@ class OfferTemplates
                 'reward_type' => 'free_item',
                 'points_cost' => 100,
                 'reward_value' => 0,
-                'default_name' => __('loop.free_item'),
+                'default_name' => __('loop.offer_type_free_name'),
                 'product_name' => null,
             ]),
             self::localizeType('percent_off', [
@@ -34,6 +34,22 @@ class OfferTemplates
                 'reward_value' => 2000,
                 'default_name' => __('loop.offer_type_fixed_name'),
                 'product_name' => null,
+            ]),
+            self::localizeType('bogo', [
+                'reward_type' => 'custom',
+                'points_cost' => 200,
+                'reward_value' => 0,
+                'default_name' => __('loop.offer_type_bogo_name'),
+                'product_name' => null,
+                'description' => __('loop.offer_type_bogo_desc'),
+            ]),
+            self::localizeType('upgrade', [
+                'reward_type' => 'custom',
+                'points_cost' => 80,
+                'reward_value' => 0,
+                'default_name' => __('loop.offer_type_upgrade_name'),
+                'product_name' => null,
+                'description' => __('loop.offer_type_upgrade_desc'),
             ]),
             self::localizeType('custom', [
                 'reward_type' => 'custom',
@@ -181,7 +197,7 @@ class OfferTemplates
         return [
             'key' => $key,
             'name' => __('loop.offer_type_'.$key.'_title'),
-            'description' => __('loop.offer_type_'.$key.'_body'),
+            'description' => $item['description'] ?? __('loop.offer_type_'.$key.'_body'),
             'points_cost' => $item['points_cost'],
             'reward_type' => $item['reward_type'],
             'reward_value' => $item['reward_value'],

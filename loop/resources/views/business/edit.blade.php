@@ -33,6 +33,11 @@
             <input name="city" value="{{ old('city', $business->city) }}" class="loop-input">
         </div>
         <div>
+            <label class="loop-label">{{ __('loop.hotline') }}</label>
+            <input name="hotline" value="{{ old('hotline', $business->hotline) }}" class="loop-input" placeholder="+255 712 345 678">
+            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
+        </div>
+        <div>
             <label class="loop-label">{{ __('loop.description') }}</label>
             <textarea name="description" rows="4" class="loop-input">{{ old('description', $business->description) }}</textarea>
         </div>

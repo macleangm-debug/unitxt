@@ -132,7 +132,7 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('settings'))
             ->assertOk()
-            ->assertSee('Settings');
+            ->assertSee(__('loop.settings'));
 
         $this->actingAs($owner)
             ->get(route('campaigns.show', $campaign))

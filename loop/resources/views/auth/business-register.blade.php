@@ -100,6 +100,18 @@
                     <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
                     <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
                 </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.hotline') }}</label>
+                    <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                        <select name="hotline_country_code" class="loop-input">
+                            @foreach ($countries as $code => $meta)
+                                <option value="{{ $meta['dial'] }}" @selected(old('hotline_country_code', \App\Support\Countries::dial(old('country', $preferredCountry))) === $meta['dial'])>{{ $meta['dial'] }}</option>
+                            @endforeach
+                        </select>
+                        <input name="hotline" value="{{ old('hotline') }}" class="loop-input" placeholder="712 345 678">
+                    </div>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
+                </div>
                 <div class="rounded-2xl bg-chalk px-4 py-3" x-data="{ hasCode: {{ old('referral_code', $referralCode ?? '') ? 'true' : 'false' }} }">
                     <label class="flex cursor-pointer items-center gap-3">
                         <input type="checkbox" class="rounded border-ink/20 text-mint-deep focus:ring-mint" x-model="hasCode"
