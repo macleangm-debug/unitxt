@@ -18,11 +18,11 @@ class PlatformSetting extends Model
 
     public static function getValue(string $key, mixed $default = null): mixed
     {
-        $setting = Cache::remember("platform_setting:{$key}", 60, function () use ($key) {
-            return static::query()->where('key', $key)->first();
-        });
+        return Cache::remember("platform_setting:{$key}", 60, function () use ($key, $default) {
+            $setting = static::query()->where('key', $key)->first();
 
-        return $setting?->value ?? $default;
+            return $setting?->value ?? $default;
+        });
     }
 
     public static function putValue(string $key, array $value): self

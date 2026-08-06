@@ -19,9 +19,7 @@ class Plans
      */
     public static function catalog(): array
     {
-        $billing = class_exists(BillingSettings::class)
-            ? BillingSettings::defaults()
-            : ['free_max_shops' => 1, 'free_max_members' => 50, 'free_max_monthly_visits' => 50];
+        $billing = BillingSettings::defaults();
 
         return [
             self::FREE => [
