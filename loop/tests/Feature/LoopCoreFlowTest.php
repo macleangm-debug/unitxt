@@ -116,9 +116,36 @@ class LoopCoreFlowTest extends TestCase
 
         $this->post(route('customer.verify'), [
             'code' => '123456',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('discover'));
 
         $this->assertAuthenticated();
+    }
+
+    public function test_new_customer_can_self_register_after_otp(): void
+    {
+        $this->post(route('customer.send'), [
+            'country_code' => '+255',
+            'phone' => '716777888',
+        ])->assertRedirect(route('customer.otp'));
+
+        $this->post(route('customer.verify'), [
+            'code' => '123456',
+        ])->assertRedirect(route('customer.register'));
+
+        $this->post(route('customer.register.store'), [
+            'first_name' => 'Asha',
+            'last_name' => 'Said',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'interests' => ['coffee', 'fashion'],
+        ])->assertRedirect(route('discover'));
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'phone' => '716777888',
+            'city' => 'Dar es Salaam',
+            'role' => 'customer',
+        ]);
     }
 
     public function test_entry_pages_render(): void
@@ -127,6 +154,7 @@ class LoopCoreFlowTest extends TestCase
         $this->get('/for-business')->assertOk();
         $this->get('/for-customers')->assertOk();
         $this->get('/discover')->assertOk();
+        $this->get('/locale/sw')->assertRedirect();
     }
 
     private function seedBusiness(): array

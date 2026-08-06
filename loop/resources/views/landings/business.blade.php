@@ -23,7 +23,7 @@
 <main>
     <section class="loop-shell grid items-center gap-10 py-12 lg:grid-cols-2">
         <div class="animate-fade-up">
-            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-mint-deep">For SMEs in Tanzania</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-mint-deep">For growing businesses</p>
             <h1 class="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">Keep customers coming back — no plastic cards.</h1>
             <p class="mt-5 max-w-lg text-lg text-ink-muted">Ask for a phone number. Record the sale. Loop awards points and shows rewards your front desk can apply instantly.</p>
             <div class="mt-8 flex flex-wrap gap-3">

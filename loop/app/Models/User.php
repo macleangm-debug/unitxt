@@ -16,6 +16,9 @@ use Illuminate\Notifications\Notifiable;
     'first_name',
     'last_name',
     'country_code',
+    'country',
+    'city',
+    'interests',
     'phone',
     'email',
     'password',
@@ -48,6 +51,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'must_change_password' => 'boolean',
             'is_active' => 'boolean',
+            'interests' => 'array',
         ];
     }
 

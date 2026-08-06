@@ -23,8 +23,11 @@ class ShopController extends Controller
 
     public function create(Request $request): View
     {
+        $business = $request->user()->ownedBusiness()->firstOrFail();
+
         return view('shops.create', [
-            'business' => $request->user()->ownedBusiness()->firstOrFail(),
+            'business' => $business,
+            'cities' => \App\Support\Countries::cities($business->country),
         ]);
     }
 
@@ -35,12 +38,22 @@ class ShopController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:80'],
+            'city' => ['required', 'string', 'max:80'],
             'phone' => ['nullable', 'string', 'max:40'],
+            'logo' => ['nullable', 'image', 'max:2048'],
         ]);
 
+        $logoPath = null;
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('shop-logos', 'public');
+        }
+
         $business->shops()->create([
-            ...$data,
+            'name' => $data['name'],
+            'address' => $data['address'] ?? null,
+            'city' => $data['city'],
+            'phone' => $data['phone'] ?? null,
+            'logo_path' => $logoPath,
             'code' => 'SHOP-'.Str::upper(Str::random(6)),
             'is_active' => true,
         ]);
@@ -55,6 +68,7 @@ class ShopController extends Controller
         return view('shops.edit', [
             'shop' => $shop,
             'business' => $shop->business,
+            'cities' => \App\Support\Countries::cities($shop->business->country),
         ]);
     }
 
@@ -65,13 +79,22 @@ class ShopController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:80'],
+            'city' => ['required', 'string', 'max:80'],
             'phone' => ['nullable', 'string', 'max:40'],
+            'logo' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
+        if ($request->hasFile('logo')) {
+            $shop->logo_path = $request->file('logo')->store('shop-logos', 'public');
+        }
+
         $shop->update([
-            ...$data,
+            'name' => $data['name'],
+            'address' => $data['address'] ?? null,
+            'city' => $data['city'],
+            'phone' => $data['phone'] ?? null,
+            'logo_path' => $shop->logo_path,
             'is_active' => $request->boolean('is_active', $shop->is_active),
         ]);
 

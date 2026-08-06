@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
     'address',
     'city',
     'phone',
+    'logo_path',
     'is_active',
 ])]
 class Shop extends Model

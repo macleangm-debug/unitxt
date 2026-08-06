@@ -29,7 +29,6 @@ class OtpService
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        // Placeholder for SMS/WhatsApp provider integration.
         Log::info('Loop OTP', [
             'phone' => $countryCode.$phone,
             'code' => $code,
@@ -38,7 +37,7 @@ class OtpService
         return $otp;
     }
 
-    public function verify(string $countryCode, string $phone, string $code): User
+    public function verifyCode(string $countryCode, string $phone, string $code): void
     {
         $phone = Countries::normalizePhone($phone);
 
@@ -51,21 +50,31 @@ class OtpService
 
         if (! $otp || ! $otp->isValid($code)) {
             throw ValidationException::withMessages([
-                'code' => 'That code is invalid or expired.',
+                'code' => __('That code is invalid or expired.'),
             ]);
         }
 
         $otp->update(['consumed_at' => now()]);
+    }
 
-        $user = User::query()
+    public function findCustomer(string $countryCode, string $phone): ?User
+    {
+        return User::query()
             ->where('country_code', $countryCode)
-            ->where('phone', $phone)
+            ->where('phone', Countries::normalizePhone($phone))
             ->where('role', User::ROLE_CUSTOMER)
             ->first();
+    }
+
+    public function verify(string $countryCode, string $phone, string $code): User
+    {
+        $this->verifyCode($countryCode, $phone, $code);
+
+        $user = $this->findCustomer($countryCode, $phone);
 
         if (! $user) {
             throw ValidationException::withMessages([
-                'phone' => 'No Loop customer found for this number. Ask a shop to add you on your next visit, or browse campaigns first.',
+                'phone' => 'complete_profile',
             ]);
         }
 

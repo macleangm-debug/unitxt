@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\StaffSessionController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\RewardController;
 use App\Http\Controllers\ShopController;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => view('welcome'))->name('home');
 Route::get('/for-business', fn () => view('landings.business'))->name('landing.business');
 Route::get('/for-customers', fn () => view('landings.customer'))->name('landing.customer');
+Route::get('/locale/{locale}', LocaleController::class)->name('locale');
 
 Route::get('/discover', DiscoverController::class)->name('discover');
 Route::get('/discover/{business:slug}', [DiscoverController::class, 'show'])->name('discover.show');
@@ -31,6 +33,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/customer/login', [CustomerAuthController::class, 'send'])->name('customer.send');
     Route::get('/customer/otp', [CustomerAuthController::class, 'otpForm'])->name('customer.otp');
     Route::post('/customer/otp', [CustomerAuthController::class, 'verify'])->name('customer.verify');
+    Route::get('/customer/register', [CustomerAuthController::class, 'registerForm'])->name('customer.register');
+    Route::post('/customer/register', [CustomerAuthController::class, 'register'])->name('customer.register.store');
 });
 
 Route::post('/logout', [StaffSessionController::class, 'destroy'])

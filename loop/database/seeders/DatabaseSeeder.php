@@ -101,6 +101,9 @@ class DatabaseSeeder extends Seeder
             'first_name' => 'Kojo',
             'last_name' => 'Mensah',
             'phone' => '713000001',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'interests' => ['coffee', 'fashion'],
             'birth_date' => now()->subYears(28),
             'phone_verified_at' => now(),
         ]);
@@ -127,6 +130,7 @@ class DatabaseSeeder extends Seeder
         Shop::create([
             'business_id' => $fashion->id,
             'name' => 'Kanga Collective Masaki',
+            'city' => 'Dar es Salaam',
             'is_active' => true,
         ]);
         Campaign::create([
