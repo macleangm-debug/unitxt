@@ -7,11 +7,11 @@
         </div>
 
         <div class="mt-6 flex gap-2">
-            @foreach ([1, 2, 3, 4] as $n)
+            @foreach ([1, 2, 3, 4, 5] as $n)
                 <div class="h-1.5 flex-1 rounded-full {{ $step >= $n ? 'bg-gradient-to-r from-mint-deep to-coral' : 'bg-ink/10' }}"></div>
             @endforeach
         </div>
-        <p class="mt-2 text-center text-xs font-semibold text-ink-muted">{{ __('loop.step') }} {{ $step }}/4</p>
+        <p class="mt-2 text-center text-xs font-semibold text-ink-muted">{{ __('loop.step') }} {{ $step }}/5</p>
 
         @if ($logoJustSaved)
             <div
@@ -46,10 +46,7 @@
                         reader.readAsDataURL(file);
                     },
                     submit(e) {
-                        if (!this.fileName || this.uploading) {
-                            e.preventDefault();
-                            return;
-                        }
+                        if (!this.fileName || this.uploading) { e.preventDefault(); return; }
                         this.uploading = true;
                     }
                 }"
@@ -60,40 +57,21 @@
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.add_logo') }}</h2>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.add_logo_body') }}</p>
                 </div>
-
                 <div class="mt-8 flex flex-col items-center">
                     <div class="relative h-36 w-36 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-ink via-ink-soft to-mint/30 ring-4 ring-mint/20">
-                        <template x-if="preview">
-                            <img :src="preview" alt="" class="h-full w-full object-cover">
-                        </template>
-                        <div x-show="!preview" class="flex h-full w-full items-center justify-center font-display text-4xl text-mint">
-                            {{ mb_substr($business->name, 0, 1) }}
-                        </div>
-                        <div
-                            x-show="uploading"
-                            x-cloak
-                            class="absolute inset-0 flex flex-col items-center justify-center bg-ink/70 backdrop-blur-sm"
-                        >
+                        <template x-if="preview"><img :src="preview" alt="" class="h-full w-full object-cover"></template>
+                        <div x-show="!preview" class="flex h-full w-full items-center justify-center font-display text-4xl text-mint">{{ mb_substr($business->name, 0, 1) }}</div>
+                        <div x-show="uploading" x-cloak class="absolute inset-0 flex flex-col items-center justify-center bg-ink/70 backdrop-blur-sm">
                             <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-mint"></div>
                             <p class="mt-3 text-xs font-semibold text-white">{{ __('loop.uploading') }}</p>
                         </div>
                     </div>
-
-                    <p x-show="fileName" x-text="fileName" class="mt-3 max-w-xs truncate text-xs text-ink-muted"></p>
-
                     <label class="mt-6 inline-flex cursor-pointer items-center justify-center rounded-xl bg-mint px-6 py-3 text-sm font-semibold text-ink transition hover:bg-mint-deep">
                         <span x-text="fileName ? '{{ __('loop.change_image') }}' : '{{ __('loop.upload') }}'"></span>
                         <input type="file" name="logo" accept="image/*" class="sr-only" required @change="pick">
                     </label>
-                    <x-input-error :messages="$errors->get('logo')" class="mt-2" />
                 </div>
-
-                <button
-                    type="submit"
-                    class="loop-btn mt-8 w-full"
-                    :disabled="!fileName || uploading"
-                    :class="{ 'opacity-60': !fileName || uploading }"
-                >
+                <button type="submit" class="loop-btn mt-8 w-full" :disabled="!fileName || uploading" :class="{ 'opacity-60': !fileName || uploading }">
                     <span x-show="!uploading">{{ __('loop.save_logo') }}</span>
                     <span x-show="uploading" x-cloak>{{ __('loop.uploading') }}</span>
                 </button>
@@ -142,12 +120,11 @@
                 </div>
                 <button class="loop-btn-mint mt-8 w-full">{{ __('loop.next') }}</button>
             </form>
-        @else
+        @elseif ($step === 4)
             <div class="mt-6" x-data="{ selected: null, name: '', description: '' }">
                 <div class="text-center">
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.pick_campaign') }}</h2>
-                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_campaign_body') }}</p>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.campaigns_vs_offers') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_campaign_earn_only') }}</p>
                 </div>
 
                 @foreach ($groupedTemplates as $intention => $group)
@@ -177,12 +154,58 @@
                         <form method="POST" action="{{ route('onboarding.campaign') }}" class="mt-6 space-y-3">
                             @csrf
                             <input type="hidden" name="template" :value="selected">
-                            <button class="loop-btn-mint w-full">{{ __('loop.launch_campaign') }}</button>
+                            <button class="loop-btn-mint w-full">{{ __('loop.next_to_offers') }}</button>
                             <button type="button" class="w-full text-sm font-semibold text-ink-muted" @click="selected=null">{{ __('loop.back') }}</button>
                         </form>
                     </div>
                 </div>
             </div>
+        @else
+            @php
+                $earn = $earnCampaign;
+            @endphp
+            <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-6" x-data="{ selected: {} }">
+                @csrf
+                <div class="text-center">
+                    <h2 class="font-display text-2xl font-semibold">{{ __('loop.pick_offers') }}</h2>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_offers_body') }}</p>
+                    @if ($earn)
+                        <p class="mt-2 rounded-2xl bg-mint-soft/60 px-3 py-2 text-xs font-medium text-ink">
+                            {{ $earn->ruleSummary($business->currency) }}
+                        </p>
+                    @endif
+                </div>
+
+                <div class="mt-6 space-y-3">
+                    @foreach ($offerTemplates as $offer)
+                        @php
+                            $hint = \App\Support\OfferTemplates::spendToUnlock($earn, $offer['points_cost'], $business->currency);
+                        @endphp
+                        <label class="flex cursor-pointer items-start gap-3 rounded-3xl border border-ink/10 bg-white/90 p-4 transition has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                            <input type="checkbox" name="offers[]" value="{{ $offer['key'] }}" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint"
+                                   @checked(in_array($offer['key'], ['percent_5_100', 'free_coffee_100', 'free_meal_500', 'percent_10_200'], true))>
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-start justify-between gap-2">
+                                    <span class="font-display text-base font-semibold">{{ $offer['name'] }}</span>
+                                    <span class="shrink-0 rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-mint">{{ $offer['points_cost'] }} pts</span>
+                                </span>
+                                <span class="mt-1 block text-sm text-ink-muted">{{ $offer['description'] }}</span>
+                                @if ($hint)
+                                    <span class="mt-2 block text-xs font-medium text-mint-deep">{{ $hint }}</span>
+                                @endif
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+
+                <p class="mt-4 text-center text-xs text-ink-muted">{{ __('loop.more_offers_later') }}</p>
+                <button class="loop-btn-mint mt-6 w-full">{{ __('loop.finish_onboarding') }}</button>
+            </form>
+            <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-3">
+                @csrf
+                <input type="hidden" name="skip" value="1">
+                <button class="w-full text-sm font-semibold text-ink-muted">{{ __('loop.skip_offers') }}</button>
+            </form>
         @endif
     </div>
 </x-app-layout>

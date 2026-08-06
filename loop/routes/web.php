@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/onboarding/branches', [OnboardingController::class, 'branches'])->name('onboarding.branches');
         Route::post('/onboarding/shop', [OnboardingController::class, 'shop'])->name('onboarding.shop');
         Route::post('/onboarding/campaign', [OnboardingController::class, 'campaign'])->name('onboarding.campaign');
+        Route::post('/onboarding/offers', [OnboardingController::class, 'offers'])->name('onboarding.offers');
 
         Route::get('/settings', SettingsController::class)->name('settings');
         Route::resource('shops', ShopController::class)->except(['show']);

@@ -6,8 +6,6 @@ class CampaignTemplates
 {
     public const INTENTION_EARN = 'earn_points';
 
-    public const INTENTION_EARN_REDEEM = 'earn_and_redeem';
-
     public const INTENTION_PRODUCT = 'product';
 
     public const INTENTION_RETENTION = 'retention';
@@ -25,17 +23,12 @@ class CampaignTemplates
                 'points_per_step' => 2,
                 'bonus_points' => 0,
             ],
-            'earn_with_discount' => [
-                'intention' => self::INTENTION_EARN_REDEEM,
+            'faster_earn' => [
+                'intention' => self::INTENTION_EARN,
                 'type' => 'earn',
                 'spend_step' => 1000,
-                'points_per_step' => 2,
+                'points_per_step' => 5,
                 'bonus_points' => 0,
-                'reward' => [
-                    'points_cost' => 100,
-                    'reward_type' => 'percent_off',
-                    'reward_value' => 5,
-                ],
             ],
             'product_push' => [
                 'intention' => self::INTENTION_PRODUCT,
@@ -78,9 +71,6 @@ class CampaignTemplates
         $template['key'] = $key;
         $template['name'] = __('loop.templates.'.$key.'.name');
         $template['description'] = __('loop.templates.'.$key.'.description');
-        if (! empty($template['reward'])) {
-            $template['reward']['name'] = __('loop.templates.'.$key.'.reward_name');
-        }
 
         return $template;
     }
@@ -93,7 +83,6 @@ class CampaignTemplates
         $excludeKeys = $excludeKeys ?? [];
         $groups = [
             self::INTENTION_EARN => [],
-            self::INTENTION_EARN_REDEEM => [],
             self::INTENTION_PRODUCT => [],
             self::INTENTION_RETENTION => [],
         ];
@@ -107,7 +96,6 @@ class CampaignTemplates
 
         $labels = [
             self::INTENTION_EARN => __('loop.intention_earn'),
-            self::INTENTION_EARN_REDEEM => __('loop.intention_earn_redeem'),
             self::INTENTION_PRODUCT => __('loop.intention_product'),
             self::INTENTION_RETENTION => __('loop.intention_retention'),
         ];
@@ -128,8 +116,8 @@ class CampaignTemplates
 
     public static function nameFor(?string $templateKey, string $fallback): string
     {
-        if ($templateKey === 'hundred_point_discount') {
-            $templateKey = 'earn_with_discount';
+        if (in_array($templateKey, ['hundred_point_discount', 'earn_with_discount'], true)) {
+            return __('loop.templates.everyday_earn.name');
         }
 
         if (! $templateKey || ! isset(self::all()[$templateKey])) {
@@ -141,8 +129,8 @@ class CampaignTemplates
 
     public static function descriptionFor(?string $templateKey, ?string $fallback = null): ?string
     {
-        if ($templateKey === 'hundred_point_discount') {
-            $templateKey = 'earn_with_discount';
+        if (in_array($templateKey, ['hundred_point_discount', 'earn_with_discount'], true)) {
+            return __('loop.templates.everyday_earn.description');
         }
 
         if (! $templateKey || ! isset(self::all()[$templateKey])) {

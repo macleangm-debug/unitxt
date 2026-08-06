@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
-use App\Models\Reward;
 use App\Support\CampaignTemplates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,10 +28,16 @@ class CampaignController extends Controller
         abort_unless($business && $request->user()->canManageCampaigns(), 403);
 
         $usedKeys = $business->campaigns()->whereNotNull('template_key')->pluck('template_key')->all();
-        // Map legacy key
-        $usedKeys = array_map(fn ($k) => $k === 'hundred_point_discount' ? 'earn_with_discount' : $k, $usedKeys);
+        // Legacy mixed earn+discount templates count as everyday earn
+        $usedKeys = array_map(
+            fn ($k) => in_array($k, ['hundred_point_discount', 'earn_with_discount'], true) ? 'everyday_earn' : $k,
+            $usedKeys
+        );
 
         $templateKey = $request->query('template');
+        if (in_array($templateKey, ['hundred_point_discount', 'earn_with_discount'], true)) {
+            $templateKey = 'everyday_earn';
+        }
         $template = $templateKey ? CampaignTemplates::localized($templateKey) : null;
         $own = $request->boolean('own');
 
@@ -64,11 +69,6 @@ class CampaignController extends Controller
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
             'template_key' => ['nullable', 'string'],
-            'create_reward' => ['nullable', 'boolean'],
-            'reward_name' => ['nullable', 'string', 'max:120'],
-            'reward_points_cost' => ['nullable', 'integer', 'min:1'],
-            'reward_type' => ['nullable', 'in:percent_off,fixed_off,free_item,custom'],
-            'reward_value' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         if (in_array($data['type'], ['earn', 'product_push'], true)) {
@@ -79,8 +79,8 @@ class CampaignController extends Controller
         }
 
         $templateKey = $data['template_key'] ?? null;
-        if ($templateKey === 'hundred_point_discount') {
-            $templateKey = 'earn_with_discount';
+        if (in_array($templateKey, ['hundred_point_discount', 'earn_with_discount'], true)) {
+            $templateKey = 'everyday_earn';
         }
         $localized = $templateKey ? CampaignTemplates::localized($templateKey) : null;
 
@@ -102,17 +102,6 @@ class CampaignController extends Controller
             ->values()
             ->all();
         $campaign->shops()->sync($shopIds);
-
-        if ($request->boolean('create_reward') && (! empty($data['reward_name']) || ! empty($localized['reward']))) {
-            Reward::create([
-                'business_id' => $business->id,
-                'name' => $data['reward_name'] ?? $localized['reward']['name'],
-                'points_cost' => $data['reward_points_cost'] ?? $localized['reward']['points_cost'],
-                'reward_type' => $data['reward_type'] ?? $localized['reward']['reward_type'],
-                'reward_value' => $data['reward_value'] ?? $localized['reward']['reward_value'],
-                'is_active' => true,
-            ]);
-        }
 
         return redirect()->route('campaigns.show', $campaign)->with('status', __('loop.campaign_launched'));
     }

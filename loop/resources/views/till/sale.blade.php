@@ -1,8 +1,6 @@
 @php
     $availableOffers = ($customer && $membership) ? $membership->availableRewards() : collect();
-    $lockedOffers = ($customer && $membership)
-        ? $rewards->filter(fn ($r) => $r->isAvailable() && $r->points_cost > $membership->points_balance)
-        : collect();
+    $hasRedeemable = $availableOffers->isNotEmpty();
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -47,12 +45,12 @@
           x-data="{
             step: 1,
             amountDisplay: '{{ old('amount_spent') }}',
-            selectedOffer: '{{ old('reward_id') }}',
+            wantRedeem: {{ old('reward_id') ? 'true' : 'false' }},
+            selectedOffer: '{{ old('reward_id', '') }}',
             payWithPoints: {{ old('pay_with_points') ? 'true' : 'false' }},
             pointsToSpend: '{{ old('points_to_spend', '') }}',
             balance: {{ $membership->points_balance ?? 0 }},
             rate: {{ $campaign?->currencyPerPoint() ?? 0 }},
-            isNew: {{ $customer ? 'false' : 'true' }},
             formatAmount() {
                 let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
                 const parts = raw.split('.');
@@ -132,34 +130,47 @@
                 <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
             </div>
 
-            <div>
-                <label class="loop-label">{{ __('loop.redeem_offer') }}</label>
-                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.redeem_offer_help') }}</p>
-                <div class="mt-3 space-y-2">
-                    <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-ink/10 px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
-                        <input type="radio" name="reward_id" value="" class="text-mint focus:ring-mint" x-model="selectedOffer" checked>
-                        <span class="text-sm font-semibold">{{ __('loop.no_offer') }}</span>
-                    </label>
-                    @foreach ($rewards as $reward)
-                        @php
-                            $canRedeem = $membership && $membership->points_balance >= $reward->points_cost && $reward->isAvailable();
-                        @endphp
-                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 {{ $canRedeem ? 'border-ink/10 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40' : 'border-ink/5 opacity-55' }}">
-                            <input type="radio" name="reward_id" value="{{ $reward->id }}" class="mt-1 text-mint focus:ring-mint" x-model="selectedOffer" @disabled(! $canRedeem)>
-                            <span class="min-w-0">
-                                <span class="block text-sm font-semibold">{{ $reward->name }}</span>
-                                <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} pts · {{ $reward->label() }}</span>
-                                @if ($customer && ! $canRedeem)
-                                    <span class="mt-1 block text-xs text-coral">{{ __('loop.need_more_points', ['points' => max(0, $reward->points_cost - ($membership->points_balance ?? 0))]) }}</span>
-                                @elseif ($canRedeem)
-                                    <span class="mt-1 inline-block rounded-lg bg-mint px-2 py-0.5 text-[11px] font-semibold text-ink">{{ __('loop.ready') }}</span>
-                                @endif
-                            </span>
-                        </label>
-                    @endforeach
+            @if ($hasRedeemable)
+                <div class="rounded-[1.5rem] border border-mint/30 bg-gradient-to-br from-mint/15 to-white p-5">
+                    <p class="font-display text-lg font-semibold">{{ __('loop.ask_redeem_title') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.ask_redeem_body') }}</p>
+
+                    <div class="mt-4 grid gap-2">
+                        <button type="button"
+                                class="rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition"
+                                :class="!wantRedeem ? 'border-mint bg-mint-soft/50' : 'border-ink/10 bg-white'"
+                                @click="wantRedeem=false; selectedOffer=''">
+                            {{ __('loop.keep_earning') }}
+                            <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.keep_earning_body') }}</span>
+                        </button>
+                        <button type="button"
+                                class="rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition"
+                                :class="wantRedeem ? 'border-mint bg-mint-soft/50' : 'border-ink/10 bg-white'"
+                                @click="wantRedeem=true">
+                            {{ __('loop.want_to_redeem') }}
+                            <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.want_to_redeem_body') }}</span>
+                        </button>
+                    </div>
+
+                    <div x-show="wantRedeem" x-cloak class="mt-4 space-y-2">
+                        <input type="hidden" name="reward_id" :value="wantRedeem ? selectedOffer : ''">
+                        @foreach ($availableOffers as $reward)
+                            <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" value="{{ $reward->id }}" class="mt-1 text-mint focus:ring-mint" x-model="selectedOffer">
+                                <span>
+                                    <span class="block text-sm font-semibold">{{ $reward->name }}</span>
+                                    <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} pts · {{ $reward->label() }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <template x-if="!wantRedeem">
+                        <input type="hidden" name="reward_id" value="">
+                    </template>
                 </div>
-                <x-input-error :messages="$errors->get('reward_id')" class="mt-1" />
-            </div>
+            @else
+                <input type="hidden" name="reward_id" value="">
+            @endif
 
             @if ($membership && $membership->points_balance > 0 && $campaign && $campaign->currencyPerPoint() > 0)
                 <div class="rounded-2xl border border-ink/10 bg-chalk/70 p-4">
@@ -170,9 +181,6 @@
                     <div x-show="payWithPoints" x-cloak class="mt-3 space-y-2">
                         <label class="loop-label">{{ __('loop.points_to_spend') }} (max {{ $membership->points_balance }})</label>
                         <input type="number" name="points_to_spend" min="1" max="{{ $membership->points_balance }}" x-model="pointsToSpend" class="loop-input">
-                        <p class="text-xs text-ink-muted">
-                            ≈ {{ $business->currency }} <span x-text="pointsDiscount().toLocaleString()"></span>
-                        </p>
                     </div>
                 </div>
             @endif

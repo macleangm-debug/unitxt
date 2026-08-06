@@ -241,6 +241,73 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee('10 pts');
     }
 
+    public function test_onboarding_campaign_then_offers_completes_setup(): void
+    {
+        $owner = User::factory()->owner()->create(['phone' => '712777001']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Coastal Bites',
+            'slug' => 'coastal-bites',
+            'sector' => 'restaurants',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'branch_count' => 1,
+            'logo_path' => 'business-logos/demo.png',
+            'onboarding_completed_at' => null,
+        ]);
+        $owner->update(['business_id' => $business->id]);
+        Shop::create([
+            'business_id' => $business->id,
+            'name' => 'Main',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('onboarding.show', ['step' => 4]))
+            ->assertOk()
+            ->assertSee(__('loop.pick_campaign_earn_only'))
+            ->assertDontSee('earn_with_discount');
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.campaign'), ['template' => 'everyday_earn'])
+            ->assertRedirect(route('onboarding.show', ['step' => 5]));
+
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'template_key' => 'everyday_earn',
+            'type' => 'earn',
+        ]);
+        $this->assertDatabaseMissing('rewards', ['business_id' => $business->id]);
+
+        $this->actingAs($owner)
+            ->get(route('onboarding.show', ['step' => 5]))
+            ->assertOk()
+            ->assertSee(__('loop.pick_offers'))
+            ->assertSee(__('loop.offer_templates.free_meal_500.name'));
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.offers'), [
+                'offers' => ['percent_5_100', 'free_meal_500'],
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertNotNull($business->fresh()->onboarding_completed_at);
+        $this->assertSame(2, $business->rewards()->count());
+    }
+
+    public function test_campaign_templates_are_earn_only_without_bundled_offers(): void
+    {
+        $this->assertArrayNotHasKey('earn_with_discount', \App\Support\CampaignTemplates::all());
+        $this->assertArrayHasKey('faster_earn', \App\Support\CampaignTemplates::all());
+
+        $offers = \App\Support\OfferTemplates::forSector('coffee');
+        $keys = collect($offers)->pluck('key')->all();
+        $this->assertContains('free_coffee_100', $keys);
+        $this->assertContains('percent_5_100', $keys);
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

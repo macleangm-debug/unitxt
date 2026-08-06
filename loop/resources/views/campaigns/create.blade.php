@@ -106,21 +106,7 @@
                 </div>
             </div>
 
-            @if (!empty($t['reward']))
-                <div class="rounded-2xl border border-mint/30 bg-mint-soft/40 p-4">
-                    <label class="flex items-start gap-3 text-sm">
-                        <input type="checkbox" name="create_reward" value="1" class="mt-1" checked>
-                        <span>
-                            <span class="font-semibold">{{ __('loop.also_create_offer') }}</span>
-                            <span class="mt-1 block text-ink-muted">{{ $t['reward']['name'] }} · {{ $t['reward']['points_cost'] }} pts</span>
-                        </span>
-                    </label>
-                    <input type="hidden" name="reward_name" value="{{ $t['reward']['name'] }}">
-                    <input type="hidden" name="reward_points_cost" value="{{ $t['reward']['points_cost'] }}">
-                    <input type="hidden" name="reward_type" value="{{ $t['reward']['reward_type'] }}">
-                    <input type="hidden" name="reward_value" value="{{ $t['reward']['reward_value'] }}">
-                </div>
-            @endif
+            <p class="rounded-2xl bg-mint-soft/50 px-4 py-3 text-sm text-ink-muted">{{ __('loop.campaign_then_offers_hint') }}</p>
 
             <button class="loop-btn-mint w-full">{{ __('loop.launch_campaign') }}</button>
             <a href="{{ route('campaigns.create') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
