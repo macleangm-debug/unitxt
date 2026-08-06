@@ -16,8 +16,10 @@
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-nav-link>
                         @if (Auth::user()->isStaff())
                             <x-nav-link :href="route('till.index')" :active="request()->routeIs('till.*')">{{ __('loop.sale') }}</x-nav-link>
+                            <x-nav-link :href="route('transactions.index')" :active="request()->routeIs('transactions.*')">{{ __('loop.transactions') }}</x-nav-link>
                             @if (Auth::user()->isOwner())
-                                <x-nav-link :href="route('settings')" :active="request()->routeIs('settings*') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*')">{{ __('loop.settings') }}</x-nav-link>
+                                <x-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')">{{ __('loop.customers') }}</x-nav-link>
+                                <x-nav-link :href="route('settings')" :active="request()->routeIs('settings*') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*') || request()->routeIs('business.*') || request()->routeIs('billing.*')">{{ __('loop.settings') }}</x-nav-link>
                             @endif
                         @else
                             <x-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')">{{ __('loop.wallets') }}</x-nav-link>
@@ -51,7 +53,9 @@
             <a href="{{ route('dashboard') }}" class="block py-2 text-sm">{{ __('loop.home') }}</a>
             @if (Auth::user()->isStaff())
                 <a href="{{ route('till.index') }}" class="block py-2 text-sm">{{ __('loop.sale') }}</a>
+                <a href="{{ route('transactions.index') }}" class="block py-2 text-sm">{{ __('loop.transactions') }}</a>
                 @if (Auth::user()->isOwner())
+                    <a href="{{ route('customers.index') }}" class="block py-2 text-sm">{{ __('loop.customers') }}</a>
                     <a href="{{ route('settings') }}" class="block py-2 text-sm">{{ __('loop.settings') }}</a>
                 @endif
             @else

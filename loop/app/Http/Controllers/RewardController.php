@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reward;
+use App\Support\Confirm;
 use App\Support\OfferTemplates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,7 +53,7 @@ class RewardController extends Controller
             $template = $catalog->get($request->string('template_key')->toString());
             abort_unless($template, 422);
 
-            $business->rewards()->create([
+            $reward = $business->rewards()->create([
                 'name' => $template['name'],
                 'description' => $template['description'],
                 'product_name' => $template['product_name'],
@@ -62,7 +63,12 @@ class RewardController extends Controller
                 'is_active' => true,
             ]);
 
-            return redirect()->to(route('campaigns.index').'#offers')->with('status', __('loop.offer_created'));
+            return redirect()->route('rewards.show', $reward)->with('confirm', Confirm::make(
+                __('loop.offer_created_title'),
+                __('loop.offer_created_body_named', ['name' => $reward->name]),
+                __('loop.view_stats'),
+                route('rewards.show', $reward),
+            ));
         }
 
         $data = $request->validate([
@@ -82,7 +88,12 @@ class RewardController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->route('rewards.show', $reward)->with('status', __('loop.offer_created'));
+        return redirect()->route('rewards.show', $reward)->with('confirm', Confirm::make(
+            __('loop.offer_created_title'),
+            __('loop.offer_created_body_named', ['name' => $reward->name]),
+            __('loop.view_stats'),
+            route('rewards.show', $reward),
+        ));
     }
 
     public function show(Request $request, Reward $reward): View

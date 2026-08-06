@@ -17,34 +17,50 @@
         <header class="loop-shell pt-8 pb-2"><div class="animate-fade-up">{{ $header }}</div></header>
     @endisset
     <main class="loop-shell py-6 pb-16">
-        @if (session('status') && ! session('all_set'))
+        @if (session('status') && ! session('all_set') && ! session('confirm'))
             <div class="mb-6 rounded-xl border border-mint/40 bg-mint-soft px-4 py-3 text-sm text-ink">{{ session('status') }}</div>
         @endif
         {{ $slot }}
     </main>
 </div>
 
-@if (session('all_set'))
+@php
+    $confirm = session('confirm');
+    if (session('all_set')) {
+        $confirm = [
+            'title' => __('loop.all_set_title'),
+            'body' => __('loop.all_set_body'),
+            'cta' => __('loop.start_selling'),
+            'url' => route('till.index'),
+            'celebrate' => true,
+        ];
+    }
+@endphp
+
+@if ($confirm)
     <div
         x-data="{ open: true }"
         x-show="open"
         x-cloak
         class="fixed inset-0 z-50 flex items-center justify-center px-4"
+        @keydown.escape.window="open=false"
     >
-        <div class="absolute inset-0 bg-ink/50 backdrop-blur-sm" @click="open=false"></div>
-        <div class="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-white p-8 text-center shadow-[0_30px_80px_rgba(11,31,42,0.25)]">
-            <div class="pointer-events-none absolute inset-0 overflow-hidden">
-                @foreach (range(1,18) as $i)
-                    <span class="absolute animate-bounce rounded-sm opacity-80"
-                          style="left: {{ rand(5,90) }}%; top: {{ rand(-10,40) }}%; width: {{ rand(6,10) }}px; height: {{ rand(8,14) }}px; background: {{ ['#2DD4A8','#FF6B4A','#0B1F2A','#F4C95F'][array_rand(['#2DD4A8','#FF6B4A','#0B1F2A','#F4C95F'])] }}; animation-delay: {{ $i * 0.05 }}s;"></span>
-                @endforeach
-            </div>
+        <div class="absolute inset-0 bg-ink/55 backdrop-blur-sm" @click="open=false"></div>
+        <div class="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-white p-8 text-center shadow-[0_40px_100px_rgba(11,31,42,0.35)]">
+            @if (!empty($confirm['celebrate']))
+                <div class="pointer-events-none absolute inset-0 overflow-hidden">
+                    @foreach (range(1,16) as $i)
+                        <span class="absolute animate-bounce rounded-sm opacity-80"
+                              style="left: {{ rand(5,90) }}%; top: {{ rand(-10,40) }}%; width: {{ rand(6,10) }}px; height: {{ rand(8,14) }}px; background: {{ ['#2DD4A8','#FF6B4A','#0B1F2A','#F4C95F'][$i % 4] }}; animation-delay: {{ $i * 0.05 }}s;"></span>
+                    @endforeach
+                </div>
+            @endif
             <div class="relative">
-                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint text-3xl text-ink">✓</div>
-                <p class="mt-5 font-display text-3xl font-semibold">{{ __('loop.all_set_title') }}</p>
-                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.all_set_body') }}</p>
-                <a href="{{ route('till.index') }}" class="loop-btn-mint mt-6 inline-flex w-full">{{ __('loop.start_selling') }}</a>
-                <button type="button" class="mt-3 text-sm font-semibold text-ink-muted" @click="open=false">{{ __('loop.done') }}</button>
+                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-mint to-mint-deep text-3xl text-ink shadow-[0_12px_40px_rgba(45,212,168,0.35)]">✓</div>
+                <p class="mt-5 font-display text-3xl font-semibold tracking-tight">{{ $confirm['title'] }}</p>
+                <p class="mt-2 text-sm leading-relaxed text-ink-muted">{{ $confirm['body'] }}</p>
+                <a href="{{ $confirm['url'] }}" class="loop-btn-mint mt-7 inline-flex w-full">{{ $confirm['cta'] }}</a>
+                <button type="button" class="mt-3 text-sm font-semibold text-ink-muted hover:text-ink" @click="open=false">{{ __('loop.done') }}</button>
             </div>
         </div>
     </div>

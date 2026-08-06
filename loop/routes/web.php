@@ -11,7 +11,9 @@ use App\Http\Controllers\Auth\BusinessRegisterController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\StaffSessionController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
 use App\Http\Controllers\MembershipController;
@@ -24,6 +26,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TillController;
+use App\Http\Controllers\TransactionController;
 use App\Models\Plan;
 use App\Support\Plans;
 use Illuminate\Support\Facades\Route;
@@ -94,9 +97,13 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/settings', SettingsController::class)->name('settings');
         Route::get('/settings/referrals', ReferralHubController::class)->name('settings.referrals');
+        Route::get('/business/settings', [BusinessController::class, 'edit'])->name('business.edit');
+        Route::patch('/business/settings', [BusinessController::class, 'update'])->name('business.update');
         Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
         Route::post('/billing/choose', [BillingController::class, 'choose'])->name('billing.choose');
-        Route::resource('shops', ShopController::class)->except(['show']);
+        Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
+        Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+        Route::resource('shops', ShopController::class);
         Route::resource('campaigns', CampaignController::class);
         Route::get('/offers', [RewardController::class, 'index'])->name('rewards.index');
         Route::get('/offers/create', [RewardController::class, 'create'])->name('rewards.create');
@@ -108,6 +115,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('role:owner,front_desk')->group(function () {
+        Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::get('/sale', [TillController::class, 'index'])->name('till.index');
         Route::post('/sale/lookup', [TillController::class, 'lookup'])->name('till.lookup');
         Route::post('/sale', [TillController::class, 'store'])->name('till.store');

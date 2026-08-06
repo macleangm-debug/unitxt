@@ -576,6 +576,81 @@ class LoopCoreFlowTest extends TestCase
             ->assertHeader('content-type', 'application/zip');
     }
 
+    public function test_owner_pages_for_customers_transactions_and_branch_view(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+
+        $customer = User::factory()->customer()->create([
+            'phone' => '713777001',
+            'first_name' => 'Asha',
+            'last_name' => 'Mwamba',
+        ]);
+
+        \App\Models\Membership::create([
+            'business_id' => $business->id,
+            'shop_id' => $shop->id,
+            'customer_id' => $customer->id,
+            'points_balance' => 40,
+            'lifetime_points' => 40,
+            'joined_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('customers.index'))
+            ->assertOk()
+            ->assertSee('Asha');
+
+        $this->actingAs($owner)
+            ->get(route('customers.show', $customer))
+            ->assertOk()
+            ->assertSee('Asha Mwamba');
+
+        $this->actingAs($owner)
+            ->get(route('transactions.index'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('shops.index'))
+            ->assertOk()
+            ->assertSee($shop->name)
+            ->assertDontSee(route('shops.edit', $shop), false);
+
+        $this->actingAs($owner)
+            ->get(route('shops.show', $shop))
+            ->assertOk()
+            ->assertSee(__('loop.edit'))
+            ->assertSee(__('loop.shared_logo_hint'));
+
+        $this->actingAs($owner)
+            ->put(route('shops.update', $shop), [
+                'name' => 'Harbor Beans Downtown',
+                'city' => 'Dar es Salaam',
+                'address' => 'Samora Ave',
+                'country_code' => '+255',
+                'phone' => '712000111',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('shops.show', $shop))
+            ->assertSessionHas('confirm');
+
+        $this->assertDatabaseHas('shops', [
+            'id' => $shop->id,
+            'name' => 'Harbor Beans Downtown',
+            'phone' => '+255 712000111',
+            'logo_path' => null,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('business.edit'))
+            ->assertOk()
+            ->assertSee(__('loop.business_logo'));
+
+        $this->actingAs($owner)
+            ->get(route('staff.index'))
+            ->assertOk()
+            ->assertSee(__('loop.your_team'));
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Campaign;
 use App\Support\CampaignTemplates;
+use App\Support\Confirm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -103,7 +104,12 @@ class CampaignController extends Controller
             ->all();
         $campaign->shops()->sync($shopIds);
 
-        return redirect()->route('campaigns.show', $campaign)->with('status', __('loop.campaign_launched'));
+        return redirect()->route('campaigns.show', $campaign)->with('confirm', Confirm::make(
+            __('loop.campaign_launched_title'),
+            __('loop.campaign_launched_body', ['name' => $campaign->displayName()]),
+            __('loop.view_campaign'),
+            route('campaigns.show', $campaign),
+        ));
     }
 
     public function show(Request $request, Campaign $campaign): View
@@ -181,7 +187,13 @@ class CampaignController extends Controller
             ->all();
         $campaign->shops()->sync($shopIds);
 
-        return redirect()->route('campaigns.show', $campaign)->with('status', __('loop.campaign_updated'));
+        return redirect()->route('campaigns.show', $campaign)->with('confirm', Confirm::make(
+            __('loop.campaign_updated_title'),
+            __('loop.campaign_updated_body', ['name' => $campaign->displayName()]),
+            __('loop.view_campaign'),
+            route('campaigns.show', $campaign),
+            false,
+        ));
     }
 
     public function destroy(Request $request, Campaign $campaign): RedirectResponse
@@ -189,7 +201,13 @@ class CampaignController extends Controller
         $this->authorizeOwner($request, $campaign);
         $campaign->delete();
 
-        return redirect()->route('campaigns.index')->with('status', __('loop.campaign_deleted'));
+        return redirect()->route('campaigns.index')->with('confirm', Confirm::make(
+            __('loop.campaign_deleted_title'),
+            __('loop.campaign_deleted_body'),
+            __('loop.back'),
+            route('campaigns.index'),
+            false,
+        ));
     }
 
     private function authorizeOwner(Request $request, Campaign $campaign): void

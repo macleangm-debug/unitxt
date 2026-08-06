@@ -5,6 +5,11 @@
     </x-slot>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <a href="{{ route('business.edit') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.business') }}</p>
+            <p class="mt-3 font-display text-2xl font-semibold">{{ $business->name }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.business_settings_blurb') }}</p>
+        </a>
         <a href="{{ route('shops.index') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.shops') }}</p>
             <p class="mt-3 font-display text-3xl font-semibold">{{ $shopCount }}</p>

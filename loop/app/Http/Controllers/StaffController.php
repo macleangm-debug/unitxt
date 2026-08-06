@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\Confirm;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -56,7 +57,12 @@ class StaffController extends Controller
             'is_active' => true,
         ]);
 
-        return back()->with('status', 'Front desk staff added. They can log in with phone + password.');
+        return back()->with('confirm', Confirm::make(
+            __('loop.staff_added_title'),
+            __('loop.staff_added_body'),
+            __('loop.done'),
+            route('staff.index'),
+        ));
     }
 
     public function toggle(Request $request, User $staff): RedirectResponse
@@ -67,6 +73,12 @@ class StaffController extends Controller
 
         $staff->update(['is_active' => ! $staff->is_active]);
 
-        return back()->with('status', $staff->is_active ? 'Staff re-enabled.' : 'Staff disabled.');
+        return back()->with('confirm', Confirm::make(
+            $staff->is_active ? __('loop.staff_enabled_title') : __('loop.staff_disabled_title'),
+            $staff->is_active ? __('loop.staff_enabled_body') : __('loop.staff_disabled_body'),
+            __('loop.done'),
+            route('staff.index'),
+            false,
+        ));
     }
 }

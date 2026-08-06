@@ -1,22 +1,18 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">Edit shop</h1>
-        <p class="mt-1 text-ink-muted">Code: <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
+        <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit_shop') }}</h1>
+        <p class="mt-1 text-ink-muted">{{ __('loop.code') }}: <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
     </x-slot>
 
-    <form method="POST" action="{{ route('shops.update', $shop) }}" enctype="multipart/form-data" class="loop-panel max-w-xl space-y-4 p-6">
+    <form method="POST" action="{{ route('shops.update', $shop) }}" class="loop-panel mx-auto max-w-xl space-y-5 p-6 sm:p-8">
         @csrf
         @method('PUT')
-        <div class="flex items-center gap-3">
-            <x-shop-logo :shop="$shop" class="h-14 w-14 rounded-2xl" />
-            <div class="text-sm text-ink-muted">Upload a new logo to replace the mark.</div>
-        </div>
         <div>
-            <label class="loop-label">Shop name</label>
+            <label class="loop-label">{{ __('loop.shop_name') }}</label>
             <input name="name" value="{{ old('name', $shop->name) }}" class="loop-input" required>
         </div>
         <div>
-            <label class="loop-label">City</label>
+            <label class="loop-label">{{ __('loop.city') }}</label>
             <input name="city" list="cities" value="{{ old('city', $shop->city) }}" class="loop-input" required>
             <datalist id="cities">
                 @foreach ($cities as $city)
@@ -25,21 +21,28 @@
             </datalist>
         </div>
         <div>
-            <label class="loop-label">Address</label>
+            <label class="loop-label">{{ __('loop.address') }}</label>
             <input name="address" value="{{ old('address', $shop->address) }}" class="loop-input">
         </div>
-        <div>
-            <label class="loop-label">Phone</label>
-            <input name="phone" value="{{ old('phone', $shop->phone) }}" class="loop-input">
-        </div>
-        <div>
-            <label class="loop-label">Logo</label>
-            <input type="file" name="logo" accept="image/*" class="loop-input">
+        <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+            <div>
+                <label class="loop-label">{{ __('loop.country_prefix') }}</label>
+                <select name="country_code" class="loop-input">
+                    @foreach ($countries as $meta)
+                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', $dial) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="loop-label">{{ __('loop.phone') }}</label>
+                <input name="phone" value="{{ old('phone', $localPhone) }}" class="loop-input" placeholder="712000001">
+            </div>
         </div>
         <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $shop->is_active))>
-            Shop is active
+            {{ __('loop.shop_is_active') }}
         </label>
-        <button class="loop-btn">Update shop</button>
+        <p class="rounded-2xl bg-chalk/80 px-4 py-3 text-xs text-ink-muted">{{ __('loop.shared_logo_hint') }} <a href="{{ route('business.edit') }}" class="font-semibold text-mint-deep">{{ __('loop.edit_business_logo') }}</a></p>
+        <button class="loop-btn-mint w-full">{{ __('loop.save_changes') }}</button>
     </form>
 </x-app-layout>

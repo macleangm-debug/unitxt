@@ -2,10 +2,10 @@
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-                <h1 class="font-display text-3xl font-semibold">Shops</h1>
-                <p class="mt-1 text-ink-muted">Locations customers find by city — add a logo for a premium presence.</p>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.shops') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.shops_blurb') }}</p>
             </div>
-            <a href="{{ route('shops.create') }}" class="loop-btn-mint">Add shop</a>
+            <a href="{{ route('shops.create') }}" class="loop-btn-mint">{{ __('loop.add_shop') }}</a>
         </div>
     </x-slot>
 
@@ -15,28 +15,29 @@
 
     <div class="grid gap-4">
         @forelse ($shops as $shop)
-            <div class="loop-panel flex flex-wrap items-center justify-between gap-4 p-5">
+            <a href="{{ route('shops.show', $shop) }}" class="loop-panel flex flex-wrap items-center justify-between gap-4 p-5 transition hover:-translate-y-0.5 hover:bg-white">
                 <div class="flex items-center gap-4">
                     <x-shop-logo :shop="$shop" class="h-14 w-14 rounded-2xl" />
                     <div>
                         <p class="font-display text-lg font-semibold">{{ $shop->name }}</p>
-                        <p class="text-sm text-ink-muted">{{ $shop->city ?: 'No city' }} · Code <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
+                        <p class="text-sm text-ink-muted">{{ $shop->city ?: __('loop.no_city') }} · {{ $shop->code }}</p>
                         @if ($shop->address)
                             <p class="mt-1 text-sm text-ink-muted">{{ $shop->address }}</p>
                         @endif
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-3">
                     <span class="rounded-lg px-2.5 py-1 text-xs font-semibold {{ $shop->is_active ? 'bg-mint-soft text-ink' : 'bg-chalk text-ink-muted' }}">
-                        {{ $shop->is_active ? 'Active' : 'Inactive' }}
+                        {{ $shop->is_active ? __('loop.active') : __('loop.inactive') }}
                     </span>
-                    <a href="{{ route('shops.edit', $shop) }}" class="loop-btn-ghost !px-3 !py-2">Edit</a>
+                    <span class="text-ink-muted">→</span>
                 </div>
-            </div>
+            </a>
         @empty
             <div class="loop-panel p-8 text-center">
-                <p class="text-ink-muted">No shops yet. Add your first location to start collecting visits.</p>
-                <a href="{{ route('shops.create') }}" class="loop-btn mt-4">Add shop</a>
+                <p class="font-display text-lg font-semibold">{{ __('loop.no_shops_yet') }}</p>
+                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.shops_blurb') }}</p>
+                <a href="{{ route('shops.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.add_shop') }}</a>
             </div>
         @endforelse
     </div>
