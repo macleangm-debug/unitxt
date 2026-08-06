@@ -189,4 +189,11 @@ return [
     'customer_welcome_2' => 'We’ll surface campaigns in your city and interests first.',
     'sale_first' => 'Sale-first loyalty',
     'sale_first_body' => 'Walk-in or phone order — look up the customer, enter amount spent, apply an offer if they’ve earned it.',
+    'all_cities' => 'All cities',
+    'all' => 'All',
+    'filters' => 'Filters',
+    'apply' => 'Apply',
+    'frequent' => 'Frequent',
+    'sign_in_for_points' => 'Sign in to see your points',
+    'no_shops_filter' => 'No shops in this filter yet.',
 ];

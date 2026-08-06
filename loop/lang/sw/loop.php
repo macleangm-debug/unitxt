@@ -189,4 +189,11 @@ return [
     'customer_welcome_2' => 'Tutaonyesha kampeni katika jiji lako na mapendeleo yako kwanza.',
     'sale_first' => 'Uaminifu unaanza kwa mauzo',
     'sale_first_body' => 'Dukani au oda ya simu — tafuta mteja, weka kiasi, tumia ofa ikiwa ameshastahili.',
+    'all_cities' => 'Miji yote',
+    'all' => 'Zote',
+    'filters' => 'Vichujio',
+    'apply' => 'Tumia',
+    'frequent' => 'Mara kwa mara',
+    'sign_in_for_points' => 'Ingia ili uone pointi zako',
+    'no_shops_filter' => 'Hakuna maduka katika kichujio hiki bado.',
 ];

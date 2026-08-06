@@ -200,6 +200,46 @@ class LoopCoreFlowTest extends TestCase
         $this->get('/locale/sw')->assertRedirect();
     }
 
+    public function test_discover_hides_points_for_guests_and_shows_for_customers(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999002',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713999001',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 5000);
+
+        $this->get(route('discover'))
+            ->assertOk()
+            ->assertSee($shop->name)
+            ->assertDontSee(__('loop.your_places'));
+
+        $this->actingAs($customer)
+            ->get(route('discover'))
+            ->assertOk()
+            ->assertSee(__('loop.your_places'))
+            ->assertSee('10 pts');
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

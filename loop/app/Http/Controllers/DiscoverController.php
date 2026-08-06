@@ -3,29 +3,32 @@
 namespace App\Http\Controllers;
 
 use App\Models\Business;
+use App\Models\Membership;
 use App\Models\Shop;
 use App\Support\Countries;
 use App\Support\Sectors;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DiscoverController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        $country = $request->query('country', $request->user()?->country ?? 'TZ');
-        $city = $request->query('city', $request->user()?->city);
+        $user = $request->user();
+        $isCustomer = $user?->isCustomer() ?? false;
+        $country = $request->query('country', $user?->country ?? session('preferred_country', 'TZ'));
+        $city = $request->query('city', $isCustomer ? $user?->city : null);
         $sector = $request->query('sector');
-        $interests = $request->user()?->interests ?? [];
-
-        if ($sector) {
-            // explicit filter wins
-        } elseif ($interests && ! $request->has('sector')) {
-            // soft preference: still show all, but order interests first via grouping
-        }
+        $interests = $isCustomer ? ($user->interests ?? []) : [];
 
         $shops = Shop::query()
-            ->with(['business' => fn ($q) => $q->with(['campaigns' => fn ($c) => $c->active(), 'rewards' => fn ($r) => $r->where('is_active', true)])])
+            ->with([
+                'business' => fn ($q) => $q->with([
+                    'campaigns' => fn ($c) => $c->active(),
+                    'rewards' => fn ($r) => $r->where('is_active', true),
+                ]),
+            ])
             ->where('is_active', true)
             ->whereHas('business', function ($q) use ($country, $sector) {
                 $q->where('is_active', true)
@@ -33,24 +36,35 @@ class DiscoverController extends Controller
                     ->when($sector, fn ($qq) => $qq->where('sector', $sector));
             })
             ->when($city, fn ($q) => $q->where('city', $city))
-            ->orderBy('city')
             ->orderBy('name')
             ->get();
 
-        // Prefer interest sectors first when no explicit sector filter
-        if (! $sector && $interests) {
-            $shops = $shops->sortBy(function (Shop $shop) use ($interests) {
-                $sectorKey = $shop->business->sector;
-                $interestRank = in_array($sectorKey, $interests, true) ? 0 : 1;
+        $membershipByShopId = collect();
+        $frequentShops = collect();
 
-                return sprintf('%d-%s-%s', $interestRank, $shop->city, $shop->name);
-            })->values();
+        if ($isCustomer) {
+            $membershipByShopId = Membership::query()
+                ->withCount('visits')
+                ->where('customer_id', $user->id)
+                ->get()
+                ->keyBy('shop_id');
+
+            $frequentShops = $shops
+                ->filter(fn (Shop $shop) => $membershipByShopId->has($shop->id))
+                ->sortByDesc(function (Shop $shop) use ($membershipByShopId) {
+                    $membership = $membershipByShopId->get($shop->id);
+
+                    return sprintf('%08d-%08d', $membership->visits_count, $membership->points_balance);
+                })
+                ->values();
         }
 
-        $groupedByCity = $shops->groupBy(fn (Shop $shop) => $shop->city ?: __('Other cities'));
+        $rows = $this->buildRows($shops, $frequentShops, $sector, $interests, $city);
 
         return view('discover.index', [
-            'groupedByCity' => $groupedByCity,
+            'rows' => $rows,
+            'membershipByShopId' => $membershipByShopId,
+            'isCustomer' => $isCustomer,
             'sectors' => Sectors::OPTIONS,
             'countries' => Countries::OPTIONS,
             'cities' => Countries::cities($country),
@@ -64,6 +78,19 @@ class DiscoverController extends Controller
     public function show(Business $business): View
     {
         abort_unless($business->is_active, 404);
+
+        $user = request()->user();
+        $isCustomer = $user?->isCustomer() ?? false;
+        $memberships = collect();
+
+        if ($isCustomer) {
+            $memberships = Membership::query()
+                ->where('customer_id', $user->id)
+                ->where('business_id', $business->id)
+                ->with('shop')
+                ->get()
+                ->keyBy('shop_id');
+        }
 
         $related = Business::query()
             ->where('is_active', true)
@@ -85,6 +112,68 @@ class DiscoverController extends Controller
             'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
             'related' => $related,
             'sectors' => Sectors::OPTIONS,
+            'isCustomer' => $isCustomer,
+            'memberships' => $memberships,
         ]);
+    }
+
+    /**
+     * @return list<array{key: string, title: string, shops: Collection<int, Shop>}>
+     */
+    private function buildRows(Collection $shops, Collection $frequentShops, ?string $sector, array $interests, ?string $city): array
+    {
+        $rows = [];
+
+        if ($frequentShops->isNotEmpty()) {
+            $rows[] = [
+                'key' => 'frequent',
+                'title' => __('loop.your_places'),
+                'shops' => $frequentShops,
+            ];
+        }
+
+        if ($sector) {
+            $rows[] = [
+                'key' => 'sector-'.$sector,
+                'title' => Sectors::label($sector),
+                'shops' => $shops,
+            ];
+
+            return $rows;
+        }
+
+        $bySector = $shops->groupBy(fn (Shop $shop) => $shop->business->sector);
+
+        $orderedKeys = collect(array_keys(Sectors::OPTIONS))
+            ->sortBy(function (string $key) use ($interests, $bySector) {
+                if (! $bySector->has($key)) {
+                    return '9-'.$key;
+                }
+                if (in_array($key, $interests, true)) {
+                    return '0-'.$key;
+                }
+
+                return '1-'.$key;
+            })
+            ->values();
+
+        foreach ($orderedKeys as $key) {
+            if (! $bySector->has($key) || $bySector[$key]->isEmpty()) {
+                continue;
+            }
+
+            $title = Sectors::label($key);
+            if ($city) {
+                $title = $title.' · '.$city;
+            }
+
+            $rows[] = [
+                'key' => 'sector-'.$key,
+                'title' => $title,
+                'shops' => $bySector[$key]->values(),
+            ];
+        }
+
+        return $rows;
     }
 }

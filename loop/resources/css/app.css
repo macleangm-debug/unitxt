@@ -52,6 +52,21 @@
     .loop-stat {
         @apply rounded-2xl border border-ink/5 bg-white/70 p-5 shadow-[0_12px_40px_rgba(11,31,42,0.04)] backdrop-blur-sm;
     }
+
+    .loop-carousel {
+        @apply flex gap-3 overflow-x-auto px-4 pb-2 sm:gap-4 sm:px-6 lg:px-8;
+        scroll-snap-type: x mandatory;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .loop-carousel::-webkit-scrollbar {
+        display: none;
+    }
+
+    .loop-carousel > * {
+        scroll-snap-align: start;
+    }
 }
 
 @layer utilities {

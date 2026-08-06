@@ -147,5 +147,40 @@ class DatabaseSeeder extends Seeder
             'starts_at' => now()->subDay(),
             'is_active' => true,
         ]);
+
+        // Restaurant demo for discover carousels
+        $restoOwner = User::factory()->owner()->create([
+            'first_name' => 'Joseph',
+            'last_name' => 'Mwangi',
+            'phone' => '715000001',
+            'password' => Hash::make('password'),
+        ]);
+        $resto = Business::create([
+            'owner_id' => $restoOwner->id,
+            'name' => 'Coast Kitchen',
+            'slug' => 'coast-kitchen',
+            'sector' => 'restaurants',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'description' => 'Coastal plates with Loop points on every table.',
+            'onboarding_completed_at' => now(),
+        ]);
+        $restoOwner->update(['business_id' => $resto->id]);
+        Shop::create([
+            'business_id' => $resto->id,
+            'name' => 'Coast Kitchen Oyster Bay',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
+        Campaign::create([
+            'business_id' => $resto->id,
+            'name' => 'Table earn',
+            'type' => 'earn',
+            'spend_step' => 2000,
+            'points_per_step' => 3,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
     }
 }
