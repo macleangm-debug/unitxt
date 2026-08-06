@@ -78,13 +78,13 @@
                 @endif
             </div>
             <div class="loop-carousel">
-                @foreach ($row['shops'] as $shop)
+                @foreach ($row['businesses'] as $business)
                     @php
-                        $membership = $membershipByShopId->get($shop->id);
+                        $membership = $membershipByBusinessId->get($business->id);
                         $points = $membership?->points_balance;
                     @endphp
                     <x-discover-tile
-                        :shop="$shop"
+                        :business="$business"
                         :show-points="$isCustomer && $membership !== null"
                         :points="$points"
                     />

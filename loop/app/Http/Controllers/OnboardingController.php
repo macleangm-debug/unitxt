@@ -9,7 +9,6 @@ use App\Support\CampaignTemplates;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -24,11 +23,14 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard');
         }
 
+        $step = max(1, min(4, (int) $request->query('step', 1)));
+
         return view('onboarding.business', [
-            'business' => $business,
+            'business' => $business->fresh(),
             'cities' => Countries::cities($business->country),
             'templates' => CampaignTemplates::all(),
-            'step' => (int) $request->query('step', 1),
+            'step' => $step,
+            'logoJustSaved' => (bool) $request->session()->pull('logo_just_saved', false),
         ]);
     }
 
@@ -36,18 +38,29 @@ class OnboardingController extends Controller
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        $data = $request->validate([
+        $request->validate([
             'logo' => ['required', 'image', 'max:2048'],
-            'branch_count' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
         $path = $request->file('logo')->store('business-logos', 'public');
-        $business->update([
-            'logo_path' => $path,
-            'branch_count' => $data['branch_count'] ?? $business->branch_count,
+        $business->update(['logo_path' => $path]);
+
+        return redirect()
+            ->route('onboarding.show', ['step' => 2])
+            ->with('logo_just_saved', true);
+    }
+
+    public function branches(Request $request): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness()->firstOrFail();
+
+        $data = $request->validate([
+            'branch_count' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
 
-        return redirect()->route('onboarding.show', ['step' => 2]);
+        $business->update(['branch_count' => $data['branch_count']]);
+
+        return redirect()->route('onboarding.show', ['step' => 3]);
     }
 
     public function shop(Request $request): RedirectResponse
@@ -68,10 +81,15 @@ class OnboardingController extends Controller
                 'address' => $data['address'] ?? null,
                 'code' => 'SHOP-'.Str::upper(Str::random(6)),
                 'is_active' => true,
+                'logo_path' => $business->logo_path,
             ]);
+
+            if (! $business->city) {
+                $business->update(['city' => $data['city']]);
+            }
         }
 
-        return redirect()->route('onboarding.show', ['step' => 3]);
+        return redirect()->route('onboarding.show', ['step' => 4]);
     }
 
     public function campaign(Request $request): RedirectResponse
@@ -116,6 +134,6 @@ class OnboardingController extends Controller
 
         $business->update(['onboarding_completed_at' => now()]);
 
-        return redirect()->route('dashboard')->with('status', __('Your first campaign is live. Open Sale when a customer arrives.'));
+        return redirect()->route('dashboard')->with('status', __('loop.onboarding_done'));
     }
 }

@@ -230,8 +230,9 @@ class LoopCoreFlowTest extends TestCase
 
         $this->get(route('discover'))
             ->assertOk()
-            ->assertSee($shop->name)
-            ->assertDontSee(__('loop.your_places'));
+            ->assertSee($business->name)
+            ->assertDontSee(__('loop.your_places'))
+            ->assertDontSee('Harbor Beans Downtown');
 
         $this->actingAs($customer)
             ->get(route('discover'))

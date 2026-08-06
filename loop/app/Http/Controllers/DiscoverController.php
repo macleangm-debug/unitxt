@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Business;
 use App\Models\Membership;
-use App\Models\Shop;
 use App\Support\Countries;
 use App\Support\Sectors;
 use Illuminate\Http\Request;
@@ -22,48 +21,55 @@ class DiscoverController extends Controller
         $sector = $request->query('sector');
         $interests = $isCustomer ? ($user->interests ?? []) : [];
 
-        $shops = Shop::query()
-            ->with([
-                'business' => fn ($q) => $q->with([
-                    'campaigns' => fn ($c) => $c->active(),
-                    'rewards' => fn ($r) => $r->where('is_active', true),
-                ]),
-            ])
+        $businesses = Business::query()
             ->where('is_active', true)
-            ->whereHas('business', function ($q) use ($country, $sector) {
+            ->where('country', $country)
+            ->when($sector, fn ($q) => $q->where('sector', $sector))
+            ->whereHas('shops', function ($q) use ($city) {
                 $q->where('is_active', true)
-                    ->where('country', $country)
-                    ->when($sector, fn ($qq) => $qq->where('sector', $sector));
+                    ->when($city, fn ($qq) => $qq->where('city', $city));
             })
-            ->when($city, fn ($q) => $q->where('city', $city))
+            ->with([
+                'shops' => fn ($q) => $q->where('is_active', true)->when($city, fn ($qq) => $qq->where('city', $city)),
+                'campaigns' => fn ($c) => $c->active(),
+                'rewards' => fn ($r) => $r->where('is_active', true),
+            ])
+            ->withCount(['shops' => fn ($q) => $q->where('is_active', true)])
             ->orderBy('name')
             ->get();
 
-        $membershipByShopId = collect();
-        $frequentShops = collect();
+        $membershipByBusinessId = collect();
+        $frequentBusinesses = collect();
 
         if ($isCustomer) {
-            $membershipByShopId = Membership::query()
+            $memberships = Membership::query()
                 ->withCount('visits')
                 ->where('customer_id', $user->id)
-                ->get()
-                ->keyBy('shop_id');
+                ->whereIn('business_id', $businesses->pluck('id'))
+                ->get();
 
-            $frequentShops = $shops
-                ->filter(fn (Shop $shop) => $membershipByShopId->has($shop->id))
-                ->sortByDesc(function (Shop $shop) use ($membershipByShopId) {
-                    $membership = $membershipByShopId->get($shop->id);
+            $membershipByBusinessId = $memberships
+                ->groupBy('business_id')
+                ->map(fn (Collection $group) => (object) [
+                    'points_balance' => $group->sum('points_balance'),
+                    'visits_count' => $group->sum('visits_count'),
+                ]);
 
-                    return sprintf('%08d-%08d', $membership->visits_count, $membership->points_balance);
+            $frequentBusinesses = $businesses
+                ->filter(fn (Business $business) => $membershipByBusinessId->has($business->id))
+                ->sortByDesc(function (Business $business) use ($membershipByBusinessId) {
+                    $m = $membershipByBusinessId->get($business->id);
+
+                    return sprintf('%08d-%08d', $m->visits_count, $m->points_balance);
                 })
                 ->values();
         }
 
-        $rows = $this->buildRows($shops, $frequentShops, $sector, $interests, $city);
+        $rows = $this->buildRows($businesses, $frequentBusinesses, $sector, $interests, $city);
 
         return view('discover.index', [
             'rows' => $rows,
-            'membershipByShopId' => $membershipByShopId,
+            'membershipByBusinessId' => $membershipByBusinessId,
             'isCustomer' => $isCustomer,
             'sectors' => Sectors::OPTIONS,
             'countries' => Countries::OPTIONS,
@@ -82,6 +88,7 @@ class DiscoverController extends Controller
         $user = request()->user();
         $isCustomer = $user?->isCustomer() ?? false;
         $memberships = collect();
+        $totalPoints = null;
 
         if ($isCustomer) {
             $memberships = Membership::query()
@@ -90,6 +97,7 @@ class DiscoverController extends Controller
                 ->with('shop')
                 ->get()
                 ->keyBy('shop_id');
+            $totalPoints = $memberships->sum('points_balance');
         }
 
         $related = Business::query()
@@ -100,10 +108,10 @@ class DiscoverController extends Controller
                 $q->where('sector', $business->sector)
                     ->orWhere('city', $business->city);
             })
-            ->with(['shops' => fn ($q) => $q->where('is_active', true)])
-            ->withCount('shops')
+            ->with(['shops' => fn ($q) => $q->where('is_active', true), 'campaigns' => fn ($c) => $c->active()])
+            ->withCount(['shops' => fn ($q) => $q->where('is_active', true)])
             ->latest()
-            ->take(6)
+            ->take(8)
             ->get();
 
         return view('discover.show', [
@@ -114,21 +122,22 @@ class DiscoverController extends Controller
             'sectors' => Sectors::OPTIONS,
             'isCustomer' => $isCustomer,
             'memberships' => $memberships,
+            'totalPoints' => $totalPoints,
         ]);
     }
 
     /**
-     * @return list<array{key: string, title: string, shops: Collection<int, Shop>}>
+     * @return list<array{key: string, title: string, businesses: Collection<int, Business>}>
      */
-    private function buildRows(Collection $shops, Collection $frequentShops, ?string $sector, array $interests, ?string $city): array
+    private function buildRows(Collection $businesses, Collection $frequentBusinesses, ?string $sector, array $interests, ?string $city): array
     {
         $rows = [];
 
-        if ($frequentShops->isNotEmpty()) {
+        if ($frequentBusinesses->isNotEmpty()) {
             $rows[] = [
                 'key' => 'frequent',
                 'title' => __('loop.your_places'),
-                'shops' => $frequentShops,
+                'businesses' => $frequentBusinesses,
             ];
         }
 
@@ -136,13 +145,13 @@ class DiscoverController extends Controller
             $rows[] = [
                 'key' => 'sector-'.$sector,
                 'title' => Sectors::label($sector),
-                'shops' => $shops,
+                'businesses' => $businesses->values(),
             ];
 
             return $rows;
         }
 
-        $bySector = $shops->groupBy(fn (Shop $shop) => $shop->business->sector);
+        $bySector = $businesses->groupBy('sector');
 
         $orderedKeys = collect(array_keys(Sectors::OPTIONS))
             ->sortBy(function (string $key) use ($interests, $bySector) {
@@ -170,7 +179,7 @@ class DiscoverController extends Controller
             $rows[] = [
                 'key' => 'sector-'.$key,
                 'title' => $title,
-                'shops' => $bySector[$key]->values(),
+                'businesses' => $bySector[$key]->values(),
             ];
         }
 
