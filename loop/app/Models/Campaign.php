@@ -110,11 +110,25 @@ class Campaign extends Model
     public function ruleSummary(string $currency = 'TZS'): string
     {
         return match ($this->type) {
-            self::TYPE_EARN, 'product_push' => "Every {$currency} ".number_format($this->spend_step)." = {$this->points_per_step} pts",
-            self::TYPE_BIRTHDAY => "Birthday bonus: +{$this->bonus_points} pts",
-            self::TYPE_WELCOME => "Welcome bonus: +{$this->bonus_points} pts",
-            'streak' => "Visit streak bonus: +{$this->bonus_points} pts",
-            default => $this->name,
+            self::TYPE_EARN, 'product_push' => __('loop.rule_earn', [
+                'currency' => $currency,
+                'step' => number_format($this->spend_step),
+                'points' => $this->points_per_step,
+            ]),
+            self::TYPE_BIRTHDAY => __('loop.rule_birthday', ['points' => $this->bonus_points]),
+            self::TYPE_WELCOME => __('loop.rule_welcome', ['points' => $this->bonus_points]),
+            'streak' => __('loop.rule_streak', ['points' => $this->bonus_points]),
+            default => $this->displayName(),
         };
+    }
+
+    public function displayName(): string
+    {
+        return \App\Support\CampaignTemplates::nameFor($this->template_key, $this->name);
+    }
+
+    public function displayDescription(): ?string
+    {
+        return \App\Support\CampaignTemplates::descriptionFor($this->template_key, $this->description);
     }
 }

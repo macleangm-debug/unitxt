@@ -13,7 +13,7 @@
         @forelse ($campaigns as $campaign)
             <a href="{{ route('campaigns.show', $campaign) }}" class="loop-panel flex items-center justify-between gap-4 p-5 transition hover:-translate-y-0.5 hover:bg-white">
                 <div class="min-w-0">
-                    <p class="font-display text-lg font-semibold">{{ $campaign->name }}</p>
+                    <p class="font-display text-lg font-semibold">{{ $campaign->displayName() }}</p>
                     <p class="mt-0.5 truncate text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
                 </div>
                 @if ($campaign->isCurrentlyActive())
@@ -21,20 +21,10 @@
                 @endif
             </a>
         @empty
-            <div class="loop-panel p-6 text-sm text-ink-muted">{{ __('loop.no_campaigns_yet') }}</div>
+            <div class="loop-panel p-6 text-center">
+                <p class="text-sm text-ink-muted">{{ __('loop.no_campaigns_yet') }}</p>
+                <a href="{{ route('campaigns.create') }}" class="loop-btn-mint mt-4 inline-flex">{{ __('loop.new_campaign') }}</a>
+            </div>
         @endforelse
     </div>
-
-    <section class="mt-10">
-        <h2 class="mb-3 font-display text-lg font-semibold">{{ __('loop.proven_templates') }}</h2>
-        <p class="mb-4 text-sm text-ink-muted">{{ __('loop.proven_templates_hint') }}</p>
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            @foreach ($templates as $key => $template)
-                <a href="{{ route('campaigns.create', ['template' => $key]) }}" class="rounded-2xl border border-dashed border-ink/15 bg-white/50 p-4 transition hover:border-mint hover:bg-mint-soft/30">
-                    <p class="font-semibold">{{ $template['name'] }}</p>
-                    <p class="mt-1 text-xs text-ink-muted">{{ $template['description'] }}</p>
-                </a>
-            @endforeach
-        </div>
-    </section>
 </x-app-layout>

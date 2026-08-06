@@ -28,7 +28,7 @@ class OnboardingController extends Controller
         return view('onboarding.business', [
             'business' => $business->fresh(),
             'cities' => Countries::cities($business->country),
-            'templates' => CampaignTemplates::all(),
+            'groupedTemplates' => CampaignTemplates::grouped(),
             'step' => $step,
             'logoJustSaved' => (bool) $request->session()->pull('logo_just_saved', false),
         ]);
@@ -100,7 +100,7 @@ class OnboardingController extends Controller
             'template' => ['required', 'string'],
         ]);
 
-        $template = CampaignTemplates::all()[$data['template']] ?? null;
+        $template = CampaignTemplates::localized($data['template']);
         abort_unless($template, 422);
 
         if ($business->campaigns()->doesntExist()) {
@@ -134,6 +134,6 @@ class OnboardingController extends Controller
 
         $business->update(['onboarding_completed_at' => now()]);
 
-        return redirect()->route('dashboard')->with('status', __('loop.onboarding_done'));
+        return redirect()->route('dashboard')->with('all_set', true);
     }
 }

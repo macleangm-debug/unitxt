@@ -19,7 +19,6 @@ class CampaignController extends Controller
         return view('campaigns.index', [
             'business' => $business,
             'campaigns' => $business->campaigns()->with('shops')->latest()->get(),
-            'templates' => CampaignTemplates::all(),
         ]);
     }
 
@@ -28,15 +27,22 @@ class CampaignController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->canManageCampaigns(), 403);
 
+        $usedKeys = $business->campaigns()->whereNotNull('template_key')->pluck('template_key')->all();
+        // Map legacy key
+        $usedKeys = array_map(fn ($k) => $k === 'hundred_point_discount' ? 'earn_with_discount' : $k, $usedKeys);
+
         $templateKey = $request->query('template');
-        $template = CampaignTemplates::all()[$templateKey] ?? null;
+        $template = $templateKey ? CampaignTemplates::localized($templateKey) : null;
+        $own = $request->boolean('own');
 
         return view('campaigns.create', [
             'business' => $business,
             'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
-            'templates' => CampaignTemplates::all(),
+            'groupedTemplates' => CampaignTemplates::grouped($usedKeys),
             'template' => $template,
             'templateKey' => $templateKey,
+            'createOwn' => $own || ($templateKey === null && $request->has('own')),
+            'picking' => ! $template && ! $own && ! $request->has('own'),
         ]);
     }
 
@@ -64,24 +70,30 @@ class CampaignController extends Controller
             'reward_value' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        if ($data['type'] === 'earn') {
+        if (in_array($data['type'], ['earn', 'product_push'], true)) {
             $request->validate([
                 'spend_step' => ['required', 'integer', 'min:1'],
                 'points_per_step' => ['required', 'integer', 'min:1'],
             ]);
         }
 
+        $templateKey = $data['template_key'] ?? null;
+        if ($templateKey === 'hundred_point_discount') {
+            $templateKey = 'earn_with_discount';
+        }
+        $localized = $templateKey ? CampaignTemplates::localized($templateKey) : null;
+
         $campaign = $business->campaigns()->create([
-            'name' => $data['name'],
+            'name' => $localized['name'] ?? $data['name'],
             'type' => $data['type'],
-            'description' => $data['description'] ?? null,
+            'description' => $localized['description'] ?? ($data['description'] ?? null),
             'spend_step' => $data['spend_step'] ?? null,
             'points_per_step' => $data['points_per_step'] ?? null,
             'bonus_points' => $data['bonus_points'] ?? 0,
             'starts_at' => $data['starts_at'],
             'ends_at' => $data['ends_at'] ?? null,
             'is_active' => true,
-            'template_key' => $data['template_key'] ?? null,
+            'template_key' => $templateKey,
         ]);
 
         $shopIds = collect($data['shop_ids'] ?? [])
@@ -90,18 +102,18 @@ class CampaignController extends Controller
             ->all();
         $campaign->shops()->sync($shopIds);
 
-        if ($request->boolean('create_reward') && ! empty($data['reward_name'])) {
+        if ($request->boolean('create_reward') && (! empty($data['reward_name']) || ! empty($localized['reward']))) {
             Reward::create([
                 'business_id' => $business->id,
-                'name' => $data['reward_name'],
-                'points_cost' => $data['reward_points_cost'] ?? 100,
-                'reward_type' => $data['reward_type'] ?? 'percent_off',
-                'reward_value' => $data['reward_value'] ?? 5,
+                'name' => $data['reward_name'] ?? $localized['reward']['name'],
+                'points_cost' => $data['reward_points_cost'] ?? $localized['reward']['points_cost'],
+                'reward_type' => $data['reward_type'] ?? $localized['reward']['reward_type'],
+                'reward_value' => $data['reward_value'] ?? $localized['reward']['reward_value'],
                 'is_active' => true,
             ]);
         }
 
-        return redirect()->route('campaigns.index')->with('status', 'Campaign launched.');
+        return redirect()->route('campaigns.show', $campaign)->with('status', __('loop.campaign_launched'));
     }
 
     public function show(Request $request, Campaign $campaign): View
@@ -113,6 +125,7 @@ class CampaignController extends Controller
         $totalVisits = (clone $visits)->count();
         $totalSpend = (float) (clone $visits)->sum('amount_spent');
         $pointsAwarded = (int) (clone $visits)->sum('points_earned');
+        $recentVisits = $campaign->visits()->with(['customer', 'shop'])->latest()->take(10)->get();
 
         return view('campaigns.show', [
             'campaign' => $campaign->load('shops'),
@@ -124,7 +137,7 @@ class CampaignController extends Controller
                 'points_awarded' => $pointsAwarded,
                 'avg_ticket' => $totalVisits > 0 ? $totalSpend / $totalVisits : 0,
             ],
-            'recentVisits' => $campaign->visits()->with(['customer', 'shop'])->latest()->take(10)->get(),
+            'recentVisits' => $recentVisits,
         ]);
     }
 
@@ -136,6 +149,8 @@ class CampaignController extends Controller
             'campaign' => $campaign->load('shops'),
             'business' => $campaign->business,
             'shops' => $campaign->business->shops()->orderBy('name')->get(),
+            'template' => null,
+            'templateKey' => null,
         ]);
     }
 
@@ -176,7 +191,7 @@ class CampaignController extends Controller
             ->all();
         $campaign->shops()->sync($shopIds);
 
-        return redirect()->route('campaigns.index')->with('status', 'Campaign updated.');
+        return redirect()->route('campaigns.show', $campaign)->with('status', __('loop.campaign_updated'));
     }
 
     public function destroy(Request $request, Campaign $campaign): RedirectResponse
@@ -184,7 +199,7 @@ class CampaignController extends Controller
         $this->authorizeOwner($request, $campaign);
         $campaign->delete();
 
-        return redirect()->route('campaigns.index')->with('status', 'Campaign deleted.');
+        return redirect()->route('campaigns.index')->with('status', __('loop.campaign_deleted'));
     }
 
     private function authorizeOwner(Request $request, Campaign $campaign): void

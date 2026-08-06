@@ -4,6 +4,14 @@ namespace App\Support;
 
 class CampaignTemplates
 {
+    public const INTENTION_EARN = 'earn_points';
+
+    public const INTENTION_EARN_REDEEM = 'earn_and_redeem';
+
+    public const INTENTION_PRODUCT = 'product';
+
+    public const INTENTION_RETENTION = 'retention';
+
     /**
      * @return array<string, array<string, mixed>>
      */
@@ -11,59 +19,136 @@ class CampaignTemplates
     {
         return [
             'everyday_earn' => [
-                'name' => 'Everyday earn',
+                'intention' => self::INTENTION_EARN,
                 'type' => 'earn',
-                'description' => 'Steady points on every purchase — great default for most shops.',
                 'spend_step' => 1000,
                 'points_per_step' => 2,
                 'bonus_points' => 0,
             ],
-            'hundred_point_discount' => [
-                'name' => '100 points → 5% off',
+            'earn_with_discount' => [
+                'intention' => self::INTENTION_EARN_REDEEM,
                 'type' => 'earn',
-                'description' => 'Customers aim for 100 points, then get 5% off when they buy.',
                 'spend_step' => 1000,
                 'points_per_step' => 2,
                 'bonus_points' => 0,
                 'reward' => [
-                    'name' => '5% off anything',
                     'points_cost' => 100,
                     'reward_type' => 'percent_off',
                     'reward_value' => 5,
                 ],
             ],
             'product_push' => [
-                'name' => 'Featured product push',
+                'intention' => self::INTENTION_PRODUCT,
                 'type' => 'product_push',
-                'description' => 'Extra points when staff mark a featured product on the sale.',
                 'spend_step' => 1000,
                 'points_per_step' => 2,
                 'bonus_points' => 10,
             ],
             'visit_streak' => [
-                'name' => 'Visit streak',
+                'intention' => self::INTENTION_RETENTION,
                 'type' => 'streak',
-                'description' => 'Bonus after several visits in a short window — classic retention.',
                 'spend_step' => null,
                 'points_per_step' => null,
                 'bonus_points' => 30,
             ],
             'birthday_treat' => [
-                'name' => 'Birthday treat',
+                'intention' => self::INTENTION_RETENTION,
                 'type' => 'birthday',
-                'description' => 'Bonus points on the customer’s birthday month.',
                 'spend_step' => null,
                 'points_per_step' => null,
                 'bonus_points' => 50,
             ],
             'welcome_bonus' => [
-                'name' => 'Welcome bonus',
+                'intention' => self::INTENTION_RETENTION,
                 'type' => 'welcome',
-                'description' => 'First-sale boost for new Loop members.',
                 'spend_step' => null,
                 'points_per_step' => null,
                 'bonus_points' => 20,
             ],
         ];
+    }
+
+    public static function localized(string $key): ?array
+    {
+        $template = self::all()[$key] ?? null;
+        if (! $template) {
+            return null;
+        }
+
+        $template['key'] = $key;
+        $template['name'] = __('loop.templates.'.$key.'.name');
+        $template['description'] = __('loop.templates.'.$key.'.description');
+        if (! empty($template['reward'])) {
+            $template['reward']['name'] = __('loop.templates.'.$key.'.reward_name');
+        }
+
+        return $template;
+    }
+
+    /**
+     * @return array<string, array{label: string, templates: array<string, array<string, mixed>>}>
+     */
+    public static function grouped(?array $excludeKeys = null): array
+    {
+        $excludeKeys = $excludeKeys ?? [];
+        $groups = [
+            self::INTENTION_EARN => [],
+            self::INTENTION_EARN_REDEEM => [],
+            self::INTENTION_PRODUCT => [],
+            self::INTENTION_RETENTION => [],
+        ];
+
+        foreach (self::all() as $key => $template) {
+            if (in_array($key, $excludeKeys, true)) {
+                continue;
+            }
+            $groups[$template['intention']][$key] = self::localized($key);
+        }
+
+        $labels = [
+            self::INTENTION_EARN => __('loop.intention_earn'),
+            self::INTENTION_EARN_REDEEM => __('loop.intention_earn_redeem'),
+            self::INTENTION_PRODUCT => __('loop.intention_product'),
+            self::INTENTION_RETENTION => __('loop.intention_retention'),
+        ];
+
+        $result = [];
+        foreach ($groups as $intention => $templates) {
+            if ($templates === []) {
+                continue;
+            }
+            $result[$intention] = [
+                'label' => $labels[$intention],
+                'templates' => $templates,
+            ];
+        }
+
+        return $result;
+    }
+
+    public static function nameFor(?string $templateKey, string $fallback): string
+    {
+        if ($templateKey === 'hundred_point_discount') {
+            $templateKey = 'earn_with_discount';
+        }
+
+        if (! $templateKey || ! isset(self::all()[$templateKey])) {
+            return $fallback;
+        }
+
+        return __('loop.templates.'.$templateKey.'.name');
+    }
+
+    public static function descriptionFor(?string $templateKey, ?string $fallback = null): ?string
+    {
+        if ($templateKey === 'hundred_point_discount') {
+            $templateKey = 'earn_with_discount';
+        }
+
+        if (! $templateKey || ! isset(self::all()[$templateKey])) {
+            return $fallback;
+        }
+
+        return __('loop.templates.'.$templateKey.'.description');
     }
 }

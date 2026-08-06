@@ -143,22 +143,44 @@
                 <button class="loop-btn-mint mt-8 w-full">{{ __('loop.next') }}</button>
             </form>
         @else
-            <div class="mt-6">
+            <div class="mt-6" x-data="{ selected: null, name: '', description: '' }">
                 <div class="text-center">
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.pick_campaign') }}</h2>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_campaign_body') }}</p>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.campaigns_vs_offers') }}</p>
                 </div>
-                <div class="mt-6 grid gap-3">
-                    @foreach ($templates as $key => $template)
-                        <form method="POST" action="{{ route('onboarding.campaign') }}">
+
+                @foreach ($groupedTemplates as $intention => $group)
+                    <section class="mt-6">
+                        <h3 class="text-sm font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ $group['label'] }}</h3>
+                        <div class="mt-3 grid gap-3">
+                            @foreach ($group['templates'] as $key => $template)
+                                <button
+                                    type="button"
+                                    class="w-full rounded-3xl border border-ink/10 bg-white/90 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-mint hover:bg-mint-soft/40"
+                                    @click="selected='{{ $key }}'; name=@js($template['name']); description=@js($template['description'])"
+                                >
+                                    <p class="font-display text-lg font-semibold">{{ $template['name'] }}</p>
+                                    <p class="mt-2 text-sm text-ink-muted">{{ $template['description'] }}</p>
+                                </button>
+                            @endforeach
+                        </div>
+                    </section>
+                @endforeach
+
+                <div x-show="selected" x-cloak class="fixed inset-0 z-50 flex items-end justify-center sm:items-center" @keydown.escape.window="selected=null">
+                    <div class="absolute inset-0 bg-ink/45" @click="selected=null"></div>
+                    <div class="relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.confirm_campaign') }}</p>
+                        <p class="mt-2 font-display text-2xl font-semibold" x-text="name"></p>
+                        <p class="mt-2 text-sm text-ink-muted" x-text="description"></p>
+                        <form method="POST" action="{{ route('onboarding.campaign') }}" class="mt-6 space-y-3">
                             @csrf
-                            <input type="hidden" name="template" value="{{ $key }}">
-                            <button class="w-full rounded-3xl border border-ink/10 bg-white/90 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-mint hover:bg-mint-soft/40">
-                                <p class="font-display text-lg font-semibold">{{ $template['name'] }}</p>
-                                <p class="mt-2 text-sm text-ink-muted">{{ $template['description'] }}</p>
-                            </button>
+                            <input type="hidden" name="template" :value="selected">
+                            <button class="loop-btn-mint w-full">{{ __('loop.launch_campaign') }}</button>
+                            <button type="button" class="w-full text-sm font-semibold text-ink-muted" @click="selected=null">{{ __('loop.back') }}</button>
                         </form>
-                    @endforeach
+                    </div>
                 </div>
             </div>
         @endif

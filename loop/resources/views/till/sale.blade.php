@@ -1,60 +1,67 @@
+@php
+    $availableOffers = ($customer && $membership) ? $membership->availableRewards() : collect();
+    $lockedOffers = ($customer && $membership)
+        ? $rewards->filter(fn ($r) => $r->isAvailable() && $r->points_cost > $membership->points_balance)
+        : collect();
+@endphp
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">
-            @if ($customer)
-                {{ $customer->name }}
-            @else
-                {{ __('loop.new_customer') }}
-            @endif
-        </h1>
-        <p class="mt-1 text-ink-muted">
-            {{ $country_code }} {{ $phone }} · {{ $shop->name }}
-            · {{ $channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
-        </p>
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.sale') }}</p>
+            <h1 class="mt-1 font-display text-3xl font-semibold">
+                @if ($customer)
+                    {{ $customer->name }}
+                @else
+                    {{ __('loop.new_customer') }}
+                @endif
+            </h1>
+            <p class="mt-1 text-ink-muted">
+                {{ $country_code }} {{ $phone }} · {{ $shop->name }}
+                · {{ $channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
+            </p>
+        </div>
     </x-slot>
 
     @if ($customer && $membership)
         <div class="mb-6 grid gap-3 sm:grid-cols-3 animate-fade-up">
-            <div class="loop-panel p-4">
-                <p class="text-sm text-ink-muted">{{ __('loop.balance') }}</p>
-                <p class="font-display text-3xl font-semibold">{{ $membership->points_balance }}</p>
+            <div class="rounded-[1.5rem] bg-gradient-to-br from-ink to-ink-soft p-5 text-white">
+                <p class="text-sm text-white/70">{{ __('loop.balance') }}</p>
+                <p class="mt-2 font-display text-4xl font-semibold">{{ $membership->points_balance }}</p>
+                <p class="text-xs text-white/55">pts</p>
             </div>
-            <div class="loop-panel p-4 sm:col-span-2">
-                <p class="text-sm text-ink-muted">{{ __('loop.available_offers') }}</p>
-                <p class="mt-1 text-sm">
-                    @forelse ($membership->availableRewards() as $reward)
-                        <span class="mr-2 mb-1 inline-block rounded-lg bg-mint-soft px-2 py-1 font-medium">{{ $reward->name }} ({{ $reward->points_cost }} pts)</span>
+            <div class="loop-panel p-5 sm:col-span-2">
+                <p class="text-sm font-semibold">{{ __('loop.ready_to_redeem') }}</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @forelse ($availableOffers as $reward)
+                        <span class="rounded-xl bg-mint-soft px-3 py-1.5 text-sm font-semibold text-ink">{{ $reward->name }} · {{ $reward->points_cost }} pts</span>
                     @empty
-                        <span class="text-ink-muted">{{ __('loop.none_unlocked') }}</span>
+                        <span class="text-sm text-ink-muted">{{ __('loop.none_unlocked') }}</span>
                     @endforelse
-                </p>
+                </div>
             </div>
         </div>
     @endif
 
-    <form method="POST" action="{{ route('till.store') }}" class="loop-panel max-w-xl space-y-4 p-6"
+    <form method="POST" action="{{ route('till.store') }}"
+          class="mx-auto max-w-xl overflow-hidden rounded-[2rem] border border-ink/10 bg-white/90 shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
           x-data="{
+            step: 1,
             amountDisplay: '{{ old('amount_spent') }}',
+            selectedOffer: '{{ old('reward_id') }}',
             payWithPoints: {{ old('pay_with_points') ? 'true' : 'false' }},
             pointsToSpend: '{{ old('points_to_spend', '') }}',
             balance: {{ $membership->points_balance ?? 0 }},
             rate: {{ $campaign?->currencyPerPoint() ?? 0 }},
+            isNew: {{ $customer ? 'false' : 'true' }},
             formatAmount() {
                 let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
                 const parts = raw.split('.');
                 parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                 this.amountDisplay = parts.join('.');
             },
-            amountValue() {
-                return String(this.amountDisplay).replace(/,/g, '');
-            },
-            pointsValue() {
-                const pts = parseInt(this.pointsToSpend || 0, 10) || 0;
-                return Math.min(pts, this.balance);
-            },
-            pointsDiscount() {
-                return Math.round(this.pointsValue() * this.rate);
-            }
+            amountValue() { return String(this.amountDisplay).replace(/,/g, ''); },
+            pointsValue() { return Math.min(parseInt(this.pointsToSpend || 0, 10) || 0, this.balance); },
+            pointsDiscount() { return Math.round(this.pointsValue() * this.rate); }
           }">
         @csrf
         <input type="hidden" name="shop_id" value="{{ $shop->id }}">
@@ -64,85 +71,119 @@
         <input type="hidden" name="amount_spent" :value="amountValue()">
 
         @unless ($customer)
-            <p class="rounded-xl bg-chalk px-3 py-2 text-sm text-ink-muted">{{ __('loop.new_customer_hint') }}</p>
-            <div class="grid gap-3 sm:grid-cols-2">
+            <div class="border-b border-ink/5 bg-gradient-to-r from-mint/15 to-transparent px-6 py-4">
+                <p class="text-sm font-semibold">{{ __('loop.new_customer_hint') }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.step') }} <span x-text="step"></span>/3</p>
+            </div>
+
+            <div class="space-y-4 p-6" x-show="step === 1">
                 <div>
                     <label class="loop-label">{{ __('loop.first_name') }}</label>
-                    <input name="first_name" value="{{ old('first_name') }}" class="loop-input" required>
+                    <input name="first_name" value="{{ old('first_name') }}" class="loop-input text-lg" required>
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.last_name') }}</label>
-                    <input name="last_name" value="{{ old('last_name') }}" class="loop-input" required>
+                    <input name="last_name" value="{{ old('last_name') }}" class="loop-input text-lg" required>
                 </div>
+                <button type="button" class="loop-btn-mint w-full" @click="step = 2">{{ __('loop.next') }}</button>
             </div>
-            <div class="grid gap-3 sm:grid-cols-2">
-                <div>
-                    <label class="loop-label">{{ __('loop.month') }}</label>
-                    <select name="birth_month" class="loop-input">
-                        <option value="">—</option>
-                        @for ($m = 1; $m <= 12; $m++)
-                            <option value="{{ $m }}" @selected(old('birth_month') == $m)>{{ $m }}</option>
-                        @endfor
-                    </select>
+
+            <div class="space-y-4 p-6" x-show="step === 2" x-cloak>
+                <p class="text-sm text-ink-muted">{{ __('loop.birthday_for_campaigns') }}</p>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="loop-label">{{ __('loop.month') }}</label>
+                        <select name="birth_month" class="loop-input">
+                            <option value="">—</option>
+                            @for ($m = 1; $m <= 12; $m++)
+                                <option value="{{ $m }}" @selected(old('birth_month') == $m)>{{ $m }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.day') }}</label>
+                        <select name="birth_day" class="loop-input">
+                            <option value="">—</option>
+                            @for ($d = 1; $d <= 31; $d++)
+                                <option value="{{ $d }}" @selected(old('birth_day') == $d)>{{ $d }}</option>
+                            @endfor
+                        </select>
+                    </div>
                 </div>
                 <div>
-                    <label class="loop-label">{{ __('loop.day') }}</label>
-                    <select name="birth_day" class="loop-input">
-                        <option value="">—</option>
-                        @for ($d = 1; $d <= 31; $d++)
-                            <option value="{{ $d }}" @selected(old('birth_day') == $d)>{{ $d }}</option>
-                        @endfor
-                    </select>
+                    <label class="loop-label">{{ __('loop.email_optional') }}</label>
+                    <input type="email" name="email" value="{{ old('email') }}" class="loop-input">
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.email_optional_hint') }}</p>
                 </div>
-            </div>
-            <div>
-                <label class="loop-label">{{ __('loop.email_optional') }}</label>
-                <input type="email" name="email" value="{{ old('email') }}" class="loop-input">
+                <div class="flex gap-3">
+                    <button type="button" class="loop-btn-ghost flex-1" @click="step = 1">{{ __('loop.back') }}</button>
+                    <button type="button" class="loop-btn-mint flex-1" @click="step = 3">{{ __('loop.next') }}</button>
+                </div>
             </div>
         @endunless
 
-        <div>
-            <label class="loop-label">{{ __('loop.amount_spent') }} ({{ $business->currency }})</label>
-            <input type="text" inputmode="decimal" x-model="amountDisplay" @input="formatAmount()" class="loop-input text-xl" placeholder="0">
-            @if ($campaign)
-                <p class="mt-1 text-xs text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
-            @endif
-            <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
-        </div>
-
-        <div>
-            <label class="loop-label">{{ __('loop.apply_offer') }}</label>
-            <select name="reward_id" class="loop-input">
-                <option value="">{{ __('loop.no_offer') }}</option>
-                @foreach ($rewards as $reward)
-                    <option value="{{ $reward->id }}" @selected(old('reward_id') == $reward->id)>
-                        {{ $reward->name }} · {{ $reward->points_cost }} pts · {{ $reward->label() }}
-                        @if ($reward->product_name) · {{ $reward->product_name }} @endif
-                    </option>
-                @endforeach
-            </select>
-            <x-input-error :messages="$errors->get('reward_id')" class="mt-1" />
-        </div>
-
-        @if ($membership && $membership->points_balance > 0 && $campaign && $campaign->currencyPerPoint() > 0)
-            <div class="rounded-2xl border border-ink/10 bg-chalk/70 p-4">
-                <label class="flex items-center gap-3 text-sm font-semibold">
-                    <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="rounded border-ink/20 text-mint focus:ring-mint">
-                    {{ __('loop.pay_with_points') }}
-                </label>
-                <div x-show="payWithPoints" x-cloak class="mt-3 space-y-2">
-                    <label class="loop-label">{{ __('loop.points_to_spend') }} (max {{ $membership->points_balance }})</label>
-                    <input type="number" name="points_to_spend" min="1" max="{{ $membership->points_balance }}" x-model="pointsToSpend" class="loop-input">
-                    <p class="text-xs text-ink-muted">
-                        ≈ {{ $business->currency }} <span x-text="pointsDiscount().toLocaleString()"></span>
-                        · {{ __('loop.rate_hint') }}: 1 pt ≈ {{ number_format($campaign->currencyPerPoint(), 0) }} {{ $business->currency }}
-                    </p>
-                    <x-input-error :messages="$errors->get('points_to_spend')" class="mt-1" />
-                </div>
+        <div class="space-y-5 p-6" @unless($customer) x-show="step === 3" x-cloak @endunless>
+            <div>
+                <label class="loop-label">{{ __('loop.amount_spent') }} ({{ $business->currency }})</label>
+                <input type="text" inputmode="decimal" x-model="amountDisplay" @input="formatAmount()" class="loop-input text-3xl font-display font-semibold" placeholder="0">
+                @if ($campaign)
+                    <p class="mt-2 text-xs text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
+                @endif
+                <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
             </div>
-        @endif
 
-        <button class="loop-btn-mint w-full">{{ __('loop.complete_sale') }}</button>
-        <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
+            <div>
+                <label class="loop-label">{{ __('loop.redeem_offer') }}</label>
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.redeem_offer_help') }}</p>
+                <div class="mt-3 space-y-2">
+                    <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-ink/10 px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                        <input type="radio" name="reward_id" value="" class="text-mint focus:ring-mint" x-model="selectedOffer" checked>
+                        <span class="text-sm font-semibold">{{ __('loop.no_offer') }}</span>
+                    </label>
+                    @foreach ($rewards as $reward)
+                        @php
+                            $canRedeem = $membership && $membership->points_balance >= $reward->points_cost && $reward->isAvailable();
+                        @endphp
+                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 {{ $canRedeem ? 'border-ink/10 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40' : 'border-ink/5 opacity-55' }}">
+                            <input type="radio" name="reward_id" value="{{ $reward->id }}" class="mt-1 text-mint focus:ring-mint" x-model="selectedOffer" @disabled(! $canRedeem)>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-semibold">{{ $reward->name }}</span>
+                                <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} pts · {{ $reward->label() }}</span>
+                                @if ($customer && ! $canRedeem)
+                                    <span class="mt-1 block text-xs text-coral">{{ __('loop.need_more_points', ['points' => max(0, $reward->points_cost - ($membership->points_balance ?? 0))]) }}</span>
+                                @elseif ($canRedeem)
+                                    <span class="mt-1 inline-block rounded-lg bg-mint px-2 py-0.5 text-[11px] font-semibold text-ink">{{ __('loop.ready') }}</span>
+                                @endif
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                <x-input-error :messages="$errors->get('reward_id')" class="mt-1" />
+            </div>
+
+            @if ($membership && $membership->points_balance > 0 && $campaign && $campaign->currencyPerPoint() > 0)
+                <div class="rounded-2xl border border-ink/10 bg-chalk/70 p-4">
+                    <label class="flex items-center gap-3 text-sm font-semibold">
+                        <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="rounded border-ink/20 text-mint focus:ring-mint">
+                        {{ __('loop.pay_with_points') }}
+                    </label>
+                    <div x-show="payWithPoints" x-cloak class="mt-3 space-y-2">
+                        <label class="loop-label">{{ __('loop.points_to_spend') }} (max {{ $membership->points_balance }})</label>
+                        <input type="number" name="points_to_spend" min="1" max="{{ $membership->points_balance }}" x-model="pointsToSpend" class="loop-input">
+                        <p class="text-xs text-ink-muted">
+                            ≈ {{ $business->currency }} <span x-text="pointsDiscount().toLocaleString()"></span>
+                        </p>
+                    </div>
+                </div>
+            @endif
+
+            <div class="flex gap-3">
+                @unless ($customer)
+                    <button type="button" class="loop-btn-ghost flex-1" @click="step = 2">{{ __('loop.back') }}</button>
+                @endunless
+                <button class="loop-btn-mint flex-1">{{ __('loop.complete_sale') }}</button>
+            </div>
+            <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
+        </div>
     </form>
 </x-app-layout>

@@ -4,7 +4,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.campaigns') }}</p>
                 <div class="mt-1 flex flex-wrap items-center gap-3">
-                    <h1 class="font-display text-3xl font-semibold">{{ $campaign->name }}</h1>
+                    <h1 class="font-display text-3xl font-semibold">{{ $campaign->displayName() }}</h1>
                     @if ($campaign->isCurrentlyActive())
                         <span class="rounded-lg bg-mint px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
                     @endif
@@ -39,8 +39,8 @@
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-2">
-        <section class="loop-panel overflow-hidden p-0">
-            <div class="bg-gradient-to-r from-mint/20 to-transparent px-6 py-4">
+        <section class="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/90 shadow-[0_18px_50px_rgba(11,31,42,0.06)]">
+            <div class="bg-gradient-to-r from-mint/25 via-mint/5 to-transparent px-6 py-4">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.schedule') }}</h2>
             </div>
             <dl class="space-y-3 px-6 py-5 text-sm">
@@ -58,23 +58,23 @@
                 </div>
                 <div class="flex justify-between gap-4">
                     <dt class="text-ink-muted">{{ __('loop.type') }}</dt>
-                    <dd class="font-semibold">{{ $campaign->type }}</dd>
+                    <dd class="font-semibold">{{ __('loop.type_'.$campaign->type) }}</dd>
                 </div>
             </dl>
-            @if ($campaign->description)
-                <p class="border-t border-ink/5 px-6 py-4 text-sm text-ink-muted">{{ $campaign->description }}</p>
+            @if ($campaign->displayDescription())
+                <p class="border-t border-ink/5 px-6 py-4 text-sm text-ink-muted">{{ $campaign->displayDescription() }}</p>
             @endif
         </section>
 
-        <section class="loop-panel overflow-hidden p-0">
-            <div class="bg-gradient-to-r from-coral/15 to-transparent px-6 py-4">
+        <section class="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/90 shadow-[0_18px_50px_rgba(11,31,42,0.06)]">
+            <div class="bg-gradient-to-r from-coral/20 via-coral/5 to-transparent px-6 py-4">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.whats_working') }}</h2>
             </div>
             <div class="px-6 py-5">
                 <p class="text-sm text-ink-muted">{{ __('loop.whats_working_body') }}</p>
                 <ul class="mt-4 space-y-2 text-sm">
                     <li class="rounded-xl bg-mint-soft/60 px-3 py-2">
-                        {{ __('loop.avg_ticket') }}:
+                        {{ __('loop.avg_sale_amount') }}:
                         <span class="font-semibold">{{ $business->currency }} {{ number_format($stats['avg_ticket'], 0) }}</span>
                     </li>
                     <li class="rounded-xl bg-coral/10 px-3 py-2">
@@ -92,23 +92,23 @@
         </section>
     </div>
 
-    <section class="mt-8">
-        <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
-        <div class="mt-4 space-y-3">
-            @forelse ($recentVisits as $visit)
-                <div class="loop-panel flex items-center justify-between px-4 py-3">
-                    <div>
-                        <p class="font-semibold">{{ $visit->customer->name }}</p>
-                        <p class="text-sm text-ink-muted">
-                            {{ $visit->shop->name }} · {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                            · {{ $visit->created_at->format('d M Y · H:i') }}
-                        </p>
+    @if ($recentVisits->isNotEmpty())
+        <section class="mt-8">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
+            <div class="mt-4 space-y-3">
+                @foreach ($recentVisits as $visit)
+                    <div class="loop-panel flex items-center justify-between px-4 py-3">
+                        <div>
+                            <p class="font-semibold">{{ $visit->customer->name }}</p>
+                            <p class="text-sm text-ink-muted">
+                                {{ $visit->shop->name }} · {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                                · {{ $visit->created_at->format('d M Y · H:i') }}
+                            </p>
+                        </div>
+                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }}</span>
                     </div>
-                    <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }}</span>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_campaign_sales') }}</p>
-            @endforelse
-        </div>
-    </section>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </x-app-layout>
