@@ -23,10 +23,13 @@ use Illuminate\Notifications\Notifiable;
     'email',
     'password',
     'birth_date',
+    'birth_month',
+    'birth_day',
     'role',
     'business_id',
     'must_change_password',
     'is_active',
+    'profile_completed',
     'phone_verified_at',
     'email_verified_at',
 ])]
@@ -48,9 +51,12 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'birth_date' => 'date',
+            'birth_month' => 'integer',
+            'birth_day' => 'integer',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
             'is_active' => 'boolean',
+            'profile_completed' => 'boolean',
             'interests' => 'array',
         ];
     }

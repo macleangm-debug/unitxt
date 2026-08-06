@@ -14,12 +14,15 @@ use Illuminate\Support\Str;
     'name',
     'slug',
     'sector',
+    'sector_other',
     'country',
     'currency',
     'city',
+    'branch_count',
     'description',
     'logo_path',
     'is_active',
+    'onboarding_completed_at',
 ])]
 class Business extends Model
 {
@@ -27,6 +30,8 @@ class Business extends Model
     {
         return [
             'is_active' => 'boolean',
+            'onboarding_completed_at' => 'datetime',
+            'branch_count' => 'integer',
         ];
     }
 
@@ -81,6 +86,6 @@ class Business extends Model
 
     public function sectorLabel(): string
     {
-        return Sectors::label($this->sector);
+        return Sectors::label($this->sector, $this->sector_other);
     }
 }

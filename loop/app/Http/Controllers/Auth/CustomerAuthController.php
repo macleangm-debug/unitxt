@@ -4,13 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\OtpService;
 use App\Support\Countries;
 use App\Support\Sectors;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class CustomerAuthController extends Controller
@@ -19,10 +18,11 @@ class CustomerAuthController extends Controller
     {
         return view('auth.customer-phone', [
             'countries' => Countries::OPTIONS,
+            'preferredCountry' => session('preferred_country', 'TZ'),
         ]);
     }
 
-    public function send(Request $request, OtpService $otp): RedirectResponse
+    public function send(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'country_code' => ['required', 'string', 'max:8'],
@@ -30,75 +30,83 @@ class CustomerAuthController extends Controller
         ]);
 
         $phone = Countries::normalizePhone($data['phone']);
-        $otp->send($data['country_code'], $phone);
+        $user = User::query()
+            ->where('role', User::ROLE_CUSTOMER)
+            ->where('country_code', $data['country_code'])
+            ->where('phone', $phone)
+            ->first();
 
         $request->session()->put('customer_auth', [
             'country_code' => $data['country_code'],
             'phone' => $phone,
             'country' => Countries::fromDial($data['country_code']) ?? 'TZ',
+            'exists' => (bool) $user,
+            'has_pin' => (bool) ($user?->password),
+            'profile_completed' => (bool) ($user?->profile_completed),
         ]);
 
-        return redirect()
-            ->route('customer.otp')
-            ->with('status', app()->environment('local', 'testing')
-                ? 'Demo code: 123456'
-                : __('We sent a code to your phone.'));
+        if ($user && $user->password) {
+            return redirect()->route('customer.pin');
+        }
+
+        return redirect()->route('customer.register');
     }
 
-    public function otpForm(Request $request): View|RedirectResponse
+    public function pinForm(Request $request): View|RedirectResponse
     {
-        if (! $request->session()->has('customer_auth')) {
+        $auth = $request->session()->get('customer_auth');
+        if (! $auth || empty($auth['has_pin'])) {
             return redirect()->route('customer.login');
         }
 
-        return view('auth.customer-otp', [
-            'auth' => $request->session()->get('customer_auth'),
-        ]);
+        return view('auth.customer-pin', ['auth' => $auth]);
     }
 
-    public function verify(Request $request, OtpService $otp): RedirectResponse
+    public function pinVerify(Request $request): RedirectResponse
     {
         $auth = $request->session()->get('customer_auth');
-
         if (! $auth) {
             return redirect()->route('customer.login');
         }
 
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:10'],
+            'pin' => ['required', 'digits_between:4,6'],
         ]);
 
-        try {
-            $user = $otp->verify($auth['country_code'], $auth['phone'], $data['code']);
-        } catch (ValidationException $e) {
-            if (($e->errors()['phone'][0] ?? null) === 'complete_profile') {
-                $request->session()->put('customer_auth.verified', true);
+        $user = User::query()
+            ->where('role', User::ROLE_CUSTOMER)
+            ->where('country_code', $auth['country_code'])
+            ->where('phone', $auth['phone'])
+            ->first();
 
-                return redirect()->route('customer.register');
-            }
-
-            throw $e;
+        if (! $user || ! $user->password || ! Hash::check($data['pin'], $user->password)) {
+            return back()->withErrors(['pin' => __('That PIN is incorrect.')]);
         }
 
         Auth::login($user);
         $request->session()->forget('customer_auth');
         $request->session()->regenerate();
 
-        return redirect()->route('discover');
+        return redirect()->route($user->profile_completed ? 'dashboard' : 'customer.complete');
     }
 
     public function registerForm(Request $request): View|RedirectResponse
     {
         $auth = $request->session()->get('customer_auth');
-
-        if (! $auth || empty($auth['verified'])) {
+        if (! $auth) {
             return redirect()->route('customer.login');
         }
 
         $country = $auth['country'] ?? 'TZ';
+        $existing = User::query()
+            ->where('role', User::ROLE_CUSTOMER)
+            ->where('country_code', $auth['country_code'])
+            ->where('phone', $auth['phone'])
+            ->first();
 
         return view('auth.customer-register', [
             'auth' => $auth,
+            'existing' => $existing,
             'countries' => Countries::OPTIONS,
             'country' => $country,
             'cities' => Countries::cities($country),
@@ -109,8 +117,7 @@ class CustomerAuthController extends Controller
     public function register(Request $request): RedirectResponse
     {
         $auth = $request->session()->get('customer_auth');
-
-        if (! $auth || empty($auth['verified'])) {
+        if (! $auth) {
             return redirect()->route('customer.login');
         }
 
@@ -119,31 +126,52 @@ class CustomerAuthController extends Controller
             'last_name' => ['required', 'string', 'max:80'],
             'country' => ['required', 'in:'.implode(',', array_keys(Countries::OPTIONS))],
             'city' => ['required', 'string', 'max:80'],
-            'birth_date' => ['nullable', 'date', 'before:today'],
+            'birth_month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'email' => ['nullable', 'email', 'max:255'],
             'interests' => ['nullable', 'array'],
             'interests.*' => ['in:'.implode(',', array_keys(Sectors::OPTIONS))],
+            'pin' => ['required', 'digits_between:4,6', 'confirmed'],
         ]);
 
-        $user = User::create([
+        $user = User::query()
+            ->where('role', User::ROLE_CUSTOMER)
+            ->where('country_code', $auth['country_code'])
+            ->where('phone', $auth['phone'])
+            ->first();
+
+        $payload = [
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
-            'country_code' => $auth['country_code'],
-            'phone' => $auth['phone'],
             'country' => $data['country'],
             'city' => $data['city'],
-            'birth_date' => $data['birth_date'] ?? null,
+            'birth_month' => $data['birth_month'] ?? null,
+            'birth_day' => $data['birth_day'] ?? null,
             'email' => $data['email'] ?? null,
             'interests' => $data['interests'] ?? [],
-            'role' => User::ROLE_CUSTOMER,
+            'password' => Hash::make($data['pin']),
             'phone_verified_at' => now(),
+            'profile_completed' => true,
             'is_active' => true,
-        ]);
+        ];
+
+        if ($user) {
+            $user->update($payload);
+        } else {
+            $user = User::create([
+                ...$payload,
+                'country_code' => $auth['country_code'],
+                'phone' => $auth['phone'],
+                'role' => User::ROLE_CUSTOMER,
+            ]);
+        }
 
         Auth::login($user);
         $request->session()->forget('customer_auth');
         $request->session()->regenerate();
+        $request->session()->put('preferred_country', $data['country']);
+        $request->session()->flash('show_welcome', true);
 
-        return redirect()->route('discover')->with('status', __('Welcome to Loop. Explore shops in your city.'));
+        return redirect()->route('dashboard');
     }
 }

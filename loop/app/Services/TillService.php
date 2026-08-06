@@ -80,9 +80,11 @@ class TillService
             $campaign = $this->findEarnCampaign($shop);
             $pointsEarned = $campaign ? $campaign->pointsForSpend($amountSpent) : 0;
 
-            // Birthday bonus if campaign exists and today is birthday week
+            // Birthday bonus if campaign exists and today matches month/day
             $birthdayCampaign = $this->findBirthdayCampaign($business);
-            if ($birthdayCampaign && $customer->birth_date && $customer->birth_date->isBirthday()) {
+            if ($birthdayCampaign && $customer->birth_month && $customer->birth_day
+                && (int) $customer->birth_month === (int) now()->month
+                && (int) $customer->birth_day === (int) now()->day) {
                 $pointsEarned += $birthdayCampaign->bonus_points;
             }
 

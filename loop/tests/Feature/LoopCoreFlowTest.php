@@ -25,10 +25,9 @@ class LoopCoreFlowTest extends TestCase
             'business_name' => 'Safari Cafe',
             'sector' => 'coffee',
             'city' => 'Arusha',
-            'shop_name' => 'Safari Cafe Main',
         ]);
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertRedirect(route('onboarding.show'));
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', [
             'phone' => '712111222',
@@ -40,6 +39,7 @@ class LoopCoreFlowTest extends TestCase
             'sector' => 'coffee',
             'country' => 'TZ',
             'currency' => 'TZS',
+            'city' => 'Arusha',
         ]);
     }
 
@@ -81,10 +81,9 @@ class LoopCoreFlowTest extends TestCase
         ]);
         $this->assertDatabaseHas('memberships', [
             'business_id' => $business->id,
-            'points_balance' => 10, // 5000/1000*2
+            'points_balance' => 10,
         ]);
 
-        // Same phone again should not duplicate user
         $this->actingAs($staff)
             ->post(route('till.store'), [
                 'shop_id' => $shop->id,
@@ -102,34 +101,32 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
-    public function test_customer_can_login_with_phone_otp(): void
+    public function test_customer_can_login_with_pin(): void
     {
         User::factory()->customer()->create([
             'phone' => '715000111',
             'country_code' => '+255',
+            'password' => '1234',
+            'profile_completed' => true,
         ]);
 
         $this->post(route('customer.send'), [
             'country_code' => '+255',
             'phone' => '715000111',
-        ])->assertRedirect(route('customer.otp'));
+        ])->assertRedirect(route('customer.pin'));
 
-        $this->post(route('customer.verify'), [
-            'code' => '123456',
-        ])->assertRedirect(route('discover'));
+        $this->post(route('customer.pin.verify'), [
+            'pin' => '1234',
+        ])->assertRedirect(route('dashboard'));
 
         $this->assertAuthenticated();
     }
 
-    public function test_new_customer_can_self_register_after_otp(): void
+    public function test_new_customer_can_self_register_with_pin(): void
     {
         $this->post(route('customer.send'), [
             'country_code' => '+255',
             'phone' => '716777888',
-        ])->assertRedirect(route('customer.otp'));
-
-        $this->post(route('customer.verify'), [
-            'code' => '123456',
         ])->assertRedirect(route('customer.register'));
 
         $this->post(route('customer.register.store'), [
@@ -137,14 +134,21 @@ class LoopCoreFlowTest extends TestCase
             'last_name' => 'Said',
             'country' => 'TZ',
             'city' => 'Dar es Salaam',
+            'birth_month' => 5,
+            'birth_day' => 12,
             'interests' => ['coffee', 'fashion'],
-        ])->assertRedirect(route('discover'));
+            'pin' => '2468',
+            'pin_confirmation' => '2468',
+        ])->assertRedirect(route('dashboard'));
 
         $this->assertAuthenticated();
         $this->assertDatabaseHas('users', [
             'phone' => '716777888',
             'city' => 'Dar es Salaam',
             'role' => 'customer',
+            'birth_month' => 5,
+            'birth_day' => 12,
+            'profile_completed' => 1,
         ]);
     }
 
@@ -167,11 +171,14 @@ class LoopCoreFlowTest extends TestCase
             'sector' => 'retail',
             'country' => 'TZ',
             'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'onboarding_completed_at' => now(),
         ]);
         $owner->update(['business_id' => $business->id]);
         $shop = Shop::create([
             'business_id' => $business->id,
             'name' => 'Main',
+            'city' => 'Dar es Salaam',
             'is_active' => true,
         ]);
 

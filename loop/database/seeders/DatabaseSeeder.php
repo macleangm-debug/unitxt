@@ -104,11 +104,16 @@ class DatabaseSeeder extends Seeder
             'country' => 'TZ',
             'city' => 'Dar es Salaam',
             'interests' => ['coffee', 'fashion'],
-            'birth_date' => now()->subYears(28),
+            'birth_month' => (int) now()->format('n'),
+            'birth_day' => (int) now()->format('j'),
+            'password' => Hash::make('1234'),
             'phone_verified_at' => now(),
+            'profile_completed' => true,
         ]);
 
         app(TillService::class)->recordSale($frontDesk, $downtown, $customer, 10000);
+
+        $business->update(['onboarding_completed_at' => now()]);
 
         // Fashion demo business for sector grouping
         $fashionOwner = User::factory()->owner()->create([

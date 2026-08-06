@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">Rewards</h1>
-        <p class="mt-1 text-ink-muted">Applied by staff at the till when the customer buys.</p>
+        <h1 class="font-display text-3xl font-semibold">{{ __('loop.offers') }}</h1>
+        <p class="mt-1 text-ink-muted">{{ __('Named offers staff apply on a sale — e.g. 5% off, or a featured product push reward.') }}</p>
     </x-slot>
     <div class="mb-6"><a href="{{ route('rewards.create') }}" class="loop-btn-mint">Add reward</a></div>
     <div class="grid gap-4 sm:grid-cols-2">

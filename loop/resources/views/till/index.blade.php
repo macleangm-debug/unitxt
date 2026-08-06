@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-                <h1 class="font-display text-3xl font-semibold">Till</h1>
-                <p class="mt-1 text-ink-muted">Look up a phone · record the sale · apply rewards. Works for walk-ins and phone orders.</p>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.sale') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('Look up a phone · record the sale · apply offers. Works for walk-ins and phone orders.') }}</p>
             </div>
         </div>
     </x-slot>

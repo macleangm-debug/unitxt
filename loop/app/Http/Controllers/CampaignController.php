@@ -47,7 +47,7 @@ class CampaignController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'type' => ['required', 'in:earn,birthday,welcome'],
+            'type' => ['required', 'in:earn,birthday,welcome,product_push,streak'],
             'description' => ['nullable', 'string', 'max:1000'],
             'spend_step' => ['nullable', 'integer', 'min:1'],
             'points_per_step' => ['nullable', 'integer', 'min:1'],
@@ -122,7 +122,7 @@ class CampaignController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'type' => ['required', 'in:earn,birthday,welcome'],
+            'type' => ['required', 'in:earn,birthday,welcome,product_push,streak'],
             'description' => ['nullable', 'string', 'max:1000'],
             'spend_step' => ['nullable', 'integer', 'min:1'],
             'points_per_step' => ['nullable', 'integer', 'min:1'],

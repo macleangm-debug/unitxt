@@ -11,16 +11,29 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|\Illuminate\Http\RedirectResponse
     {
         $user = $request->user();
 
+        if ($user->isOwner()) {
+            $business = $user->ownedBusiness;
+            if ($business && ! $business->onboarding_completed_at) {
+                return redirect()->route('onboarding.show');
+            }
+        }
+
         if ($user->isStaff()) {
             $business = $user->workplace();
-
             if (! $business) {
                 return view('business.setup-missing');
             }
+
+            $todayVisits = $business->visits()->whereDate('created_at', today())->count();
+            $todaySpend = (float) $business->visits()->whereDate('created_at', today())->sum('amount_spent');
+
+            $activeCampaigns = $business->campaigns()->active()->withCount([
+                'visits as today_visits_count' => fn ($q) => $q->whereDate('created_at', today()),
+            ])->latest()->take(5)->get();
 
             return view('dashboard.business', [
                 'business' => $business,
@@ -28,33 +41,38 @@ class DashboardController extends Controller
                 'campaignCount' => $business->campaigns()->count(),
                 'memberCount' => $business->memberships()->count(),
                 'visitCount' => $business->visits()->count(),
+                'todayVisits' => $todayVisits,
+                'todaySpend' => $todaySpend,
                 'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get(),
-                'activeCampaigns' => $business->campaigns()->active()->withCount('shops')->latest()->take(5)->get(),
+                'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
+                'showWelcome' => $request->session()->pull('show_welcome', false) || $request->boolean('welcome'),
             ]);
         }
 
         $memberships = Membership::query()
-            ->with('business')
+            ->with(['business.shops'])
+            ->withCount(['visits'])
             ->where('customer_id', $user->id)
-            ->latest()
-            ->get();
-
-        $grouped = $memberships->groupBy(fn ($m) => $m->business->sector);
+            ->get()
+            ->sortByDesc('visits_count')
+            ->values();
 
         return view('dashboard.customer', [
             'memberships' => $memberships,
-            'grouped' => $grouped,
+            'grouped' => $memberships->groupBy(fn ($m) => $m->business->sector),
             'sectors' => Sectors::OPTIONS,
             'totalPoints' => $memberships->sum('points_balance'),
             'discover' => Business::query()
                 ->where('is_active', true)
-                ->where('country', 'TZ')
+                ->where('country', $user->country ?? session('preferred_country', 'TZ'))
+                ->when($user->interests, fn ($q) => $q->whereIn('sector', $user->interests))
+                ->with(['shops' => fn ($q) => $q->where('is_active', true)])
                 ->withCount('shops')
                 ->latest()
-                ->take(8)
-                ->get()
-                ->groupBy('sector'),
+                ->take(12)
+                ->get(),
+            'showWelcome' => $request->session()->pull('show_welcome', false) || ! $user->profile_completed,
         ]);
     }
 }

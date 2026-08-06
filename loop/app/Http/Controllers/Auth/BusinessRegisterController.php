@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
-use App\Models\Shop;
 use App\Models\User;
 use App\Support\Countries;
 use App\Support\Sectors;
@@ -25,6 +24,7 @@ class BusinessRegisterController extends Controller
         return view('auth.business-register', [
             'sectors' => Sectors::OPTIONS,
             'countries' => Countries::OPTIONS,
+            'preferredCountry' => session('preferred_country', 'TZ'),
         ]);
     }
 
@@ -39,8 +39,8 @@ class BusinessRegisterController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
             'business_name' => ['required', 'string', 'max:120'],
             'sector' => ['required', 'in:'.implode(',', array_keys(Sectors::OPTIONS))],
-            'city' => ['nullable', 'string', 'max:80'],
-            'shop_name' => ['required', 'string', 'max:120'],
+            'sector_other' => ['nullable', 'required_if:sector,other', 'string', 'max:80'],
+            'city' => ['required', 'string', 'max:80'],
         ]);
 
         $countryCode = Countries::dial($data['country']);
@@ -48,7 +48,7 @@ class BusinessRegisterController extends Controller
 
         if (User::query()->where('country_code', $countryCode)->where('phone', $phone)->exists()) {
             return back()->withInput()->withErrors([
-                'phone' => 'This phone number is already on Loop.',
+                'phone' => __('This phone number is already on Loop.'),
             ]);
         }
 
@@ -57,12 +57,14 @@ class BusinessRegisterController extends Controller
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'country_code' => $countryCode,
+                'country' => $data['country'],
                 'phone' => $phone,
                 'email' => $data['email'] ?? null,
                 'password' => Hash::make($data['password']),
                 'role' => User::ROLE_OWNER,
                 'phone_verified_at' => now(),
                 'is_active' => true,
+                'profile_completed' => true,
             ]);
 
             $business = Business::create([
@@ -70,26 +72,21 @@ class BusinessRegisterController extends Controller
                 'name' => $data['business_name'],
                 'slug' => Str::slug($data['business_name']).'-'.Str::lower(Str::random(4)),
                 'sector' => $data['sector'],
+                'sector_other' => $data['sector'] === 'other' ? ($data['sector_other'] ?? null) : null,
                 'country' => $data['country'],
                 'currency' => Countries::currency($data['country']),
-                'city' => $data['city'] ?? null,
+                'city' => $data['city'],
             ]);
 
             $owner->update(['business_id' => $business->id]);
-
-            Shop::create([
-                'business_id' => $business->id,
-                'name' => $data['shop_name'],
-                'city' => $data['city'] ?? null,
-                'is_active' => true,
-            ]);
 
             return $owner;
         });
 
         event(new Registered($owner));
         Auth::login($owner);
+        $request->session()->put('preferred_country', $data['country']);
 
-        return redirect()->route('dashboard')->with('status', 'Welcome to Loop. Add a campaign, then use the till when customers visit.');
+        return redirect()->route('onboarding.show');
     }
 }
