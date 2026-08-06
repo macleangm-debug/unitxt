@@ -8,14 +8,9 @@ use Illuminate\View\View;
 
 class RewardController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): RedirectResponse
     {
-        $business = $request->user()->ownedBusiness()->firstOrFail();
-
-        return view('rewards.index', [
-            'business' => $business,
-            'rewards' => $business->rewards()->latest()->get(),
-        ]);
+        return redirect()->to(route('campaigns.index').'#offers');
     }
 
     public function create(Request $request): View
@@ -46,6 +41,6 @@ class RewardController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->route('rewards.index')->with('status', __('loop.offer_created'));
+        return redirect()->to(route('campaigns.index').'#offers')->with('status', __('loop.offer_created'));
     }
 }

@@ -19,6 +19,7 @@ class CampaignController extends Controller
         return view('campaigns.index', [
             'business' => $business,
             'campaigns' => $business->campaigns()->with('shops')->latest()->get(),
+            'rewards' => $business->rewards()->latest()->get(),
         ]);
     }
 
