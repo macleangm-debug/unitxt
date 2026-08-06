@@ -24,7 +24,6 @@ class LoopCoreFlowTest extends TestCase
             'password_confirmation' => 'password',
             'business_name' => 'Safari Cafe',
             'sector' => 'coffee',
-            'city' => 'Arusha',
         ]);
 
         $response->assertRedirect(route('onboarding.show'));
@@ -39,7 +38,6 @@ class LoopCoreFlowTest extends TestCase
             'sector' => 'coffee',
             'country' => 'TZ',
             'currency' => 'TZS',
-            'city' => 'Arusha',
         ]);
     }
 

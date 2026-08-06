@@ -18,8 +18,20 @@
         <div class="pointer-events-none absolute bottom-10 right-0 h-72 w-72 rounded-full bg-coral/20 blur-3xl"></div>
         {{ $aside }}
     </aside>
-    <div class="flex min-h-screen items-center px-4 py-10 sm:px-8">
-        {{ $slot }}
+    <div class="flex min-h-screen flex-col">
+        <div class="flex items-center justify-between px-4 py-4 sm:px-8">
+            <a href="{{ route('home') }}" class="flex items-center gap-2.5 lg:invisible">
+                <x-loop-logo class="h-9 w-9" />
+                <span class="font-display text-xl font-semibold">Loop</span>
+            </a>
+            <div class="flex rounded-xl border border-ink/10 bg-white p-0.5 text-xs font-semibold">
+                <a href="{{ route('locale', 'en') }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}">EN</a>
+                <a href="{{ route('locale', 'sw') }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'sw' ? 'bg-ink text-white' : 'text-ink-muted' }}">SW</a>
+            </div>
+        </div>
+        <div class="flex flex-1 items-center px-4 pb-10 sm:px-8">
+            {{ $slot }}
+        </div>
     </div>
 </div>
 </body>

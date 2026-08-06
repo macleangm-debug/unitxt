@@ -40,7 +40,6 @@ class BusinessRegisterController extends Controller
             'business_name' => ['required', 'string', 'max:120'],
             'sector' => ['required', 'in:'.implode(',', array_keys(Sectors::OPTIONS))],
             'sector_other' => ['nullable', 'required_if:sector,other', 'string', 'max:80'],
-            'city' => ['required', 'string', 'max:80'],
         ]);
 
         $countryCode = Countries::dial($data['country']);
@@ -75,7 +74,7 @@ class BusinessRegisterController extends Controller
                 'sector_other' => $data['sector'] === 'other' ? ($data['sector_other'] ?? null) : null,
                 'country' => $data['country'],
                 'currency' => Countries::currency($data['country']),
-                'city' => $data['city'],
+                'city' => null,
             ]);
 
             $owner->update(['business_id' => $business->id]);

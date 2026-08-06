@@ -9,37 +9,32 @@
         </div>
     </x-slot>
 
-    <section class="mb-8">
+    <div class="space-y-3">
+        @forelse ($campaigns as $campaign)
+            <a href="{{ route('campaigns.show', $campaign) }}" class="loop-panel flex items-center justify-between gap-4 p-5 transition hover:-translate-y-0.5 hover:bg-white">
+                <div class="min-w-0">
+                    <p class="font-display text-lg font-semibold">{{ $campaign->name }}</p>
+                    <p class="mt-0.5 truncate text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
+                </div>
+                @if ($campaign->isCurrentlyActive())
+                    <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
+                @endif
+            </a>
+        @empty
+            <div class="loop-panel p-6 text-sm text-ink-muted">{{ __('loop.no_campaigns_yet') }}</div>
+        @endforelse
+    </div>
+
+    <section class="mt-10">
         <h2 class="mb-3 font-display text-lg font-semibold">{{ __('loop.proven_templates') }}</h2>
+        <p class="mb-4 text-sm text-ink-muted">{{ __('loop.proven_templates_hint') }}</p>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ($templates as $key => $template)
-                <a href="{{ route('campaigns.create', ['template' => $key]) }}" class="loop-panel block p-4 transition hover:bg-white">
+                <a href="{{ route('campaigns.create', ['template' => $key]) }}" class="rounded-2xl border border-dashed border-ink/15 bg-white/50 p-4 transition hover:border-mint hover:bg-mint-soft/30">
                     <p class="font-semibold">{{ $template['name'] }}</p>
                     <p class="mt-1 text-xs text-ink-muted">{{ $template['description'] }}</p>
                 </a>
             @endforeach
         </div>
     </section>
-
-    <div class="grid gap-4">
-        @forelse ($campaigns as $campaign)
-            <div class="loop-panel p-5">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <a href="{{ route('campaigns.show', $campaign) }}" class="min-w-0 flex-1">
-                        <p class="font-display text-lg font-semibold">{{ $campaign->name }}</p>
-                        <p class="text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
-                    </a>
-                    <div class="flex items-center gap-2">
-                        <span class="rounded-lg px-2.5 py-1 text-xs font-semibold {{ $campaign->isCurrentlyActive() ? 'bg-mint-soft' : 'bg-chalk text-ink-muted' }}">
-                            {{ $campaign->isCurrentlyActive() ? __('loop.live') : __('loop.off') }}
-                        </span>
-                        <a href="{{ route('campaigns.show', $campaign) }}" class="loop-btn-ghost !px-3 !py-2">{{ __('loop.view') }}</a>
-                        <a href="{{ route('campaigns.edit', $campaign) }}" class="loop-btn-ghost !px-3 !py-2">{{ __('loop.edit') }}</a>
-                    </div>
-                </div>
-            </div>
-        @empty
-            <p class="text-ink-muted">{{ __('loop.no_campaigns_yet') }}</p>
-        @endforelse
-    </div>
 </x-app-layout>

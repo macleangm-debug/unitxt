@@ -6,7 +6,7 @@
                     <x-loop-logo class="h-10 w-10" />
                     <span class="font-display text-2xl font-semibold">Loop</span>
                 </a>
-                <p class="mt-10 font-display text-3xl font-semibold leading-tight lg:text-4xl">{{ __('loop.with_your_phone') }}</p>
+                <p class="mt-10 font-display text-3xl font-semibold leading-tight lg:text-4xl">{{ __('loop.grow_with_phone') }}</p>
                 <p class="mt-4 max-w-sm text-sm text-white/70">{{ __('loop.business_blurb') }}</p>
             </div>
             <div class="mt-10 space-y-3 text-sm text-white/65">
@@ -17,22 +17,29 @@
         </div>
     </x-slot:aside>
 
-    <div x-data="{ step: 1 }" class="mx-auto w-full max-w-md">
-        <div class="mb-6 flex items-center justify-between gap-3">
-            <div class="flex rounded-xl border border-ink/10 bg-white p-0.5 text-xs font-semibold">
-                <a href="{{ route('locale', 'en') }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}">EN</a>
-                <a href="{{ route('locale', 'sw') }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'sw' ? 'bg-ink text-white' : 'text-ink-muted' }}">SW</a>
-            </div>
-            <p class="text-xs font-semibold text-ink-muted">{{ __('loop.step') }} <span x-text="step"></span>/4</p>
-        </div>
+    <div x-data="{ step: {{ $errors->any() ? 1 : 1 }} }" class="mx-auto w-full max-w-md">
+        <p class="mb-6 text-xs font-semibold text-ink-muted">{{ __('loop.step') }} <span x-text="step"></span>/4</p>
 
         <h1 class="font-display text-2xl font-semibold">{{ __('loop.cta_business') }}</h1>
-        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.tagline') }}</p>
+        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.grow_with_phone') }}</p>
 
         <form method="POST" action="{{ route('business.register') }}" class="mt-6 space-y-4">
             @csrf
 
             <div x-show="step === 1" class="space-y-4">
+                <div>
+                    <label class="loop-label">{{ __('loop.country') }}</label>
+                    <select name="country" class="loop-input" required>
+                        @foreach ($countries as $code => $meta)
+                            <option value="{{ $code }}" @selected(old('country', $preferredCountry) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.country_first_hint') }}</p>
+                </div>
+                <button type="button" @click="step = 2" class="loop-btn w-full">{{ __('loop.next') }}</button>
+            </div>
+
+            <div x-show="step === 2" x-cloak class="space-y-4">
                 <div>
                     <label class="loop-label">{{ __('loop.first_name') }}</label>
                     <input name="first_name" value="{{ old('first_name') }}" class="loop-input" required>
@@ -41,18 +48,7 @@
                 <div>
                     <label class="loop-label">{{ __('loop.last_name') }}</label>
                     <input name="last_name" value="{{ old('last_name') }}" class="loop-input" required>
-                </div>
-                <button type="button" @click="step = 2" class="loop-btn w-full">{{ __('loop.next') }}</button>
-            </div>
-
-            <div x-show="step === 2" x-cloak class="space-y-4">
-                <div>
-                    <label class="loop-label">{{ __('loop.country') }}</label>
-                    <select name="country" id="country" class="loop-input">
-                        @foreach ($countries as $code => $meta)
-                            <option value="{{ $code }}" @selected(old('country', $preferredCountry) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
-                        @endforeach
-                    </select>
+                    <x-input-error :messages="$errors->get('last_name')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.phone') }}</label>
@@ -73,6 +69,7 @@
                 <div>
                     <label class="loop-label">{{ __('loop.password') }}</label>
                     <input type="password" name="password" class="loop-input" required>
+                    <x-input-error :messages="$errors->get('password')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.confirm_password') }}</label>
@@ -88,41 +85,20 @@
                 <div>
                     <label class="loop-label">{{ __('loop.business_name') }}</label>
                     <input name="business_name" value="{{ old('business_name') }}" class="loop-input" required>
+                    <x-input-error :messages="$errors->get('business_name')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.sector') }}</label>
-                    <select name="sector" class="loop-input" x-data="{ sector: '{{ old('sector', 'coffee') }}' }" x-model="sector" @change="sector = $event.target.value">
+                    <select name="sector" id="sector" class="loop-input" onchange="document.getElementById('other-sector-box').classList.toggle('hidden', this.value !== 'other')">
                         @foreach ($sectors as $key => $label)
-                            <option value="{{ $key }}" @selected(old('sector') === $key)>{{ $label }}</option>
+                            <option value="{{ $key }}" @selected(old('sector', 'coffee') === $key)>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div x-data="{ showOther: '{{ old('sector') }}' === 'other' }" x-init="$watch('showOther', () => {})">
-                    <div x-show="document.querySelector('[name=sector]')?.value === 'other' || {{ old('sector') === 'other' ? 'true' : 'false' }}" x-cloak>
-                        <label class="loop-label">{{ __('loop.other_sector') }}</label>
-                        <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
-                    </div>
-                </div>
-                <script>
-                    document.addEventListener('change', (e) => {
-                        if (e.target?.name === 'sector') {
-                            const box = document.getElementById('other-sector-box');
-                            if (box) box.classList.toggle('hidden', e.target.value !== 'other');
-                        }
-                    });
-                </script>
                 <div id="other-sector-box" class="{{ old('sector') === 'other' ? '' : 'hidden' }}">
                     <label class="loop-label">{{ __('loop.other_sector') }}</label>
                     <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
-                </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.city') }}</label>
-                    <input name="city" list="city-list" value="{{ old('city', $countries[$preferredCountry]['cities'][0] ?? '') }}" class="loop-input" required>
-                    <datalist id="city-list">
-                        @foreach ($countries[$preferredCountry]['cities'] as $city)
-                            <option value="{{ $city }}"></option>
-                        @endforeach
-                    </datalist>
+                    <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>
