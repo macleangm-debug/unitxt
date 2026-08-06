@@ -10,6 +10,7 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\RewardController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TillController;
@@ -50,8 +51,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/onboarding/shop', [OnboardingController::class, 'shop'])->name('onboarding.shop');
         Route::post('/onboarding/campaign', [OnboardingController::class, 'campaign'])->name('onboarding.campaign');
 
+        Route::get('/settings', SettingsController::class)->name('settings');
         Route::resource('shops', ShopController::class)->except(['show']);
-        Route::resource('campaigns', CampaignController::class)->except(['show']);
+        Route::resource('campaigns', CampaignController::class);
         Route::get('/offers', [RewardController::class, 'index'])->name('rewards.index');
         Route::get('/offers/create', [RewardController::class, 'create'])->name('rewards.create');
         Route::post('/offers', [RewardController::class, 'store'])->name('rewards.store');

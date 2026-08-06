@@ -65,10 +65,26 @@ class DiscoverController extends Controller
     {
         abort_unless($business->is_active, 404);
 
+        $related = Business::query()
+            ->where('is_active', true)
+            ->where('id', '!=', $business->id)
+            ->where('country', $business->country)
+            ->where(function ($q) use ($business) {
+                $q->where('sector', $business->sector)
+                    ->orWhere('city', $business->city);
+            })
+            ->with(['shops' => fn ($q) => $q->where('is_active', true)])
+            ->withCount('shops')
+            ->latest()
+            ->take(6)
+            ->get();
+
         return view('discover.show', [
             'business' => $business->load(['shops' => fn ($q) => $q->where('is_active', true)]),
             'campaigns' => $business->campaigns()->active()->get(),
             'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
+            'related' => $related,
+            'sectors' => Sectors::OPTIONS,
         ]);
     }
 }

@@ -11,10 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'business_id',
     'name',
     'description',
+    'product_name',
+    'product_sku',
     'points_cost',
     'reward_type',
     'reward_value',
     'stock',
+    'max_redemptions_per_member',
     'is_active',
 ])]
 class Reward extends Model
@@ -33,6 +36,7 @@ class Reward extends Model
             'points_cost' => 'integer',
             'reward_value' => 'decimal:2',
             'stock' => 'integer',
+            'max_redemptions_per_member' => 'integer',
             'is_active' => 'boolean',
         ];
     }

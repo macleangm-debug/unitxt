@@ -11,10 +11,7 @@
                     @if (Auth::user()->isStaff())
                         <x-nav-link :href="route('till.index')" :active="request()->routeIs('till.*')">{{ __('loop.sale') }}</x-nav-link>
                         @if (Auth::user()->isOwner())
-                            <x-nav-link :href="route('shops.index')" :active="request()->routeIs('shops.*')">{{ __('loop.shops') }}</x-nav-link>
-                            <x-nav-link :href="route('campaigns.index')" :active="request()->routeIs('campaigns.*')">{{ __('loop.campaigns') }}</x-nav-link>
-                            <x-nav-link :href="route('rewards.index')" :active="request()->routeIs('rewards.*')">{{ __('loop.offers') }}</x-nav-link>
-                            <x-nav-link :href="route('staff.index')" :active="request()->routeIs('staff.*')">{{ __('loop.staff') }}</x-nav-link>
+                            <x-nav-link :href="route('settings')" :active="request()->routeIs('settings') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*')">{{ __('loop.settings') }}</x-nav-link>
                         @endif
                     @else
                         <x-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')">{{ __('loop.wallets') }}</x-nav-link>
@@ -42,9 +39,11 @@
         @if (Auth::user()->isStaff())
             <a href="{{ route('till.index') }}" class="block py-2 text-sm">{{ __('loop.sale') }}</a>
             @if (Auth::user()->isOwner())
-                <a href="{{ route('campaigns.index') }}" class="block py-2 text-sm">{{ __('loop.campaigns') }}</a>
-                <a href="{{ route('staff.index') }}" class="block py-2 text-sm">{{ __('loop.staff') }}</a>
+                <a href="{{ route('settings') }}" class="block py-2 text-sm">{{ __('loop.settings') }}</a>
             @endif
+        @else
+            <a href="{{ route('memberships.index') }}" class="block py-2 text-sm">{{ __('loop.wallets') }}</a>
+            <a href="{{ route('discover') }}" class="block py-2 text-sm">{{ __('loop.discover') }}</a>
         @endif
         <div class="flex gap-2 py-2">
             <a href="{{ route('locale', 'en') }}" class="text-sm font-semibold">EN</a>

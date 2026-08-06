@@ -99,6 +99,47 @@ class LoopCoreFlowTest extends TestCase
             'business_id' => $business->id,
             'points_balance' => 12,
         ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555666',
+                'channel' => 'in_store',
+                'amount_spent' => 2000,
+                'pay_with_points' => 1,
+                'points_to_spend' => 4,
+            ])
+            ->assertRedirect(route('till.index'));
+
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'points_balance' => 12, // +4 earned from 2000, −4 spent
+        ]);
+    }
+
+    public function test_owner_settings_and_campaign_detail(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $campaign = Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('settings'))
+            ->assertOk()
+            ->assertSee('Settings');
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.show', $campaign))
+            ->assertOk()
+            ->assertSee('Earn');
     }
 
     public function test_customer_can_login_with_pin(): void

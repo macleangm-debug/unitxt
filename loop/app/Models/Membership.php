@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'business_id',
+    'shop_id',
     'customer_id',
     'points_balance',
     'lifetime_points',
@@ -43,6 +44,11 @@ class Membership extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function shop(): BelongsTo
+    {
+        return $this->belongsTo(Shop::class);
     }
 
     public function customer(): BelongsTo

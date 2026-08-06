@@ -89,7 +89,7 @@ class Campaign extends Model
 
     public function pointsForSpend(float $amount): int
     {
-        if ($this->type !== self::TYPE_EARN || ! $this->spend_step || ! $this->points_per_step) {
+        if (! in_array($this->type, [self::TYPE_EARN, 'product_push'], true) || ! $this->spend_step || ! $this->points_per_step) {
             return 0;
         }
 
@@ -98,12 +98,22 @@ class Campaign extends Model
         return ($steps * $this->points_per_step) + $this->bonus_points;
     }
 
+    public function currencyPerPoint(): float
+    {
+        if (! $this->spend_step || ! $this->points_per_step) {
+            return 0;
+        }
+
+        return $this->spend_step / $this->points_per_step;
+    }
+
     public function ruleSummary(string $currency = 'TZS'): string
     {
         return match ($this->type) {
-            self::TYPE_EARN => "Every {$currency} ".number_format($this->spend_step)." = {$this->points_per_step} pts",
+            self::TYPE_EARN, 'product_push' => "Every {$currency} ".number_format($this->spend_step)." = {$this->points_per_step} pts",
             self::TYPE_BIRTHDAY => "Birthday bonus: +{$this->bonus_points} pts",
             self::TYPE_WELCOME => "Welcome bonus: +{$this->bonus_points} pts",
+            'streak' => "Visit streak bonus: +{$this->bonus_points} pts",
             default => $this->name,
         };
     }

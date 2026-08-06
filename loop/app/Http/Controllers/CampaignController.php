@@ -104,6 +104,30 @@ class CampaignController extends Controller
         return redirect()->route('campaigns.index')->with('status', 'Campaign launched.');
     }
 
+    public function show(Request $request, Campaign $campaign): View
+    {
+        $this->authorizeOwner($request, $campaign);
+        $business = $campaign->business;
+
+        $visits = $campaign->visits();
+        $totalVisits = (clone $visits)->count();
+        $totalSpend = (float) (clone $visits)->sum('amount_spent');
+        $pointsAwarded = (int) (clone $visits)->sum('points_earned');
+
+        return view('campaigns.show', [
+            'campaign' => $campaign->load('shops'),
+            'business' => $business,
+            'stats' => [
+                'today_visits' => $campaign->visits()->whereDate('created_at', today())->count(),
+                'total_visits' => $totalVisits,
+                'total_spend' => $totalSpend,
+                'points_awarded' => $pointsAwarded,
+                'avg_ticket' => $totalVisits > 0 ? $totalSpend / $totalVisits : 0,
+            ],
+            'recentVisits' => $campaign->visits()->with(['customer', 'shop'])->latest()->take(10)->get(),
+        ]);
+    }
+
     public function edit(Request $request, Campaign $campaign): View
     {
         $this->authorizeOwner($request, $campaign);

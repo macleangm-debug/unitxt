@@ -41,6 +41,16 @@ class TillController extends Controller
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
 
+        $campaign = $business->campaigns()
+            ->active()
+            ->whereIn('type', ['earn', 'product_push'])
+            ->where(function ($query) use ($shop) {
+                $query->whereDoesntHave('shops')
+                    ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
+            })
+            ->orderByDesc('points_per_step')
+            ->first();
+
         return view('till.sale', [
             'business' => $business,
             'shop' => $shop,
@@ -49,10 +59,13 @@ class TillController extends Controller
             'phone' => $phone,
             'customer' => $customer,
             'membership' => $customer
-                ? $business->memberships()->where('customer_id', $customer->id)->first()
+                ? $business->memberships()
+                    ->where('customer_id', $customer->id)
+                    ->where('shop_id', $shop->id)
+                    ->first()
                 : null,
             'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
-            'campaign' => $business->campaigns()->active()->where('type', 'earn')->first(),
+            'campaign' => $campaign,
         ]);
     }
 
@@ -61,23 +74,34 @@ class TillController extends Controller
         $business = $request->user()->workplace();
         abort_unless($business && $request->user()->canUseTill(), 403);
 
+        $amountRaw = str_replace([',', ' '], '', (string) $request->input('amount_spent', '0'));
+        $request->merge(['amount_spent' => $amountRaw]);
+
         $data = $request->validate([
             'shop_id' => ['required', 'exists:shops,id'],
             'country_code' => ['required', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
             'channel' => ['required', 'in:in_store,phone_order'],
-            'amount_spent' => ['required', 'numeric', 'min:0.01'],
+            'amount_spent' => ['required', 'numeric', 'min:0'],
             'reward_id' => ['nullable', 'exists:rewards,id'],
             'receipt_ref' => ['nullable', 'string', 'max:80'],
             'first_name' => ['nullable', 'string', 'max:80'],
             'last_name' => ['nullable', 'string', 'max:80'],
-            'birth_date' => ['nullable', 'date', 'before:today'],
+            'birth_month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'email' => ['nullable', 'email', 'max:255'],
+            'pay_with_points' => ['nullable', 'boolean'],
+            'points_to_spend' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
+        $payWithPoints = $request->boolean('pay_with_points');
+
+        if ((float) $data['amount_spent'] <= 0 && ! $payWithPoints) {
+            return back()->withErrors(['amount_spent' => __('loop.amount_required')])->withInput();
+        }
 
         if (! $customer) {
             $request->validate([
@@ -91,7 +115,8 @@ class TillController extends Controller
                 'country_code' => $data['country_code'],
                 'phone' => $phone,
                 'email' => $data['email'] ?? null,
-                'birth_date' => $data['birth_date'] ?? null,
+                'birth_month' => $data['birth_month'] ?? null,
+                'birth_day' => $data['birth_day'] ?? null,
             ]);
         }
 
@@ -103,15 +128,16 @@ class TillController extends Controller
             $data['reward_id'] ?? null,
             $data['receipt_ref'] ?? null,
             $data['channel'],
+            $payWithPoints,
+            $payWithPoints ? ($data['points_to_spend'] ?? null) : null,
         );
 
         $message = "{$visit->customer->name}: +{$visit->points_earned} pts";
         if ($visit->points_redeemed > 0) {
-            $message .= " · reward applied (−{$visit->points_redeemed} pts";
+            $message .= " · −{$visit->points_redeemed} pts";
             if ($visit->discount_amount > 0) {
-                $message .= ", {$business->currency} ".number_format((float) $visit->discount_amount, 0).' off';
+                $message .= " ({$business->currency} ".number_format((float) $visit->discount_amount, 0).' off)';
             }
-            $message .= ')';
         }
 
         return redirect()->route('till.index')->with('status', $message);

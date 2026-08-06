@@ -5,14 +5,13 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\Campaign;
 use App\Models\Membership;
-use App\Models\PointTransaction;
 use App\Models\Redemption;
 use App\Models\Reward;
 use App\Models\Shop;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\Countries;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TillService
@@ -43,11 +42,14 @@ class TillService
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'country_code' => $data['country_code'],
+            'country' => Countries::fromDial($data['country_code']),
             'phone' => $data['phone'],
             'email' => $data['email'] ?? null,
-            'birth_date' => $data['birth_date'] ?? null,
+            'birth_month' => $data['birth_month'] ?? null,
+            'birth_day' => $data['birth_day'] ?? null,
             'role' => User::ROLE_CUSTOMER,
             'phone_verified_at' => null,
+            'profile_completed' => false,
             'is_active' => true,
         ]);
     }
@@ -60,9 +62,11 @@ class TillService
         ?int $rewardId = null,
         ?string $receiptRef = null,
         string $channel = 'in_store',
+        bool $applyPointsAsPayment = false,
+        ?int $pointsToSpend = null,
     ): Visit {
         if (! $staff->canUseTill()) {
-            throw ValidationException::withMessages(['staff' => 'You are not allowed to use the till.']);
+            throw ValidationException::withMessages(['staff' => 'You are not allowed to record sales.']);
         }
 
         $business = $staff->workplace();
@@ -71,16 +75,15 @@ class TillService
             throw ValidationException::withMessages(['shop' => 'This shop does not belong to your business.']);
         }
 
-        if ($amountSpent <= 0) {
+        if ($amountSpent <= 0 && ! $applyPointsAsPayment) {
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
-        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business) {
-            $membership = $this->memberships->join($business, $customer);
+        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend) {
+            $membership = $this->memberships->join($business, $customer, $shop);
             $campaign = $this->findEarnCampaign($shop);
             $pointsEarned = $campaign ? $campaign->pointsForSpend($amountSpent) : 0;
 
-            // Birthday bonus if campaign exists and today matches month/day
             $birthdayCampaign = $this->findBirthdayCampaign($business);
             if ($birthdayCampaign && $customer->birth_month && $customer->birth_day
                 && (int) $customer->birth_month === (int) now()->month
@@ -88,9 +91,11 @@ class TillService
                 $pointsEarned += $birthdayCampaign->bonus_points;
             }
 
-            // Welcome bonus on first visit to this business
             $welcomeCampaign = $this->findWelcomeCampaign($business);
-            if ($welcomeCampaign && $membership->visits()->doesntExist()) {
+            $isFirstVisit = ! Visit::query()
+                ->where('membership_id', $membership->id)
+                ->exists();
+            if ($welcomeCampaign && $isFirstVisit) {
                 $pointsEarned += $welcomeCampaign->bonus_points;
             }
 
@@ -105,15 +110,29 @@ class TillService
                     ->firstOrFail();
 
                 if (! $reward->isAvailable()) {
-                    throw ValidationException::withMessages(['reward_id' => 'This reward is not available.']);
+                    throw ValidationException::withMessages(['reward_id' => 'This offer is not available.']);
                 }
 
-                if ($membership->points_balance < $reward->points_cost) {
+                $membershipFresh = Membership::query()->findOrFail($membership->id);
+                if ($membershipFresh->points_balance < $reward->points_cost) {
                     throw ValidationException::withMessages(['reward_id' => 'Customer does not have enough points yet.']);
                 }
 
                 $pointsRedeemed = $reward->points_cost;
                 $discount = $reward->discountForAmount($amountSpent);
+            }
+
+            if ($applyPointsAsPayment && $pointsToSpend) {
+                $membershipFresh = Membership::query()->findOrFail($membership->id);
+                $needed = $pointsRedeemed + $pointsToSpend;
+                if ($membershipFresh->points_balance < $needed) {
+                    throw ValidationException::withMessages(['points_to_spend' => 'Not enough points.']);
+                }
+                $earn = $this->findEarnCampaign($shop);
+                if ($earn && $earn->points_per_step > 0 && $earn->spend_step > 0) {
+                    $discount += ($pointsToSpend / $earn->points_per_step) * $earn->spend_step;
+                }
+                $pointsRedeemed += $pointsToSpend;
             }
 
             $visit = Visit::create([
@@ -132,29 +151,31 @@ class TillService
                 'channel' => $channel,
             ]);
 
-            if ($pointsRedeemed > 0 && $reward) {
+            if ($pointsRedeemed > 0) {
                 $this->points->redeem(
                     $membership,
                     $pointsRedeemed,
                     $staff,
                     $visit,
-                    "Applied reward: {$reward->name}"
+                    $reward ? "Applied offer: {$reward->name}" : 'Paid with points'
                 );
 
-                if ($reward->stock !== null) {
+                if ($reward && $reward->stock !== null) {
                     $reward->decrement('stock');
                 }
 
-                Redemption::create([
-                    'reward_id' => $reward->id,
-                    'membership_id' => $membership->id,
-                    'customer_id' => $customer->id,
-                    'visit_id' => $visit->id,
-                    'recorded_by' => $staff->id,
-                    'points_spent' => $pointsRedeemed,
-                    'discount_amount' => $discount,
-                    'status' => 'applied',
-                ]);
+                if ($reward) {
+                    Redemption::create([
+                        'reward_id' => $reward->id,
+                        'membership_id' => $membership->id,
+                        'customer_id' => $customer->id,
+                        'visit_id' => $visit->id,
+                        'recorded_by' => $staff->id,
+                        'points_spent' => $pointsRedeemed,
+                        'discount_amount' => $discount,
+                        'status' => 'applied',
+                    ]);
+                }
 
                 $membership->refresh();
             }
@@ -178,7 +199,7 @@ class TillService
         return Campaign::query()
             ->active()
             ->where('business_id', $shop->business_id)
-            ->where('type', Campaign::TYPE_EARN)
+            ->whereIn('type', [Campaign::TYPE_EARN, 'product_push'])
             ->where(function ($query) use ($shop) {
                 $query->whereDoesntHave('shops')
                     ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
