@@ -1,19 +1,17 @@
 # Loop
 
-Loyalty platform for small and medium enterprises. Businesses launch visit campaigns across their shops; customers earn points on every check-in and redeem rewards that bring them back.
+Loyalty without the card — for SMEs, starting in Tanzania.
 
-## What it does
+Customers use their **phone number**. Shops record sales at the **till** (in store or phone order). Points follow flexible campaigns. Rewards are applied when the customer buys.
 
-- **Businesses** set up a brand, add shop locations, and create point campaigns
-- **Campaigns** define points per visit, bonuses, daily limits, and participating shops
-- **Customers** check in with a shop code, join membership wallets, and redeem rewards
-- **Points ledger** tracks earns and redemptions per business membership
+## Product flows
 
-## Stack
-
-- Laravel 13
-- Blade + Tailwind CSS (Breeze auth)
-- SQLite by default (swap to MySQL/Postgres via `.env`)
+1. **Entry** — “I’m a business” or “I’m a customer”
+2. **Business** — register with sector + first shop (TZ / TZS default) · owner phone + password
+3. **Front desk** — owner adds staff (phone + password) · till only
+4. **Till** — look up phone → register if new (name, birth date, optional email) → enter amount → award points / apply reward
+5. **Customer** — phone + OTP → wallets grouped by sector · see rewards (redeemed at till)
+6. **Discover** — browse live campaigns by sector without an account
 
 ## Quick start
 
@@ -27,23 +25,21 @@ npm install && npm run build
 php artisan serve
 ```
 
-Demo accounts after seeding:
+### Demo logins
 
-| Role | Email | Password |
-|------|-------|----------|
-| Business | business@loop.test | password |
-| Customer | customer@loop.test | password |
+| Who | Phone | Password / OTP |
+|-----|-------|----------------|
+| Owner | `+255 712000001` | `password` |
+| Front desk | `+255 712000002` | `password` |
+| Customer | `+255 713000001` | OTP `123456` (local) |
 
-Demo shop codes: `SHOP-HBDOWN`, `SHOP-HBWAVE`
+## Campaign examples
 
-## Core flows
+- Every **TZS 1,000 = 2 points**
+- **100 points → 5% off** (applied at till)
+- Birthday / welcome bonuses
+- Proven templates in the campaign builder
 
-1. Register as a **business** → create business profile → add shops → launch a campaign
-2. Register as a **customer** → enter a shop code on Check in → earn campaign points
-3. Redeem points for business rewards from the membership wallet
+## Stack
 
-## Tests
-
-```bash
-php artisan test
-```
+Laravel 13 · Blade · Tailwind · SQLite by default

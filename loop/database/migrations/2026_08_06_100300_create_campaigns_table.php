@@ -12,13 +12,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('business_id')->constrained()->cascadeOnDelete();
             $table->string('name');
+            $table->string('type')->default('earn'); // earn, birthday, welcome
             $table->text('description')->nullable();
-            $table->unsignedInteger('points_per_visit')->default(10);
+            // Earn rule: every spend_step currency units => points_per_step
+            $table->unsignedInteger('spend_step')->nullable(); // e.g. 1000 TZS
+            $table->unsignedInteger('points_per_step')->nullable(); // e.g. 2 points
             $table->unsignedInteger('bonus_points')->default(0);
-            $table->unsignedInteger('max_visits_per_day')->default(1);
+            $table->unsignedInteger('max_earns_per_day')->nullable();
             $table->date('starts_at');
             $table->date('ends_at')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->string('template_key')->nullable();
             $table->timestamps();
         });
 

@@ -12,7 +12,8 @@ class ShopController extends Controller
 {
     public function index(Request $request): View
     {
-        $business = $request->user()->business()->firstOrFail();
+        $business = $request->user()->ownedBusiness;
+        abort_unless($business, 403);
 
         return view('shops.index', [
             'business' => $business,
@@ -23,13 +24,13 @@ class ShopController extends Controller
     public function create(Request $request): View
     {
         return view('shops.create', [
-            'business' => $request->user()->business()->firstOrFail(),
+            'business' => $request->user()->ownedBusiness()->firstOrFail(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $business = $request->user()->business()->firstOrFail();
+        $business = $request->user()->ownedBusiness()->firstOrFail();
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -41,9 +42,10 @@ class ShopController extends Controller
         $business->shops()->create([
             ...$data,
             'code' => 'SHOP-'.Str::upper(Str::random(6)),
+            'is_active' => true,
         ]);
 
-        return redirect()->route('shops.index')->with('status', 'Shop added. Customers can earn points when they visit.');
+        return redirect()->route('shops.index')->with('status', 'Shop added.');
     }
 
     public function edit(Request $request, Shop $shop): View
@@ -86,6 +88,6 @@ class ShopController extends Controller
 
     private function authorizeShop(Request $request, Shop $shop): void
     {
-        abort_unless($request->user()->business?->id === $shop->business_id, 403);
+        abort_unless($request->user()->ownedBusiness?->id === $shop->business_id, 403);
     }
 }

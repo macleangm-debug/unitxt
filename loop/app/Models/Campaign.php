@@ -13,25 +13,35 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'business_id',
     'name',
+    'type',
     'description',
-    'points_per_visit',
+    'spend_step',
+    'points_per_step',
     'bonus_points',
-    'max_visits_per_day',
+    'max_earns_per_day',
     'starts_at',
     'ends_at',
     'is_active',
+    'template_key',
 ])]
 class Campaign extends Model
 {
+    public const TYPE_EARN = 'earn';
+
+    public const TYPE_BIRTHDAY = 'birthday';
+
+    public const TYPE_WELCOME = 'welcome';
+
     protected function casts(): array
     {
         return [
             'starts_at' => 'date',
             'ends_at' => 'date',
             'is_active' => 'boolean',
-            'points_per_visit' => 'integer',
+            'spend_step' => 'integer',
+            'points_per_step' => 'integer',
             'bonus_points' => 'integer',
-            'max_visits_per_day' => 'integer',
+            'max_earns_per_day' => 'integer',
         ];
     }
 
@@ -77,8 +87,24 @@ class Campaign extends Model
         return $this->ends_at === null || $this->ends_at->gte($today);
     }
 
-    public function pointsForVisit(): int
+    public function pointsForSpend(float $amount): int
     {
-        return $this->points_per_visit + $this->bonus_points;
+        if ($this->type !== self::TYPE_EARN || ! $this->spend_step || ! $this->points_per_step) {
+            return 0;
+        }
+
+        $steps = intdiv((int) floor($amount), $this->spend_step);
+
+        return ($steps * $this->points_per_step) + $this->bonus_points;
+    }
+
+    public function ruleSummary(string $currency = 'TZS'): string
+    {
+        return match ($this->type) {
+            self::TYPE_EARN => "Every {$currency} ".number_format($this->spend_step)." = {$this->points_per_step} pts",
+            self::TYPE_BIRTHDAY => "Birthday bonus: +{$this->bonus_points} pts",
+            self::TYPE_WELCOME => "Welcome bonus: +{$this->bonus_points} pts",
+            default => $this->name,
+        };
     }
 }

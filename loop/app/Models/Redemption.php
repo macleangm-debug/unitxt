@@ -10,21 +10,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'reward_id',
     'membership_id',
     'customer_id',
+    'visit_id',
+    'recorded_by',
     'points_spent',
+    'discount_amount',
     'status',
 ])]
 class Redemption extends Model
 {
-    public const STATUS_PENDING = 'pending';
-
-    public const STATUS_FULFILLED = 'fulfilled';
-
-    public const STATUS_CANCELLED = 'cancelled';
-
     protected function casts(): array
     {
         return [
             'points_spent' => 'integer',
+            'discount_amount' => 'decimal:2',
         ];
     }
 
@@ -41,5 +39,15 @@ class Redemption extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function visit(): BelongsTo
+    {
+        return $this->belongsTo(Visit::class);
+    }
+
+    public function recorder(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recorded_by');
     }
 }

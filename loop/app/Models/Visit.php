@@ -11,10 +11,16 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'business_id',
     'shop_id',
     'customer_id',
-    'campaign_id',
     'membership_id',
+    'campaign_id',
+    'recorded_by',
+    'amount_spent',
     'points_earned',
-    'check_in_method',
+    'reward_id',
+    'points_redeemed',
+    'discount_amount',
+    'receipt_ref',
+    'channel',
     'notes',
 ])]
 class Visit extends Model
@@ -22,7 +28,10 @@ class Visit extends Model
     protected function casts(): array
     {
         return [
+            'amount_spent' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'points_earned' => 'integer',
+            'points_redeemed' => 'integer',
         ];
     }
 
@@ -41,14 +50,24 @@ class Visit extends Model
         return $this->belongsTo(User::class, 'customer_id');
     }
 
+    public function membership(): BelongsTo
+    {
+        return $this->belongsTo(Membership::class);
+    }
+
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
     }
 
-    public function membership(): BelongsTo
+    public function recorder(): BelongsTo
     {
-        return $this->belongsTo(Membership::class);
+        return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function reward(): BelongsTo
+    {
+        return $this->belongsTo(Reward::class);
     }
 
     public function pointTransaction(): HasOne

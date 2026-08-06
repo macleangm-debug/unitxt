@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Sectors;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,10 @@ use Illuminate\Support\Str;
     'owner_id',
     'name',
     'slug',
-    'category',
+    'sector',
+    'country',
+    'currency',
+    'city',
     'description',
     'logo_path',
     'is_active',
@@ -40,6 +44,16 @@ class Business extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    public function staff(): HasMany
+    {
+        return $this->hasMany(User::class)->whereIn('role', [User::ROLE_OWNER, User::ROLE_FRONT_DESK]);
+    }
+
+    public function frontDeskStaff(): HasMany
+    {
+        return $this->hasMany(User::class)->where('role', User::ROLE_FRONT_DESK);
+    }
+
     public function shops(): HasMany
     {
         return $this->hasMany(Shop::class);
@@ -63,5 +77,10 @@ class Business extends Model
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class);
+    }
+
+    public function sectorLabel(): string
+    {
+        return Sectors::label($this->sector);
     }
 }

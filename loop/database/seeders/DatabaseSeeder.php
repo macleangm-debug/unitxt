@@ -7,7 +7,7 @@ use App\Models\Campaign;
 use App\Models\Reward;
 use App\Models\Shop;
 use App\Models\User;
-use App\Services\VisitService;
+use App\Services\TillService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -15,17 +15,11 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $owner = User::factory()->create([
-            'name' => 'Amina Owusu',
+        $owner = User::factory()->owner()->create([
+            'first_name' => 'Amina',
+            'last_name' => 'Owusu',
+            'phone' => '712000001',
             'email' => 'business@loop.test',
-            'role' => User::ROLE_BUSINESS,
-            'password' => Hash::make('password'),
-        ]);
-
-        $customer = User::factory()->create([
-            'name' => 'Kojo Mensah',
-            'email' => 'customer@loop.test',
-            'role' => User::ROLE_CUSTOMER,
             'password' => Hash::make('password'),
         ]);
 
@@ -33,58 +27,116 @@ class DatabaseSeeder extends Seeder
             'owner_id' => $owner->id,
             'name' => 'Harbor Beans',
             'slug' => 'harbor-beans',
-            'category' => 'Cafe',
-            'description' => 'Neighborhood coffee with a loyalty loop that rewards every visit.',
+            'sector' => 'coffee',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'description' => 'Neighborhood coffee with Loop loyalty on every cup.',
+        ]);
+
+        $owner->update(['business_id' => $business->id]);
+
+        $frontDesk = User::factory()->frontDesk()->create([
+            'first_name' => 'Neema',
+            'last_name' => 'Juma',
+            'phone' => '712000002',
+            'password' => Hash::make('password'),
+            'business_id' => $business->id,
         ]);
 
         $downtown = Shop::create([
             'business_id' => $business->id,
             'name' => 'Harbor Beans Downtown',
             'code' => 'SHOP-HBDOWN',
-            'address' => '12 Market Street',
-            'city' => 'Accra',
+            'address' => 'Samora Avenue',
+            'city' => 'Dar es Salaam',
             'is_active' => true,
         ]);
 
-        $waterfront = Shop::create([
+        Shop::create([
             'business_id' => $business->id,
             'name' => 'Harbor Beans Waterfront',
             'code' => 'SHOP-HBWAVE',
-            'address' => '4 Pier Walk',
-            'city' => 'Accra',
+            'address' => 'Slipway',
+            'city' => 'Dar es Salaam',
             'is_active' => true,
         ]);
 
         $campaign = Campaign::create([
             'business_id' => $business->id,
-            'name' => 'Morning Regulars',
-            'description' => 'Earn points on every shop visit this season.',
-            'points_per_visit' => 15,
-            'bonus_points' => 5,
-            'max_visits_per_day' => 2,
+            'name' => 'Everyday earn',
+            'type' => 'earn',
+            'description' => 'Every TZS 1,000 = 2 points',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'bonus_points' => 0,
             'starts_at' => now()->subDays(7),
-            'ends_at' => now()->addMonths(2),
+            'ends_at' => now()->addMonths(3),
+            'is_active' => true,
+            'template_key' => 'everyday_earn',
+        ]);
+        $campaign->shops()->sync([$downtown->id]);
+
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Birthday treat',
+            'type' => 'birthday',
+            'bonus_points' => 50,
+            'starts_at' => now()->subDays(7),
+            'is_active' => true,
+            'template_key' => 'birthday_treat',
+        ]);
+
+        Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off anything',
+            'description' => 'Applied at the till when you have 100 points.',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
             'is_active' => true,
         ]);
 
-        $campaign->shops()->sync([$downtown->id, $waterfront->id]);
-
-        Reward::create([
-            'business_id' => $business->id,
-            'name' => 'Free pastry',
-            'description' => 'Redeem for any pastry under GHS 30.',
-            'points_cost' => 60,
-            'stock' => 50,
+        $customer = User::factory()->customer()->create([
+            'first_name' => 'Kojo',
+            'last_name' => 'Mensah',
+            'phone' => '713000001',
+            'birth_date' => now()->subYears(28),
+            'phone_verified_at' => now(),
         ]);
 
-        Reward::create([
-            'business_id' => $business->id,
-            'name' => 'Large coffee upgrade',
-            'description' => 'Upgrade any drink to large.',
-            'points_cost' => 30,
-            'stock' => null,
-        ]);
+        app(TillService::class)->recordSale($frontDesk, $downtown, $customer, 10000);
 
-        app(VisitService::class)->checkIn($customer, $downtown);
+        // Fashion demo business for sector grouping
+        $fashionOwner = User::factory()->owner()->create([
+            'first_name' => 'Fatma',
+            'last_name' => 'Ali',
+            'phone' => '714000001',
+            'password' => Hash::make('password'),
+        ]);
+        $fashion = Business::create([
+            'owner_id' => $fashionOwner->id,
+            'name' => 'Kanga Collective',
+            'slug' => 'kanga-collective',
+            'sector' => 'fashion',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+        ]);
+        $fashionOwner->update(['business_id' => $fashion->id]);
+        Shop::create([
+            'business_id' => $fashion->id,
+            'name' => 'Kanga Collective Masaki',
+            'is_active' => true,
+        ]);
+        Campaign::create([
+            'business_id' => $fashion->id,
+            'name' => 'Style points',
+            'type' => 'earn',
+            'spend_step' => 5000,
+            'points_per_step' => 5,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
     }
 }

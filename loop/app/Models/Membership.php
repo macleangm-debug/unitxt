@@ -64,4 +64,14 @@ class Membership extends Model
     {
         return $this->hasMany(Redemption::class);
     }
+
+    public function availableRewards()
+    {
+        return $this->business->rewards()
+            ->where('is_active', true)
+            ->where('points_cost', '<=', $this->points_balance)
+            ->orderBy('points_cost')
+            ->get()
+            ->filter(fn (Reward $reward) => $reward->isAvailable());
+    }
 }

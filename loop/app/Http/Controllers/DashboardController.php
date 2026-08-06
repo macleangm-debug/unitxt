@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Business;
-use App\Models\Campaign;
 use App\Models\Membership;
 use App\Models\Visit;
+use App\Support\Sectors;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -15,11 +15,11 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->isBusiness()) {
-            $business = $user->business;
+        if ($user->isStaff()) {
+            $business = $user->workplace();
 
             if (! $business) {
-                return view('business.setup');
+                return view('business.setup-missing');
             }
 
             return view('dashboard.business', [
@@ -28,8 +28,9 @@ class DashboardController extends Controller
                 'campaignCount' => $business->campaigns()->count(),
                 'memberCount' => $business->memberships()->count(),
                 'visitCount' => $business->visits()->count(),
-                'recentVisits' => $business->visits()->with(['customer', 'shop', 'campaign'])->latest()->take(8)->get(),
+                'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get(),
                 'activeCampaigns' => $business->campaigns()->active()->withCount('shops')->latest()->take(5)->get(),
+                'isOwner' => $user->isOwner(),
             ]);
         }
 
@@ -39,25 +40,21 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
-        $recentVisits = Visit::query()
-            ->with(['shop', 'business', 'campaign'])
-            ->where('customer_id', $user->id)
-            ->latest()
-            ->take(8)
-            ->get();
-
-        $discover = Business::query()
-            ->where('is_active', true)
-            ->withCount(['shops', 'campaigns'])
-            ->latest()
-            ->take(6)
-            ->get();
+        $grouped = $memberships->groupBy(fn ($m) => $m->business->sector);
 
         return view('dashboard.customer', [
             'memberships' => $memberships,
-            'recentVisits' => $recentVisits,
-            'discover' => $discover,
+            'grouped' => $grouped,
+            'sectors' => Sectors::OPTIONS,
             'totalPoints' => $memberships->sum('points_balance'),
+            'discover' => Business::query()
+                ->where('is_active', true)
+                ->where('country', 'TZ')
+                ->withCount('shops')
+                ->latest()
+                ->take(8)
+                ->get()
+                ->groupBy('sector'),
         ]);
     }
 }

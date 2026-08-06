@@ -11,11 +11,11 @@ class EnsureUserRole
     /**
      * @param  Closure(Request): Response  $next
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
         $user = $request->user();
 
-        if (! $user || $user->role !== $role) {
+        if (! $user || ! in_array($user->role, $roles, true)) {
             abort(403, 'You do not have access to this area.');
         }
 

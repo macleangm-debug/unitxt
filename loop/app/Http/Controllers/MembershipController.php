@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Business;
-use App\Services\MembershipService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -16,23 +14,12 @@ class MembershipController extends Controller
             ->memberships()
             ->with('business')
             ->latest()
-            ->get();
+            ->get()
+            ->groupBy(fn ($m) => $m->business->sector);
 
         return view('memberships.index', [
-            'memberships' => $memberships,
+            'grouped' => $memberships,
         ]);
-    }
-
-    public function join(Request $request, Business $business, MembershipService $memberships): RedirectResponse
-    {
-        abort_unless($request->user()->isCustomer(), 403);
-        abort_unless($business->is_active, 404);
-
-        $memberships->join($business, $request->user());
-
-        return redirect()
-            ->route('dashboard')
-            ->with('status', "You joined {$business->name}. Visit a shop to start earning points.");
     }
 
     public function show(Request $request, Business $business): View
