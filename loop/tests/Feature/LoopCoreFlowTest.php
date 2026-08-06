@@ -308,6 +308,97 @@ class LoopCoreFlowTest extends TestCase
         $this->assertContains('percent_5_100', $keys);
     }
 
+    public function test_admin_panel_and_business_referral_reward(): void
+    {
+        foreach (\App\Support\Plans::catalog() as $key => $plan) {
+            \App\Models\Plan::query()->create([
+                'key' => $key,
+                'name' => $plan['name'],
+                'tagline' => $plan['tagline'],
+                'price_monthly' => $plan['price_monthly'],
+                'currency' => $plan['currency'],
+                'max_shops' => $plan['max_shops'],
+                'max_members' => $plan['max_members'],
+                'is_public' => true,
+                'sort_order' => $plan['sort_order'],
+                'features' => $plan['features'],
+            ]);
+        }
+
+        $admin = User::factory()->admin()->create([
+            'phone' => '710000111',
+            'password' => 'password',
+        ]);
+
+        [$owner, $business] = array_slice($this->seedBusiness(), 0, 2);
+        $business->update(['referral_code' => 'INVITE88', 'plan_key' => 'starter', 'billing_status' => 'active']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee(__('loop.admin_dashboard'));
+
+        auth()->logout();
+
+        $this->post(route('business.register'), [
+            'first_name' => 'Referred',
+            'last_name' => 'Owner',
+            'country' => 'TZ',
+            'phone' => '0712888999',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'business_name' => 'New Cafe Co',
+            'sector' => 'coffee',
+            'referral_code' => 'INVITE88',
+        ])->assertRedirect(route('onboarding.show'));
+
+        $referred = \App\Models\Business::query()->where('name', 'New Cafe Co')->first();
+        $this->assertNotNull($referred);
+        $this->assertSame($business->id, $referred->referred_by_business_id);
+        $this->assertDatabaseHas('business_referrals', [
+            'referrer_business_id' => $business->id,
+            'referred_business_id' => $referred->id,
+            'status' => 'pending',
+        ]);
+
+        $referred->update(['onboarding_completed_at' => now()]);
+        app(\App\Services\ReferralService::class)->qualifyForBusiness($referred->fresh());
+
+        $this->assertDatabaseHas('business_referrals', [
+            'referred_business_id' => $referred->id,
+            'status' => 'rewarded',
+        ]);
+        $this->assertSame(1, $business->fresh()->referral_credit_months);
+
+        $this->actingAs($owner)
+            ->get(route('settings.referrals'))
+            ->assertOk()
+            ->assertSee('INVITE88');
+    }
+
+    public function test_pricing_page_renders(): void
+    {
+        foreach (\App\Support\Plans::catalog() as $key => $plan) {
+            \App\Models\Plan::query()->create([
+                'key' => $key,
+                'name' => $plan['name'],
+                'tagline' => $plan['tagline'],
+                'price_monthly' => $plan['price_monthly'],
+                'currency' => $plan['currency'],
+                'max_shops' => $plan['max_shops'],
+                'max_members' => $plan['max_members'],
+                'is_public' => true,
+                'sort_order' => $plan['sort_order'],
+                'features' => $plan['features'],
+            ]);
+        }
+
+        $this->get(route('pricing'))
+            ->assertOk()
+            ->assertSee('Starter')
+            ->assertSee('25,000');
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

@@ -29,7 +29,7 @@
             <ul class="mt-4 space-y-2.5 text-sm text-white/75">
                 <li><a href="#" class="hover:text-white">{{ __('loop.footer_privacy') }}</a></li>
                 <li><a href="#" class="hover:text-white">{{ __('loop.footer_terms') }}</a></li>
-                <li><a href="#" class="hover:text-white">{{ __('loop.footer_pricing') }}</a></li>
+                <li><a href="{{ route('pricing') }}" class="hover:text-white">{{ __('loop.footer_pricing') }}</a></li>
             </ul>
         </div>
     </div>

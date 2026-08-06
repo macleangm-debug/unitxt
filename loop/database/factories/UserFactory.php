@@ -31,6 +31,14 @@ class UserFactory extends Factory
         ];
     }
 
+    public function admin(): static
+    {
+        return $this->state(fn () => [
+            'role' => User::ROLE_ADMIN,
+            'business_id' => null,
+        ]);
+    }
+
     public function owner(): static
     {
         return $this->state(fn () => ['role' => User::ROLE_OWNER]);

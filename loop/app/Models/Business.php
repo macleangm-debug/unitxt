@@ -23,6 +23,13 @@ use Illuminate\Support\Str;
     'logo_path',
     'is_active',
     'onboarding_completed_at',
+    'plan_key',
+    'referral_code',
+    'referred_by_business_id',
+    'billing_status',
+    'trial_ends_at',
+    'referral_discount_percent',
+    'referral_credit_months',
 ])]
 class Business extends Model
 {
@@ -32,6 +39,9 @@ class Business extends Model
             'is_active' => 'boolean',
             'onboarding_completed_at' => 'datetime',
             'branch_count' => 'integer',
+            'trial_ends_at' => 'datetime',
+            'referral_discount_percent' => 'integer',
+            'referral_credit_months' => 'integer',
         ];
     }
 
@@ -41,12 +51,44 @@ class Business extends Model
             if (blank($business->slug)) {
                 $business->slug = Str::slug($business->name).'-'.Str::lower(Str::random(4));
             }
+            if (blank($business->plan_key)) {
+                $business->plan_key = 'free';
+            }
+            if (blank($business->billing_status)) {
+                $business->billing_status = 'trialing';
+            }
+            if (blank($business->referral_code)) {
+                do {
+                    $code = Str::upper(Str::random(8));
+                } while (static::query()->where('referral_code', $code)->exists());
+                $business->referral_code = $code;
+            }
         });
     }
 
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'plan_key', 'key');
+    }
+
+    public function referredBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'referred_by_business_id');
+    }
+
+    public function referralsMade(): HasMany
+    {
+        return $this->hasMany(BusinessReferral::class, 'referrer_business_id');
+    }
+
+    public function referralReceived(): HasMany
+    {
+        return $this->hasMany(BusinessReferral::class, 'referred_business_id');
     }
 
     public function staff(): HasMany
@@ -87,5 +129,23 @@ class Business extends Model
     public function sectorLabel(): string
     {
         return Sectors::label($this->sector, $this->sector_other);
+    }
+
+    public function effectiveMonthlyPrice(): int
+    {
+        $plan = $this->plan ?? Plan::query()->where('key', $this->plan_key)->first();
+        $base = (int) ($plan?->price_monthly ?? 0);
+
+        if ($base <= 0) {
+            return 0;
+        }
+
+        if (($this->referral_credit_months ?? 0) > 0) {
+            return 0;
+        }
+
+        $discount = min(100, max(0, (int) $this->referral_discount_percent));
+
+        return (int) round($base * (100 - $discount) / 100);
     }
 }

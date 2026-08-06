@@ -7,15 +7,22 @@
                     <span class="font-display text-xl font-semibold tracking-tight text-ink">Loop</span>
                 </a>
                 <div class="hidden sm:flex sm:items-center sm:gap-1">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-nav-link>
-                    @if (Auth::user()->isStaff())
-                        <x-nav-link :href="route('till.index')" :active="request()->routeIs('till.*')">{{ __('loop.sale') }}</x-nav-link>
-                        @if (Auth::user()->isOwner())
-                            <x-nav-link :href="route('settings')" :active="request()->routeIs('settings') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*')">{{ __('loop.settings') }}</x-nav-link>
-                        @endif
+                    @if (Auth::user()->isAdmin())
+                        <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">{{ __('loop.admin') }}</x-nav-link>
+                        <x-nav-link :href="route('admin.businesses.index')" :active="request()->routeIs('admin.businesses.*')">{{ __('loop.admin_businesses') }}</x-nav-link>
+                        <x-nav-link :href="route('admin.referrals.index')" :active="request()->routeIs('admin.referrals.*')">{{ __('loop.admin_referrals') }}</x-nav-link>
+                        <x-nav-link :href="route('admin.plans.index')" :active="request()->routeIs('admin.plans.*')">{{ __('loop.admin_plans') }}</x-nav-link>
                     @else
-                        <x-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')">{{ __('loop.wallets') }}</x-nav-link>
-                        <x-nav-link :href="route('discover')" :active="request()->routeIs('discover*')">{{ __('loop.discover') }}</x-nav-link>
+                        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-nav-link>
+                        @if (Auth::user()->isStaff())
+                            <x-nav-link :href="route('till.index')" :active="request()->routeIs('till.*')">{{ __('loop.sale') }}</x-nav-link>
+                            @if (Auth::user()->isOwner())
+                                <x-nav-link :href="route('settings')" :active="request()->routeIs('settings*') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*')">{{ __('loop.settings') }}</x-nav-link>
+                            @endif
+                        @else
+                            <x-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')">{{ __('loop.wallets') }}</x-nav-link>
+                            <x-nav-link :href="route('discover')" :active="request()->routeIs('discover*')">{{ __('loop.discover') }}</x-nav-link>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -35,15 +42,21 @@
         </div>
     </div>
     <div :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-ink/5 px-4 py-3 sm:hidden">
-        <a href="{{ route('dashboard') }}" class="block py-2 text-sm">{{ __('loop.home') }}</a>
-        @if (Auth::user()->isStaff())
-            <a href="{{ route('till.index') }}" class="block py-2 text-sm">{{ __('loop.sale') }}</a>
-            @if (Auth::user()->isOwner())
-                <a href="{{ route('settings') }}" class="block py-2 text-sm">{{ __('loop.settings') }}</a>
-            @endif
+        @if (Auth::user()->isAdmin())
+            <a href="{{ route('admin.dashboard') }}" class="block py-2 text-sm">{{ __('loop.admin') }}</a>
+            <a href="{{ route('admin.businesses.index') }}" class="block py-2 text-sm">{{ __('loop.admin_businesses') }}</a>
+            <a href="{{ route('admin.referrals.index') }}" class="block py-2 text-sm">{{ __('loop.admin_referrals') }}</a>
         @else
-            <a href="{{ route('memberships.index') }}" class="block py-2 text-sm">{{ __('loop.wallets') }}</a>
-            <a href="{{ route('discover') }}" class="block py-2 text-sm">{{ __('loop.discover') }}</a>
+            <a href="{{ route('dashboard') }}" class="block py-2 text-sm">{{ __('loop.home') }}</a>
+            @if (Auth::user()->isStaff())
+                <a href="{{ route('till.index') }}" class="block py-2 text-sm">{{ __('loop.sale') }}</a>
+                @if (Auth::user()->isOwner())
+                    <a href="{{ route('settings') }}" class="block py-2 text-sm">{{ __('loop.settings') }}</a>
+                @endif
+            @else
+                <a href="{{ route('memberships.index') }}" class="block py-2 text-sm">{{ __('loop.wallets') }}</a>
+                <a href="{{ route('discover') }}" class="block py-2 text-sm">{{ __('loop.discover') }}</a>
+            @endif
         @endif
         <div class="flex gap-2 py-2">
             <a href="{{ route('locale', 'en') }}" class="text-sm font-semibold">EN</a>

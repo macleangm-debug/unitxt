@@ -100,6 +100,15 @@
                     <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
                     <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
                 </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.referral_code_optional') }}</label>
+                    <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
+                    @if (!empty($referrerBusiness))
+                        <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
+                    @endif
+                </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>
                     <button class="loop-btn flex-1">{{ __('loop.create_account') }}</button>

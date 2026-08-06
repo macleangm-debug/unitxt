@@ -15,6 +15,10 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+
         if ($user->isOwner()) {
             $business = $user->ownedBusiness;
             if ($business && ! $business->onboarding_completed_at) {

@@ -27,19 +27,33 @@ php artisan serve
 
 ### Demo logins
 
-| Who | Phone | Password / OTP |
+| Who | Phone | Password / PIN |
 |-----|-------|----------------|
+| Platform admin | `+255 710000000` | `password` |
 | Owner | `+255 712000001` | `password` |
 | Front desk | `+255 712000002` | `password` |
-| Customer | `+255 713000001` | OTP `123456` (local) |
+| Customer | `+255 713000001` | PIN `1234` |
+
+Harbor Beans referral code (demo): `HARBOR01`
+
+## Pricing (TZS / month)
+
+| Plan | Price | Fit |
+|------|-------|-----|
+| Free | 0 | 1 shop, 150 members |
+| Starter | 25,000 | 1 shop, unlimited members |
+| Growth | 60,000 | up to 5 shops |
+| Scale | 120,000 | unlimited shops |
+
+Business referrals: share your invite link → when they finish onboarding you earn **1 free month**.
 
 ## Campaign examples
 
-- Every **TZS 1,000 = 2 points**
-- **100 points → 5% off** (applied at till)
+- Every **TZS 1,000 = 2 points** (campaign = earn)
+- **100 points → 5% off** or free coffee (offer = redeem at till)
 - Birthday / welcome bonuses
-- Proven templates in the campaign builder
+- Sector offer templates in onboarding
 
 ## Stack
 
-Laravel 13 · Blade · Tailwind · SQLite by default
+Laravel · Blade · Tailwind · SQLite by default

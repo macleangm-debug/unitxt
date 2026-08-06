@@ -4,10 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\Business;
 use App\Models\Campaign;
+use App\Models\Plan;
 use App\Models\Reward;
 use App\Models\Shop;
 use App\Models\User;
 use App\Services\TillService;
+use App\Support\Plans;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -15,6 +17,31 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        foreach (Plans::catalog() as $key => $plan) {
+            Plan::query()->updateOrCreate(
+                ['key' => $key],
+                [
+                    'name' => $plan['name'],
+                    'tagline' => $plan['tagline'],
+                    'price_monthly' => $plan['price_monthly'],
+                    'currency' => $plan['currency'],
+                    'max_shops' => $plan['max_shops'],
+                    'max_members' => $plan['max_members'],
+                    'is_public' => true,
+                    'sort_order' => $plan['sort_order'],
+                    'features' => $plan['features'],
+                ]
+            );
+        }
+
+        User::factory()->admin()->create([
+            'first_name' => 'Loop',
+            'last_name' => 'Admin',
+            'phone' => '710000000',
+            'email' => 'admin@loop.test',
+            'password' => Hash::make('password'),
+        ]);
+
         $owner = User::factory()->owner()->create([
             'first_name' => 'Amina',
             'last_name' => 'Owusu',
@@ -32,6 +59,10 @@ class DatabaseSeeder extends Seeder
             'currency' => 'TZS',
             'city' => 'Dar es Salaam',
             'description' => 'Neighborhood coffee with Loop loyalty on every cup.',
+            'plan_key' => Plans::GROWTH,
+            'billing_status' => 'active',
+            'trial_ends_at' => now()->subDay(),
+            'referral_code' => 'HARBOR01',
         ]);
 
         $owner->update(['business_id' => $business->id]);

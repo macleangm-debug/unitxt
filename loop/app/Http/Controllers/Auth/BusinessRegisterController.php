@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\User;
+use App\Services\ReferralService;
 use App\Support\Countries;
+use App\Support\Plans;
 use App\Support\Sectors;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -19,16 +21,21 @@ use Illuminate\View\View;
 
 class BusinessRegisterController extends Controller
 {
-    public function create(): View
+    public function create(Request $request, ReferralService $referrals): View
     {
+        $ref = $request->query('ref');
+        $referrer = $referrals->findReferrer($ref);
+
         return view('auth.business-register', [
             'sectors' => Sectors::OPTIONS,
             'countries' => Countries::OPTIONS,
             'preferredCountry' => session('preferred_country', 'TZ'),
+            'referralCode' => $referrer?->referral_code ?? old('referral_code', $ref),
+            'referrerBusiness' => $referrer,
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ReferralService $referrals): RedirectResponse
     {
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
@@ -40,6 +47,7 @@ class BusinessRegisterController extends Controller
             'business_name' => ['required', 'string', 'max:120'],
             'sector' => ['required', 'in:'.implode(',', array_keys(Sectors::OPTIONS))],
             'sector_other' => ['nullable', 'required_if:sector,other', 'string', 'max:80'],
+            'referral_code' => ['nullable', 'string', 'max:16'],
         ]);
 
         $countryCode = Countries::dial($data['country']);
@@ -51,7 +59,7 @@ class BusinessRegisterController extends Controller
             ]);
         }
 
-        $owner = DB::transaction(function () use ($data, $countryCode, $phone) {
+        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $referrals) {
             $owner = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -75,9 +83,13 @@ class BusinessRegisterController extends Controller
                 'country' => $data['country'],
                 'currency' => Countries::currency($data['country']),
                 'city' => null,
+                'plan_key' => Plans::FREE,
+                'billing_status' => 'trialing',
+                'trial_ends_at' => now()->addDays(Plans::trialDays()),
             ]);
 
             $owner->update(['business_id' => $business->id]);
+            $referrals->attachReferral($business, $data['referral_code'] ?? null);
 
             return $owner;
         });

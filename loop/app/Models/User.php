@@ -45,6 +45,8 @@ class User extends Authenticatable
 
     public const ROLE_CUSTOMER = 'customer';
 
+    public const ROLE_ADMIN = 'admin';
+
     protected function casts(): array
     {
         return [
@@ -89,6 +91,11 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return $this->role === self::ROLE_CUSTOMER;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
     }
 
     public function canManageCampaigns(): bool

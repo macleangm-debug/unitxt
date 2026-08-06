@@ -31,7 +31,7 @@ class StaffSessionController extends Controller
         $phone = Countries::normalizePhone($data['phone']);
 
         $user = User::query()
-            ->whereIn('role', [User::ROLE_OWNER, User::ROLE_FRONT_DESK])
+            ->whereIn('role', [User::ROLE_OWNER, User::ROLE_FRONT_DESK, User::ROLE_ADMIN])
             ->where('country_code', $data['country_code'])
             ->where('phone', $phone)
             ->first();
@@ -44,6 +44,10 @@ class StaffSessionController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+
+        if ($user->isAdmin()) {
+            return redirect()->intended(route('admin.dashboard'));
+        }
 
         return redirect()->intended(route('dashboard'));
     }
