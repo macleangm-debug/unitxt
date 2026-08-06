@@ -22,7 +22,7 @@
         <div>
             <label class="loop-label">Type</label>
             <select name="type" class="loop-input">
-                @foreach (['earn' => 'Earn on spend', 'birthday' => 'Birthday', 'welcome' => 'Welcome'] as $value => $label)
+                @foreach (['earn' => 'Earn on spend', 'product_push' => 'Product push', 'streak' => 'Visit streak', 'birthday' => 'Birthday', 'welcome' => 'Welcome'] as $value => $label)
                     <option value="{{ $value }}" @selected(old('type', $campaign->type ?? $t['type'] ?? 'earn') === $value)>{{ $label }}</option>
                 @endforeach
             </select>
