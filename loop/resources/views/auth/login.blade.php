@@ -1,47 +1,39 @@
 <x-guest-layout>
-    <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}">
+    <form method="POST" action="{{ route('login') }}" class="space-y-4">
         @csrf
 
-        <!-- Email Address -->
         <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
+            <h1 class="font-display text-2xl font-semibold text-ink">Welcome back</h1>
+            <p class="mt-1 text-sm text-ink-muted">Log in to manage campaigns or check in for points.</p>
+        </div>
+
+        <div>
+            <label class="loop-label" for="email">Email</label>
+            <input id="email" class="loop-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
+        <div>
+            <label class="loop-label" for="password">Password</label>
+            <input id="password" class="loop-input" type="password" name="password" required autocomplete="current-password" />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
+        <div class="flex items-center justify-between">
+            <label for="remember_me" class="inline-flex items-center gap-2 text-sm text-ink-muted">
+                <input id="remember_me" type="checkbox" class="rounded border-ink/20 text-mint focus:ring-mint" name="remember">
+                Remember me
             </label>
+            @if (Route::has('password.request'))
+                <a class="text-sm text-ink-muted underline hover:text-ink" href="{{ route('password.request') }}">Forgot password?</a>
+            @endif
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
-                </a>
-            @endif
-
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
+        <div class="flex items-center justify-between pt-2">
+            <a class="text-sm text-ink-muted underline hover:text-ink" href="{{ route('register') }}">Create account</a>
+            <button class="loop-btn">Log in</button>
         </div>
     </form>
 </x-guest-layout>
