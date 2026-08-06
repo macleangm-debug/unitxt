@@ -325,6 +325,7 @@ return [
     'no_referrals_yet' => 'Bado hakuna rufaa.',
     'max_shops' => 'Maduka ya juu',
     'max_members' => 'Wanachama wa juu',
+    'max_monthly_visits' => 'Mauzo ya juu / mwezi',
     'unlimited' => 'Bila kikomo',
     'mo' => 'mwezi',
     'plan_free_price' => 'Bure',
