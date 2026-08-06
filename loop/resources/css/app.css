@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --loop-ink: #0B1F2A;
+    --loop-mint: #2DD4A8;
+    --loop-chalk: #F3F7F5;
+    --loop-coral: #FF6B4A;
+}
+
+@layer base {
+    body {
+        @apply bg-chalk text-ink antialiased;
+        background-image:
+            radial-gradient(circle at 12% 18%, rgba(45, 212, 168, 0.18), transparent 34%),
+            radial-gradient(circle at 88% 8%, rgba(255, 107, 74, 0.12), transparent 28%),
+            linear-gradient(180deg, #F3F7F5 0%, #EAF2EE 100%);
+        background-attachment: fixed;
+    }
+}
+
+@layer components {
+    .loop-shell {
+        @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+    }
+
+    .loop-panel {
+        @apply bg-white/80 backdrop-blur-sm border border-ink/5 rounded-2xl shadow-[0_18px_50px_rgba(11,31,42,0.06)];
+    }
+
+    .loop-btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-soft focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2;
+    }
+
+    .loop-btn-mint {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl bg-mint px-5 py-3 text-sm font-semibold text-ink transition hover:bg-mint-deep focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2;
+    }
+
+    .loop-btn-ghost {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl border border-ink/15 bg-white/50 px-5 py-3 text-sm font-semibold text-ink transition hover:border-ink/30 hover:bg-white;
+    }
+
+    .loop-input {
+        @apply mt-1 block w-full rounded-xl border-ink/10 bg-white shadow-sm focus:border-mint focus:ring-mint;
+    }
+
+    .loop-label {
+        @apply block text-sm font-medium text-ink-muted;
+    }
+}
