@@ -35,6 +35,8 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, \App\Support\BillingSettings::defaults());
+
         User::factory()->admin()->create([
             'first_name' => 'Loop',
             'last_name' => 'Admin',

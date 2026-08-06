@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\Admin\ReferralProgramController as AdminReferralProgramController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\SettingsHubController as AdminSettingsHubController;
 use App\Http\Controllers\Auth\BusinessRegisterController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\StaffSessionController;
@@ -55,6 +57,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
+        Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('/businesses', [AdminBusinessController::class, 'index'])->name('businesses.index');
         Route::patch('/businesses/{business}', [AdminBusinessController::class, 'update'])->name('businesses.update');
         Route::get('/referrals', [AdminReferralController::class, 'index'])->name('referrals.index');
@@ -63,6 +66,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/referrals/{referral}/qualify', [AdminReferralController::class, 'qualify'])->name('referrals.qualify');
         Route::post('/referrals/{referral}/reward', [AdminReferralController::class, 'reward'])->name('referrals.reward');
         Route::get('/plans', [AdminPlanController::class, 'index'])->name('plans.index');
+        Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
+        Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
     });
 
     Route::middleware('role:owner')->group(function () {

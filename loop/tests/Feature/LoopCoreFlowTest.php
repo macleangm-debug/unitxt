@@ -357,7 +357,9 @@ class LoopCoreFlowTest extends TestCase
         $this->assertNotNull($referred);
         $this->assertSame($business->id, $referred->referred_by_business_id);
         $this->assertSame(1, $referred->referral_credit_months);
-        $this->assertTrue($referred->trial_ends_at->greaterThan(now()->addDays(45)));
+        $this->assertTrue(
+            $referred->trial_ends_at->greaterThan(now()->addDays(\App\Support\Plans::trialDays() + 20))
+        );
         $this->assertDatabaseHas('business_referrals', [
             'referrer_business_id' => $business->id,
             'referred_business_id' => $referred->id,
@@ -387,6 +389,69 @@ class LoopCoreFlowTest extends TestCase
             ->get(route('admin.referrals.program'))
             ->assertOk()
             ->assertSee(__('loop.admin_referral_program'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.reports.index'))
+            ->assertOk()
+            ->assertSee(__('loop.customers_by_sector'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings'))
+            ->assertOk()
+            ->assertSee(__('loop.billing_trial_settings'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.billing'), [
+                'trial_days' => 10,
+                'free_max_shops' => 1,
+                'free_max_members' => 40,
+                'free_max_monthly_visits' => 30,
+                'block_till_when_trial_ends' => 1,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(30, \App\Support\BillingSettings::settings()['free_max_monthly_visits']);
+    }
+
+    public function test_expired_trial_blocks_till_on_free_plan(): void
+    {
+        foreach (\App\Support\Plans::catalog() as $key => $plan) {
+            \App\Models\Plan::query()->create([
+                'key' => $key,
+                'name' => $plan['name'],
+                'tagline' => $plan['tagline'],
+                'price_monthly' => $plan['price_monthly'],
+                'currency' => $plan['currency'],
+                'max_shops' => $plan['max_shops'],
+                'max_members' => $plan['max_members'],
+                'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
+                'is_public' => true,
+                'sort_order' => $plan['sort_order'],
+                'features' => $plan['features'],
+            ]);
+        }
+        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, \App\Support\BillingSettings::defaults());
+
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $business->update([
+            'plan_key' => 'free',
+            'billing_status' => 'trialing',
+            'trial_ends_at' => now()->subDay(),
+        ]);
+
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999009',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713888001',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
     }
 
     public function test_free_plan_blocks_second_shop(): void

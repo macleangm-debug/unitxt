@@ -40,12 +40,14 @@ Harbor Beans referral code (demo): `HARBOR01`
 
 | Plan | Price | Fit |
 |------|-------|-----|
-| Free | 0 | 1 shop, 150 members |
-| Starter | 25,000 | 1 shop, unlimited members |
+| Trial | 0 | 14 days · 1 shop · 50 members · 50 sales/mo — then pay |
+| Starter | 25,000 | 1 shop, unlimited |
 | Growth | 60,000 | up to 5 shops |
 | Scale | 120,000 | unlimited shops |
 
-Business referrals: share your invite link → when they finish onboarding you earn **1 free month**.
+Admin configures trial length and free caps in **Settings**. Till locks when trial ends if still unpaid.
+
+Business referrals: share invite link → finish onboarding → free months (both sides). Admin sets milestones.
 
 ## Campaign examples
 

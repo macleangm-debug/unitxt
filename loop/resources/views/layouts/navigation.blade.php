@@ -9,9 +9,9 @@
                 <div class="hidden sm:flex sm:items-center sm:gap-1">
                     @if (Auth::user()->isAdmin())
                         <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">{{ __('loop.admin') }}</x-nav-link>
+                        <x-nav-link :href="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')">{{ __('loop.admin_reports') }}</x-nav-link>
                         <x-nav-link :href="route('admin.businesses.index')" :active="request()->routeIs('admin.businesses.*')">{{ __('loop.admin_businesses') }}</x-nav-link>
-                        <x-nav-link :href="route('admin.referrals.index')" :active="request()->routeIs('admin.referrals.*')">{{ __('loop.admin_referrals') }}</x-nav-link>
-                        <x-nav-link :href="route('admin.plans.index')" :active="request()->routeIs('admin.plans.*')">{{ __('loop.admin_plans') }}</x-nav-link>
+                        <x-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings*') || request()->routeIs('admin.referrals.*') || request()->routeIs('admin.plans.*')">{{ __('loop.admin_settings_hub') }}</x-nav-link>
                     @else
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-nav-link>
                         @if (Auth::user()->isStaff())
@@ -44,8 +44,9 @@
     <div :class="{'block': open, 'hidden': ! open}" class="hidden border-t border-ink/5 px-4 py-3 sm:hidden">
         @if (Auth::user()->isAdmin())
             <a href="{{ route('admin.dashboard') }}" class="block py-2 text-sm">{{ __('loop.admin') }}</a>
+            <a href="{{ route('admin.reports.index') }}" class="block py-2 text-sm">{{ __('loop.admin_reports') }}</a>
             <a href="{{ route('admin.businesses.index') }}" class="block py-2 text-sm">{{ __('loop.admin_businesses') }}</a>
-            <a href="{{ route('admin.referrals.index') }}" class="block py-2 text-sm">{{ __('loop.admin_referrals') }}</a>
+            <a href="{{ route('admin.settings') }}" class="block py-2 text-sm">{{ __('loop.admin_settings_hub') }}</a>
         @else
             <a href="{{ route('dashboard') }}" class="block py-2 text-sm">{{ __('loop.home') }}</a>
             @if (Auth::user()->isStaff())

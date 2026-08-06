@@ -76,6 +76,13 @@ class TillService
         }
 
         $limits = app(PlanLimitService::class);
+        $limits->syncTrialStatus($business->fresh());
+        $business = $business->fresh();
+
+        if (! $limits->canUseTill($business)) {
+            throw ValidationException::withMessages(['plan' => $limits->trialExpiredMessage()]);
+        }
+
         if (! $limits->canRecordVisit($business)) {
             throw ValidationException::withMessages(['plan' => $limits->visitLimitMessage($business)]);
         }

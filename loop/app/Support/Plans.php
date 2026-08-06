@@ -13,28 +13,31 @@ class Plans
     public const SCALE = 'scale';
 
     /**
-     * Launch pricing for Tanzania SMEs (TZS).
-     * Free = one physical location + member/visit caps so "one account, many branches" hits a wall.
+     * Paid plans + a tight trial/free lane. Caps for free come from BillingSettings in runtime.
      *
      * @return array<string, array<string, mixed>>
      */
     public static function catalog(): array
     {
+        $billing = class_exists(BillingSettings::class)
+            ? BillingSettings::defaults()
+            : ['free_max_shops' => 1, 'free_max_members' => 50, 'free_max_monthly_visits' => 50];
+
         return [
             self::FREE => [
-                'name' => 'Free',
-                'tagline' => 'One physical shop — start looping, no card needed.',
+                'name' => 'Trial',
+                'tagline' => 'Short trial — then pick a paid plan. People value what they pay for.',
                 'price_monthly' => 0,
                 'currency' => 'TZS',
-                'max_shops' => 1,
-                'max_members' => 150,
-                'max_monthly_visits' => 300,
+                'max_shops' => $billing['free_max_shops'],
+                'max_members' => $billing['free_max_members'],
+                'max_monthly_visits' => $billing['free_max_monthly_visits'],
                 'sort_order' => 1,
                 'features' => [
-                    '1 physical shop location',
-                    'Up to 150 members',
-                    'Up to 300 sales / month',
-                    'Till + Discover listing',
+                    '1 physical shop + address',
+                    'Tight member & sales caps',
+                    'Full till during trial',
+                    'Upgrade to keep looping',
                 ],
             ],
             self::STARTER => [
@@ -90,6 +93,11 @@ class Plans
 
     public static function trialDays(): int
     {
-        return 30;
+        return BillingSettings::settings()['trial_days'];
+    }
+
+    public static function isPaidPlan(?string $planKey): bool
+    {
+        return in_array($planKey, [self::STARTER, self::GROWTH, self::SCALE], true);
     }
 }
