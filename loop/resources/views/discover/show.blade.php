@@ -112,11 +112,9 @@
     </section>
 
     @if ($related->isNotEmpty())
-        <section class="mt-10">
-            <div class="loop-shell mb-3">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.related_shops') }}</h2>
-            </div>
-            <div class="loop-carousel">
+        <section class="loop-shell mt-10">
+            <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.related_shops') }}</h2>
+            <div class="loop-shop-grid">
                 @foreach ($related as $item)
                     <x-discover-tile :business="$item" />
                 @endforeach

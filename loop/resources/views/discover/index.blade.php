@@ -70,14 +70,14 @@
     </div>
 
     @forelse ($rows as $row)
-        <section class="mt-8 first:mt-6">
-            <div class="loop-shell mb-3 flex items-end justify-between gap-3">
+        <section class="loop-shell mt-8 first:mt-6">
+            <div class="mb-4 flex items-end justify-between gap-3">
                 <h2 class="font-display text-xl font-semibold sm:text-2xl">{{ $row['title'] }}</h2>
                 @if ($row['key'] === 'frequent')
                     <span class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.frequent') }}</span>
                 @endif
             </div>
-            <div class="loop-carousel">
+            <div class="loop-shop-grid">
                 @foreach ($row['businesses'] as $business)
                     @php
                         $membership = $membershipByBusinessId->get($business->id);

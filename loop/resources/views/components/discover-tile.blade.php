@@ -2,6 +2,7 @@
     'business',
     'points' => null,
     'showPoints' => false,
+    'carousel' => false,
 ])
 
 @php
@@ -12,9 +13,10 @@
     $href = auth()->user()?->isCustomer() && $points !== null
         ? route('memberships.show', $business)
         : route('discover.show', $business);
+    $sizeClass = $carousel ? 'group w-40 shrink-0 sm:w-44' : 'group block w-full min-w-0';
 @endphp
 
-<a href="{{ $href }}" {{ $attributes->merge(['class' => 'group w-40 shrink-0 sm:w-44']) }}>
+<a href="{{ $href }}" {{ $attributes->merge(['class' => $sizeClass]) }}>
     <div class="overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-[0_12px_40px_rgba(11,31,42,0.06)] transition group-hover:-translate-y-1 group-hover:shadow-[0_18px_50px_rgba(11,31,42,0.1)]">
         <div class="relative aspect-[4/5] overflow-hidden bg-ink">
             @if ($business->logo_path)
