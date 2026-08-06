@@ -52,7 +52,7 @@
             <a href="{{ route('admin.referrals.program') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referral_program') }}</p>
                 <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.goal_count') }}: {{ $referral['goal_count'] }} · {{ __('loop.referrer_months_per') }}: {{ $referral['referrer_months_per_referral'] }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.goal_count') }}: {{ $referral['goal_count'] }} · {{ __('loop.referrer_extra_days') }}: {{ $referral['referrer_extra_days_per_referral'] }} · {{ __('loop.referred_extra_trial_days') }}: {{ $referral['referred_extra_trial_days'] }}</p>
             </a>
 
             <a href="{{ route('admin.plans.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">

@@ -45,12 +45,13 @@ class ReferralService
         }
 
         $program = ReferralProgram::settings();
+        $extraDays = (int) $program['referred_extra_trial_days'];
 
-        // Referred businesses get a longer trial + optional free-month credits.
         $newBusiness->update([
             'referred_by_business_id' => $referrer->id,
-            'trial_ends_at' => now()->addDays(Plans::trialDays() + (int) $program['referred_extra_trial_days']),
+            'trial_ends_at' => now()->addDays(Plans::trialDays() + $extraDays),
             'referral_credit_months' => ($newBusiness->referral_credit_months ?? 0) + (int) $program['referred_bonus_months'],
+            'referral_credit_days' => ($newBusiness->referral_credit_days ?? 0) + $extraDays,
         ]);
 
         return BusinessReferral::create([
@@ -87,22 +88,33 @@ class ReferralService
         }
 
         $program = ReferralProgram::settings();
+        $days = (int) $program['referrer_extra_days_per_referral'];
         $months = (int) $program['referrer_months_per_referral'];
         $referrer = $referral->referrer;
 
-        $referrer->update([
+        $updates = [
+            'referral_credit_days' => ($referrer->referral_credit_days ?? 0) + $days,
             'referral_credit_months' => ($referrer->referral_credit_months ?? 0) + $months,
             'referral_discount_percent' => max(
                 (int) $referrer->referral_discount_percent,
                 (int) $program['referrer_discount_percent']
             ),
-        ]);
+        ];
+
+        if ($days > 0) {
+            $base = $referrer->trial_ends_at && $referrer->trial_ends_at->isFuture()
+                ? $referrer->trial_ends_at
+                : now();
+            $updates['trial_ends_at'] = $base->copy()->addDays($days);
+        }
+
+        $referrer->update($updates);
 
         $referral->update([
             'status' => BusinessReferral::STATUS_REWARDED,
             'rewarded_at' => now(),
-            'reward_type' => 'free_month',
-            'reward_value' => $months,
+            'reward_type' => 'extra_days',
+            'reward_value' => $days,
         ]);
 
         $this->applyMilestones($referrer->fresh());

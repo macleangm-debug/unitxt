@@ -30,6 +30,7 @@ use Illuminate\Support\Str;
     'trial_ends_at',
     'referral_discount_percent',
     'referral_credit_months',
+    'referral_credit_days',
     'referral_milestones_applied',
 ])]
 class Business extends Model
@@ -43,6 +44,7 @@ class Business extends Model
             'trial_ends_at' => 'datetime',
             'referral_discount_percent' => 'integer',
             'referral_credit_months' => 'integer',
+            'referral_credit_days' => 'integer',
             'referral_milestones_applied' => 'array',
         ];
     }

@@ -100,14 +100,22 @@
                     <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
                     <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
                 </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.referral_code_optional') }}</label>
-                    <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
-                    @if (!empty($referrerBusiness))
-                        <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
-                    @else
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
-                    @endif
+                <div class="rounded-2xl bg-chalk px-4 py-3" x-data="{ hasCode: {{ old('referral_code', $referralCode ?? '') ? 'true' : 'false' }} }">
+                    <label class="flex cursor-pointer items-center gap-3">
+                        <input type="checkbox" class="rounded border-ink/20 text-mint-deep focus:ring-mint" x-model="hasCode"
+                               @checked(old('referral_code', $referralCode ?? '') !== null && old('referral_code', $referralCode ?? '') !== '')>
+                        <span class="text-sm font-semibold">{{ __('loop.i_have_referral_code') }}</span>
+                    </label>
+                    <div class="mt-3" x-show="hasCode" x-cloak>
+                        <label class="loop-label">{{ __('loop.referral_code') }}</label>
+                        <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
+                        @if (!empty($referrerBusiness))
+                            <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
+                        @else
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('referral_code')" class="mt-1" />
+                    </div>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>

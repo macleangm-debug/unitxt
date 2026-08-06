@@ -7,6 +7,53 @@ use App\Models\Campaign;
 class OfferTemplates
 {
     /**
+     * Type-first starters — these drive the add-offer flow.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function typeStarters(): array
+    {
+        return [
+            self::localizeType('free_item', [
+                'reward_type' => 'free_item',
+                'points_cost' => 100,
+                'reward_value' => 0,
+                'default_name' => __('loop.free_item'),
+                'product_name' => null,
+            ]),
+            self::localizeType('percent_off', [
+                'reward_type' => 'percent_off',
+                'points_cost' => 100,
+                'reward_value' => 5,
+                'default_name' => __('loop.offer_type_percent_name', ['value' => 5]),
+                'product_name' => null,
+            ]),
+            self::localizeType('fixed_off', [
+                'reward_type' => 'fixed_off',
+                'points_cost' => 150,
+                'reward_value' => 2000,
+                'default_name' => __('loop.offer_type_fixed_name'),
+                'product_name' => null,
+            ]),
+            self::localizeType('custom', [
+                'reward_type' => 'custom',
+                'points_cost' => 100,
+                'reward_value' => 0,
+                'default_name' => __('loop.offer_type_custom_name'),
+                'product_name' => null,
+            ]),
+        ];
+    }
+
+    public static function typeStarter(string $type): ?array
+    {
+        return collect(self::typeStarters())->firstWhere('key', $type)
+            ?? collect(self::typeStarters())->firstWhere('reward_type', $type);
+    }
+
+    /**
+     * Sector-flavoured name ideas (optional) after a type is chosen.
+     *
      * @return list<array<string, mixed>>
      */
     public static function forSector(string $sector): array
@@ -24,7 +71,14 @@ class OfferTemplates
                 'reward_value' => 10,
                 'sectors' => ['*'],
             ],
-            'free_coffee_100' => [
+            'free_item_100' => [
+                'points_cost' => 100,
+                'reward_type' => 'free_item',
+                'reward_value' => 0,
+                'product_name_key' => 'item',
+                'sectors' => ['*'],
+            ],
+            'free_item_coffee' => [
                 'points_cost' => 100,
                 'reward_type' => 'free_item',
                 'reward_value' => 0,
@@ -78,6 +132,14 @@ class OfferTemplates
                 'reward_value' => 10,
                 'sectors' => ['fashion', 'beauty', 'retail'],
             ],
+            // Legacy key still used by older onboarding seeds/tests
+            'free_coffee_100' => [
+                'points_cost' => 100,
+                'reward_type' => 'free_item',
+                'reward_value' => 0,
+                'product_name_key' => 'coffee',
+                'sectors' => ['coffee', 'restaurants', 'fast_food', 'hospitality'],
+            ],
         ];
 
         $out = [];
@@ -114,18 +176,45 @@ class OfferTemplates
      * @param  array<string, mixed>  $item
      * @return array<string, mixed>
      */
-    private static function localize(string $key, array $item): array
+    private static function localizeType(string $key, array $item): array
     {
         return [
             'key' => $key,
-            'name' => __('loop.offer_templates.'.$key.'.name'),
-            'description' => __('loop.offer_templates.'.$key.'.description'),
+            'name' => __('loop.offer_type_'.$key.'_title'),
+            'description' => __('loop.offer_type_'.$key.'_body'),
             'points_cost' => $item['points_cost'],
             'reward_type' => $item['reward_type'],
             'reward_value' => $item['reward_value'],
-            'product_name' => isset($item['product_name_key'])
-                ? __('loop.offer_templates.products.'.$item['product_name_key'])
-                : null,
+            'default_name' => $item['default_name'],
+            'product_name' => $item['product_name'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private static function localize(string $key, array $item): array
+    {
+        $product = isset($item['product_name_key'])
+            ? __('loop.offer_templates.products.'.$item['product_name_key'])
+            : null;
+
+        $name = __('loop.offer_templates.'.$key.'.name');
+        if ($key === 'free_item_100') {
+            $name = __('loop.free_item');
+        }
+
+        $description = __('loop.offer_templates.'.$key.'.description');
+
+        return [
+            'key' => $key,
+            'name' => $name,
+            'description' => $description,
+            'points_cost' => $item['points_cost'],
+            'reward_type' => $item['reward_type'],
+            'reward_value' => $item['reward_value'],
+            'product_name' => $product,
         ];
     }
 }

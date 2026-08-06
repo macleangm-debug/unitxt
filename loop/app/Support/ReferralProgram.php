@@ -11,9 +11,10 @@ class ReferralProgram
     /**
      * @return array{
      *   goal_count: int,
+     *   referrer_extra_days_per_referral: int,
+     *   referred_extra_trial_days: int,
      *   referrer_months_per_referral: int,
      *   referrer_discount_percent: int,
-     *   referred_extra_trial_days: int,
      *   referred_bonus_months: int,
      *   milestones: list<array{count: int, bonus_months: int}>
      * }
@@ -38,20 +39,30 @@ class ReferralProgram
                 continue;
             }
             $count = (int) ($row['count'] ?? 0);
-            $bonus = (int) ($row['bonus_months'] ?? 0);
+            $bonus = (int) ($row['bonus_months'] ?? $row['bonus_days'] ?? 0);
             if ($count > 0 && $bonus > 0) {
                 $normalized[] = ['count' => $count, 'bonus_months' => $bonus];
             }
         }
         usort($normalized, fn ($a, $b) => $a['count'] <=> $b['count']);
 
+        // Prefer new day-based keys; fall back from legacy month settings once.
+        $referrerDays = array_key_exists('referrer_extra_days_per_referral', $stored)
+            ? (int) $stored['referrer_extra_days_per_referral']
+            : (int) ($defaults['referrer_extra_days_per_referral']);
+
+        $referredDays = array_key_exists('referred_extra_trial_days', $stored)
+            ? (int) $stored['referred_extra_trial_days']
+            : (int) $defaults['referred_extra_trial_days'];
+
         return [
             'goal_count' => max(1, (int) ($stored['goal_count'] ?? $defaults['goal_count'])),
-            'referrer_months_per_referral' => max(0, (int) ($stored['referrer_months_per_referral'] ?? $defaults['referrer_months_per_referral'])),
-            'referrer_discount_percent' => min(100, max(0, (int) ($stored['referrer_discount_percent'] ?? $defaults['referrer_discount_percent']))),
-            'referred_extra_trial_days' => max(0, (int) ($stored['referred_extra_trial_days'] ?? $defaults['referred_extra_trial_days'])),
-            'referred_bonus_months' => max(0, (int) ($stored['referred_bonus_months'] ?? $defaults['referred_bonus_months'])),
-            'milestones' => $normalized !== [] ? $normalized : $defaults['milestones'],
+            'referrer_extra_days_per_referral' => max(0, $referrerDays),
+            'referred_extra_trial_days' => max(0, $referredDays),
+            'referrer_months_per_referral' => max(0, (int) ($stored['referrer_months_per_referral'] ?? 0)),
+            'referrer_discount_percent' => min(100, max(0, (int) ($stored['referrer_discount_percent'] ?? 0))),
+            'referred_bonus_months' => max(0, (int) ($stored['referred_bonus_months'] ?? 0)),
+            'milestones' => $normalized,
         ];
     }
 
@@ -62,14 +73,12 @@ class ReferralProgram
     {
         return [
             'goal_count' => 3,
-            'referrer_months_per_referral' => 1,
-            'referrer_discount_percent' => 50,
-            'referred_extra_trial_days' => 30,
-            'referred_bonus_months' => 1,
-            'milestones' => [
-                ['count' => 3, 'bonus_months' => 2],
-                ['count' => 5, 'bonus_months' => 3],
-            ],
+            'referrer_extra_days_per_referral' => 3,
+            'referred_extra_trial_days' => 5,
+            'referrer_months_per_referral' => 0,
+            'referrer_discount_percent' => 0,
+            'referred_bonus_months' => 0,
+            'milestones' => [],
         ];
     }
 
@@ -94,11 +103,12 @@ class ReferralProgram
 
         return [
             'goal_count' => max(1, (int) ($input['goal_count'] ?? 3)),
-            'referrer_months_per_referral' => max(0, (int) ($input['referrer_months_per_referral'] ?? 1)),
-            'referrer_discount_percent' => min(100, max(0, (int) ($input['referrer_discount_percent'] ?? 50))),
-            'referred_extra_trial_days' => max(0, (int) ($input['referred_extra_trial_days'] ?? 30)),
-            'referred_bonus_months' => max(0, (int) ($input['referred_bonus_months'] ?? 1)),
-            'milestones' => $milestones !== [] ? $milestones : self::defaults()['milestones'],
+            'referrer_extra_days_per_referral' => max(0, (int) ($input['referrer_extra_days_per_referral'] ?? 3)),
+            'referred_extra_trial_days' => max(0, (int) ($input['referred_extra_trial_days'] ?? 5)),
+            'referrer_months_per_referral' => max(0, (int) ($input['referrer_months_per_referral'] ?? 0)),
+            'referrer_discount_percent' => min(100, max(0, (int) ($input['referrer_discount_percent'] ?? 0))),
+            'referred_bonus_months' => max(0, (int) ($input['referred_bonus_months'] ?? 0)),
+            'milestones' => $milestones,
         ];
     }
 }

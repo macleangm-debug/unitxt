@@ -9,8 +9,9 @@
     </x-slot>
 
     @if ($picking)
-        <div class="mb-6 flex flex-wrap gap-3">
-            <a href="{{ route('campaigns.create', ['own' => 1]) }}" class="loop-btn-ghost">{{ __('loop.create_own') }}</a>
+        <div class="mb-6">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.pick_campaign_template') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.campaigns_vs_offers') }}</p>
         </div>
 
         @forelse ($groupedTemplates as $intention => $group)
@@ -18,19 +19,24 @@
                 <h2 class="font-display text-lg font-semibold">{{ $group['label'] }}</h2>
                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
                     @foreach ($group['templates'] as $key => $item)
-                        <a href="{{ route('campaigns.create', ['template' => $key]) }}" class="rounded-3xl border border-ink/10 bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-mint hover:bg-mint-soft/30">
+                        <a href="{{ route('campaigns.create', ['template' => $key]) }}" class="flex min-h-[9.5rem] flex-col rounded-3xl border border-ink/10 bg-white/90 p-5 transition hover:-translate-y-0.5 hover:border-mint hover:bg-mint-soft/30">
                             <p class="font-display text-lg font-semibold">{{ $item['name'] }}</p>
-                            <p class="mt-2 text-sm text-ink-muted">{{ $item['description'] }}</p>
+                            <p class="mt-2 flex-1 text-sm text-ink-muted">{{ $item['description'] }}</p>
                         </a>
                     @endforeach
                 </div>
             </section>
         @empty
-            <div class="loop-panel p-6 text-sm text-ink-muted">
-                {{ __('loop.all_templates_used') }}
-                <a href="{{ route('campaigns.create', ['own' => 1]) }}" class="mt-3 inline-flex font-semibold text-mint-deep">{{ __('loop.create_own') }} →</a>
-            </div>
+            <div class="loop-panel mb-6 p-6 text-sm text-ink-muted">{{ __('loop.all_templates_used') }}</div>
         @endforelse
+
+        <div class="grid gap-3 sm:grid-cols-2">
+            <a href="{{ route('campaigns.create', ['own' => 1]) }}" class="flex min-h-[9.5rem] flex-col rounded-3xl border border-dashed border-ink/20 bg-chalk/50 p-5 transition hover:-translate-y-0.5 hover:border-mint hover:bg-mint-soft/20">
+                <p class="font-display text-lg font-semibold">{{ __('loop.create_own') }}</p>
+                <p class="mt-2 flex-1 text-sm text-ink-muted">{{ __('loop.create_own_campaign_body') }}</p>
+                <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.continue') }} →</p>
+            </a>
+        </div>
     @else
         <form method="POST" action="{{ route('campaigns.store') }}" class="mx-auto max-w-2xl space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8">
             @csrf

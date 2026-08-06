@@ -25,7 +25,7 @@
             <p class="mt-3 font-display text-3xl font-semibold">{{ $referralCount }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_referrals') }}</p>
             @if ($referralCredits > 0)
-                <p class="mt-2 text-xs font-semibold text-mint-deep">{{ __('loop.free_months_short', ['count' => $referralCredits]) }}</p>
+                <p class="mt-2 text-xs font-semibold text-mint-deep">{{ __('loop.extra_days_short', ['count' => $referralCredits]) }}</p>
             @endif
         </a>
         <a href="{{ route('billing.show') }}" class="loop-panel group relative block overflow-hidden p-6 transition hover:-translate-y-0.5">

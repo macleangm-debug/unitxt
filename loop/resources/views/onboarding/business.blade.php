@@ -183,7 +183,7 @@
                         @endphp
                         <label class="flex cursor-pointer items-start gap-3 rounded-3xl border border-ink/10 bg-white/90 p-4 transition has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
                             <input type="checkbox" name="offers[]" value="{{ $offer['key'] }}" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint"
-                                   @checked(in_array($offer['key'], ['percent_5_100', 'free_coffee_100', 'free_meal_500', 'percent_10_200'], true))>
+                                   @checked(in_array($offer['key'], ['percent_5_100', 'free_item_100', 'free_coffee_100', 'free_meal_500', 'percent_10_200'], true))>
                             <span class="min-w-0 flex-1">
                                 <span class="flex items-start justify-between gap-2">
                                     <span class="font-display text-base font-semibold">{{ $offer['name'] }}</span>

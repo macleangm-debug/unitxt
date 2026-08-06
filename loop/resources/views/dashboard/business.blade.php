@@ -45,7 +45,9 @@
                 <div class="max-w-xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.referrals') }}</p>
                     <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.referral_dash_title', ['goal' => $referralProgress['goal']]) }}</h2>
-                    <p class="mt-2 text-sm text-white/70">{{ __('loop.referral_dash_body') }}</p>
+                    <p class="mt-2 text-sm text-white/70">{{ __('loop.referral_dash_body', [
+                        'days' => $referralProgress['program']['referrer_extra_days_per_referral'] ?? 3,
+                    ]) }}</p>
                 </div>
                 <a href="{{ route('settings.referrals') }}" class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-ink hover:bg-mint-deep">{{ __('loop.invite_businesses') }}</a>
             </div>
@@ -111,15 +113,15 @@
             <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
             <div class="mt-4 space-y-3">
                 @forelse ($recentVisits as $visit)
-                    <div class="flex items-center justify-between rounded-2xl bg-chalk px-4 py-3">
-                        <div>
+                    <div class="flex items-center justify-between gap-4 rounded-2xl bg-chalk px-4 py-3">
+                        <div class="min-w-0">
                             <p class="font-semibold">{{ $visit->customer->name }}</p>
-                            <p class="text-sm text-ink-muted">
-                                {{ $visit->shop->name }} · {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                            </p>
-                            <p class="text-xs text-ink-muted">{{ $visit->created_at->format('d M Y · H:i') }}</p>
+                            <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
+                            <p class="mt-0.5 text-xs font-medium text-mint-deep">+{{ $visit->points_earned }} pts</p>
                         </div>
-                        <span class="text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }}</span>
+                        <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
+                            {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                        </p>
                     </div>
                 @empty
                     <p class="text-sm text-ink-muted">{{ __('loop.no_sales') }}</p>

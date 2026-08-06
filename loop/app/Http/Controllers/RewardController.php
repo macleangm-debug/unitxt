@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Reward;
 use App\Support\OfferTemplates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,18 +19,27 @@ class RewardController extends Controller
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
         $earn = $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first();
+        $type = $request->query('type');
         $templateKey = $request->query('template');
+        $starters = OfferTemplates::typeStarters();
+        $selectedType = $type ? OfferTemplates::typeStarter($type) : null;
         $templates = OfferTemplates::forSector($business->sector ?: 'other');
         $selected = $templateKey
             ? collect($templates)->firstWhere('key', $templateKey)
             : null;
 
+        // Type-first: once a type is chosen, open the form (optionally prefilled from a sector idea).
+        $showForm = $selectedType !== null || $selected !== null || $request->boolean('own');
+
         return view('rewards.create', [
             'business' => $business,
             'earnCampaign' => $earn,
+            'typeStarters' => $starters,
+            'selectedType' => $selectedType,
             'offerTemplates' => $templates,
             'selectedTemplate' => $selected,
-            'createOwn' => $request->boolean('own') || $request->has('own'),
+            'createOwn' => $request->boolean('own') || $request->has('own') || $selectedType !== null,
+            'showForm' => $showForm,
         ]);
     }
 
@@ -37,7 +47,7 @@ class RewardController extends Controller
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        if ($request->filled('template_key') && ! $request->boolean('customize')) {
+        if ($request->filled('template_key') && ! $request->boolean('customize') && ! $request->filled('name')) {
             $catalog = collect(OfferTemplates::forSector($business->sector ?: 'other'))->keyBy('key');
             $template = $catalog->get($request->string('template_key')->toString());
             abort_unless($template, 422);
@@ -67,11 +77,35 @@ class RewardController extends Controller
             'max_redemptions_per_member' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $business->rewards()->create([
+        $reward = $business->rewards()->create([
             ...$data,
             'is_active' => true,
         ]);
 
-        return redirect()->to(route('campaigns.index').'#offers')->with('status', __('loop.offer_created'));
+        return redirect()->route('rewards.show', $reward)->with('status', __('loop.offer_created'));
+    }
+
+    public function show(Request $request, Reward $reward): View
+    {
+        $business = $request->user()->ownedBusiness;
+        abort_unless($business && $reward->business_id === $business->id, 403);
+
+        $redemptions = $reward->redemptions()->with(['customer', 'visit.shop'])->latest();
+        $totalRedemptions = (clone $redemptions)->count();
+        $pointsSpent = (int) (clone $redemptions)->sum('points_spent');
+        $recent = (clone $redemptions)->take(12)->get();
+        $thisMonth = $reward->redemptions()->where('created_at', '>=', now()->startOfMonth())->count();
+
+        return view('rewards.show', [
+            'business' => $business,
+            'reward' => $reward,
+            'stats' => [
+                'total_redemptions' => $totalRedemptions,
+                'this_month' => $thisMonth,
+                'points_spent' => $pointsSpent,
+                'stock' => $reward->stock,
+            ],
+            'recentRedemptions' => $recent,
+        ]);
     }
 }

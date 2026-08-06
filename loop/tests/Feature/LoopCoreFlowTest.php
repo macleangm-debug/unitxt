@@ -333,6 +333,7 @@ class LoopCoreFlowTest extends TestCase
 
         [$owner, $business] = array_slice($this->seedBusiness(), 0, 2);
         $business->update(['referral_code' => 'INVITE88', 'plan_key' => 'starter', 'billing_status' => 'active']);
+        \App\Models\PlatformSetting::putValue(\App\Support\ReferralProgram::KEY, \App\Support\ReferralProgram::defaults());
 
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
@@ -356,9 +357,13 @@ class LoopCoreFlowTest extends TestCase
         $referred = \App\Models\Business::query()->where('name', 'New Cafe Co')->first();
         $this->assertNotNull($referred);
         $this->assertSame($business->id, $referred->referred_by_business_id);
-        $this->assertSame(1, $referred->referral_credit_months);
+        $this->assertSame(0, $referred->referral_credit_months);
+        $this->assertSame(5, $referred->referral_credit_days);
         $this->assertTrue(
-            $referred->trial_ends_at->greaterThan(now()->addDays(\App\Support\Plans::trialDays() + 20))
+            $referred->trial_ends_at->greaterThan(now()->addDays(\App\Support\Plans::trialDays() + 3))
+        );
+        $this->assertTrue(
+            $referred->trial_ends_at->lessThanOrEqualTo(now()->addDays(\App\Support\Plans::trialDays() + 6)->endOfDay())
         );
         $this->assertDatabaseHas('business_referrals', [
             'referrer_business_id' => $business->id,
@@ -373,7 +378,7 @@ class LoopCoreFlowTest extends TestCase
             'referred_business_id' => $referred->id,
             'status' => 'rewarded',
         ]);
-        $this->assertSame(1, $business->fresh()->referral_credit_months);
+        $this->assertSame(3, $business->fresh()->referral_credit_days);
 
         $this->actingAs($owner)
             ->get(route('dashboard'))

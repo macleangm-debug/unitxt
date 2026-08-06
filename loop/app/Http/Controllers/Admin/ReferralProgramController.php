@@ -22,10 +22,11 @@ class ReferralProgramController extends Controller
     {
         $data = $request->validate([
             'goal_count' => ['required', 'integer', 'min:1', 'max:50'],
-            'referrer_months_per_referral' => ['required', 'integer', 'min:0', 'max:12'],
-            'referrer_discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            'referrer_extra_days_per_referral' => ['required', 'integer', 'min:0', 'max:90'],
             'referred_extra_trial_days' => ['required', 'integer', 'min:0', 'max:180'],
-            'referred_bonus_months' => ['required', 'integer', 'min:0', 'max:12'],
+            'referrer_discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            'referrer_months_per_referral' => ['nullable', 'integer', 'min:0', 'max:12'],
+            'referred_bonus_months' => ['nullable', 'integer', 'min:0', 'max:12'],
             'milestone_count' => ['nullable', 'array'],
             'milestone_count.*' => ['nullable', 'integer', 'min:1', 'max:100'],
             'milestone_bonus' => ['nullable', 'array'],

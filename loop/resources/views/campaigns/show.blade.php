@@ -97,15 +97,17 @@
             <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
             <div class="mt-4 space-y-3">
                 @foreach ($recentVisits as $visit)
-                    <div class="loop-panel flex items-center justify-between px-4 py-3">
-                        <div>
+                    <div class="loop-panel flex items-center justify-between gap-4 px-4 py-3">
+                        <div class="min-w-0">
                             <p class="font-semibold">{{ $visit->customer->name }}</p>
-                            <p class="text-sm text-ink-muted">
-                                {{ $visit->shop->name }} · {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                                · {{ $visit->created_at->format('d M Y · H:i') }}
+                            <p class="text-xs text-ink-muted">
+                                {{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}
                             </p>
+                            <p class="mt-0.5 text-xs font-medium text-mint-deep">+{{ $visit->points_earned }} pts</p>
                         </div>
-                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }}</span>
+                        <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
+                            {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                        </p>
                     </div>
                 @endforeach
             </div>
