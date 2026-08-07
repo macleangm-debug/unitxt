@@ -22,6 +22,7 @@ use Illuminate\Notifications\Notifiable;
     'phone',
     'email',
     'password',
+    'pin_hash',
     'birth_date',
     'birth_month',
     'birth_day',
@@ -33,7 +34,7 @@ use Illuminate\Notifications\Notifiable;
     'phone_verified_at',
     'email_verified_at',
 ])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'pin_hash', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -46,6 +47,8 @@ class User extends Authenticatable
     public const ROLE_CUSTOMER = 'customer';
 
     public const ROLE_ADMIN = 'admin';
+
+    public const ROLE_AFFILIATE = 'affiliate';
 
     protected function casts(): array
     {
@@ -96,6 +99,16 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isAffiliate(): bool
+    {
+        return $this->role === self::ROLE_AFFILIATE;
+    }
+
+    public function affiliateProfile(): HasOne
+    {
+        return $this->hasOne(Affiliate::class);
     }
 
     public function canManageCampaigns(): bool

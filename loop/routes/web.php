@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AffiliateController as AdminAffiliateController;
 use App\Http\Controllers\Admin\BusinessController as AdminBusinessController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
@@ -7,6 +8,9 @@ use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\Admin\ReferralProgramController as AdminReferralProgramController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\SettingsHubController as AdminSettingsHubController;
+use App\Http\Controllers\AffiliateDashboardController;
+use App\Http\Controllers\AffiliateLandingController;
+use App\Http\Controllers\Auth\AffiliateAuthController;
 use App\Http\Controllers\Auth\BusinessRegisterController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\StaffSessionController;
@@ -47,6 +51,11 @@ Route::get('/for-business', function () {
 })->name('landing.business');
 
 Route::get('/for-customers', fn () => view('landings.customer'))->name('landing.customer');
+Route::get('/affiliates', [AffiliateLandingController::class, 'index'])->name('affiliates.landing');
+Route::get('/affiliates/apply', [AffiliateLandingController::class, 'applyForm'])->name('affiliates.apply');
+Route::post('/affiliates/apply', [AffiliateLandingController::class, 'apply'])->name('affiliates.apply.store');
+Route::get('/affiliates/status', [AffiliateLandingController::class, 'statusForm'])->name('affiliates.status');
+Route::post('/affiliates/status', [AffiliateLandingController::class, 'statusLookup'])->name('affiliates.status.lookup');
 Route::get('/pricing', PricingController::class)->name('pricing');
 Route::get('/locale/{locale}', [PreferenceController::class, 'locale'])->name('locale');
 Route::post('/preference/country', [PreferenceController::class, 'country'])->name('preference.country');
@@ -60,6 +69,12 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/staff/login', [StaffSessionController::class, 'create'])->name('staff.login');
     Route::post('/staff/login', [StaffSessionController::class, 'store']);
+
+    Route::get('/affiliate/login', [AffiliateAuthController::class, 'loginForm'])->name('affiliate.login');
+    Route::post('/affiliate/login', [AffiliateAuthController::class, 'login']);
+    Route::get('/affiliate/activate', [AffiliateAuthController::class, 'activateForm'])->name('affiliate.activate');
+    Route::post('/affiliate/activate/lookup', [AffiliateAuthController::class, 'activateLookup'])->name('affiliate.activate.lookup');
+    Route::post('/affiliate/activate', [AffiliateAuthController::class, 'activate'])->name('affiliate.activate.store');
 
     Route::get('/customer/login', [CustomerAuthController::class, 'create'])->name('customer.login');
     Route::post('/customer/login', [CustomerAuthController::class, 'send'])->name('customer.send');
@@ -85,10 +100,18 @@ Route::middleware('auth')->group(function () {
         Route::put('/referrals/program', [AdminReferralProgramController::class, 'update'])->name('referrals.program.update');
         Route::post('/referrals/{referral}/qualify', [AdminReferralController::class, 'qualify'])->name('referrals.qualify');
         Route::post('/referrals/{referral}/reward', [AdminReferralController::class, 'reward'])->name('referrals.reward');
+        Route::get('/affiliates', [AdminAffiliateController::class, 'index'])->name('affiliates.index');
+        Route::put('/affiliates/settings', [AdminAffiliateController::class, 'updateSettings'])->name('affiliates.settings');
+        Route::get('/affiliates/{affiliate}', [AdminAffiliateController::class, 'show'])->name('affiliates.show');
+        Route::post('/affiliates/{affiliate}/decide', [AdminAffiliateController::class, 'decide'])->name('affiliates.decide');
         Route::get('/plans', [AdminPlanController::class, 'index'])->name('plans.index');
         Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
         Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
         Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
+    });
+
+    Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {
+        Route::get('/', AffiliateDashboardController::class)->name('dashboard');
     });
 
     Route::middleware('role:owner')->group(function () {

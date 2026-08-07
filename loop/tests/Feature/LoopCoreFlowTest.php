@@ -768,6 +768,80 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee(__('loop.your_team'));
     }
 
+    public function test_affiliate_apply_approve_activate_and_attach_promo(): void
+    {
+        \App\Models\PlatformSetting::putValue(\App\Support\AffiliateProgram::KEY, \App\Support\AffiliateProgram::defaults());
+
+        $admin = User::factory()->admin()->create(['phone' => '710999001']);
+
+        $this->get(route('affiliates.landing'))
+            ->assertOk()
+            ->assertSee(__('loop.become_affiliate'));
+
+        $this->post(route('affiliates.apply.store'), [
+            'first_name' => 'Joy',
+            'last_name' => 'Affiliate',
+            'country' => 'TZ',
+            'phone' => '715555001',
+            'email' => 'joy@loop.test',
+            'id_type' => 'national_id',
+            'id_number' => 'ID-123456',
+            'city' => 'Dar es Salaam',
+        ])->assertRedirect(route('affiliates.status'));
+
+        $affiliate = \App\Models\Affiliate::query()->where('phone', '715555001')->first();
+        $this->assertNotNull($affiliate);
+        $this->assertSame('pending', $affiliate->status);
+
+        $this->actingAs($admin)
+            ->post(route('admin.affiliates.decide', $affiliate), [
+                'decision' => 'approved',
+                'decision_note' => 'Looks good',
+            ])
+            ->assertRedirect();
+
+        $affiliate->refresh();
+        $this->assertSame('approved', $affiliate->status);
+        $this->assertNotNull($affiliate->promo_code);
+        $this->assertNotNull($affiliate->tracking_code);
+
+        $this->post(route('logout'));
+
+        $this->post(route('affiliate.activate.store'), [
+            'country_code' => $affiliate->country_code,
+            'phone' => $affiliate->phone,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'pin' => '1234',
+            'pin_confirmation' => '1234',
+        ])->assertRedirect(route('affiliate.dashboard'));
+
+        $affiliate->refresh();
+        $this->assertSame('active', $affiliate->status);
+
+        $this->post(route('logout'));
+
+        $this->post(route('business.register'), [
+            'first_name' => 'Biz',
+            'last_name' => 'Owner',
+            'country' => 'TZ',
+            'phone' => '715555002',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'business_name' => 'Affiliate Cafe',
+            'sector' => 'coffee',
+            'referral_code' => $affiliate->promo_code,
+        ])->assertRedirect(route('onboarding.show'));
+
+        $business = \App\Models\Business::query()->where('name', 'Affiliate Cafe')->first();
+        $this->assertNotNull($business);
+        $this->assertSame($affiliate->id, $business->referred_by_affiliate_id);
+        $this->assertDatabaseHas('affiliate_referrals', [
+            'affiliate_id' => $affiliate->id,
+            'business_id' => $business->id,
+        ]);
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

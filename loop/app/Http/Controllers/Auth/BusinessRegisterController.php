@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\User;
+use App\Services\AffiliateService;
 use App\Services\ReferralService;
+use App\Support\AffiliateProgram;
 use App\Support\Countries;
 use App\Support\Plans;
 use App\Support\Sectors;
@@ -21,21 +23,24 @@ use Illuminate\View\View;
 
 class BusinessRegisterController extends Controller
 {
-    public function create(Request $request, ReferralService $referrals): View
+    public function create(Request $request, ReferralService $referrals, AffiliateService $affiliates): View
     {
         $ref = $request->query('ref');
-        $referrer = $referrals->findReferrer($ref);
+        $affiliate = $affiliates->findByPromo($ref);
+        $referrer = $affiliate ? null : $referrals->findReferrer($ref);
 
         return view('auth.business-register', [
             'sectors' => Sectors::OPTIONS,
             'countries' => Countries::OPTIONS,
             'preferredCountry' => session('preferred_country', 'TZ'),
-            'referralCode' => $referrer?->referral_code ?? old('referral_code', $ref),
+            'referralCode' => $affiliate?->promo_code ?? $referrer?->referral_code ?? old('referral_code', $ref),
             'referrerBusiness' => $referrer,
+            'referrerAffiliate' => $affiliate,
+            'affiliateDiscount' => $affiliate ? AffiliateProgram::referredDiscountPercent() : null,
         ]);
     }
 
-    public function store(Request $request, ReferralService $referrals): RedirectResponse
+    public function store(Request $request, ReferralService $referrals, AffiliateService $affiliates): RedirectResponse
     {
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
@@ -65,7 +70,7 @@ class BusinessRegisterController extends Controller
             ]);
         }
 
-        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $hotline, $referrals) {
+        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $hotline, $referrals, $affiliates) {
             $owner = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -96,7 +101,11 @@ class BusinessRegisterController extends Controller
             ]);
 
             $owner->update(['business_id' => $business->id]);
-            $referrals->attachReferral($business, $data['referral_code'] ?? null);
+
+            $code = $data['referral_code'] ?? null;
+            if (! $affiliates->attachToBusiness($business, $code)) {
+                $referrals->attachReferral($business, $code);
+            }
 
             return $owner;
         });

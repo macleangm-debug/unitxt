@@ -203,6 +203,7 @@ class OnboardingController extends Controller
         $business->update(['onboarding_completed_at' => now()]);
 
         app(\App\Services\ReferralService::class)->qualifyForBusiness($business->fresh());
+        app(\App\Services\AffiliateService::class)->qualifyForBusiness($business->fresh());
 
         return redirect()->route('dashboard')->with('all_set', true);
     }

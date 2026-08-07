@@ -22,6 +22,10 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        if ($user->isAffiliate()) {
+            return redirect()->route('affiliate.dashboard');
+        }
+
         if ($user->isOwner()) {
             $business = $user->ownedBusiness;
             if ($business && ! $business->onboarding_completed_at) {

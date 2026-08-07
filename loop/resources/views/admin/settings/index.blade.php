@@ -128,6 +128,10 @@
     </div>
 
     <div class="mt-6 grid gap-4 sm:grid-cols-3">
+        <a href="{{ route('admin.affiliates.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_affiliates') }}</p>
+            <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_affiliates') }}</p>
+        </a>
         <a href="{{ route('admin.referrals.program') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referral_program') }}</p>
             <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>

@@ -11,7 +11,10 @@
                         <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">{{ __('loop.admin') }}</x-nav-link>
                         <x-nav-link :href="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')">{{ __('loop.admin_reports') }}</x-nav-link>
                         <x-nav-link :href="route('admin.businesses.index')" :active="request()->routeIs('admin.businesses.*')">{{ __('loop.admin_businesses') }}</x-nav-link>
+                        <x-nav-link :href="route('admin.affiliates.index')" :active="request()->routeIs('admin.affiliates.*')">{{ __('loop.admin_affiliates') }}</x-nav-link>
                         <x-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings*') || request()->routeIs('admin.referrals.*') || request()->routeIs('admin.plans.*')">{{ __('loop.admin_settings_hub') }}</x-nav-link>
+                    @elseif (Auth::user()->isAffiliate())
+                        <x-nav-link :href="route('affiliate.dashboard')" :active="request()->routeIs('affiliate.*')">{{ __('loop.home') }}</x-nav-link>
                     @else
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-nav-link>
                         @if (Auth::user()->isStaff())

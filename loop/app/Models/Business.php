@@ -27,6 +27,7 @@ use Illuminate\Support\Str;
     'plan_key',
     'referral_code',
     'referred_by_business_id',
+    'referred_by_affiliate_id',
     'billing_status',
     'trial_ends_at',
     'referral_discount_percent',
@@ -84,6 +85,11 @@ class Business extends Model
     public function referredBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'referred_by_business_id');
+    }
+
+    public function referredByAffiliate(): BelongsTo
+    {
+        return $this->belongsTo(Affiliate::class, 'referred_by_affiliate_id');
     }
 
     public function referralsMade(): HasMany
