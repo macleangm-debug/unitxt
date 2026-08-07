@@ -58,6 +58,7 @@ return [
     'first_name' => 'Jina la kwanza',
     'last_name' => 'Jina la pili',
     'phone' => 'Simu',
+    'email' => 'Barua pepe',
     'email_optional' => 'Barua pepe (si lazima)',
     'password' => 'Nenosiri',
     'confirm_password' => 'Thibitisha nenosiri',

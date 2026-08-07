@@ -58,6 +58,7 @@ return [
     'first_name' => 'First name',
     'last_name' => 'Last name',
     'phone' => 'Phone',
+    'email' => 'Email',
     'email_optional' => 'Email (optional)',
     'password' => 'Password',
     'confirm_password' => 'Confirm password',
