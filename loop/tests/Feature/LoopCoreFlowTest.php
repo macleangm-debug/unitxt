@@ -324,6 +324,7 @@ class LoopCoreFlowTest extends TestCase
         \App\Models\PlatformSetting::putValue(\App\Support\GrowthSettings::KEY, [
             ...\App\Support\GrowthSettings::defaults(),
             'raffle_min_members' => 2,
+            'raffle_max_winners_percent' => 30,
         ]);
 
         $owner = User::factory()->owner()->create(['phone' => '712777003']);
@@ -368,6 +369,21 @@ class LoopCoreFlowTest extends TestCase
             ->assertOk()
             ->assertSee(__('loop.create_raffle'));
 
+        // 2 members × 30% = max 1 winner
+        $this->assertSame(1, \App\Support\GrowthSettings::maxWinnersForMembers(2));
+
+        $this->actingAs($owner)
+            ->post(route('raffles.store'), [
+                'name' => 'Friday Draw',
+                'prize_name' => 'Free coffee',
+                'prize_type' => 'free_item',
+                'winners_count' => 2,
+                'frequency' => 'weekly',
+                'draw_at' => now()->addDays(3)->format('Y-m-d'),
+                'claim_days' => 7,
+            ])
+            ->assertSessionHasErrors('winners_count');
+
         $this->actingAs($owner)
             ->post(route('raffles.store'), [
                 'name' => 'Friday Draw',
@@ -388,6 +404,14 @@ class LoopCoreFlowTest extends TestCase
             ->assertRedirect(route('raffles.live', $raffle));
 
         $this->assertSame(1, $raffle->fresh()->winners()->count());
+    }
+
+    public function test_raffle_max_winners_is_thirty_percent_of_members(): void
+    {
+        $this->assertSame(3, \App\Support\GrowthSettings::maxWinnersForMembers(10));
+        $this->assertSame(3, \App\Support\GrowthSettings::maxWinnersForMembers(11));
+        $this->assertSame(6, \App\Support\GrowthSettings::maxWinnersForMembers(20));
+        $this->assertSame(10, \App\Support\GrowthSettings::raffleMinMembers());
     }
 
     public function test_campaign_templates_are_earn_only_without_bundled_offers(): void

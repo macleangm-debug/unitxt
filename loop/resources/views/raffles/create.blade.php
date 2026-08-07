@@ -46,7 +46,9 @@
             <div class="grid gap-3 sm:grid-cols-2">
                 <div>
                     <label class="loop-label">{{ __('loop.how_many_winners') }}</label>
-                    <input type="number" min="1" max="50" name="winners_count" class="loop-input" value="{{ old('winners_count', 1) }}" required>
+                    <input type="number" min="1" max="{{ $maxWinners }}" name="winners_count" class="loop-input" value="{{ old('winners_count', 1) }}" required>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.raffle_winners_cap_help', ['max' => $maxWinners, 'pct' => $maxWinnersPercent, 'members' => $memberCount]) }}</p>
+                    <x-input-error :messages="$errors->get('winners_count')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.frequency') }}</label>

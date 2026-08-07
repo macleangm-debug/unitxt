@@ -55,23 +55,53 @@
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.growth_banners_settings_blurb') }}</p>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <label class="loop-label">{{ __('loop.raffle_min_members') }}</label>
-                    <input type="number" min="5" name="raffle_min_members" value="{{ old('raffle_min_members', $growth['raffle_min_members']) }}" class="loop-input" required>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_section_raffles') }}</p>
+                <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="loop-label">{{ __('loop.raffle_min_members') }}</label>
+                        <input type="number" min="10" name="raffle_min_members" value="{{ old('raffle_min_members', $growth['raffle_min_members']) }}" class="loop-input" required>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.raffle_min_members_help') }}</p>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.raffle_max_winners_percent') }}</label>
+                        <input type="number" min="5" max="50" name="raffle_max_winners_percent" value="{{ old('raffle_max_winners_percent', $growth['raffle_max_winners_percent']) }}" class="loop-input" required>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.raffle_max_winners_percent_help') }}</p>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.raffle_remind_days_before') }}</label>
+                        <input type="number" min="1" max="14" name="raffle_remind_days_before" value="{{ old('raffle_remind_days_before', $growth['raffle_remind_days_before']) }}" class="loop-input" required>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.raffle_default_claim_days') }}</label>
+                        <input type="number" min="1" max="30" name="raffle_default_claim_days" value="{{ old('raffle_default_claim_days', $growth['raffle_default_claim_days']) }}" class="loop-input" required>
+                    </div>
                 </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.banner_member_milestones') }}</label>
-                    <input name="banner_member_milestones" value="{{ old('banner_member_milestones', implode(',', $growth['banner_member_milestones'])) }}" class="loop-input" placeholder="25,50,100">
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.banner_member_milestones_help') }}</p>
-                </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.raffle_remind_days_before') }}</label>
-                    <input type="number" min="1" max="14" name="raffle_remind_days_before" value="{{ old('raffle_remind_days_before', $growth['raffle_remind_days_before']) }}" class="loop-input" required>
-                </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.raffle_default_claim_days') }}</label>
-                    <input type="number" min="1" max="30" name="raffle_default_claim_days" value="{{ old('raffle_default_claim_days', $growth['raffle_default_claim_days']) }}" class="loop-input" required>
+            </div>
+
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_section_banners') }}</p>
+                <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="loop-label">{{ __('loop.banner_member_milestones') }}</label>
+                        <input name="banner_member_milestones" value="{{ old('banner_member_milestones', implode(',', $growth['banner_member_milestones'])) }}" class="loop-input" placeholder="10,25,50,100">
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.banner_member_milestones_help') }}</p>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.banner_max_count') }}</label>
+                        <input type="number" min="1" max="5" name="banner_max_count" value="{{ old('banner_max_count', $growth['banner_max_count']) }}" class="loop-input" required>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.banner_max_count_help') }}</p>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.campaign_delta_threshold_pct') }}</label>
+                        <input type="number" min="5" max="100" name="campaign_delta_threshold_pct" value="{{ old('campaign_delta_threshold_pct', $growth['campaign_delta_threshold_pct']) }}" class="loop-input" required>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.campaign_delta_threshold_pct_help') }}</p>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.retention_delta_threshold_pct') }}</label>
+                        <input type="number" min="3" max="50" name="retention_delta_threshold_pct" value="{{ old('retention_delta_threshold_pct', $growth['retention_delta_threshold_pct']) }}" class="loop-input" required>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.retention_delta_threshold_pct_help') }}</p>
+                    </div>
                 </div>
             </div>
 
@@ -83,6 +113,8 @@
                     'banner_show_retention_down' => __('loop.banner_show_retention_down'),
                     'banner_show_raffle_unlock' => __('loop.banner_show_raffle_unlock'),
                     'banner_show_add_offers_cta' => __('loop.banner_show_add_offers_cta'),
+                    'banner_show_member_milestones' => __('loop.banner_show_member_milestones'),
+                    'onboarding_celebrate' => __('loop.onboarding_celebrate'),
                 ] as $key => $label)
                     <label class="flex items-center gap-2">
                         <input type="checkbox" name="{{ $key }}" value="1" @checked(old($key, $growth[$key]))>

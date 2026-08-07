@@ -17,8 +17,10 @@ class BusinessInsightService
         $settings = GrowthSettings::settings();
         $banners = [];
 
-        $memberCount = $business->memberships()->distinct('customer_id')->count('customer_id');
+        $memberCount = $business->uniqueMemberCount();
         $offerCount = $business->rewards()->where('is_active', true)->count();
+        $campaignThreshold = (float) $settings['campaign_delta_threshold_pct'];
+        $retentionThreshold = (float) $settings['retention_delta_threshold_pct'];
 
         $thisWeek = $this->periodStats($business, now()->startOfWeek(), now());
         $lastWeek = $this->periodStats($business, now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek());
@@ -31,7 +33,7 @@ class BusinessInsightService
         $retentionPrev = $this->retentionRate($business, now()->subDays(60), now()->subDays(30));
         $retentionDelta = $retentionNow - $retentionPrev;
 
-        if ($settings['banner_show_campaign_up'] && $campaignDelta >= 15 && $thisWeek['visits'] >= 3) {
+        if ($settings['banner_show_campaign_up'] && $campaignDelta >= $campaignThreshold && $thisWeek['visits'] >= 3) {
             $banners[] = [
                 'key' => 'campaign_up',
                 'tone' => 'mint',
@@ -40,7 +42,7 @@ class BusinessInsightService
                 'cta' => __('loop.view_campaigns'),
                 'url' => route('campaigns.index'),
             ];
-        } elseif ($settings['banner_show_campaign_down'] && $campaignDelta <= -15 && $lastWeek['visits'] >= 3) {
+        } elseif ($settings['banner_show_campaign_down'] && $campaignDelta <= -$campaignThreshold && $lastWeek['visits'] >= 3) {
             $banners[] = [
                 'key' => 'campaign_down',
                 'tone' => 'coral',
@@ -51,7 +53,7 @@ class BusinessInsightService
             ];
         }
 
-        if ($settings['banner_show_retention_up'] && $retentionDelta >= 8 && $retentionNow > 0) {
+        if ($settings['banner_show_retention_up'] && $retentionDelta >= $retentionThreshold && $retentionNow > 0) {
             $banners[] = [
                 'key' => 'retention_up',
                 'tone' => 'mint',
@@ -60,7 +62,7 @@ class BusinessInsightService
                 'cta' => __('loop.view_customers'),
                 'url' => route('customers.index'),
             ];
-        } elseif ($settings['banner_show_retention_down'] && $retentionDelta <= -8) {
+        } elseif ($settings['banner_show_retention_down'] && $retentionDelta <= -$retentionThreshold) {
             $banners[] = [
                 'key' => 'retention_down',
                 'tone' => 'coral',
@@ -98,22 +100,24 @@ class BusinessInsightService
             ];
         }
 
-        foreach ($settings['banner_member_milestones'] as $milestone) {
-            $milestone = (int) $milestone;
-            if ($milestone > 0 && $memberCount >= $milestone && $memberCount < $milestone + 5) {
-                array_unshift($banners, [
-                    'key' => 'members_'.$milestone,
-                    'tone' => 'mint',
-                    'title' => __('loop.insight_members_title', ['count' => $milestone]),
-                    'body' => __('loop.insight_members_body', ['count' => $milestone]),
-                    'cta' => __('loop.open_content_studio'),
-                    'url' => route('content-studio.index'),
-                ]);
-                break;
+        if ($settings['banner_show_member_milestones']) {
+            foreach ($settings['banner_member_milestones'] as $milestone) {
+                $milestone = (int) $milestone;
+                if ($milestone > 0 && $memberCount >= $milestone && $memberCount < $milestone + 5) {
+                    array_unshift($banners, [
+                        'key' => 'members_'.$milestone,
+                        'tone' => 'mint',
+                        'title' => __('loop.insight_members_title', ['count' => $milestone]),
+                        'body' => __('loop.insight_members_body', ['count' => $milestone]),
+                        'cta' => __('loop.open_content_studio'),
+                        'url' => route('content-studio.index'),
+                    ]);
+                    break;
+                }
             }
         }
 
-        return array_slice($banners, 0, 2);
+        return array_slice($banners, 0, (int) $settings['banner_max_count']);
     }
 
     /**

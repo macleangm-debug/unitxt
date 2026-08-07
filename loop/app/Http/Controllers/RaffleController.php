@@ -17,7 +17,7 @@ class RaffleController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
 
-        $memberCount = $business->memberships()->distinct('customer_id')->count('customer_id');
+        $memberCount = $business->uniqueMemberCount();
         $min = GrowthSettings::raffleMinMembers();
 
         return view('raffles.index', [
@@ -39,7 +39,7 @@ class RaffleController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
 
-        $memberCount = $business->memberships()->distinct('customer_id')->count('customer_id');
+        $memberCount = $business->uniqueMemberCount();
         if ($memberCount < GrowthSettings::raffleMinMembers()) {
             return redirect()->route('raffles.index')
                 ->withErrors(['raffle' => __('loop.raffle_locked_body', [
@@ -48,8 +48,13 @@ class RaffleController extends Controller
                 ])]);
         }
 
+        $maxWinners = GrowthSettings::maxWinnersForMembers($memberCount);
+
         return view('raffles.create', [
             'business' => $business,
+            'memberCount' => $memberCount,
+            'maxWinners' => $maxWinners,
+            'maxWinnersPercent' => GrowthSettings::raffleMaxWinnersPercent(),
             'defaultClaimDays' => GrowthSettings::settings()['raffle_default_claim_days'],
         ]);
     }
@@ -58,10 +63,11 @@ class RaffleController extends Controller
     {
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
-        abort_unless(
-            $business->memberships()->distinct('customer_id')->count('customer_id') >= GrowthSettings::raffleMinMembers(),
-            403
-        );
+
+        $memberCount = $business->uniqueMemberCount();
+        abort_unless($memberCount >= GrowthSettings::raffleMinMembers(), 403);
+
+        $maxWinners = GrowthSettings::maxWinnersForMembers($memberCount);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -69,10 +75,16 @@ class RaffleController extends Controller
             'prize_name' => ['required', 'string', 'max:120'],
             'prize_type' => ['required', 'in:free_item,percent_off,fixed_off,custom'],
             'prize_value' => ['nullable', 'numeric', 'min:0'],
-            'winners_count' => ['required', 'integer', 'min:1', 'max:50'],
+            'winners_count' => ['required', 'integer', 'min:1', 'max:'.$maxWinners],
             'frequency' => ['required', 'in:once,weekly,monthly,yearly'],
             'draw_at' => ['required', 'date', 'after_or_equal:today'],
             'claim_days' => ['required', 'integer', 'min:1', 'max:30'],
+        ], [
+            'winners_count.max' => __('loop.raffle_winners_max_error', [
+                'max' => $maxWinners,
+                'pct' => GrowthSettings::raffleMaxWinnersPercent(),
+                'members' => $memberCount,
+            ]),
         ]);
 
         $raffle = $business->raffles()->create([

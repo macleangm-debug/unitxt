@@ -74,8 +74,12 @@ class SettingsHubController extends Controller
     public function updateGrowth(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'raffle_min_members' => ['required', 'integer', 'min:5', 'max:5000'],
+            'raffle_min_members' => ['required', 'integer', 'min:10', 'max:5000'],
+            'raffle_max_winners_percent' => ['required', 'integer', 'min:5', 'max:50'],
             'banner_member_milestones' => ['nullable', 'string', 'max:120'],
+            'banner_max_count' => ['required', 'integer', 'min:1', 'max:5'],
+            'campaign_delta_threshold_pct' => ['required', 'integer', 'min:5', 'max:100'],
+            'retention_delta_threshold_pct' => ['required', 'integer', 'min:3', 'max:50'],
             'raffle_remind_days_before' => ['required', 'integer', 'min:1', 'max:14'],
             'raffle_default_claim_days' => ['required', 'integer', 'min:1', 'max:30'],
             'banner_show_campaign_up' => ['sometimes', 'boolean'],
@@ -84,6 +88,8 @@ class SettingsHubController extends Controller
             'banner_show_retention_down' => ['sometimes', 'boolean'],
             'banner_show_raffle_unlock' => ['sometimes', 'boolean'],
             'banner_show_add_offers_cta' => ['sometimes', 'boolean'],
+            'banner_show_member_milestones' => ['sometimes', 'boolean'],
+            'onboarding_celebrate' => ['sometimes', 'boolean'],
         ]);
 
         $normalized = GrowthSettings::normalizeInput([
@@ -94,6 +100,8 @@ class SettingsHubController extends Controller
             'banner_show_retention_down' => $request->boolean('banner_show_retention_down'),
             'banner_show_raffle_unlock' => $request->boolean('banner_show_raffle_unlock'),
             'banner_show_add_offers_cta' => $request->boolean('banner_show_add_offers_cta'),
+            'banner_show_member_milestones' => $request->boolean('banner_show_member_milestones'),
+            'onboarding_celebrate' => $request->boolean('onboarding_celebrate'),
         ]);
 
         PlatformSetting::putValue(GrowthSettings::KEY, $normalized);

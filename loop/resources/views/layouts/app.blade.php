@@ -32,7 +32,7 @@
             'body' => __('loop.all_set_body'),
             'cta' => __('loop.start_selling'),
             'url' => route('till.index'),
-            'celebrate' => true,
+            'celebrate' => (bool) \App\Support\GrowthSettings::settings()['onboarding_celebrate'],
         ];
     }
 @endphp
