@@ -112,6 +112,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {
         Route::get('/', AffiliateDashboardController::class)->name('dashboard');
+        Route::get('/setup', [AffiliateDashboardController::class, 'setupForm'])->name('setup');
+        Route::post('/setup', [AffiliateDashboardController::class, 'setup'])->name('setup.store');
+        Route::put('/promo', [AffiliateDashboardController::class, 'updatePromo'])->name('promo.update');
     });
 
     Route::middleware('role:owner')->group(function () {

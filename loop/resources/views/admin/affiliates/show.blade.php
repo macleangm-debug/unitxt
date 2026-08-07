@@ -32,17 +32,30 @@
         <section class="rounded-[2rem] border border-ink/8 bg-white/95 p-6">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.decision_tab') }}</h2>
             @if ($affiliate->isPending())
-                <form method="POST" action="{{ route('admin.affiliates.decide', $affiliate) }}" class="mt-5 space-y-4">
-                    @csrf
-                    <div>
-                        <label class="loop-label">{{ __('loop.decision_note') }}</label>
-                        <textarea name="decision_note" rows="3" class="loop-input">{{ old('decision_note') }}</textarea>
-                    </div>
+                <div x-data="{ open: false, decision: 'approved' }" class="mt-5 space-y-4">
+                    <form method="POST" action="{{ route('admin.affiliates.decide', $affiliate) }}" id="affiliate-decide-form">
+                        @csrf
+                        <div>
+                            <label class="loop-label">{{ __('loop.decision_note') }}</label>
+                            <textarea name="decision_note" rows="3" class="loop-input">{{ old('decision_note') }}</textarea>
+                        </div>
+                        <input type="hidden" name="decision" :value="decision">
+                    </form>
                     <div class="grid gap-3 sm:grid-cols-2">
-                        <button name="decision" value="approved" class="loop-btn-mint w-full">{{ __('loop.approve') }}</button>
-                        <button name="decision" value="rejected" class="loop-btn-ghost w-full">{{ __('loop.reject') }}</button>
+                        <button type="button" class="loop-btn-mint w-full" @click="decision='approved'; open=true">{{ __('loop.approve') }}</button>
+                        <button type="button" class="loop-btn-ghost w-full" @click="decision='rejected'; open=true">{{ __('loop.reject') }}</button>
                     </div>
-                </form>
+
+                    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4">
+                        <div class="absolute inset-0 bg-ink/55 backdrop-blur-sm" @click="open=false"></div>
+                        <div class="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
+                            <p class="font-display text-2xl font-semibold" x-text="decision==='approved' ? @js(__('loop.confirm_approve_title')) : @js(__('loop.confirm_reject_title'))"></p>
+                            <p class="mt-2 text-sm text-ink-muted" x-text="decision==='approved' ? @js(__('loop.confirm_approve_body')) : @js(__('loop.confirm_reject_body'))"></p>
+                            <button type="submit" form="affiliate-decide-form" class="loop-btn-mint mt-6 w-full" x-text="decision==='approved' ? @js(__('loop.approve')) : @js(__('loop.reject'))"></button>
+                            <button type="button" class="mt-3 text-sm font-semibold text-ink-muted" @click="open=false">{{ __('loop.cancel') }}</button>
+                        </div>
+                    </div>
+                </div>
             @else
                 <p class="mt-4 text-sm text-ink-muted">{{ __('loop.reviewed_on') }} {{ $affiliate->reviewed_at?->format('d M Y H:i') }}</p>
                 @if ($affiliate->decision_note)

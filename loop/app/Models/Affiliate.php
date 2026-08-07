@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
     'reviewed_by',
     'reviewed_at',
     'activated_at',
+    'setup_completed_at',
 ])]
 class Affiliate extends Model
 {
@@ -37,6 +38,7 @@ class Affiliate extends Model
         return [
             'reviewed_at' => 'datetime',
             'activated_at' => 'datetime',
+            'setup_completed_at' => 'datetime',
         ];
     }
 
@@ -83,6 +85,35 @@ class Affiliate extends Model
     public function canActivate(): bool
     {
         return $this->status === 'approved' && ! $this->activated_at;
+    }
+
+    public function needsSetup(): bool
+    {
+        return $this->isActive() && ! $this->setup_completed_at;
+    }
+
+    public static function normalizePromoCode(string $code): string
+    {
+        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code) ?? '');
+    }
+
+    public static function promoCodeAvailable(string $code, ?int $ignoreAffiliateId = null): bool
+    {
+        $code = self::normalizePromoCode($code);
+        if (strlen($code) < 4 || strlen($code) > 12) {
+            return false;
+        }
+
+        $takenByAffiliate = static::query()
+            ->where('promo_code', $code)
+            ->when($ignoreAffiliateId, fn ($q) => $q->where('id', '!=', $ignoreAffiliateId))
+            ->exists();
+
+        if ($takenByAffiliate) {
+            return false;
+        }
+
+        return ! Business::query()->where('referral_code', $code)->exists();
     }
 
     public static function generateTrackingCode(): string

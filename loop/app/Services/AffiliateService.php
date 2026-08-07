@@ -125,6 +125,44 @@ class AffiliateService
         });
     }
 
+    public function completeSetup(Affiliate $affiliate, string $promoCode): Affiliate
+    {
+        if (! $affiliate->isActive()) {
+            throw ValidationException::withMessages(['affiliate' => __('loop.affiliate_cannot_activate')]);
+        }
+
+        $code = Affiliate::normalizePromoCode($promoCode);
+        if (! Affiliate::promoCodeAvailable($code, $affiliate->id)) {
+            throw ValidationException::withMessages(['promo_code' => __('loop.promo_code_unavailable')]);
+        }
+
+        $affiliate->update([
+            'promo_code' => $code,
+            'setup_completed_at' => now(),
+        ]);
+
+        return $affiliate->fresh();
+    }
+
+    public function updatePromoCode(Affiliate $affiliate, string $promoCode): Affiliate
+    {
+        if (! $affiliate->isActive()) {
+            throw ValidationException::withMessages(['affiliate' => __('loop.affiliate_cannot_activate')]);
+        }
+
+        $code = Affiliate::normalizePromoCode($promoCode);
+        if (! Affiliate::promoCodeAvailable($code, $affiliate->id)) {
+            throw ValidationException::withMessages(['promo_code' => __('loop.promo_code_unavailable')]);
+        }
+
+        $affiliate->update([
+            'promo_code' => $code,
+            'setup_completed_at' => $affiliate->setup_completed_at ?? now(),
+        ]);
+
+        return $affiliate->fresh();
+    }
+
     public function attachToBusiness(Business $business, ?string $code): ?AffiliateReferral
     {
         $affiliate = $this->findByPromo($code);

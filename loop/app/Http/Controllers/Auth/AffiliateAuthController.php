@@ -63,7 +63,18 @@ class AffiliateAuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('affiliate.dashboard');
+        $affiliate = $user->affiliateProfile;
+        if ($affiliate?->needsSetup()) {
+            return redirect()->route('affiliate.setup');
+        }
+
+        return redirect()->route('affiliate.dashboard')->with('confirm', Confirm::make(
+            __('loop.welcome_back'),
+            __('loop.affiliate_login_confirm_body', ['code' => $affiliate?->promo_code ?? '']),
+            __('loop.start_sharing'),
+            route('affiliate.dashboard'),
+            false,
+        ));
     }
 
     public function activateForm(Request $request, AffiliateService $affiliates): View|RedirectResponse
@@ -142,11 +153,11 @@ class AffiliateAuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('affiliate.dashboard')->with('confirm', Confirm::make(
+        return redirect()->route('affiliate.setup')->with('confirm', Confirm::make(
             __('loop.affiliate_activated_title'),
-            __('loop.affiliate_activated_body', ['code' => $affiliate->fresh()->promo_code]),
-            __('loop.open_dashboard'),
-            route('affiliate.dashboard'),
+            __('loop.affiliate_activated_setup_body'),
+            __('loop.choose_promo_code'),
+            route('affiliate.setup'),
         ));
     }
 }

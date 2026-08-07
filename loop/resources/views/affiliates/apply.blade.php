@@ -99,5 +99,6 @@
     </div>
 </main>
 <x-site-footer />
+@include('partials.confirm-modal')
 </body>
 </html>

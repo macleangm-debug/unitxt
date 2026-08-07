@@ -814,10 +814,21 @@ class LoopCoreFlowTest extends TestCase
             'password_confirmation' => 'password',
             'pin' => '1234',
             'pin_confirmation' => '1234',
-        ])->assertRedirect(route('affiliate.dashboard'));
+        ])->assertRedirect(route('affiliate.setup'));
 
         $affiliate->refresh();
         $this->assertSame('active', $affiliate->status);
+        $this->assertNull($affiliate->setup_completed_at);
+
+        $this->actingAs($affiliate->user)
+            ->post(route('affiliate.setup.store'), [
+                'promo_code' => 'JOYLOOP',
+            ])
+            ->assertRedirect(route('affiliate.dashboard'));
+
+        $affiliate->refresh();
+        $this->assertSame('JOYLOOP', $affiliate->promo_code);
+        $this->assertNotNull($affiliate->setup_completed_at);
 
         $this->post(route('logout'));
 
@@ -830,7 +841,7 @@ class LoopCoreFlowTest extends TestCase
             'password_confirmation' => 'password',
             'business_name' => 'Affiliate Cafe',
             'sector' => 'coffee',
-            'referral_code' => $affiliate->promo_code,
+            'referral_code' => 'JOYLOOP',
         ])->assertRedirect(route('onboarding.show'));
 
         $business = \App\Models\Business::query()->where('name', 'Affiliate Cafe')->first();
