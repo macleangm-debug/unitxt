@@ -1130,4 +1130,12 @@ return [
     'customer_landing_body' => 'Weka namba yako, weka PIN, kisha ona pointi kwenye kahawa, fashion, chakula, na zaidi.',
     'call_to_claim' => 'Piga simu kudai',
     'raffle' => 'Zawadi ya bahati',
+    'pts_to_unlock' => 'Pointi :points kufungua',
+    'offer_ready_hint' => 'Onyesha kwenye kaunta — au piga hotline.',
+    'call_to_use_offer' => 'Piga simu kutumia ofa hii',
+    'points_earned_private' => 'Pointi zilizopatikana',
+    'points_spent_private' => 'Pointi zilizotumika',
+    'where_points_work' => 'Mahali ofa zako zinatumika',
+    'where_points_work_blurb' => 'Maduka yenye ofa hai — kuanzia unapoweza kukomboa sasa.',
+    'from_points' => 'Kutoka pointi :points',
 ];

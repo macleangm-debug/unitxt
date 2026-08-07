@@ -1138,4 +1138,12 @@ return [
     'customer_landing_body' => 'Enter your number, set a PIN, and see points across coffee, fashion, food, and more.',
     'call_to_claim' => 'Call to claim',
     'raffle' => 'Raffle',
+    'pts_to_unlock' => ':points pts to unlock',
+    'offer_ready_hint' => 'Show this at the counter — or call the hotline.',
+    'call_to_use_offer' => 'Call to use this offer',
+    'points_earned_private' => 'Points earned',
+    'points_spent_private' => 'Points used',
+    'where_points_work' => 'Where your offers work',
+    'where_points_work_blurb' => 'Shops with live offers — starting with places you can redeem now.',
+    'from_points' => 'From :points pts',
 ];

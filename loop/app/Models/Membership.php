@@ -80,4 +80,46 @@ class Membership extends Model
             ->get()
             ->filter(fn (Reward $reward) => $reward->isAvailable());
     }
+
+    public function nextReward(): ?Reward
+    {
+        $rewards = $this->relationLoaded('business') && $this->business->relationLoaded('rewards')
+            ? $this->business->rewards
+            : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+
+        return $rewards
+            ->filter(fn (Reward $reward) => $reward->points_cost > $this->points_balance)
+            ->sortBy('points_cost')
+            ->first();
+    }
+
+    public function nearestReadyReward(): ?Reward
+    {
+        $rewards = $this->relationLoaded('business') && $this->business->relationLoaded('rewards')
+            ? $this->business->rewards
+            : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+
+        return $rewards
+            ->filter(fn (Reward $reward) => $reward->points_cost <= $this->points_balance)
+            ->sortBy('points_cost')
+            ->first();
+    }
+
+    public function progressTo(?Reward $reward): array
+    {
+        if (! $reward) {
+            return ['needed' => 0, 'percent' => 100, 'ready' => true];
+        }
+
+        $needed = max(0, $reward->points_cost - $this->points_balance);
+        $percent = $reward->points_cost > 0
+            ? (int) min(100, round(($this->points_balance / $reward->points_cost) * 100))
+            : 100;
+
+        return [
+            'needed' => $needed,
+            'percent' => $percent,
+            'ready' => $needed === 0,
+        ];
+    }
 }

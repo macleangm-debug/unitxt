@@ -108,25 +108,56 @@ class DashboardController extends Controller
             ->values();
 
         $country = $user->country ?? session('preferred_country', 'TZ');
+        $memberBusinessIds = $memberships->pluck('business_id');
+
+        // Prefer shops where the customer can already redeem, then shops with live offers.
+        $redeemableBusinessIds = $redeemables->pluck('business.id')->unique()->values();
+
         $topShops = Business::query()
             ->where('is_active', true)
             ->where('country', $country)
+            ->whereHas('rewards', fn ($q) => $q->where('is_active', true))
             ->when($user->interests, fn ($q) => $q->whereIn('sector', $user->interests))
-            ->with(['shops' => fn ($q) => $q->where('is_active', true)])
+            ->with([
+                'shops' => fn ($q) => $q->where('is_active', true),
+                'rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            ])
             ->withCount(['memberships', 'shops'])
-            ->orderByDesc('memberships_count')
+            ->get()
+            ->sortByDesc(function (Business $business) use ($redeemableBusinessIds, $memberBusinessIds) {
+                $score = 0;
+                if ($redeemableBusinessIds->contains($business->id)) {
+                    $score += 100;
+                }
+                if ($memberBusinessIds->contains($business->id)) {
+                    $score += 40;
+                }
+                $score += min(30, (int) $business->memberships_count);
+
+                return $score;
+            })
             ->take(8)
-            ->get();
+            ->values();
 
         $otherShops = Business::query()
             ->where('is_active', true)
             ->where('country', $country)
-            ->whereNotIn('id', $topShops->pluck('id')->merge($memberships->pluck('business_id')))
+            ->whereNotIn('id', $topShops->pluck('id')->merge($memberBusinessIds))
             ->with(['shops' => fn ($q) => $q->where('is_active', true)])
             ->withCount('shops')
             ->latest()
             ->take(8)
             ->get();
+
+        $memberships = $memberships->map(function (Membership $membership) {
+            $next = $membership->nextReward();
+            $ready = $membership->nearestReadyReward();
+            $target = $ready ?: $next;
+            $membership->setAttribute('home_target_reward', $target);
+            $membership->setAttribute('home_progress', $membership->progressTo($target));
+
+            return $membership;
+        });
 
         return view('dashboard.customer', [
             'memberships' => $memberships,
@@ -134,6 +165,7 @@ class DashboardController extends Controller
             'sectors' => Sectors::all(),
             'totalPoints' => $memberships->sum('points_balance'),
             'redeemables' => $redeemables,
+            'featuredRedeem' => $redeemables->count() === 1 ? $redeemables->first() : null,
             'topShops' => $topShops,
             'otherShops' => $otherShops,
             'discover' => $topShops,
