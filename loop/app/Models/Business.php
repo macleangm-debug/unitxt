@@ -126,9 +126,19 @@ class Business extends Model
         return $this->hasMany(Reward::class);
     }
 
+    public function raffles(): HasMany
+    {
+        return $this->hasMany(Raffle::class);
+    }
+
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class);
+    }
+
+    public function uniqueMemberCount(): int
+    {
+        return (int) $this->memberships()->distinct('customer_id')->count('customer_id');
     }
 
     public function sectorLabel(): string

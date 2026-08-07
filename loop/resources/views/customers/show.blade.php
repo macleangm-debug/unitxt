@@ -34,6 +34,26 @@
     </section>
 
     <section class="mt-10">
+        <h2 class="font-display text-xl font-semibold">{{ __('loop.raffle_wins') }}</h2>
+        <div class="mt-4 space-y-3">
+            @forelse ($raffleWins as $win)
+                <div class="rounded-[1.25rem] border border-ink/8 bg-gradient-to-br from-mint/15 to-white px-4 py-3">
+                    <p class="font-semibold">{{ $win->raffle->name }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">
+                        {{ $win->raffle->prize_name }}
+                        · {{ __('loop.raffle_winner_status_'.$win->status) }}
+                        @if ($win->claim_by)
+                            · {{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}
+                        @endif
+                    </p>
+                </div>
+            @empty
+                <p class="text-sm text-ink-muted">{{ __('loop.no_raffle_wins') }}</p>
+            @endforelse
+        </div>
+    </section>
+
+    <section class="mt-10">
         <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
         <div class="mt-4 space-y-3">
             @forelse ($visits as $visit)

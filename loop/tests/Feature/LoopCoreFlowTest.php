@@ -241,7 +241,7 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee('10 pts');
     }
 
-    public function test_onboarding_campaign_then_offers_completes_setup(): void
+    public function test_onboarding_offers_then_campaign_completes_setup(): void
     {
         $owner = User::factory()->owner()->create(['phone' => '712777001']);
         $business = Business::create([
@@ -267,23 +267,6 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('onboarding.show', ['step' => 4]))
             ->assertOk()
-            ->assertSee(__('loop.pick_campaign_earn_only'))
-            ->assertDontSee('earn_with_discount');
-
-        $this->actingAs($owner)
-            ->post(route('onboarding.campaign'), ['template' => 'everyday_earn'])
-            ->assertRedirect(route('onboarding.show', ['step' => 5]));
-
-        $this->assertDatabaseHas('campaigns', [
-            'business_id' => $business->id,
-            'template_key' => 'everyday_earn',
-            'type' => 'earn',
-        ]);
-        $this->assertDatabaseMissing('rewards', ['business_id' => $business->id]);
-
-        $this->actingAs($owner)
-            ->get(route('onboarding.show', ['step' => 5]))
-            ->assertOk()
             ->assertSee(__('loop.pick_offers'))
             ->assertSee(__('loop.offer_templates.free_meal_500.name'));
 
@@ -291,10 +274,120 @@ class LoopCoreFlowTest extends TestCase
             ->post(route('onboarding.offers'), [
                 'offers' => ['percent_5_100', 'free_meal_500'],
             ])
+            ->assertRedirect(route('onboarding.show', ['step' => 5]));
+
+        $this->assertSame(2, $business->rewards()->count());
+        $this->assertNull($business->fresh()->onboarding_completed_at);
+
+        $this->actingAs($owner)
+            ->get(route('onboarding.show', ['step' => 5]))
+            ->assertOk()
+            ->assertSee(__('loop.pick_campaign_earn_only'))
+            ->assertDontSee('earn_with_discount');
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.campaign'), ['template' => 'everyday_earn'])
             ->assertRedirect(route('dashboard'));
 
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'template_key' => 'everyday_earn',
+            'type' => 'earn',
+        ]);
         $this->assertNotNull($business->fresh()->onboarding_completed_at);
-        $this->assertSame(2, $business->rewards()->count());
+        $campaign = $business->campaigns()->first();
+        $this->assertSame(2, $campaign->rewards()->count());
+    }
+
+    public function test_campaign_create_requires_an_offer(): void
+    {
+        $owner = User::factory()->owner()->create(['phone' => '712777002']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Offer Gate',
+            'slug' => 'offer-gate',
+            'sector' => 'coffee',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'onboarding_completed_at' => now(),
+        ]);
+        $owner->update(['business_id' => $business->id]);
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.create'))
+            ->assertRedirect(route('rewards.create'));
+    }
+
+    public function test_raffle_unlocks_after_member_threshold(): void
+    {
+        \App\Models\PlatformSetting::putValue(\App\Support\GrowthSettings::KEY, [
+            ...\App\Support\GrowthSettings::defaults(),
+            'raffle_min_members' => 2,
+        ]);
+
+        $owner = User::factory()->owner()->create(['phone' => '712777003']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Raffle Shop',
+            'slug' => 'raffle-shop',
+            'sector' => 'coffee',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'onboarding_completed_at' => now(),
+        ]);
+        $owner->update(['business_id' => $business->id]);
+        $shop = Shop::create([
+            'business_id' => $business->id,
+            'name' => 'Main',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('raffles.index'))
+            ->assertOk()
+            ->assertSee(__('loop.raffle_locked_title'));
+
+        foreach (['713777101', '713777102'] as $phone) {
+            $customer = User::factory()->customer()->create(['phone' => $phone]);
+            \App\Models\Membership::create([
+                'business_id' => $business->id,
+                'shop_id' => $shop->id,
+                'customer_id' => $customer->id,
+                'points_balance' => 10,
+                'lifetime_points' => 10,
+                'joined_at' => now(),
+                'member_code' => 'M-'.$phone,
+            ]);
+        }
+
+        $this->actingAs($owner)
+            ->get(route('raffles.index'))
+            ->assertOk()
+            ->assertSee(__('loop.create_raffle'));
+
+        $this->actingAs($owner)
+            ->post(route('raffles.store'), [
+                'name' => 'Friday Draw',
+                'prize_name' => 'Free coffee',
+                'prize_type' => 'free_item',
+                'winners_count' => 1,
+                'frequency' => 'weekly',
+                'draw_at' => now()->addDays(3)->format('Y-m-d'),
+                'claim_days' => 7,
+            ])
+            ->assertRedirect();
+
+        $raffle = $business->raffles()->first();
+        $this->assertNotNull($raffle);
+
+        $this->actingAs($owner)
+            ->post(route('raffles.draw', $raffle))
+            ->assertRedirect(route('raffles.live', $raffle));
+
+        $this->assertSame(1, $raffle->fresh()->winners()->count());
     }
 
     public function test_campaign_templates_are_earn_only_without_bundled_offers(): void

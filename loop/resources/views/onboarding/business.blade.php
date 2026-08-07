@@ -121,10 +121,47 @@
                 <button class="loop-btn-mint mt-8 w-full">{{ __('loop.next') }}</button>
             </form>
         @elseif ($step === 4)
+            <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-6" x-data="{ count: 2 }">
+                @csrf
+                <div class="text-center">
+                    <h2 class="font-display text-2xl font-semibold">{{ __('loop.pick_offers') }}</h2>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_offers_before_campaign') }}</p>
+                </div>
+
+                <div class="mt-6 space-y-3">
+                    @foreach ($offerTemplates as $offer)
+                        <label class="flex cursor-pointer items-start gap-3 rounded-3xl border border-ink/10 bg-white/90 p-4 transition has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40"
+                               @change="count = [...$el.closest('form').querySelectorAll('input[name=\'offers[]\']:checked')].length">
+                            <input type="checkbox" name="offers[]" value="{{ $offer['key'] }}" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint"
+                                   @checked(in_array($offer['key'], ['percent_5_100', 'free_item_100', 'free_coffee_100', 'free_meal_500', 'percent_10_200'], true))>
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-start justify-between gap-2">
+                                    <span class="font-display text-base font-semibold">{{ $offer['name'] }}</span>
+                                    <span class="shrink-0 rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-mint">{{ $offer['points_cost'] }} pts</span>
+                                </span>
+                                <span class="mt-1 block text-sm text-ink-muted">{{ $offer['description'] }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                <x-input-error :messages="$errors->get('offers')" class="mt-3" />
+
+                <p class="mt-4 text-center text-xs text-ink-muted">{{ __('loop.tie_offers_body') }}</p>
+                <button class="loop-btn-mint mt-6 w-full" :disabled="count < 1" :class="{ 'opacity-60': count < 1 }">{{ __('loop.next_to_campaign') }}</button>
+            </form>
+        @else
             <div class="mt-6" x-data="{ selected: null, name: '', description: '' }">
                 <div class="text-center">
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.pick_campaign') }}</h2>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_campaign_earn_only') }}</p>
+                    @if ($existingOffers->isNotEmpty())
+                        <div class="mt-3 flex flex-wrap justify-center gap-2">
+                            @foreach ($existingOffers as $offer)
+                                <span class="rounded-full bg-mint-soft px-3 py-1 text-xs font-semibold text-ink">{{ $offer->name }}</span>
+                            @endforeach
+                        </div>
+                        <p class="mt-2 text-xs text-mint-deep">{{ __('loop.campaign_will_tie_offers') }}</p>
+                    @endif
                 </div>
 
                 @foreach ($groupedTemplates as $intention => $group)
@@ -151,61 +188,16 @@
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.confirm_campaign') }}</p>
                         <p class="mt-2 font-display text-2xl font-semibold" x-text="name"></p>
                         <p class="mt-2 text-sm text-ink-muted" x-text="description"></p>
+                        <p class="mt-3 text-xs text-ink-muted">{{ __('loop.campaign_will_tie_offers') }}</p>
                         <form method="POST" action="{{ route('onboarding.campaign') }}" class="mt-6 space-y-3">
                             @csrf
                             <input type="hidden" name="template" :value="selected">
-                            <button class="loop-btn-mint w-full">{{ __('loop.next_to_offers') }}</button>
+                            <button class="loop-btn-mint w-full">{{ __('loop.finish_onboarding') }}</button>
                             <button type="button" class="w-full text-sm font-semibold text-ink-muted" @click="selected=null">{{ __('loop.back') }}</button>
                         </form>
                     </div>
                 </div>
             </div>
-        @else
-            @php
-                $earn = $earnCampaign;
-            @endphp
-            <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-6" x-data="{ selected: {} }">
-                @csrf
-                <div class="text-center">
-                    <h2 class="font-display text-2xl font-semibold">{{ __('loop.pick_offers') }}</h2>
-                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pick_offers_body') }}</p>
-                    @if ($earn)
-                        <p class="mt-2 rounded-2xl bg-mint-soft/60 px-3 py-2 text-xs font-medium text-ink">
-                            {{ $earn->ruleSummary($business->currency) }}
-                        </p>
-                    @endif
-                </div>
-
-                <div class="mt-6 space-y-3">
-                    @foreach ($offerTemplates as $offer)
-                        @php
-                            $hint = \App\Support\OfferTemplates::spendToUnlock($earn, $offer['points_cost'], $business->currency);
-                        @endphp
-                        <label class="flex cursor-pointer items-start gap-3 rounded-3xl border border-ink/10 bg-white/90 p-4 transition has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
-                            <input type="checkbox" name="offers[]" value="{{ $offer['key'] }}" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint"
-                                   @checked(in_array($offer['key'], ['percent_5_100', 'free_item_100', 'free_coffee_100', 'free_meal_500', 'percent_10_200'], true))>
-                            <span class="min-w-0 flex-1">
-                                <span class="flex items-start justify-between gap-2">
-                                    <span class="font-display text-base font-semibold">{{ $offer['name'] }}</span>
-                                    <span class="shrink-0 rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-mint">{{ $offer['points_cost'] }} pts</span>
-                                </span>
-                                <span class="mt-1 block text-sm text-ink-muted">{{ $offer['description'] }}</span>
-                                @if ($hint)
-                                    <span class="mt-2 block text-xs font-medium text-mint-deep">{{ $hint }}</span>
-                                @endif
-                            </span>
-                        </label>
-                    @endforeach
-                </div>
-
-                <p class="mt-4 text-center text-xs text-ink-muted">{{ __('loop.more_offers_later') }}</p>
-                <button class="loop-btn-mint mt-6 w-full">{{ __('loop.finish_onboarding') }}</button>
-            </form>
-            <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-3">
-                @csrf
-                <input type="hidden" name="skip" value="1">
-                <button class="w-full text-sm font-semibold text-ink-muted">{{ __('loop.skip_offers') }}</button>
-            </form>
         @endif
     </div>
 </x-app-layout>

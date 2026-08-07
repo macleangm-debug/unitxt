@@ -48,17 +48,22 @@ class DashboardController extends Controller
                 $business = $business->fresh();
             }
 
+            $insights = $user->isOwner()
+                ? app(\App\Services\BusinessInsightService::class)->heroBanners($business)
+                : [];
+
             return view('dashboard.business', [
                 'business' => $business,
                 'shopCount' => $business->shops()->count(),
                 'campaignCount' => $business->campaigns()->count(),
-                'memberCount' => $business->memberships()->count(),
+                'memberCount' => $business->uniqueMemberCount(),
                 'visitCount' => $business->visits()->count(),
                 'todayVisits' => $todayVisits,
                 'todaySpend' => $todaySpend,
                 'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get(),
                 'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
+                'heroBanners' => $insights,
                 'showWelcome' => $request->session()->pull('show_welcome', false) || $request->boolean('welcome'),
                 'referralProgress' => $user->isOwner()
                     ? app(ReferralService::class)->progress($business)

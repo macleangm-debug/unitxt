@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\Reward;
 use App\Models\Shop;
 use App\Support\CampaignTemplates;
+use App\Support\Confirm;
 use App\Support\Countries;
 use App\Support\OfferTemplates;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,11 @@ class OnboardingController extends Controller
 
         $step = max(1, min(5, (int) $request->query('step', 1)));
         $earn = $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first();
+
+        // Offers before campaign — campaign cannot activate without an offer.
+        if ($step === 5 && $business->rewards()->doesntExist()) {
+            return redirect()->route('onboarding.show', ['step' => 4]);
+        }
 
         return view('onboarding.business', [
             'business' => $business->fresh(),
@@ -97,9 +103,76 @@ class OnboardingController extends Controller
         return redirect()->route('onboarding.show', ['step' => 4]);
     }
 
+    public function offers(Request $request): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness()->firstOrFail();
+
+        $data = $request->validate([
+            'offers' => ['required', 'array', 'min:1'],
+            'offers.*' => ['string'],
+        ]);
+
+        $selected = $data['offers'];
+        $catalog = collect(OfferTemplates::forSector($business->sector ?: 'other'))->keyBy('key');
+
+        foreach ($selected as $key) {
+            $template = $catalog->get($key);
+            if (! $template) {
+                continue;
+            }
+
+            $already = $business->rewards()
+                ->where('points_cost', $template['points_cost'])
+                ->where('reward_type', $template['reward_type'])
+                ->where('name', $template['name'])
+                ->exists();
+
+            if ($already) {
+                continue;
+            }
+
+            Reward::create([
+                'business_id' => $business->id,
+                'name' => $template['name'],
+                'description' => $template['description'],
+                'product_name' => $template['product_name'],
+                'points_cost' => $template['points_cost'],
+                'reward_type' => $template['reward_type'],
+                'reward_value' => $template['reward_value'],
+                'is_active' => true,
+            ]);
+        }
+
+        if ($business->rewards()->doesntExist()) {
+            return back()
+                ->withErrors(['offers' => __('loop.need_offer_first_body')])
+                ->with('confirm', Confirm::make(
+                    __('loop.need_offer_first_title'),
+                    __('loop.need_offer_first_body'),
+                    __('loop.pick_offers'),
+                    route('onboarding.show', ['step' => 4]),
+                    false,
+                ));
+        }
+
+        return redirect()->route('onboarding.show', ['step' => 5]);
+    }
+
     public function campaign(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+
+        if ($business->rewards()->doesntExist()) {
+            return redirect()
+                ->route('onboarding.show', ['step' => 4])
+                ->with('confirm', Confirm::make(
+                    __('loop.need_offer_first_title'),
+                    __('loop.need_offer_first_body'),
+                    __('loop.pick_offers'),
+                    route('onboarding.show', ['step' => 4]),
+                    false,
+                ));
+        }
 
         $data = $request->validate([
             'template' => ['required', 'string'],
@@ -124,51 +197,7 @@ class OnboardingController extends Controller
 
             $shopIds = $business->shops()->pluck('id');
             $campaign->shops()->sync($shopIds);
-        }
-
-        return redirect()->route('onboarding.show', ['step' => 5]);
-    }
-
-    public function offers(Request $request): RedirectResponse
-    {
-        $business = $request->user()->ownedBusiness()->firstOrFail();
-
-        if (! $request->boolean('skip')) {
-            $data = $request->validate([
-                'offers' => ['nullable', 'array'],
-                'offers.*' => ['string'],
-            ]);
-
-            $selected = $data['offers'] ?? [];
-            $catalog = collect(OfferTemplates::forSector($business->sector ?: 'other'))->keyBy('key');
-
-            foreach ($selected as $key) {
-                $template = $catalog->get($key);
-                if (! $template) {
-                    continue;
-                }
-
-                $already = $business->rewards()
-                    ->where('points_cost', $template['points_cost'])
-                    ->where('reward_type', $template['reward_type'])
-                    ->where('name', $template['name'])
-                    ->exists();
-
-                if ($already) {
-                    continue;
-                }
-
-                Reward::create([
-                    'business_id' => $business->id,
-                    'name' => $template['name'],
-                    'description' => $template['description'],
-                    'product_name' => $template['product_name'],
-                    'points_cost' => $template['points_cost'],
-                    'reward_type' => $template['reward_type'],
-                    'reward_value' => $template['reward_value'],
-                    'is_active' => true,
-                ]);
-            }
+            $campaign->rewards()->sync($business->rewards()->pluck('id'));
         }
 
         $business->update(['onboarding_completed_at' => now()]);

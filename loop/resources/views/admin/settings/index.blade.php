@@ -6,7 +6,7 @@
 
     @include('admin.partials.nav')
 
-    <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <div class="grid gap-6 lg:grid-cols-2">
         <form method="POST" action="{{ route('admin.settings.billing') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
             @csrf
             @method('PUT')
@@ -20,7 +20,6 @@
                 <div>
                     <label class="loop-label">{{ __('loop.trial_days') }}</label>
                     <input type="number" min="1" max="90" name="trial_days" value="{{ old('trial_days', $billing['trial_days']) }}" class="loop-input" required>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.trial_days_help') }}</p>
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.free_max_shops') }}</label>
@@ -33,7 +32,6 @@
                 <div>
                     <label class="loop-label">{{ __('loop.free_max_monthly_visits') }}</label>
                     <input type="number" min="1" name="free_max_monthly_visits" value="{{ old('free_max_monthly_visits', $billing['free_max_monthly_visits']) }}" class="loop-input" required>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.free_max_monthly_visits_help') }}</p>
                 </div>
             </div>
 
@@ -48,31 +46,67 @@
             <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
         </form>
 
-        <div class="space-y-4">
-            <a href="{{ route('admin.referrals.program') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referral_program') }}</p>
-                <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.goal_count') }}: {{ $referral['goal_count'] }} · {{ __('loop.referrer_extra_days') }}: {{ $referral['referrer_extra_days_per_referral'] }} · {{ __('loop.referred_extra_trial_days') }}: {{ $referral['referred_extra_trial_days'] }}</p>
-            </a>
+        <form method="POST" action="{{ route('admin.settings.growth') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+            @csrf
+            @method('PUT')
 
-            <a href="{{ route('admin.plans.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_plans') }}</p>
-                <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.view_plans') }}</p>
-                <p class="mt-1 text-sm text-ink-muted">{{ $plans->count() }} {{ __('loop.plans_live') }}</p>
-            </a>
-
-            <div class="loop-panel p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.integrations') }}</p>
-                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.integrations_blurb') }}</p>
-                <ul class="mt-4 space-y-2">
-                    @foreach ($integrations as $item)
-                        <li class="flex items-center justify-between rounded-xl bg-chalk px-3 py-2 text-sm">
-                            <span class="font-medium">{{ $item['name'] }}</span>
-                            <span class="text-xs font-semibold text-ink-muted">{{ __('loop.coming_soon') }}</span>
-                        </li>
-                    @endforeach
-                </ul>
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.growth_banners_settings') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.growth_banners_settings_blurb') }}</p>
             </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="loop-label">{{ __('loop.raffle_min_members') }}</label>
+                    <input type="number" min="5" name="raffle_min_members" value="{{ old('raffle_min_members', $growth['raffle_min_members']) }}" class="loop-input" required>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.banner_member_milestones') }}</label>
+                    <input name="banner_member_milestones" value="{{ old('banner_member_milestones', implode(',', $growth['banner_member_milestones'])) }}" class="loop-input" placeholder="25,50,100">
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.banner_member_milestones_help') }}</p>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.raffle_remind_days_before') }}</label>
+                    <input type="number" min="1" max="14" name="raffle_remind_days_before" value="{{ old('raffle_remind_days_before', $growth['raffle_remind_days_before']) }}" class="loop-input" required>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.raffle_default_claim_days') }}</label>
+                    <input type="number" min="1" max="30" name="raffle_default_claim_days" value="{{ old('raffle_default_claim_days', $growth['raffle_default_claim_days']) }}" class="loop-input" required>
+                </div>
+            </div>
+
+            <div class="space-y-2 text-sm">
+                @foreach ([
+                    'banner_show_campaign_up' => __('loop.banner_show_campaign_up'),
+                    'banner_show_campaign_down' => __('loop.banner_show_campaign_down'),
+                    'banner_show_retention_up' => __('loop.banner_show_retention_up'),
+                    'banner_show_retention_down' => __('loop.banner_show_retention_down'),
+                    'banner_show_raffle_unlock' => __('loop.banner_show_raffle_unlock'),
+                    'banner_show_add_offers_cta' => __('loop.banner_show_add_offers_cta'),
+                ] as $key => $label)
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" name="{{ $key }}" value="1" @checked(old($key, $growth[$key]))>
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
+
+            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+        </form>
+    </div>
+
+    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+        <a href="{{ route('admin.referrals.program') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referral_program') }}</p>
+            <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
+        </a>
+        <a href="{{ route('admin.plans.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_plans') }}</p>
+            <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.view_plans') }}</p>
+        </a>
+        <div class="loop-panel p-5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.integrations') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.integrations_blurb') }}</p>
         </div>
     </div>
 </x-app-layout>

@@ -18,6 +18,7 @@ class SettingsController extends Controller
             'campaignCount' => $business->campaigns()->count(),
             'offerCount' => $business->rewards()->count(),
             'staffCount' => $business->staff()->count(),
+            'raffleCount' => $business->raffles()->count(),
             'referralCount' => $business->referralsMade()->count(),
             'referralCredits' => (int) $business->referral_credit_days,
             'planKey' => $business->plan_key,

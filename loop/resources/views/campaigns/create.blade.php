@@ -1,7 +1,11 @@
 @php
     $selectedShops = old('shop_ids', []);
+    $selectedRewards = old('reward_ids', []);
     $t = $template ?? null;
     $defaultType = old('type', $t['type'] ?? 'earn');
+    if (! in_array($defaultType, ['earn', 'product_push'], true)) {
+        $defaultType = 'earn';
+    }
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -16,6 +20,9 @@
         </div>
 
         @forelse ($groupedTemplates as $intention => $group)
+            @if ($intention === 'retention')
+                @continue
+            @endif
             <section class="mb-8">
                 <h2 class="font-display text-lg font-semibold">{{ $group['label'] }}</h2>
                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
@@ -31,16 +38,17 @@
             <div class="loop-panel mb-6 p-6 text-sm text-ink-muted">{{ __('loop.all_templates_used') }}</div>
         @endforelse
 
-        <div class="grid gap-3 sm:grid-cols-2">
-            <a href="{{ route('campaigns.create', ['own' => 1]) }}" class="flex min-h-[9.5rem] flex-col rounded-3xl border border-dashed border-ink/20 bg-chalk/50 p-5 transition hover:-translate-y-0.5 hover:border-mint hover:bg-mint-soft/20">
-                <p class="font-display text-lg font-semibold">{{ __('loop.create_own') }}</p>
-                <p class="mt-2 flex-1 text-sm text-ink-muted">{{ __('loop.create_own_campaign_body') }}</p>
-                <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.continue') }} →</p>
-            </a>
-        </div>
+        <a href="{{ route('campaigns.create', ['own' => 1]) }}" class="flex min-h-[9.5rem] max-w-md flex-col rounded-3xl border border-dashed border-ink/20 bg-chalk/50 p-5 transition hover:border-mint">
+            <p class="font-display text-lg font-semibold">{{ __('loop.create_own') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.create_own_campaign_body') }}</p>
+        </a>
     @else
         <form method="POST" action="{{ route('campaigns.store') }}"
-              x-data="{ type: @js($defaultType) }"
+              x-data="{
+                enableWelcome: {{ old('enable_welcome') ? 'true' : 'false' }},
+                enableBirthday: {{ old('enable_birthday') ? 'true' : 'false' }},
+                enableStreak: {{ old('enable_streak') ? 'true' : 'false' }}
+              }"
               class="mx-auto max-w-2xl space-y-6 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8">
             @csrf
             @if ($templateKey)
@@ -51,54 +59,38 @@
                 <div class="rounded-2xl bg-gradient-to-br from-mint/20 to-coral/10 p-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.start_from_template') }}</p>
                     <p class="mt-1 font-display text-xl font-semibold">{{ $t['name'] }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ $t['description'] }}</p>
                 </div>
             @endif
 
             <section class="space-y-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.section_basics') }}</p>
-                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.campaign_basics_title') }}</h2>
-                </div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.campaign_name') }}</label>
                     <input name="name" class="loop-input" value="{{ old('name', $t['name'] ?? '') }}" required>
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.type') }}</label>
-                    <select name="type" class="loop-input" x-model="type">
-                        @foreach ([
-                            'earn' => __('loop.type_earn'),
-                            'product_push' => __('loop.type_product_push'),
-                            'streak' => __('loop.type_streak'),
-                            'birthday' => __('loop.type_birthday'),
-                            'welcome' => __('loop.type_welcome'),
-                        ] as $value => $label)
-                            <option value="{{ $value }}" @selected($defaultType === $value)>{{ $label }}</option>
-                        @endforeach
+                    <select name="type" class="loop-input">
+                        <option value="earn" @selected($defaultType === 'earn')>{{ __('loop.type_earn') }}</option>
+                        <option value="product_push" @selected($defaultType === 'product_push')>{{ __('loop.type_product_push') }}</option>
                     </select>
-                    <p class="mt-1 text-xs text-ink-muted" x-show="type === 'streak'">{{ __('loop.streak_advice') }}</p>
-                    <p class="mt-1 text-xs text-ink-muted" x-show="type === 'birthday'">{{ __('loop.birthday_advice') }}</p>
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.description') }}</label>
-                    <textarea name="description" rows="2" class="loop-input" placeholder="{{ __('loop.campaign_desc_placeholder') }}">{{ old('description', $t['description'] ?? '') }}</textarea>
+                    <textarea name="description" rows="2" class="loop-input">{{ old('description', $t['description'] ?? '') }}</textarea>
                 </div>
             </section>
 
-            <section class="space-y-4 rounded-2xl bg-chalk/70 p-4" x-show="type === 'earn' || type === 'product_push'" x-cloak>
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.section_earn') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.earn_rules_short') }}</p>
-                </div>
+            <section class="space-y-4 rounded-2xl bg-chalk/70 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_earn') }}</p>
                 <div class="grid gap-3 sm:grid-cols-3">
                     <div>
                         <label class="loop-label">{{ __('loop.spend_step') }} ({{ $business->currency }})</label>
-                        <input type="number" name="spend_step" class="loop-input" value="{{ old('spend_step', $t['spend_step'] ?? 1000) }}">
+                        <input type="number" name="spend_step" class="loop-input" value="{{ old('spend_step', $t['spend_step'] ?? 1000) }}" required>
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.points_per_step') }}</label>
-                        <input type="number" name="points_per_step" class="loop-input" value="{{ old('points_per_step', $t['points_per_step'] ?? 2) }}">
+                        <input type="number" name="points_per_step" class="loop-input" value="{{ old('points_per_step', $t['points_per_step'] ?? 2) }}" required>
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.bonus_points') }}</label>
@@ -107,46 +99,70 @@
                 </div>
             </section>
 
-            <section class="space-y-4 rounded-2xl bg-chalk/70 p-4" x-show="type === 'streak'" x-cloak>
+            <section class="space-y-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.section_streak') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.streak_section_hint') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_tie_offers') }}</p>
+                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.tie_offers_title') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.tie_offers_body') }}</p>
                 </div>
-                <div class="grid gap-3 sm:grid-cols-3">
-                    <div>
-                        <label class="loop-label">{{ __('loop.streak_target') }}</label>
-                        <input type="number" name="streak_target" min="2" class="loop-input" value="{{ old('streak_target', $t['streak_target'] ?? 3) }}">
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.streak_period') }}</label>
-                        <select name="streak_period" class="loop-input">
-                            <option value="week" @selected(old('streak_period', $t['streak_period'] ?? 'week') === 'week')>{{ __('loop.streak_period_week') }}</option>
-                            <option value="month" @selected(old('streak_period', $t['streak_period'] ?? 'week') === 'month')>{{ __('loop.streak_period_month') }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.bonus_points') }}</label>
-                        <input type="number" name="bonus_points" class="loop-input" value="{{ old('bonus_points', $t['bonus_points'] ?? 30) }}">
-                    </div>
+                <div class="grid gap-2">
+                    @foreach ($offers as $offer)
+                        <label class="flex items-center gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                            <input type="checkbox" name="reward_ids[]" value="{{ $offer->id }}" @checked(in_array($offer->id, $selectedRewards, false) || (empty($selectedRewards) && $loop->first))>
+                            <span>
+                                <span class="block text-sm font-semibold">{{ $offer->name }}</span>
+                                <span class="text-xs text-ink-muted">{{ $offer->points_cost }} {{ __('loop.pts') }} · {{ $offer->label() }}</span>
+                            </span>
+                        </label>
+                    @endforeach
                 </div>
+                <x-input-error :messages="$errors->get('reward_ids')" class="mt-1" />
             </section>
 
-            <section class="space-y-4 rounded-2xl bg-chalk/70 p-4" x-show="type === 'birthday' || type === 'welcome'" x-cloak>
+            <section class="space-y-4 rounded-2xl border border-ink/8 bg-gradient-to-br from-white to-mint/10 p-5">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.section_bonus') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.bonus_section_hint') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_bonuses') }}</p>
+                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.bonuses_title') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.bonuses_body') }}</p>
                 </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.bonus_points') }}</label>
-                    <input type="number" name="bonus_points" class="loop-input" value="{{ old('bonus_points', $t['bonus_points'] ?? 20) }}">
-                </div>
+
+                <label class="flex items-start gap-3 rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-ink/5">
+                    <input type="checkbox" name="enable_welcome" value="1" class="mt-1" x-model="enableWelcome">
+                    <span class="flex-1">
+                        <span class="block text-sm font-semibold">{{ __('loop.type_welcome') }}</span>
+                        <span class="text-xs text-ink-muted">{{ __('loop.welcome_bonus_hint') }}</span>
+                        <input type="number" name="welcome_points" class="loop-input mt-2" value="{{ old('welcome_points', 20) }}" x-show="enableWelcome" x-cloak>
+                    </span>
+                </label>
+
+                <label class="flex items-start gap-3 rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-ink/5">
+                    <input type="checkbox" name="enable_birthday" value="1" class="mt-1" x-model="enableBirthday">
+                    <span class="flex-1">
+                        <span class="block text-sm font-semibold">{{ __('loop.type_birthday') }}</span>
+                        <span class="text-xs text-ink-muted">{{ __('loop.birthday_bonus_hint') }}</span>
+                        <input type="number" name="birthday_points" class="loop-input mt-2" value="{{ old('birthday_points', 50) }}" x-show="enableBirthday" x-cloak>
+                    </span>
+                </label>
+
+                <label class="flex items-start gap-3 rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-ink/5">
+                    <input type="checkbox" name="enable_streak" value="1" class="mt-1" x-model="enableStreak">
+                    <span class="flex-1">
+                        <span class="block text-sm font-semibold">{{ __('loop.type_streak') }}</span>
+                        <span class="text-xs text-ink-muted">{{ __('loop.streak_advice') }}</span>
+                        <div class="mt-2 grid gap-2 sm:grid-cols-3" x-show="enableStreak" x-cloak>
+                            <input type="number" name="streak_target" class="loop-input" placeholder="{{ __('loop.streak_target') }}" value="{{ old('streak_target', 3) }}">
+                            <select name="streak_period" class="loop-input">
+                                <option value="week">{{ __('loop.streak_period_week') }}</option>
+                                <option value="month">{{ __('loop.streak_period_month') }}</option>
+                            </select>
+                            <input type="number" name="streak_points" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" value="{{ old('streak_points', 30) }}">
+                        </div>
+                    </span>
+                </label>
             </section>
 
             <section class="space-y-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.section_schedule') }}</p>
-                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.when_and_where') }}</h2>
-                </div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">5 · {{ __('loop.section_schedule') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <x-date-field name="starts_at" :label="__('loop.starts')" :value="old('starts_at', now()->format('Y-m-d'))" required />
                     <x-date-field name="ends_at" :label="__('loop.ends')" :value="old('ends_at')" optional />
@@ -164,7 +180,6 @@
                 </div>
             </section>
 
-            <p class="rounded-2xl bg-mint-soft/50 px-4 py-3 text-sm text-ink-muted">{{ __('loop.campaign_then_offers_hint') }}</p>
             <button class="loop-btn-mint w-full">{{ __('loop.launch_campaign') }}</button>
             <a href="{{ route('campaigns.create') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
         </form>

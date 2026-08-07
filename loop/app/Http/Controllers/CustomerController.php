@@ -99,11 +99,19 @@ class CustomerController extends Controller
             ->take(20)
             ->get();
 
+        $raffleWins = \App\Models\RaffleWinner::query()
+            ->with('raffle')
+            ->where('customer_id', $customer->id)
+            ->whereHas('raffle', fn ($q) => $q->where('business_id', $business->id))
+            ->latest('drawn_at')
+            ->get();
+
         return view('customers.show', [
             'business' => $business,
             'customer' => $customer,
             'memberships' => $memberships,
             'visits' => $visits,
+            'raffleWins' => $raffleWins,
             'points' => (int) $memberships->sum('points_balance'),
             'lifetime' => (int) $memberships->sum('lifetime_points'),
             'visitCount' => $visits->count() > 0

@@ -14,6 +14,7 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\BusinessInviteController;
 use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\ContentStudioController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\PricingController;
+use App\Http\Controllers\RaffleController;
 use App\Http\Controllers\ReferralHubController;
 use App\Http\Controllers\RewardController;
 use App\Http\Controllers\SettingsController;
@@ -86,6 +88,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/plans', [AdminPlanController::class, 'index'])->name('plans.index');
         Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
         Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
+        Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
     });
 
     Route::middleware('role:owner')->group(function () {
@@ -104,6 +107,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/billing/choose', [BillingController::class, 'choose'])->name('billing.choose');
         Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+        Route::get('/raffles', [RaffleController::class, 'index'])->name('raffles.index');
+        Route::get('/raffles/create', [RaffleController::class, 'create'])->name('raffles.create');
+        Route::post('/raffles', [RaffleController::class, 'store'])->name('raffles.store');
+        Route::get('/raffles/{raffle}', [RaffleController::class, 'show'])->name('raffles.show');
+        Route::get('/raffles/{raffle}/live', [RaffleController::class, 'live'])->name('raffles.live');
+        Route::post('/raffles/{raffle}/draw', [RaffleController::class, 'draw'])->name('raffles.draw');
+        Route::post('/raffles/{raffle}/winners/{winner}/contact', [RaffleController::class, 'contact'])->name('raffles.contact');
+        Route::post('/raffles/{raffle}/winners/{winner}/claim', [RaffleController::class, 'claim'])->name('raffles.claim');
+        Route::get('/content-studio', [ContentStudioController::class, 'index'])->name('content-studio.index');
         Route::resource('shops', ShopController::class);
         Route::resource('campaigns', CampaignController::class);
         Route::get('/offers', [RewardController::class, 'index'])->name('rewards.index');

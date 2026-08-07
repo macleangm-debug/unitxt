@@ -86,6 +86,21 @@
         </section>
     </div>
 
+    <section class="mt-14 rounded-[2rem] border border-ink/8 bg-white/95 p-8 shadow-[0_20px_60px_rgba(11,31,42,0.05)] sm:p-9">
+        <h2 class="font-display text-2xl font-semibold">{{ __('loop.tied_offers') }}</h2>
+        <p class="mt-2 text-sm text-ink-muted">{{ __('loop.tie_offers_body') }}</p>
+        <div class="mt-6 grid gap-3 sm:grid-cols-2">
+            @forelse ($campaign->rewards as $offer)
+                <div class="rounded-2xl bg-mint-soft/60 px-5 py-4">
+                    <p class="font-semibold">{{ $offer->name }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ $offer->points_cost }} {{ __('loop.pts') }} · {{ $offer->label() }}</p>
+                </div>
+            @empty
+                <p class="text-sm text-ink-muted">{{ __('loop.no_tied_offers') }}</p>
+            @endforelse
+        </div>
+    </section>
+
     @if ($recentVisits->isNotEmpty())
         <section class="mt-14">
             <div class="mb-6 flex items-end justify-between gap-3">

@@ -16,6 +16,36 @@
         <div class="loop-stat"><p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p><p class="mt-2 font-display text-3xl font-semibold">{{ $visitCount }}</p></div>
     </div>
 
+    @if ($isOwner && !empty($heroBanners))
+        <div class="mt-6 space-y-4">
+            @foreach ($heroBanners as $banner)
+                <section @class([
+                    'overflow-hidden rounded-[1.75rem] p-6',
+                    'border border-mint/25 bg-gradient-to-br from-mint/20 via-white to-white' => ($banner['tone'] ?? '') === 'mint',
+                    'border border-coral/25 bg-gradient-to-br from-coral/15 via-white to-white' => ($banner['tone'] ?? '') === 'coral',
+                    'bg-gradient-to-br from-ink via-ink-soft to-mint/20 text-white' => ($banner['tone'] ?? '') === 'ink',
+                ])>
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="max-w-xl">
+                            <p @class([
+                                'text-xs font-semibold uppercase tracking-[0.14em]',
+                                'text-mint-deep' => ($banner['tone'] ?? '') !== 'ink',
+                                'text-mint' => ($banner['tone'] ?? '') === 'ink',
+                            ])>{{ __('loop.performance') }}</p>
+                            <h2 class="mt-2 font-display text-2xl font-semibold">{{ $banner['title'] }}</h2>
+                            <p @class(['mt-2 text-sm', 'text-ink-muted' => ($banner['tone'] ?? '') !== 'ink', 'text-white/70' => ($banner['tone'] ?? '') === 'ink'])>{{ $banner['body'] }}</p>
+                        </div>
+                        <a href="{{ $banner['url'] }}" @class([
+                            'rounded-full px-5 py-2.5 text-sm font-semibold',
+                            'bg-ink text-white' => ($banner['tone'] ?? '') !== 'ink',
+                            'bg-mint text-ink' => ($banner['tone'] ?? '') === 'ink',
+                        ])>{{ $banner['cta'] }}</a>
+                    </div>
+                </section>
+            @endforeach
+        </div>
+    @endif
+
     @if ($isOwner && !empty($needsUpgrade))
         <section class="mt-6 overflow-hidden rounded-[1.75rem] border border-coral/25 bg-gradient-to-br from-coral/15 via-white to-mint/10 p-6">
             <div class="flex flex-wrap items-start justify-between gap-4">

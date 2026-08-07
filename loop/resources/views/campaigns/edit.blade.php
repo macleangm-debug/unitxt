@@ -1,5 +1,6 @@
 @php
     $selectedShops = old('shop_ids', $campaign->shops->pluck('id')->all());
+    $selectedRewards = old('reward_ids', $campaign->rewards->pluck('id')->all());
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -53,6 +54,23 @@
                 </div>
             </div>
         </div>
+
+        <section class="space-y-3">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.section_tie_offers') }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.tie_offers_body') }}</p>
+            <div class="grid gap-2">
+                @foreach ($offers as $offer)
+                    <label class="flex items-center gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                        <input type="checkbox" name="reward_ids[]" value="{{ $offer->id }}" @checked(in_array($offer->id, $selectedRewards, false))>
+                        <span>
+                            <span class="block text-sm font-semibold">{{ $offer->name }}</span>
+                            <span class="text-xs text-ink-muted">{{ $offer->points_cost }} {{ __('loop.pts') }} · {{ $offer->label() }}</span>
+                        </span>
+                    </label>
+                @endforeach
+            </div>
+            <x-input-error :messages="$errors->get('reward_ids')" class="mt-1" />
+        </section>
 
         <div class="grid gap-3 sm:grid-cols-2">
             <x-date-field name="starts_at" :label="__('loop.starts')" :value="old('starts_at', $campaign->starts_at?->format('Y-m-d'))" required />

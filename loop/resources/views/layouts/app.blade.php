@@ -49,11 +49,18 @@
         <div class="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-white p-8 text-center shadow-[0_40px_100px_rgba(11,31,42,0.35)]">
             @if (!empty($confirm['celebrate']))
                 <div class="pointer-events-none absolute inset-0 overflow-hidden">
-                    @foreach (range(1,16) as $i)
-                        <span class="absolute animate-bounce rounded-sm opacity-80"
-                              style="left: {{ rand(5,90) }}%; top: {{ rand(-10,40) }}%; width: {{ rand(6,10) }}px; height: {{ rand(8,14) }}px; background: {{ ['#2DD4A8','#FF6B4A','#0B1F2A','#F4C95F'][$i % 4] }}; animation-delay: {{ $i * 0.05 }}s;"></span>
+                    @foreach (range(1,36) as $i)
+                        <span class="absolute opacity-90"
+                              style="left: {{ rand(2,96) }}%; top: -12%; width: {{ rand(6,12) }}px; height: {{ rand(8,16) }}px; border-radius: {{ $i % 3 === 0 ? '999px' : '2px' }}; background: {{ ['#2DD4A8','#FF6B4A','#0B1F2A','#F4C95F','#7DD3C0'][$i % 5] }}; animation: loop-confetti {{ 1.6 + ($i % 5) * 0.18 }}s ease-in {{ $i * 0.04 }}s infinite;"></span>
                     @endforeach
                 </div>
+                <style>
+                    @keyframes loop-confetti {
+                        0% { transform: translate3d(0,-10%,0) rotate(0deg); opacity: 0; }
+                        12% { opacity: 1; }
+                        100% { transform: translate3d({{ rand(-40,40) }}px, 120vh, 0) rotate({{ rand(180,720) }}deg); opacity: 0; }
+                    }
+                </style>
             @endif
             <div class="relative">
                 <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-mint to-mint-deep text-3xl text-ink shadow-[0_12px_40px_rgba(45,212,168,0.35)]">✓</div>

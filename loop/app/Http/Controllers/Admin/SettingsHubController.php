@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
 use App\Support\BillingSettings;
+use App\Support\Confirm;
+use App\Support\GrowthSettings;
 use App\Support\Plans;
 use App\Support\ReferralProgram;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +20,7 @@ class SettingsHubController extends Controller
     {
         return view('admin.settings.index', [
             'billing' => BillingSettings::settings(),
+            'growth' => GrowthSettings::settings(),
             'referral' => ReferralProgram::settings(),
             'plans' => Plan::query()->orderBy('sort_order')->get(),
             'integrations' => [
@@ -45,7 +48,6 @@ class SettingsHubController extends Controller
 
         PlatformSetting::putValue(BillingSettings::KEY, $normalized);
 
-        // Keep free/trial plan row in sync with admin caps
         Plan::query()->where('key', Plans::FREE)->update([
             'name' => 'Trial',
             'tagline' => 'Short trial — then pick a paid plan.',
@@ -60,6 +62,48 @@ class SettingsHubController extends Controller
             ],
         ]);
 
-        return back()->with('status', __('loop.admin_billing_saved'));
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_billing_saved_title'),
+            __('loop.admin_billing_saved'),
+            __('loop.done'),
+            route('admin.settings'),
+            false,
+        ));
+    }
+
+    public function updateGrowth(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'raffle_min_members' => ['required', 'integer', 'min:5', 'max:5000'],
+            'banner_member_milestones' => ['nullable', 'string', 'max:120'],
+            'raffle_remind_days_before' => ['required', 'integer', 'min:1', 'max:14'],
+            'raffle_default_claim_days' => ['required', 'integer', 'min:1', 'max:30'],
+            'banner_show_campaign_up' => ['sometimes', 'boolean'],
+            'banner_show_campaign_down' => ['sometimes', 'boolean'],
+            'banner_show_retention_up' => ['sometimes', 'boolean'],
+            'banner_show_retention_down' => ['sometimes', 'boolean'],
+            'banner_show_raffle_unlock' => ['sometimes', 'boolean'],
+            'banner_show_add_offers_cta' => ['sometimes', 'boolean'],
+        ]);
+
+        $normalized = GrowthSettings::normalizeInput([
+            ...$data,
+            'banner_show_campaign_up' => $request->boolean('banner_show_campaign_up'),
+            'banner_show_campaign_down' => $request->boolean('banner_show_campaign_down'),
+            'banner_show_retention_up' => $request->boolean('banner_show_retention_up'),
+            'banner_show_retention_down' => $request->boolean('banner_show_retention_down'),
+            'banner_show_raffle_unlock' => $request->boolean('banner_show_raffle_unlock'),
+            'banner_show_add_offers_cta' => $request->boolean('banner_show_add_offers_cta'),
+        ]);
+
+        PlatformSetting::putValue(GrowthSettings::KEY, $normalized);
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_growth_saved_title'),
+            __('loop.admin_growth_saved'),
+            __('loop.done'),
+            route('admin.settings'),
+            false,
+        ));
     }
 }

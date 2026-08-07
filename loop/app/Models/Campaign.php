@@ -60,6 +60,11 @@ class Campaign extends Model
         return $this->belongsToMany(Shop::class);
     }
 
+    public function rewards(): BelongsToMany
+    {
+        return $this->belongsToMany(Reward::class);
+    }
+
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class);

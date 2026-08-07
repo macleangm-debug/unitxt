@@ -25,6 +25,16 @@
             <p class="mt-3 font-display text-3xl font-semibold">{{ $staffCount }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_staff') }}</p>
         </a>
+        <a href="{{ route('raffles.index') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.raffles') }}</p>
+            <p class="mt-3 font-display text-3xl font-semibold">{{ $raffleCount }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_raffles') }}</p>
+        </a>
+        <a href="{{ route('content-studio.index') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.content_studio') }}</p>
+            <p class="mt-3 font-display text-2xl font-semibold">{{ __('loop.studio_create') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_studio') }}</p>
+        </a>
         <a href="{{ route('settings.referrals') }}" class="loop-panel group block p-6 transition hover:-translate-y-0.5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.referrals') }}</p>
             <p class="mt-3 font-display text-3xl font-semibold">{{ $referralCount }}</p>

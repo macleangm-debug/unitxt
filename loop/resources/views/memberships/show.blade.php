@@ -26,6 +26,27 @@
     @endif
 
     <section class="loop-panel mb-6 p-6">
+        <h2 class="font-display text-xl font-semibold">{{ __('loop.your_raffle_wins') }}</h2>
+        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.your_raffle_wins_body') }}</p>
+        <div class="mt-4 space-y-3">
+            @forelse ($raffleWins as $win)
+                <div class="rounded-xl bg-gradient-to-br from-mint/20 to-chalk px-4 py-3">
+                    <p class="font-semibold">{{ $win->raffle->prize_name }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">
+                        {{ $win->raffle->name }}
+                        · {{ __('loop.raffle_winner_status_'.$win->status) }}
+                        @if ($win->claim_by && $win->status !== 'claimed')
+                            · {{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}
+                        @endif
+                    </p>
+                </div>
+            @empty
+                <p class="text-sm text-ink-muted">{{ __('loop.no_raffle_wins_yet') }}</p>
+            @endforelse
+        </div>
+    </section>
+
+    <section class="loop-panel mb-6 p-6">
         <h2 class="font-display text-xl font-semibold">{{ __('loop.offers_at_this_shop') }}</h2>
         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offers_at_this_shop_body') }}</p>
         <div class="mt-4 space-y-3">
