@@ -92,6 +92,42 @@ class AffiliateDashboardController extends Controller
         ));
     }
 
+    public function payoutForm(Request $request): View
+    {
+        $affiliate = $this->activeAffiliate($request);
+
+        return view('affiliates.payout', [
+            'affiliate' => $affiliate,
+        ]);
+    }
+
+    public function updatePayout(Request $request): RedirectResponse
+    {
+        $affiliate = $this->activeAffiliate($request);
+
+        $data = $request->validate([
+            'payout_method' => ['required', 'in:phone,bank'],
+            'payout_phone' => ['nullable', 'required_if:payout_method,phone', 'string', 'max:40'],
+            'bank_name' => ['nullable', 'required_if:payout_method,bank', 'string', 'max:120'],
+            'payout_account_name' => ['required', 'string', 'max:120'],
+        ]);
+
+        $affiliate->update([
+            'payout_method' => $data['payout_method'],
+            'payout_phone' => $data['payout_method'] === 'phone' ? $data['payout_phone'] : null,
+            'bank_name' => $data['payout_method'] === 'bank' ? $data['bank_name'] : null,
+            'payout_account_name' => $data['payout_account_name'],
+        ]);
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.payout_saved_title'),
+            __('loop.payout_saved_body'),
+            __('loop.done'),
+            route('affiliate.payout'),
+            false,
+        ));
+    }
+
     private function activeAffiliate(Request $request): \App\Models\Affiliate
     {
         $user = $request->user();

@@ -108,6 +108,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
         Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
         Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
+        Route::put('/settings/sectors', [AdminSettingsHubController::class, 'updateSectors'])->name('settings.sectors');
+        Route::put('/settings/sales-visibility', [AdminSettingsHubController::class, 'updateSalesVisibility'])->name('settings.sales-visibility');
     });
 
     Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {
@@ -115,6 +117,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/setup', [AffiliateDashboardController::class, 'setupForm'])->name('setup');
         Route::post('/setup', [AffiliateDashboardController::class, 'setup'])->name('setup.store');
         Route::put('/promo', [AffiliateDashboardController::class, 'updatePromo'])->name('promo.update');
+        Route::get('/payout', [AffiliateDashboardController::class, 'payoutForm'])->name('payout');
+        Route::put('/payout', [AffiliateDashboardController::class, 'updatePayout'])->name('payout.update');
     });
 
     Route::middleware('role:owner')->group(function () {

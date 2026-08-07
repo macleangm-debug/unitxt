@@ -17,7 +17,7 @@
 
     <x-site-header>
         <x-slot:actions>
-            <a href="{{ route('landing.business') }}" class="hidden text-sm font-semibold text-ink-muted hover:text-ink sm:inline">{{ __('loop.business') }}</a>
+            <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.business') }}</a>
             <a href="{{ route('business.register') }}" class="loop-btn-mint !py-2 text-sm">{{ __('loop.cta_business') }}</a>
         </x-slot:actions>
     </x-site-header>

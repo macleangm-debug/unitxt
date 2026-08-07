@@ -11,7 +11,8 @@
 <body class="font-sans text-ink">
 <x-site-header>
     <x-slot:actions>
-        <a href="{{ route('affiliates.landing') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.back') }}</a>
+        <a href="{{ route('affiliates.landing') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.back') }}</a>
+        <a href="{{ route('affiliates.apply') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.become_affiliate') }}</a>
     </x-slot:actions>
 </x-site-header>
 
@@ -21,28 +22,13 @@
         <h1 class="mt-2 font-display text-3xl font-semibold">{{ __('loop.check_status') }}</h1>
         <p class="mt-2 text-ink-muted">{{ __('loop.affiliate_status_blurb') }}</p>
 
-        <form method="POST" action="{{ route('affiliates.status.lookup') }}" class="mt-8 space-y-4 rounded-[2rem] border border-ink/10 bg-white/90 p-6">
-            @csrf
-            <div>
-                <label class="loop-label">{{ __('loop.country_code') }}</label>
-                <select name="country_code" class="loop-input" required>
-                    @foreach ($countries as $code => $meta)
-                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="loop-label">{{ __('loop.phone') }}</label>
-                <input name="phone" value="{{ old('phone') }}" class="loop-input" required>
-            </div>
-            <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>
-        </form>
-
-        @if (!empty($lookedUp))
-            <div class="mt-6 rounded-[2rem] border border-ink/10 bg-white p-6">
+        <div class="mt-8 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+            @if (!empty($lookedUp))
                 @if (! $affiliate)
-                    <p class="font-semibold">{{ __('loop.affiliate_not_found') }}</p>
-                    <a href="{{ route('affiliates.apply') }}" class="loop-btn-mint mt-4 inline-flex">{{ __('loop.become_affiliate') }}</a>
+                    <p class="font-display text-xl font-semibold">{{ __('loop.affiliate_not_found') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ $lookupPhone }}</p>
+                    <a href="{{ route('affiliates.apply') }}" class="loop-btn-mint mt-6 inline-flex w-full justify-center">{{ __('loop.become_affiliate') }}</a>
+                    <a href="{{ route('affiliates.status') }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.try_again') }}</a>
                 @else
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.status') }}</p>
                     <p class="mt-2 font-display text-2xl font-semibold">{{ __('loop.affiliate_status_'.$affiliate->status) }}</p>
@@ -55,9 +41,27 @@
                     @elseif ($affiliate->status === 'rejected' && $affiliate->decision_note)
                         <p class="mt-4 text-sm text-coral">{{ $affiliate->decision_note }}</p>
                     @endif
+                    <a href="{{ route('affiliates.status') }}" class="mt-4 block text-center text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.try_again') }}</a>
                 @endif
-            </div>
-        @endif
+            @else
+                <form method="POST" action="{{ route('affiliates.status.lookup') }}" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label class="loop-label">{{ __('loop.country_code') }}</label>
+                        <select name="country_code" class="loop-input" required>
+                            @foreach ($countries as $code => $meta)
+                                <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.phone') }}</label>
+                        <input name="phone" value="{{ old('phone') }}" class="loop-input" required placeholder="712 345 678">
+                    </div>
+                    <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>
+                </form>
+            @endif
+        </div>
     </div>
 </main>
 <x-site-footer />

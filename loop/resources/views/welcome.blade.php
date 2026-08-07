@@ -17,9 +17,9 @@
 
     <x-site-header>
         <x-slot:actions>
-            <a href="{{ route('affiliates.landing') }}" class="hidden text-sm font-semibold text-ink-muted hover:text-ink md:inline">{{ __('loop.affiliates') }}</a>
-            <a href="{{ route('discover') }}" class="hidden text-sm font-semibold text-ink-muted hover:text-ink md:inline">{{ __('loop.browse_campaigns') }}</a>
-            <a href="{{ route('home') }}#pricing" class="hidden text-sm font-semibold text-ink-muted hover:text-ink md:inline">{{ __('loop.pricing') }}</a>
+            <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
+            <a href="{{ route('discover') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.browse_campaigns') }}</a>
+            <a href="{{ route('home') }}#pricing" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.pricing') }}</a>
         </x-slot:actions>
     </x-site-header>
 

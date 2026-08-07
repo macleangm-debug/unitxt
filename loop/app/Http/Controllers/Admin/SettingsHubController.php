@@ -10,6 +10,8 @@ use App\Support\Confirm;
 use App\Support\GrowthSettings;
 use App\Support\Plans;
 use App\Support\ReferralProgram;
+use App\Support\SalesVisibility;
+use App\Support\Sectors;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,6 +24,8 @@ class SettingsHubController extends Controller
             'billing' => BillingSettings::settings(),
             'growth' => GrowthSettings::settings(),
             'referral' => ReferralProgram::settings(),
+            'salesVisibility' => SalesVisibility::settings(),
+            'sectors' => Sectors::list(),
             'plans' => Plan::query()->orderBy('sort_order')->get(),
             'integrations' => [
                 ['key' => 'mobile_money', 'name' => __('loop.integration_mobile_money'), 'status' => 'coming'],
@@ -109,6 +113,53 @@ class SettingsHubController extends Controller
         return back()->with('confirm', Confirm::make(
             __('loop.admin_growth_saved_title'),
             __('loop.admin_growth_saved'),
+            __('loop.done'),
+            route('admin.settings'),
+            false,
+        ));
+    }
+
+    public function updateSectors(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'sectors' => ['required', 'array', 'min:1'],
+            'sectors.*.key' => ['required', 'string', 'max:40'],
+            'sectors.*.label' => ['required', 'string', 'max:80'],
+            'new_key' => ['nullable', 'string', 'max:40'],
+            'new_label' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $rows = $data['sectors'];
+        if (filled($data['new_key'] ?? null) && filled($data['new_label'] ?? null)) {
+            $rows[] = [
+                'key' => $data['new_key'],
+                'label' => $data['new_label'],
+            ];
+        }
+
+        PlatformSetting::putValue(Sectors::KEY, Sectors::normalizeInput($rows));
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_sectors_saved_title'),
+            __('loop.admin_sectors_saved'),
+            __('loop.done'),
+            route('admin.settings'),
+            false,
+        ));
+    }
+
+    public function updateSalesVisibility(Request $request): RedirectResponse
+    {
+        $normalized = SalesVisibility::normalizeInput([
+            'customers_see_sales' => $request->boolean('customers_see_sales'),
+            'front_desk_see_sales' => $request->boolean('front_desk_see_sales'),
+        ]);
+
+        PlatformSetting::putValue(SalesVisibility::KEY, $normalized);
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_sales_visibility_saved_title'),
+            __('loop.admin_sales_visibility_saved'),
             __('loop.done'),
             route('admin.settings'),
             false,

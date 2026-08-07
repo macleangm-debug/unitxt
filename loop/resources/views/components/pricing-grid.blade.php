@@ -24,7 +24,12 @@
                 <p class="mb-3 inline-flex w-fit rounded-full bg-ink px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.most_popular') }}</p>
             @endif
             <p class="font-display text-xl font-semibold">{{ $plan->name }}</p>
-            <p class="mt-1 min-h-[2.5rem] text-sm text-ink-muted">{{ $plan->tagline }}</p>
+            @php
+                $taglineKey = 'loop.plan_'.$plan->key.'_tagline';
+                $translatedTagline = __($taglineKey);
+                $tagline = $translatedTagline === $taglineKey ? $plan->tagline : $translatedTagline;
+            @endphp
+            <p class="mt-1 min-h-[2.5rem] text-sm text-ink-muted">{{ $tagline }}</p>
             <p class="mt-5 font-display text-3xl font-semibold tracking-tight">{{ $plan->priceLabel() }}</p>
             <ul class="mt-5 flex-1 space-y-2.5 text-sm text-ink-muted">
                 @foreach ($plan->features ?? [] as $feature)

@@ -30,7 +30,7 @@ class BusinessRegisterController extends Controller
         $referrer = $affiliate ? null : $referrals->findReferrer($ref);
 
         return view('auth.business-register', [
-            'sectors' => Sectors::OPTIONS,
+            'sectors' => Sectors::all(),
             'countries' => Countries::OPTIONS,
             'preferredCountry' => session('preferred_country', 'TZ'),
             'referralCode' => $affiliate?->promo_code ?? $referrer?->referral_code ?? old('referral_code', $ref),
@@ -50,7 +50,7 @@ class BusinessRegisterController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'business_name' => ['required', 'string', 'max:120'],
-            'sector' => ['required', 'in:'.implode(',', array_keys(Sectors::OPTIONS))],
+            'sector' => ['required', 'in:'.implode(',', array_keys(Sectors::all()))],
             'sector_other' => ['nullable', 'required_if:sector,other', 'string', 'max:80'],
             'hotline_country_code' => ['nullable', 'string', 'max:8'],
             'hotline' => ['nullable', 'string', 'max:40'],

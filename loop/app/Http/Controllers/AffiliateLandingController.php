@@ -54,10 +54,14 @@ class AffiliateLandingController extends Controller
             'id_type' => ['required', 'in:national_id,passport,drivers_license,voter_id'],
             'id_number' => ['required', 'string', 'max:64'],
             'city' => ['required', 'string', 'max:80'],
-            'address' => ['nullable', 'string', 'max:255'],
-            'payout_phone' => ['nullable', 'string', 'max:40'],
-            'bank_name' => ['nullable', 'string', 'max:120'],
+            'district' => ['required', 'string', 'max:80'],
+            'address' => ['required', 'string', 'max:255'],
         ]);
+
+        $allowedCities = Countries::cities($data['country']);
+        if ($allowedCities && ! in_array($data['city'], $allowedCities, true)) {
+            return back()->withInput()->withErrors(['city' => __('loop.invalid_city')]);
+        }
 
         $countryCode = Countries::dial($data['country']);
         $phone = Countries::normalizePhone($data['phone']);
@@ -72,9 +76,8 @@ class AffiliateLandingController extends Controller
             'id_type' => $data['id_type'],
             'id_number' => $data['id_number'],
             'city' => $data['city'],
-            'address' => $data['address'] ?? null,
-            'payout_phone' => $data['payout_phone'] ?? null,
-            'bank_name' => $data['bank_name'] ?? null,
+            'district' => $data['district'],
+            'address' => $data['address'],
         ]);
 
         return redirect()->route('affiliates.status')->with('confirm', Confirm::make(

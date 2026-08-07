@@ -11,8 +11,8 @@
 <body class="font-sans text-ink">
 <x-site-header>
     <x-slot:actions>
-        <a href="{{ route('affiliates.status') }}" class="hidden text-sm font-semibold text-ink-muted hover:text-ink sm:inline">{{ __('loop.check_status') }}</a>
-        <a href="{{ route('affiliate.login') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.affiliate_login') }}</a>
+        <a href="{{ route('affiliates.status') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.check_status') }}</a>
+        <a href="{{ route('affiliate.login') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliate_login') }}</a>
         @if ($enabled)
             <a href="{{ route('affiliates.apply') }}" class="loop-btn-mint !py-2 text-sm">{{ __('loop.become_affiliate') }}</a>
         @endif

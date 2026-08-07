@@ -80,7 +80,7 @@ class CustomerAuthController extends Controller
             ->first();
 
         if (! $user || ! $user->password || ! Hash::check($data['pin'], $user->password)) {
-            return back()->withErrors(['pin' => __('That PIN is incorrect.')]);
+            return back()->withErrors(['pin' => __('loop.pin_incorrect')]);
         }
 
         Auth::login($user);
@@ -110,7 +110,7 @@ class CustomerAuthController extends Controller
             'countries' => Countries::OPTIONS,
             'country' => $country,
             'cities' => Countries::cities($country),
-            'sectors' => Sectors::OPTIONS,
+            'sectors' => Sectors::all(),
         ]);
     }
 
@@ -130,7 +130,7 @@ class CustomerAuthController extends Controller
             'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'email' => ['nullable', 'email', 'max:255'],
             'interests' => ['nullable', 'array'],
-            'interests.*' => ['in:'.implode(',', array_keys(Sectors::OPTIONS))],
+            'interests.*' => ['in:'.implode(',', array_keys(Sectors::all()))],
             'pin' => ['required', 'digits_between:4,6', 'confirmed'],
         ]);
 

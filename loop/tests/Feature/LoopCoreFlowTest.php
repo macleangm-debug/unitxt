@@ -787,6 +787,8 @@ class LoopCoreFlowTest extends TestCase
             'id_type' => 'national_id',
             'id_number' => 'ID-123456',
             'city' => 'Dar es Salaam',
+            'district' => 'Ilala',
+            'address' => 'Samora Avenue',
         ])->assertRedirect(route('affiliates.status'));
 
         $affiliate = \App\Models\Affiliate::query()->where('phone', '715555001')->first();

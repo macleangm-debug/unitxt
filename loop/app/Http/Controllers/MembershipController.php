@@ -40,6 +40,7 @@ class MembershipController extends Controller
                 ->whereHas('raffle', fn ($q) => $q->where('business_id', $business->id))
                 ->latest('drawn_at')
                 ->get(),
+            'customersSeeSales' => \App\Support\SalesVisibility::customersCanSee(),
         ]);
     }
 }

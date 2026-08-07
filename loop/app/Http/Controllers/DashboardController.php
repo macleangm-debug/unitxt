@@ -87,27 +87,56 @@ class DashboardController extends Controller
         }
 
         $memberships = Membership::query()
-            ->with(['business.shops'])
+            ->with(['business.shops', 'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost')])
             ->withCount(['visits'])
             ->where('customer_id', $user->id)
             ->get()
             ->sortByDesc('visits_count')
             ->values();
 
+        $redeemables = $memberships
+            ->flatMap(function (Membership $membership) {
+                return $membership->business->rewards
+                    ->filter(fn ($reward) => $reward->points_cost <= $membership->points_balance)
+                    ->map(fn ($reward) => [
+                        'membership' => $membership,
+                        'business' => $membership->business,
+                        'reward' => $reward,
+                    ]);
+            })
+            ->take(8)
+            ->values();
+
+        $country = $user->country ?? session('preferred_country', 'TZ');
+        $topShops = Business::query()
+            ->where('is_active', true)
+            ->where('country', $country)
+            ->when($user->interests, fn ($q) => $q->whereIn('sector', $user->interests))
+            ->with(['shops' => fn ($q) => $q->where('is_active', true)])
+            ->withCount(['memberships', 'shops'])
+            ->orderByDesc('memberships_count')
+            ->take(8)
+            ->get();
+
+        $otherShops = Business::query()
+            ->where('is_active', true)
+            ->where('country', $country)
+            ->whereNotIn('id', $topShops->pluck('id')->merge($memberships->pluck('business_id')))
+            ->with(['shops' => fn ($q) => $q->where('is_active', true)])
+            ->withCount('shops')
+            ->latest()
+            ->take(8)
+            ->get();
+
         return view('dashboard.customer', [
             'memberships' => $memberships,
             'grouped' => $memberships->groupBy(fn ($m) => $m->business->sector),
-            'sectors' => Sectors::OPTIONS,
+            'sectors' => Sectors::all(),
             'totalPoints' => $memberships->sum('points_balance'),
-            'discover' => Business::query()
-                ->where('is_active', true)
-                ->where('country', $user->country ?? session('preferred_country', 'TZ'))
-                ->when($user->interests, fn ($q) => $q->whereIn('sector', $user->interests))
-                ->with(['shops' => fn ($q) => $q->where('is_active', true)])
-                ->withCount('shops')
-                ->latest()
-                ->take(12)
-                ->get(),
+            'redeemables' => $redeemables,
+            'topShops' => $topShops,
+            'otherShops' => $otherShops,
+            'discover' => $topShops,
             'showWelcome' => $request->session()->pull('show_welcome', false) || ! $user->profile_completed,
         ]);
     }

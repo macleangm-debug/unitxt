@@ -27,7 +27,11 @@
                     </p>
                 </div>
                 <p class="shrink-0 font-display text-2xl font-semibold tracking-tight">
-                    {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                    @if ($showAmounts ?? true)
+                        {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                    @else
+                        <span class="text-base text-ink-muted">{{ __('loop.amount_hidden') }}</span>
+                    @endif
                 </p>
             </div>
         @empty

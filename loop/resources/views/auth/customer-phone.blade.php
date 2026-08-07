@@ -1,6 +1,10 @@
 <x-guest-layout>
     <x-slot name="asideTitle">{{ __('loop.customer_aside_title') }}</x-slot>
     <x-slot name="asideBody">{{ __('loop.customer_aside_body') }}</x-slot>
+    <x-slot name="asideStamp">{{ __('loop.customer_stamp') }}</x-slot>
+    <x-slot name="asidePoint1">{{ __('loop.customer_aside_1') }}</x-slot>
+    <x-slot name="asidePoint2">{{ __('loop.customer_aside_2') }}</x-slot>
+    <x-slot name="asidePoint3">{{ __('loop.customer_aside_3') }}</x-slot>
     <form method="POST" action="{{ route('customer.send') }}" class="space-y-4">
         @csrf
         <div>

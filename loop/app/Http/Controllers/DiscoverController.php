@@ -71,7 +71,7 @@ class DiscoverController extends Controller
             'rows' => $rows,
             'membershipByBusinessId' => $membershipByBusinessId,
             'isCustomer' => $isCustomer,
-            'sectors' => Sectors::OPTIONS,
+            'sectors' => Sectors::all(),
             'countries' => Countries::OPTIONS,
             'cities' => Countries::cities($country),
             'activeCountry' => $country,
@@ -119,7 +119,7 @@ class DiscoverController extends Controller
             'campaigns' => $business->campaigns()->active()->get(),
             'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
             'related' => $related,
-            'sectors' => Sectors::OPTIONS,
+            'sectors' => Sectors::all(),
             'isCustomer' => $isCustomer,
             'memberships' => $memberships,
             'totalPoints' => $totalPoints,
@@ -153,7 +153,7 @@ class DiscoverController extends Controller
 
         $bySector = $businesses->groupBy('sector');
 
-        $orderedKeys = collect(array_keys(Sectors::OPTIONS))
+        $orderedKeys = collect(array_keys(Sectors::all()))
             ->sortBy(function (string $key) use ($interests, $bySector) {
                 if (! $bySector->has($key)) {
                     return '9-'.$key;

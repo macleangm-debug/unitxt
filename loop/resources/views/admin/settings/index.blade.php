@@ -127,6 +127,58 @@
         </form>
     </div>
 
+    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+        <form method="POST" action="{{ route('admin.settings.sectors') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sectors') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_sectors_blurb') }}</p>
+            </div>
+            <div class="space-y-3">
+                @foreach ($sectors as $i => $sector)
+                    <div class="grid gap-2 sm:grid-cols-[140px_1fr]">
+                        <input type="hidden" name="sectors[{{ $i }}][key]" value="{{ $sector['key'] }}">
+                        <input value="{{ $sector['key'] }}" class="loop-input !bg-chalk text-sm" disabled>
+                        <input name="sectors[{{ $i }}][label]" value="{{ old('sectors.'.$i.'.label', $sector['label']) }}" class="loop-input" required>
+                    </div>
+                @endforeach
+            </div>
+            <div class="rounded-2xl bg-chalk/70 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.add_sector') }}</p>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                    <input name="new_key" class="loop-input" placeholder="{{ __('loop.sector_key_placeholder') }}">
+                    <input name="new_label" class="loop-input" placeholder="{{ __('loop.sector_label_placeholder') }}">
+                </div>
+            </div>
+            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+        </form>
+
+        <form method="POST" action="{{ route('admin.settings.sales-visibility') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sales_visibility') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_sales_visibility_blurb') }}</p>
+            </div>
+            <label class="flex items-start gap-3 text-sm">
+                <input type="checkbox" name="customers_see_sales" value="1" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint" @checked(old('customers_see_sales', $salesVisibility['customers_see_sales']))>
+                <span>
+                    <span class="font-semibold">{{ __('loop.customers_see_sales') }}</span>
+                    <span class="mt-1 block text-ink-muted">{{ __('loop.customers_see_sales_help') }}</span>
+                </span>
+            </label>
+            <label class="flex items-start gap-3 text-sm">
+                <input type="checkbox" name="front_desk_see_sales" value="1" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint" @checked(old('front_desk_see_sales', $salesVisibility['front_desk_see_sales']))>
+                <span>
+                    <span class="font-semibold">{{ __('loop.front_desk_see_sales') }}</span>
+                    <span class="mt-1 block text-ink-muted">{{ __('loop.front_desk_see_sales_help') }}</span>
+                </span>
+            </label>
+            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+        </form>
+    </div>
+
     <div class="mt-6 grid gap-4 sm:grid-cols-3">
         <a href="{{ route('admin.affiliates.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_affiliates') }}</p>
