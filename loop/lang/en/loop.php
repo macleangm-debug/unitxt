@@ -1134,4 +1134,8 @@ return [
     'plan_starter_tagline' => 'For a busy single location.',
     'plan_growth_tagline' => 'Multi-branch brands that want to scale.',
     'plan_scale_tagline' => 'City-wide chains and franchise groups.',
+    'customer_landing_title' => 'Your loyalty lives on your phone.',
+    'customer_landing_body' => 'Enter your number, set a PIN, and see points across coffee, fashion, food, and more.',
+    'call_to_claim' => 'Call to claim',
+    'raffle' => 'Raffle',
 ];

@@ -28,42 +28,49 @@
         </a>
     @endif
 
-    <section class="loop-panel mb-5 overflow-hidden p-0">
-        <div class="bg-gradient-to-br from-mint/20 via-white to-coral/10 px-6 py-5">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.your_raffle_wins') }}</h2>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.your_raffle_wins_body') }}</p>
-        </div>
-        <div class="space-y-3 px-6 py-5">
-            @forelse ($raffleWins as $win)
-                @php
-                    $daysLeft = $win->claim_by && $win->status !== 'claimed' && $win->claim_by->isFuture()
-                        ? (int) now()->startOfDay()->diffInDays($win->claim_by->copy()->startOfDay())
-                        : null;
-                    $expired = $win->claim_by && $win->status !== 'claimed' && $win->claim_by->isPast();
-                @endphp
-                <div class="rounded-2xl border border-ink/8 bg-white px-4 py-4 shadow-sm">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p class="font-display text-lg font-semibold">{{ $win->raffle->prize_name }}</p>
-                            <p class="mt-1 text-sm text-ink-muted">{{ $win->raffle->name }} · {{ __('loop.raffle_winner_status_'.$win->status) }}</p>
+    @if ($raffleWins->isNotEmpty())
+        <section class="loop-panel mb-5 overflow-hidden p-0">
+            <div class="bg-gradient-to-br from-mint/20 via-white to-coral/10 px-6 py-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.raffle') }}</p>
+                <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.your_raffle_wins') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.your_raffle_wins_body') }}</p>
+            </div>
+            <div class="space-y-3 px-6 py-5">
+                @foreach ($raffleWins as $win)
+                    @php
+                        $daysLeft = $win->claim_by && $win->status !== 'claimed' && $win->claim_by->isFuture()
+                            ? (int) now()->startOfDay()->diffInDays($win->claim_by->copy()->startOfDay())
+                            : null;
+                        $expired = $win->claim_by && $win->status !== 'claimed' && $win->claim_by->isPast();
+                    @endphp
+                    <div class="rounded-2xl border border-ink/8 bg-white px-4 py-4 shadow-sm">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="font-display text-lg font-semibold">{{ $win->raffle->prize_name }}</p>
+                                <p class="mt-1 text-sm text-ink-muted">{{ $win->raffle->name }} · {{ __('loop.raffle_winner_status_'.$win->status) }}</p>
+                            </div>
+                            @if ($daysLeft !== null)
+                                <span class="rounded-xl bg-ink px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-mint">
+                                    {{ trans_choice('loop.days_left', $daysLeft, ['count' => $daysLeft]) }}
+                                </span>
+                            @elseif ($expired)
+                                <span class="rounded-xl bg-coral/15 px-3 py-1.5 text-xs font-semibold text-coral">{{ __('loop.claim_expired') }}</span>
+                            @endif
                         </div>
-                        @if ($daysLeft !== null)
-                            <span class="rounded-xl bg-ink px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-mint">
-                                {{ trans_choice('loop.days_left', $daysLeft, ['count' => $daysLeft]) }}
-                            </span>
-                        @elseif ($expired)
-                            <span class="rounded-xl bg-coral/15 px-3 py-1.5 text-xs font-semibold text-coral">{{ __('loop.claim_expired') }}</span>
+                        @if ($win->claim_by && $win->status !== 'claimed')
+                            <p class="mt-3 text-xs text-ink-muted">{{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}</p>
+                        @endif
+                        @if ($business->hotline && $win->status !== 'claimed' && ! $expired)
+                            <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-mint-deep">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.4 21 3 13.6 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.02l-2.2 2.19z"/></svg>
+                                {{ __('loop.call_to_claim') }}
+                            </a>
                         @endif
                     </div>
-                    @if ($win->claim_by && $win->status !== 'claimed')
-                        <p class="mt-3 text-xs text-ink-muted">{{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}</p>
-                    @endif
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_raffle_wins_yet') }}</p>
-            @endforelse
-        </div>
-    </section>
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     <section class="loop-panel mb-5 p-6">
         <h2 class="font-display text-xl font-semibold">{{ __('loop.offers_at_this_shop') }}</h2>

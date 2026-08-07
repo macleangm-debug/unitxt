@@ -3,21 +3,23 @@
 ])
 
 <div class="border-b border-ink/5 bg-white/80 backdrop-blur-md">
-    <div class="loop-shell flex items-center justify-between gap-3 py-3.5">
-        <div class="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
-            <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-2.5">
-                <x-loop-logo class="h-9 w-9 sm:h-10 sm:w-10" />
-                <span class="font-display text-xl font-semibold tracking-tight sm:text-2xl">Loop</span>
-            </a>
+    <div class="loop-shell flex items-center gap-3 py-3.5 sm:gap-4">
+        <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-2.5">
+            <x-loop-logo class="h-9 w-9 sm:h-10 sm:w-10" />
+            <span class="font-display text-xl font-semibold tracking-tight sm:text-2xl">Loop</span>
+        </a>
 
-            @unless ($slim)
-                @isset($actions)
-                    <nav class="hidden min-w-0 items-center gap-3 md:flex lg:gap-4">
-                        {{ $actions }}
-                    </nav>
-                @endisset
-            @endunless
-        </div>
+        @unless ($slim)
+            @isset($actions)
+                <nav class="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4">
+                    {{ $actions }}
+                </nav>
+            @else
+                <div class="flex-1"></div>
+            @endisset
+        @else
+            <div class="flex-1"></div>
+        @endunless
 
         <div class="flex shrink-0 items-center gap-2">
             <form method="POST" action="{{ route('preference.country') }}">
@@ -35,12 +37,4 @@
             </div>
         </div>
     </div>
-
-    @unless ($slim)
-        @isset($actions)
-            <div class="loop-shell flex gap-4 overflow-x-auto pb-3 md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {{ $actions }}
-            </div>
-        @endisset
-    @endunless
 </div>

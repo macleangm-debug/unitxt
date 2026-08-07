@@ -1126,4 +1126,8 @@ return [
     'plan_starter_tagline' => 'Kwa eneo moja lenye shughuli nyingi.',
     'plan_growth_tagline' => 'Chapa zenye matawi mengi zinazotaka kukua.',
     'plan_scale_tagline' => 'Minyororo ya jiji na vikundi vya franchise.',
+    'customer_landing_title' => 'Loyalty yako inaishi kwenye simu yako.',
+    'customer_landing_body' => 'Weka namba yako, weka PIN, kisha ona pointi kwenye kahawa, fashion, chakula, na zaidi.',
+    'call_to_claim' => 'Piga simu kudai',
+    'raffle' => 'Zawadi ya bahati',
 ];

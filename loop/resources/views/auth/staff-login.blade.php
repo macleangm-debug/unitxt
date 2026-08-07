@@ -1,6 +1,11 @@
-<x-guest-layout>
-    <x-slot name="asideTitle">{{ __('loop.staff_aside_title') }}</x-slot>
-    <x-slot name="asideBody">{{ __('loop.staff_aside_body') }}</x-slot>
+<x-guest-layout
+    :aside-title="__('loop.staff_aside_title')"
+    :aside-body="__('loop.staff_aside_body')"
+    :aside-stamp="__('loop.business')"
+    :aside-point1="__('loop.auth_aside_1')"
+    :aside-point2="__('loop.auth_aside_2')"
+    :aside-point3="__('loop.auth_aside_3')"
+>
     <form method="POST" action="{{ route('staff.login') }}" class="space-y-4">
         @csrf
         <div>
