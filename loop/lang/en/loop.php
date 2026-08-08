@@ -12,6 +12,7 @@ return [
     'business_hero_body' => 'Ask for a phone number. Record the sale. Loop awards points and shows offers your team can apply instantly.',
     'customer_blurb' => 'Use your phone to see points, offers, and shops you love.',
     'continue' => 'Continue',
+    'menu' => 'Menu',
     'how_title' => 'How Loop works',
     'how_1_title' => 'Your phone is enough',
     'how_1_body' => 'Customers join with a number. Fast at the counter, simple everywhere.',

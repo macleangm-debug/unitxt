@@ -79,35 +79,38 @@
 
     <section class="loop-shell grid gap-5 py-14 sm:grid-cols-2 sm:gap-6 sm:py-20">
         <div
-            class="loop-energy-card loop-energy-card--ink loop-reveal p-7 sm:p-9"
+            class="loop-energy-card loop-energy-card--ink loop-wallet--liquid loop-reveal p-7 sm:p-9"
             x-data="loopReveal(40)"
-            :class="{ 'is-shown': shown }"
+            :class="{ 'is-shown': shown, 'is-alive': shown }"
         >
-            <div class="loop-orb loop-orb--a !h-32 !w-32"></div>
-            <div class="loop-orb loop-orb--b !h-28 !w-28"></div>
+            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
+            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
+            <div class="loop-orb loop-orb--c loop-orb--enter"></div>
             <div class="relative">
                 <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_business_title') }}</h2>
                 <ul class="mt-6 space-y-4 text-sm text-white/75">
-                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_1') }}</li>
-                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_2') }}</li>
-                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_3') }}</li>
+                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_1') }}</li>
+                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_2') }}</li>
+                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_3') }}</li>
                 </ul>
-                <a href="{{ route('business.register') }}" class="loop-btn-lime mt-8">{{ __('loop.cta_business') }}</a>
+                <a href="{{ route('business.register') }}" class="loop-btn-lime loop-energy-cta mt-8">{{ __('loop.cta_business') }}</a>
             </div>
         </div>
         <div
             class="loop-energy-card loop-energy-card--chalk loop-reveal p-7 sm:p-9"
-            x-data="loopReveal(120)"
-            :class="{ 'is-shown': shown }"
+            x-data="loopReveal(160)"
+            :class="{ 'is-shown': shown, 'is-alive': shown }"
         >
+            <div class="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-violet/20 blur-3xl" aria-hidden="true"></div>
+            <div class="pointer-events-none absolute -bottom-8 -left-6 h-32 w-32 rounded-full bg-lime/25 blur-3xl" aria-hidden="true"></div>
             <div class="relative">
                 <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_customers_title') }}</h2>
                 <ul class="mt-6 space-y-4 text-sm text-ink-muted">
-                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_1') }}</li>
-                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_2') }}</li>
-                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
+                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_1') }}</li>
+                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_2') }}</li>
+                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
                 </ul>
-                <a href="{{ route('customer.login') }}" class="loop-btn mt-8">{{ __('loop.cta_customer') }}</a>
+                <a href="{{ route('customer.login') }}" class="loop-btn loop-energy-cta mt-8">{{ __('loop.cta_customer') }}</a>
             </div>
         </div>
     </section>

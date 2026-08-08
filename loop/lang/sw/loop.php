@@ -12,6 +12,7 @@ return [
     'business_hero_body' => 'Uliza namba ya simu. Rekodi mauzo. Loop inatoa pointi na inaonyesha ofa timu yako inaweza kutumia papo hapo.',
     'customer_blurb' => 'Tumia simu yako kuona pointi, ofa, na maduka unayopenda.',
     'continue' => 'Endelea',
+    'menu' => 'Menyu',
     'how_title' => 'Jinsi Loop inavyofanya kazi',
     'how_1_title' => 'Simu yako inatosha',
     'how_1_body' => 'Wateja wanajiunga kwa namba. Haraka kwenye kaunta, rahisi kila mahali.',

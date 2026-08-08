@@ -69,6 +69,94 @@
             radial-gradient(circle at 6% 92%, rgba(200, 255, 61, 0.12), transparent 38%);
     }
 
+    .loop-energy-card.is-alive .loop-energy-line {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .loop-energy-line {
+        opacity: 0;
+        transform: translateX(-10px);
+        transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+    }
+
+    .loop-energy-card.is-alive .loop-energy-line:nth-child(1) { transition-delay: 0.08s; }
+    .loop-energy-card.is-alive .loop-energy-line:nth-child(2) { transition-delay: 0.16s; }
+    .loop-energy-card.is-alive .loop-energy-line:nth-child(3) { transition-delay: 0.24s; }
+
+    .loop-energy-card.is-alive .loop-energy-cta {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .loop-energy-cta {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.45s ease-out 0.32s, transform 0.45s ease-out 0.32s;
+    }
+
+    .loop-mobile-actions > a,
+    .loop-mobile-actions > button {
+        display: inline-flex;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        border: 1px solid rgba(17, 17, 20, 0.1);
+        background: #fff;
+        padding: 0.875rem 1rem;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #111114;
+        text-decoration: none;
+        transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .loop-mobile-actions > a:hover,
+    .loop-mobile-actions > button:hover {
+        border-color: rgba(91, 46, 255, 0.3);
+        background: rgba(233, 229, 255, 0.55);
+    }
+
+    .loop-mobile-actions > a.loop-btn,
+    .loop-mobile-actions > a.loop-btn-mint,
+    .loop-mobile-actions > button.loop-btn {
+        border-color: transparent;
+        background: #5B2EFF;
+        color: #fff;
+    }
+
+    .loop-mobile-actions > a.loop-btn:hover,
+    .loop-mobile-actions > a.loop-btn-mint:hover,
+    .loop-mobile-actions > button.loop-btn:hover {
+        background: #3F18D9;
+        color: #fff;
+    }
+
+    .loop-mobile-actions > a.loop-btn-ghost,
+    .loop-mobile-actions > button.loop-btn-ghost {
+        border-color: rgba(17, 17, 20, 0.15);
+        background: #fff;
+        color: #111114;
+    }
+
+    .loop-mobile-actions > a.loop-btn-lime {
+        border-color: transparent;
+        background: #C8FF3D;
+        color: #111114;
+    }
+
+    .loop-mobile-actions > a.loop-btn-lime:hover {
+        background: #B6D94C;
+    }
+
+    .loop-mobile-actions > a.text-violet {
+        border-color: rgba(91, 46, 255, 0.2);
+        background: rgba(233, 229, 255, 0.55);
+        color: #5B2EFF;
+    }
+
     .loop-pricing-card {
         @apply relative flex flex-col overflow-hidden rounded-[1.75rem] border p-6 transition;
         transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease-out, border-color 0.25s ease-out;
@@ -410,6 +498,8 @@
     .loop-reveal,
     .loop-panel--energy::before,
     .loop-energy-card,
+    .loop-energy-line,
+    .loop-energy-cta,
     .loop-pricing-card,
     .animate-fade-up,
     .animate-fade-up-delay {
