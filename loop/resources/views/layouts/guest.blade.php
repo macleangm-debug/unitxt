@@ -16,7 +16,7 @@
         <div class="pointer-events-none absolute -left-10 top-20 h-64 w-64 rounded-full bg-mint/25 blur-3xl"></div>
         <div class="pointer-events-none absolute bottom-10 right-0 h-72 w-72 rounded-full bg-coral/20 blur-3xl"></div>
         <div class="relative">
-            <a href="{{ route('home') }}" class="flex items-center gap-3 text-white">
+            <a href="/" class="flex items-center gap-3 text-white">
                 <x-loop-logo class="h-10 w-10" />
                 <span class="font-display text-2xl font-semibold">Loop</span>
             </a>
@@ -35,7 +35,7 @@
 
     <div class="flex min-h-screen flex-col bg-[linear-gradient(135deg,#e8f7f1_0%,#f7f4ef_45%,#fff_100%)]">
         <div class="flex items-center justify-between gap-3 px-4 py-4 sm:px-8">
-            <a href="{{ route('home') }}" class="flex items-center gap-2.5 md:invisible">
+            <a href="/" class="flex items-center gap-2.5 md:invisible">
                 <x-loop-logo class="h-9 w-9" />
                 <span class="font-display text-xl font-semibold">Loop</span>
             </a>

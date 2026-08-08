@@ -20,7 +20,7 @@
     </aside>
     <div class="flex min-h-screen flex-col">
         <div class="flex items-center px-4 py-4 sm:px-8">
-            <a href="{{ route('home') }}" class="flex items-center gap-2.5 lg:invisible">
+            <a href="/" class="flex items-center gap-2.5 lg:invisible">
                 <x-loop-logo class="h-9 w-9" />
                 <span class="font-display text-xl font-semibold">Loop</span>
             </a>

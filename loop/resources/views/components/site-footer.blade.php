@@ -15,13 +15,13 @@
                 <li><a href="{{ route('affiliates.landing') }}" class="hover:text-white">{{ __('loop.affiliates') }}</a></li>
                 <li><a href="{{ route('pricing') }}" class="hover:text-white">{{ __('loop.footer_pricing') }}</a></li>
                 <li><a href="{{ route('discover') }}" class="hover:text-white">{{ __('loop.browse_campaigns') }}</a></li>
-                <li><a href="{{ route('home') }}#how" class="hover:text-white">{{ __('loop.footer_how') }}</a></li>
+                <li><a href="/#how" class="hover:text-white">{{ __('loop.footer_how') }}</a></li>
             </ul>
         </div>
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">{{ __('loop.footer_company') }}</p>
             <ul class="mt-4 space-y-2.5 text-sm text-white/75">
-                <li><a href="{{ route('home') }}" class="hover:text-white">{{ __('loop.footer_about') }}</a></li>
+                <li><a href="/" class="hover:text-white">{{ __('loop.footer_about') }}</a></li>
                 <li><a href="mailto:hello@loop.africa" class="hover:text-white">{{ __('loop.footer_contact') }}</a></li>
                 <li><a href="mailto:support@loop.africa" class="hover:text-white">{{ __('loop.footer_support') }}</a></li>
             </ul>

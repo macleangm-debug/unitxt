@@ -23,7 +23,7 @@
 
 <div class="{{ $shellClass }}">
     <div class="loop-shell flex h-14 items-center gap-3 sm:h-16 sm:gap-4">
-        <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-2 {{ $brandClass }}">
+        <a href="/" class="flex shrink-0 items-center gap-2 {{ $brandClass }}">
             <x-loop-logo class="h-8 w-8 sm:h-9 sm:w-9" />
             <span class="font-display text-lg font-semibold tracking-tight sm:text-xl">Loop</span>
         </a>

@@ -175,7 +175,6 @@ class SettingsHubController extends Controller
         ]);
 
         PlatformSetting::putValue(PlatformUrl::KEY, PlatformUrl::normalizeInput($data));
-        PlatformUrl::applyRootUrl();
 
         return back()->with('confirm', Confirm::make(
             __('loop.admin_base_url_saved_title'),

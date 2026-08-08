@@ -53,6 +53,28 @@ class PlatformUrl
         return $base !== '' ? $base : rtrim((string) config('app.url'), '/');
     }
 
+    /**
+     * Prefer the live browser host for in-app links (tunnels, custom domains).
+     * Share links should use {@see route()} / {@see base()} instead.
+     */
+    public static function applyRequestRootUrl(): void
+    {
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        $request = request();
+        if (! $request || ! $request->getHost()) {
+            return;
+        }
+
+        URL::forceRootUrl($request->root());
+        URL::forceScheme($request->getScheme());
+    }
+
+    /**
+     * @deprecated Prefer {@see route()} for share URLs — does not mutate global URL root.
+     */
     public static function applyRootUrl(): void
     {
         $base = self::base();
@@ -69,15 +91,20 @@ class PlatformUrl
     }
 
     /**
-     * Build an absolute URL using the configured public base.
+     * Build an absolute URL using the configured public base (for WhatsApp/SMS/share).
+     * Does not change Laravel's global URL root, so in-app nav keeps the browser host.
      *
      * @param  array<string, mixed>  $parameters
      */
     public static function route(string $name, mixed $parameters = [], bool $absolute = true): string
     {
-        self::applyRootUrl();
+        $path = route($name, $parameters, false);
 
-        return route($name, $parameters, $absolute);
+        if (! $absolute) {
+            return $path;
+        }
+
+        return rtrim(self::base(), '/').'/'.ltrim($path, '/');
     }
 
     public static function whatsappShareUrl(string $message, ?string $e164Digits = null): string

@@ -2,7 +2,7 @@
     <x-slot:aside>
         <div class="flex h-full flex-col justify-between p-8 text-white lg:p-12">
             <div>
-                <a href="{{ route('home') }}" class="flex items-center gap-3">
+                <a href="/" class="flex items-center gap-3">
                     <x-loop-logo class="h-10 w-10" />
                     <span class="font-display text-2xl font-semibold">Loop</span>
                 </a>
