@@ -10,12 +10,19 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink" x-data="{ filtersOpen: false }">
+<div class="min-h-screen bg-chalk">
+    <div class="pointer-events-none fixed inset-0 -z-10">
+        <div class="absolute -left-20 top-24 h-72 w-72 rounded-full bg-violet/10 blur-3xl"></div>
+        <div class="absolute right-0 top-0 h-80 w-80 rounded-full bg-lime/15 blur-3xl"></div>
+    </div>
+
 <x-site-header>
     <x-slot:actions>
         @auth
-            <a href="{{ route('dashboard') }}" class="text-sm font-semibold text-ink-muted">{{ __('loop.home') }}</a>
+            <a href="{{ route('dashboard') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.home') }}</a>
         @else
-            <a href="{{ route('customer.login') }}" class="loop-btn-mint !px-3 !py-2 text-sm">{{ __('loop.cta_customer') }}</a>
+            <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.customer') }}</a>
+            <a href="{{ route('customer.login') }}" class="loop-btn !px-3 !py-2 text-sm">{{ __('loop.cta_customer') }}</a>
         @endauth
     </x-slot:actions>
 </x-site-header>
@@ -23,12 +30,13 @@
 <main class="pb-28 pt-6">
     <div class="loop-shell">
         @if (session('status'))
-            <div class="mb-4 rounded-xl border border-mint/40 bg-mint-soft px-4 py-3 text-sm">{{ session('status') }}</div>
+            <div class="mb-4 rounded-2xl border border-lime/50 bg-lime/20 px-4 py-3 text-sm font-medium text-ink">{{ session('status') }}</div>
         @endif
 
         <div class="flex items-end justify-between gap-3">
             <div>
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.browse_campaigns') }}</h1>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet">Loop</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold tracking-tight">{{ __('loop.browse_campaigns') }}</h1>
                 <p class="mt-2 text-sm text-ink-muted">
                     {{ $activeCity ?: __('loop.all_cities') }} · {{ $countries[$activeCountry]['name'] ?? $activeCountry }}
                     @unless ($isCustomer)
@@ -74,7 +82,7 @@
             <div class="mb-4 flex items-end justify-between gap-3">
                 <h2 class="font-display text-xl font-semibold sm:text-2xl">{{ $row['title'] }}</h2>
                 @if ($row['key'] === 'frequent')
-                    <span class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.frequent') }}</span>
+                    <span class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.frequent') }}</span>
                 @endif
             </div>
             <div class="loop-shop-grid">
@@ -130,11 +138,12 @@
                     @endforeach
                 </select>
             </div>
-            <button class="loop-btn-mint w-full">{{ __('loop.apply') }}</button>
+            <button class="loop-btn w-full">{{ __('loop.apply') }}</button>
         </form>
     </div>
 </div>
 
 <x-site-footer />
+</div>
 </body>
 </html>

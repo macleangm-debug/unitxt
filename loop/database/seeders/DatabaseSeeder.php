@@ -64,6 +64,7 @@ class DatabaseSeeder extends Seeder
             'country' => 'TZ',
             'currency' => 'TZS',
             'city' => 'Dar es Salaam',
+            'hotline' => '+255 712 000 001',
             'description' => 'Neighborhood coffee with Loop loyalty on every cup.',
             'plan_key' => Plans::GROWTH,
             'billing_status' => 'active',
@@ -87,6 +88,7 @@ class DatabaseSeeder extends Seeder
             'code' => 'SHOP-HBDOWN',
             'address' => 'Samora Avenue',
             'city' => 'Dar es Salaam',
+            'phone' => '+255 712 000 001',
             'is_active' => true,
         ]);
 
@@ -96,6 +98,7 @@ class DatabaseSeeder extends Seeder
             'code' => 'SHOP-HBWAVE',
             'address' => 'Slipway',
             'city' => 'Dar es Salaam',
+            'phone' => '+255 712 000 002',
             'is_active' => true,
         ]);
 
@@ -167,6 +170,7 @@ class DatabaseSeeder extends Seeder
             'country' => 'TZ',
             'currency' => 'TZS',
             'city' => 'Dar es Salaam',
+            'hotline' => '+255 714 000 001',
         ]);
         $fashionOwner->update(['business_id' => $fashion->id]);
         Shop::create([
@@ -200,6 +204,7 @@ class DatabaseSeeder extends Seeder
             'country' => 'TZ',
             'currency' => 'TZS',
             'city' => 'Dar es Salaam',
+            'hotline' => '+255 715 000 001',
             'description' => 'Coastal plates with Loop points on every table.',
             'onboarding_completed_at' => now(),
         ]);

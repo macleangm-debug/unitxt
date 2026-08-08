@@ -17,18 +17,18 @@
 @endphp
 
 <a href="{{ $href }}" {{ $attributes->merge(['class' => $sizeClass]) }}>
-    <div class="overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-[0_12px_40px_rgba(11,31,42,0.06)] transition group-hover:-translate-y-1 group-hover:shadow-[0_18px_50px_rgba(11,31,42,0.1)]">
+    <div class="overflow-hidden rounded-[1.5rem] border border-ink/10 bg-white transition group-hover:-translate-y-1">
         <div class="relative aspect-[4/5] overflow-hidden bg-ink">
             @if ($business->logo_path)
                 <img src="{{ asset('storage/'.$business->logo_path) }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
             @else
-                <div class="flex h-full w-full flex-col justify-between bg-gradient-to-br from-ink via-ink-soft to-mint/40 p-4">
-                    <span class="font-display text-3xl font-semibold text-mint">{{ mb_substr($business->name, 0, 1) }}</span>
+                <div class="flex h-full w-full flex-col justify-between bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 p-4">
+                    <span class="font-display text-3xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
                     <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">{{ $sectorLabel }}</span>
                 </div>
             @endif
             @if ($showPoints && $points !== null)
-                <div class="absolute bottom-3 left-3 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm">
+                <div class="absolute bottom-3 left-3 rounded-xl bg-lime px-2.5 py-1 text-xs font-semibold text-ink">
                     {{ number_format($points) }} pts
                 </div>
             @elseif ($branchCount > 1)
@@ -41,7 +41,7 @@
             <p class="truncate text-sm font-semibold">{{ $business->name }}</p>
             <p class="truncate text-[11px] text-ink-muted">{{ $sectorLabel }}@if($city) · {{ $city }}@endif</p>
             @if ($campaign)
-                <p class="mt-1 truncate text-[11px] font-medium text-mint-deep">{{ $campaign->ruleSummary($business->currency) }}</p>
+                <p class="mt-1 truncate text-[11px] font-medium text-violet">{{ $campaign->ruleSummary($business->currency) }}</p>
             @endif
         </div>
     </div>

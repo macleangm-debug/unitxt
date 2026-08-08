@@ -39,9 +39,7 @@ use App\Support\Plans;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome', [
-        'plans' => Plans::publicPlans(),
-    ]);
+    return view('welcome');
 })->name('home');
 
 Route::get('/for-business', function () {

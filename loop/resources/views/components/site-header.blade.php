@@ -30,11 +30,9 @@
 
         @unless ($slim)
             @isset($actions)
-                {{-- Desktop: nav beside logo. Mobile: hide to avoid cramped truncation (CTAs live in page body). --}}
-                <nav class="hidden min-w-0 flex-1 items-center gap-4 max-md:!hidden md:flex">
+                <nav class="flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto whitespace-nowrap sm:gap-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {{ $actions }}
                 </nav>
-                <div class="min-w-0 flex-1 md:hidden" aria-hidden="true"></div>
             @else
                 <div class="flex-1"></div>
             @endisset

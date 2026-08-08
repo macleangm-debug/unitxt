@@ -25,7 +25,7 @@
             <input name="phone" value="{{ old('phone') }}" class="loop-input text-lg tracking-wide" placeholder="712 345 678" required autofocus>
             <x-input-error :messages="$errors->get('phone')" class="mt-1" />
         </div>
-        <button class="loop-btn-mint w-full">{{ __('loop.continue') }}</button>
+        <button class="loop-btn w-full">{{ __('loop.continue') }}</button>
         <p class="text-center text-sm text-ink-muted"><a href="{{ route('discover') }}" class="underline">{{ __('loop.browse_campaigns') }}</a></p>
     </form>
 </x-guest-layout>

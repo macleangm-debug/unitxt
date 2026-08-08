@@ -19,7 +19,8 @@
         <x-slot:actions>
             <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
             <a href="{{ route('discover') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.browse_campaigns') }}</a>
-            <a href="/#pricing" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.pricing') }}</a>
+            <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.business') }}</a>
+            <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.customer') }}</a>
         </x-slot:actions>
     </x-site-header>
 
@@ -86,20 +87,6 @@
                 <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
             </ul>
             <a href="{{ route('customer.login') }}" class="loop-btn mt-8">{{ __('loop.cta_customer') }}</a>
-        </div>
-    </section>
-
-    <section id="pricing" class="relative z-10 border-t border-ink/10 bg-white">
-        <div class="loop-shell py-14 sm:py-20">
-            <div class="mx-auto max-w-2xl text-center">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-violet">{{ __('loop.pricing') }}</p>
-                <h2 class="mt-3 font-display text-3xl font-semibold sm:text-4xl">{{ __('loop.pricing_title') }}</h2>
-                <p class="mt-3 text-ink-muted">{{ __('loop.pricing_blurb') }}</p>
-            </div>
-            <x-pricing-grid :plans="$plans" :cta-route="route('business.register')" />
-            <div class="mt-8 text-center">
-                <a href="{{ route('pricing') }}" class="text-sm font-semibold text-violet underline underline-offset-4">{{ __('loop.see_full_pricing') }}</a>
-            </div>
         </div>
     </section>
 

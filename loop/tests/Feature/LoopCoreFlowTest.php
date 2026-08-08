@@ -210,6 +210,12 @@ class LoopCoreFlowTest extends TestCase
         $this->assertStringContainsString('href="/for-business"', $html);
         $this->assertStringContainsString('href="/customer/login"', $html);
         $this->assertStringContainsString('href="/business/register"', $html);
+        $this->assertStringNotContainsString('id="pricing"', $html);
+        $this->assertStringNotContainsString(__('loop.pricing_title'), $html);
+
+        $business = $this->get('/for-business')->assertOk()->getContent();
+        $this->assertStringContainsString('id="pricing"', $business);
+        $this->assertStringContainsString('tel:+255747001001', $business);
 
         $customer = $this->get('/for-customers')->assertOk()->getContent();
         $this->assertStringNotContainsString('127.0.0.1', $customer);
@@ -654,7 +660,12 @@ class LoopCoreFlowTest extends TestCase
 
         $this->get(route('home'))
             ->assertOk()
-            ->assertSee(__('loop.pricing_title'));
+            ->assertDontSee(__('loop.pricing_title'), false);
+
+        $this->get(route('landing.business'))
+            ->assertOk()
+            ->assertSee(__('loop.pricing_title'))
+            ->assertSee('tel:+255747001001', false);
     }
 
     public function test_owner_can_upgrade_plan_and_admin_can_export_reports(): void

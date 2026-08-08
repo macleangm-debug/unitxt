@@ -16,7 +16,7 @@
                 <p class="mt-2 text-sm text-ink-muted">{{ __('loop.pin_wrong_body') }}</p>
                 <p class="mt-1 text-xs text-ink-muted">{{ $auth['country_code'] }} {{ $auth['phone'] }}</p>
             </div>
-            <a href="{{ route('customer.pin') }}" class="loop-btn-mint inline-flex w-full justify-center">{{ __('loop.try_again') }}</a>
+            <a href="{{ route('customer.pin') }}" class="loop-btn inline-flex w-full justify-center">{{ __('loop.try_again') }}</a>
             <a href="{{ route('customer.login') }}" class="block text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.use_different_phone') }}</a>
         </div>
     @else
@@ -30,7 +30,7 @@
                 <label class="loop-label">{{ __('loop.pin') }}</label>
                 <input name="pin" inputmode="numeric" maxlength="6" class="loop-input text-center text-2xl tracking-[0.4em]" required autofocus>
             </div>
-            <button class="loop-btn-mint w-full">{{ __('loop.continue') }}</button>
+            <button class="loop-btn w-full">{{ __('loop.continue') }}</button>
         </form>
     @endif
 </x-guest-layout>
