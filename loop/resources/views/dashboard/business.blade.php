@@ -1,11 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <h1 class="font-display text-3xl font-semibold">{{ $business->name }}</h1>
-                <p class="mt-1 text-ink-muted">{{ $business->sectorLabel() }} · {{ $business->city }} · {{ $business->currency }}</p>
+        <div class="loop-wallet mb-2 px-5 py-6 sm:px-7 sm:py-7">
+            <div class="relative flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
+                    <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $business->name }}</h1>
+                    <p class="mt-1 text-sm text-white/60">{{ $business->sectorLabel() }} · {{ $business->city }} · {{ $business->currency }}</p>
+                </div>
+                <a href="{{ route('till.index') }}" class="loop-btn-lime">{{ __('loop.open_sale') }}</a>
             </div>
-            <a href="{{ route('till.index') }}" class="loop-btn-mint">{{ __('loop.open_sale') }}</a>
         </div>
     </x-slot>
 
@@ -20,25 +23,25 @@
         <div class="mt-6 space-y-4">
             @foreach ($heroBanners as $banner)
                 <section @class([
-                    'overflow-hidden rounded-[1.75rem] p-6',
-                    'border border-mint/25 bg-gradient-to-br from-mint/20 via-white to-white' => ($banner['tone'] ?? '') === 'mint',
-                    'border border-coral/25 bg-gradient-to-br from-coral/15 via-white to-white' => ($banner['tone'] ?? '') === 'coral',
-                    'bg-gradient-to-br from-ink via-ink-soft to-mint/20 text-white' => ($banner['tone'] ?? '') === 'ink',
+                    'overflow-hidden rounded-[1.5rem] p-6',
+                    'border border-violet/20 bg-violet-soft/50' => ($banner['tone'] ?? '') === 'mint',
+                    'border border-coral/25 bg-coral/10' => ($banner['tone'] ?? '') === 'coral',
+                    'loop-wallet' => ($banner['tone'] ?? '') === 'ink',
                 ])>
-                    <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="relative flex flex-wrap items-start justify-between gap-4">
                         <div class="max-w-xl">
                             <p @class([
                                 'text-xs font-semibold uppercase tracking-[0.14em]',
-                                'text-mint-deep' => ($banner['tone'] ?? '') !== 'ink',
-                                'text-mint' => ($banner['tone'] ?? '') === 'ink',
+                                'text-violet' => ($banner['tone'] ?? '') !== 'ink',
+                                'text-lime' => ($banner['tone'] ?? '') === 'ink',
                             ])>{{ __('loop.performance') }}</p>
-                            <h2 class="mt-2 font-display text-2xl font-semibold">{{ $banner['title'] }}</h2>
+                            <h2 class="mt-2 font-display text-2xl font-semibold {{ ($banner['tone'] ?? '') === 'ink' ? 'text-white' : '' }}">{{ $banner['title'] }}</h2>
                             <p @class(['mt-2 text-sm', 'text-ink-muted' => ($banner['tone'] ?? '') !== 'ink', 'text-white/70' => ($banner['tone'] ?? '') === 'ink'])>{{ $banner['body'] }}</p>
                         </div>
                         <a href="{{ $banner['url'] }}" @class([
-                            'rounded-full px-5 py-2.5 text-sm font-semibold',
-                            'bg-ink text-white' => ($banner['tone'] ?? '') !== 'ink',
-                            'bg-mint text-ink' => ($banner['tone'] ?? '') === 'ink',
+                            'rounded-2xl px-5 py-2.5 text-sm font-semibold',
+                            'bg-violet text-white' => ($banner['tone'] ?? '') !== 'ink',
+                            'bg-lime text-ink' => ($banner['tone'] ?? '') === 'ink',
                         ])>{{ $banner['cta'] }}</a>
                     </div>
                 </section>
@@ -47,7 +50,7 @@
     @endif
 
     @if ($isOwner && !empty($needsUpgrade))
-        <section class="mt-6 overflow-hidden rounded-[1.75rem] border border-coral/25 bg-gradient-to-br from-coral/15 via-white to-mint/10 p-6">
+        <section class="mt-6 overflow-hidden rounded-[1.5rem] border border-coral/25 bg-white p-6">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div class="max-w-xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-coral">{{ __('loop.billing') }}</p>
@@ -64,35 +67,35 @@
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('billing.show') }}" class="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white hover:bg-black">{{ __('loop.upgrade_now') }}</a>
+                <a href="{{ route('billing.show') }}" class="loop-btn">{{ __('loop.upgrade_now') }}</a>
             </div>
         </section>
     @endif
 
     @if ($isOwner && $referralProgress)
-        <section class="mt-6 overflow-hidden rounded-[1.75rem] border border-ink/10 bg-gradient-to-br from-ink via-ink-soft to-mint/20 p-6 text-white shadow-[0_24px_70px_rgba(11,31,42,0.12)]">
-            <div class="flex flex-wrap items-start justify-between gap-4">
+        <section class="loop-wallet mt-6 p-6">
+            <div class="relative flex flex-wrap items-start justify-between gap-4">
                 <div class="max-w-xl">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.referrals') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.referrals') }}</p>
                     <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.referral_dash_title', ['goal' => $referralProgress['goal']]) }}</h2>
                     <p class="mt-2 text-sm text-white/70">{{ __('loop.referral_dash_body', [
                         'days' => $referralProgress['program']['referrer_extra_days_per_referral'] ?? 3,
                     ]) }}</p>
                 </div>
-                <a href="{{ route('settings.referrals') }}" class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-ink hover:bg-mint-deep">{{ __('loop.invite_businesses') }}</a>
+                <a href="{{ route('settings.referrals') }}" class="loop-btn-lime !py-2">{{ __('loop.invite_businesses') }}</a>
             </div>
 
-            <div class="mt-5">
+            <div class="relative mt-5">
                 <div class="flex items-center justify-between text-sm">
                     <span>{{ __('loop.referral_joined_count', ['count' => $referralProgress['joined'], 'goal' => $referralProgress['goal']]) }}</span>
                     <span class="text-white/60">{{ $referralProgress['percent'] }}%</span>
                 </div>
                 <div class="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
-                    <div class="h-full rounded-full bg-mint transition-all" style="width: {{ $referralProgress['percent'] }}%"></div>
+                    <div class="h-full rounded-full bg-lime transition-all" style="width: {{ $referralProgress['percent'] }}%"></div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
                     @for ($i = 1; $i <= $referralProgress['goal']; $i++)
-                        <span class="rounded-lg px-2.5 py-1 text-xs font-semibold {{ $referralProgress['joined'] >= $i ? 'bg-mint text-ink' : 'bg-white/10 text-white/70' }}">
+                        <span class="rounded-lg px-2.5 py-1 text-xs font-semibold {{ $referralProgress['joined'] >= $i ? 'bg-lime text-ink' : 'bg-white/10 text-white/70' }}">
                             {{ $i }} {{ __('loop.business') }}
                         </span>
                     @endfor
@@ -104,22 +107,21 @@
         </section>
     @endif
 
-    <div class="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <section class="loop-panel p-6">
-            <div class="flex items-center justify-between">
+    <div class="mt-8 grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+        <section>
+            <div class="mb-4 flex items-center justify-between">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.active_campaigns') }}</h2>
                 @if ($isOwner)
-                    <a href="{{ route('campaigns.index') }}" class="text-sm font-semibold text-mint-deep">{{ __('loop.view_campaigns') }}</a>
+                    <a href="{{ route('campaigns.index') }}" class="text-sm font-semibold text-violet">{{ __('loop.view_campaigns') }}</a>
                 @endif
             </div>
-            <div class="mt-4 space-y-3">
+            <div class="divide-y divide-ink/10">
                 @forelse ($activeCampaigns as $campaign)
                     @if ($isOwner)
-                        <a href="{{ route('campaigns.show', $campaign) }}" class="block rounded-2xl bg-chalk px-4 py-3 transition hover:bg-mint-soft/40">
+                        <a href="{{ route('campaigns.show', $campaign) }}" class="flex items-start justify-between gap-3 py-3.5 transition hover:bg-violet-soft/40">
                     @else
-                        <div class="rounded-2xl bg-chalk px-4 py-3">
+                        <div class="flex items-start justify-between gap-3 py-3.5">
                     @endif
-                        <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="font-semibold">{{ $campaign->displayName() }}</p>
                                 <p class="text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
@@ -128,33 +130,32 @@
                                 <p class="font-display text-xl font-semibold">{{ $campaign->today_visits_count }}</p>
                                 <p class="text-xs text-ink-muted">{{ __('loop.today') }}</p>
                             </div>
-                        </div>
                     @if ($isOwner)
                         </a>
                     @else
                         </div>
                     @endif
                 @empty
-                    <p class="text-sm text-ink-muted">{{ __('loop.no_live_campaigns') }}</p>
+                    <p class="py-3 text-sm text-ink-muted">{{ __('loop.no_live_campaigns') }}</p>
                 @endforelse
             </div>
         </section>
-        <section class="loop-panel p-6">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
-            <div class="mt-4 space-y-3">
+        <section>
+            <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
+            <div class="divide-y divide-ink/10">
                 @forelse ($recentVisits as $visit)
-                    <div class="flex items-center justify-between gap-4 rounded-2xl bg-chalk px-4 py-3">
+                    <div class="flex items-center justify-between gap-4 py-3.5">
                         <div class="min-w-0">
                             <p class="font-semibold">{{ $visit->customer->name }}</p>
                             <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
-                            <p class="mt-0.5 text-xs font-medium text-mint-deep">+{{ $visit->points_earned }} pts</p>
+                            <p class="mt-0.5 text-xs font-medium text-violet">+{{ $visit->points_earned }} pts</p>
                         </div>
                         <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
                             {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
                         </p>
                     </div>
                 @empty
-                    <p class="text-sm text-ink-muted">{{ __('loop.no_sales') }}</p>
+                    <p class="py-3 text-sm text-ink-muted">{{ __('loop.no_sales') }}</p>
                 @endforelse
             </div>
         </section>

@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.affiliates') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.affiliates') }}</p>
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.affiliate_dashboard') }}</h1>
                 <p class="mt-1 text-ink-muted">{{ $affiliate->name }}</p>
             </div>
@@ -14,7 +14,7 @@
     </x-slot>
 
     <section
-        class="overflow-hidden rounded-[2rem] bg-ink p-6 text-white shadow-[0_30px_80px_rgba(11,31,42,0.18)] sm:p-8"
+        class="loop-wallet p-6 sm:p-8"
         x-data="{
             code: @js($affiliate->promo_code),
             url: @js($shareUrl),
@@ -27,20 +27,20 @@
             }
         }"
     >
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint">{{ __('loop.start_sharing') }}</p>
-        <p class="mt-3 font-display text-4xl font-semibold tracking-tight" x-text="code"></p>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.start_sharing') }}</p>
+        <p class="mt-3 font-display text-4xl font-semibold tracking-tight text-lime" x-text="code"></p>
         <p class="mt-2 max-w-xl text-sm text-white/70">{{ __('loop.share_promo_blurb') }}</p>
 
         <div class="mt-6 flex flex-wrap gap-2">
-            <button type="button" class="loop-btn-mint !py-2.5" @click="copy(code)">{{ __('loop.copy_code') }}</button>
-            <button type="button" class="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15" @click="copy(url)">{{ __('loop.copy_link') }}</button>
-            <button type="button" class="rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
+            <button type="button" class="loop-btn-lime !py-2.5" @click="copy(code)">{{ __('loop.copy_code') }}</button>
+            <button type="button" class="rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15" @click="copy(url)">{{ __('loop.copy_link') }}</button>
+            <button type="button" class="rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
                     @click="
                         if (navigator.share) { navigator.share({ title: 'Loop', text, url }); }
                         else { copy(text); }
                     ">{{ __('loop.share_now') }}</button>
         </div>
-        <p class="mt-3 text-xs text-mint" x-show="copied" x-cloak>{{ __('loop.copied') }}</p>
+        <p class="mt-3 text-xs text-lime" x-show="copied" x-cloak>{{ __('loop.copied') }}</p>
         <input type="hidden" :value="url" id="share-url">
     </section>
 

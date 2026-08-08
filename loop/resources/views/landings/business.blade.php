@@ -9,6 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans text-ink">
+<div class="min-h-screen bg-chalk">
 <x-site-header>
     <x-slot:actions>
         <a href="{{ route('staff.login') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.staff_login') }}</a>
@@ -18,53 +19,63 @@
 
 <main>
     <section class="relative overflow-hidden">
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(45,212,168,0.22),transparent_40%),radial-gradient(circle_at_80%_20%,rgba(255,107,74,0.16),transparent_35%)]"></div>
-        <div class="loop-shell relative grid items-center gap-10 py-12 lg:grid-cols-2">
-            <div class="order-2 lg:order-1">
-                <div class="overflow-hidden rounded-[2rem] bg-ink shadow-[0_30px_80px_rgba(11,31,42,0.18)]">
-                    <img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&w=1400&q=80" alt="" class="h-72 w-full object-cover opacity-90 sm:h-[22rem]">
-                    <div class="space-y-2 p-6 text-white">
-                        <p class="font-display text-xl font-semibold">{{ __('loop.sale_first') }}</p>
-                        <p class="text-sm text-white/70">{{ __('loop.sale_first_body') }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="order-1 lg:order-2">
-                <p class="text-sm font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.business') }}</p>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(91,46,255,0.16),transparent_40%),radial-gradient(circle_at_80%_20%,rgba(200,255,61,0.18),transparent_35%)]"></div>
+        <div class="loop-shell relative grid items-center gap-10 py-12 lg:grid-cols-2 lg:py-16">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.business') }}</p>
                 <h1 class="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">Loop</h1>
                 <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ __('loop.tagline') }}</p>
                 <p class="mt-5 max-w-lg text-lg text-ink-muted">{{ __('loop.business_hero_body') }}</p>
                 <div class="mt-8 flex flex-wrap gap-3">
-                    <a href="{{ route('business.register') }}" class="loop-btn-mint">{{ __('loop.cta_business') }}</a>
+                    <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.cta_business') }}</a>
                     <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
                     <a href="{{ route('staff.login') }}" class="loop-btn-ghost">{{ __('loop.staff_login') }}</a>
+                </div>
+            </div>
+            <div class="loop-wallet p-6 sm:p-8">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.sale_first') }}</p>
+                <p class="mt-4 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{{ __('loop.with_your_phone') }}</p>
+                <p class="mt-3 max-w-sm text-sm text-white/65">{{ __('loop.sale_first_body') }}</p>
+                <div class="mt-8 grid grid-cols-3 gap-3 border-t border-white/10 pt-6 text-center">
+                    <div>
+                        <p class="font-display text-2xl font-semibold text-lime">1</p>
+                        <p class="mt-1 text-[11px] text-white/55">{{ __('loop.shops') }}</p>
+                    </div>
+                    <div>
+                        <p class="font-display text-2xl font-semibold text-white">14</p>
+                        <p class="mt-1 text-[11px] text-white/55">{{ __('loop.pricing') }}</p>
+                    </div>
+                    <div>
+                        <p class="font-display text-2xl font-semibold text-white">∞</p>
+                        <p class="mt-1 text-[11px] text-white/55">{{ __('loop.pts') }}</p>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="loop-shell grid gap-6 border-t border-ink/10 py-16 md:grid-cols-3">
-        <div class="rounded-3xl border border-ink/10 bg-white/70 p-6 backdrop-blur-sm">
-            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-mint/40 to-coral/25 font-display text-lg">◎</div>
-            <p class="mt-4 font-display text-lg font-semibold">{{ __('loop.flex_campaigns') }}</p>
+    <section class="loop-shell grid gap-8 border-t border-ink/10 py-16 md:grid-cols-3">
+        <div>
+            <p class="font-display text-3xl font-semibold text-violet/35">01</p>
+            <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.flex_campaigns') }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.flex_campaigns_body') }}</p>
         </div>
-        <div class="rounded-3xl border border-ink/10 bg-white/70 p-6 backdrop-blur-sm">
-            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-mint/40 to-coral/25 font-display text-lg">▣</div>
-            <p class="mt-4 font-display text-lg font-semibold">{{ __('loop.front_desk_ready') }}</p>
+        <div>
+            <p class="font-display text-3xl font-semibold text-violet/35">02</p>
+            <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.front_desk_ready') }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.front_desk_body') }}</p>
         </div>
-        <div class="rounded-3xl border border-ink/10 bg-white/70 p-6 backdrop-blur-sm">
-            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-mint/40 to-coral/25 font-display text-lg">◉</div>
-            <p class="mt-4 font-display text-lg font-semibold">{{ __('loop.one_phone') }}</p>
+        <div>
+            <p class="font-display text-3xl font-semibold text-violet/35">03</p>
+            <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.one_phone') }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.one_phone_body') }}</p>
         </div>
     </section>
 
-    <section id="pricing" class="border-t border-ink/10 bg-white/70">
+    <section id="pricing" class="border-t border-ink/10 bg-white">
         <div class="loop-shell py-16">
             <div class="mx-auto max-w-2xl text-center">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.pricing') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.pricing') }}</p>
                 <h2 class="mt-3 font-display text-3xl font-semibold">{{ __('loop.pricing_title') }}</h2>
                 <p class="mt-3 text-ink-muted">{{ __('loop.pricing_blurb') }}</p>
             </div>
@@ -73,5 +84,6 @@
     </section>
 </main>
 <x-site-footer />
+</div>
 </body>
 </html>
