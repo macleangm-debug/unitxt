@@ -9,6 +9,7 @@ use App\Support\BillingSettings;
 use App\Support\Confirm;
 use App\Support\GrowthSettings;
 use App\Support\Plans;
+use App\Support\PlatformUrl;
 use App\Support\ReferralProgram;
 use App\Support\SalesVisibility;
 use App\Support\Sectors;
@@ -25,6 +26,7 @@ class SettingsHubController extends Controller
             'growth' => GrowthSettings::settings(),
             'referral' => ReferralProgram::settings(),
             'salesVisibility' => SalesVisibility::settings(),
+            'platformUrl' => PlatformUrl::settings(),
             'sectors' => Sectors::list(),
             'plans' => Plan::query()->orderBy('sort_order')->get(),
             'integrations' => [
@@ -160,6 +162,24 @@ class SettingsHubController extends Controller
         return back()->with('confirm', Confirm::make(
             __('loop.admin_sales_visibility_saved_title'),
             __('loop.admin_sales_visibility_saved'),
+            __('loop.done'),
+            route('admin.settings'),
+            false,
+        ));
+    }
+
+    public function updatePlatformUrl(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'base_url' => ['required', 'string', 'max:255'],
+        ]);
+
+        PlatformSetting::putValue(PlatformUrl::KEY, PlatformUrl::normalizeInput($data));
+        PlatformUrl::applyRootUrl();
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_base_url_saved_title'),
+            __('loop.admin_base_url_saved'),
             __('loop.done'),
             route('admin.settings'),
             false,

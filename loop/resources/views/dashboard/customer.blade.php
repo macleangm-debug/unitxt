@@ -176,13 +176,24 @@
     <section class="rounded-[2rem] border border-ink/8 bg-gradient-to-br from-white to-mint/10 p-6 sm:p-7">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.be_a_loop_scout') }}</p>
         <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.invite_a_business') }}</h2>
-        <p class="mt-2 max-w-xl text-sm text-ink-muted">{{ __('loop.invite_a_business_body') }}</p>
-        <form method="POST" action="{{ route('business-invites.store') }}" class="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <p class="mt-2 max-w-xl text-sm text-ink-muted">{{ __('loop.invite_a_business_share_blurb') }}</p>
+        <form method="POST" action="{{ route('business-invites.store') }}" class="mt-5 space-y-3">
             @csrf
-            <input name="business_name" class="loop-input" placeholder="{{ __('loop.business_name') }}" required>
-            <button class="loop-btn-mint">{{ __('loop.send_invite') }}</button>
             <input name="city" value="{{ auth()->user()->city }}" type="hidden">
-            <input name="phone" class="loop-input sm:col-span-2" placeholder="{{ __('loop.phone_optional') }}">
+            <input name="country_code" value="{{ \App\Support\Countries::dial(auth()->user()->country ?? 'TZ') }}" type="hidden">
+            <div class="flex flex-col gap-3 sm:flex-row">
+                <input name="business_name" class="loop-input sm:flex-1" placeholder="{{ __('loop.business_name') }}" required>
+                <button name="share_via" value="whatsapp" class="loop-btn-mint inline-flex shrink-0 items-center justify-center gap-2">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.5 3.5A11 11 0 004.1 17.7L3 21l3.4-1A11 11 0 1020.5 3.5zm-8.5 17a9 9 0 01-4.6-1.3l-.3-.2-2.5.7.7-2.4-.2-.3A9 9 0 1120 12a9 9 0 01-8 8.5zm5-6.6c-.3-.1-1.6-.8-1.8-.9s-.4-.1-.6.1-.7.9-.8 1-.3.2-.6.1a7.3 7.3 0 01-2.1-1.3 8 8 0 01-1.5-1.8c-.2-.3 0-.4.1-.6l.4-.5.3-.4c.1-.2 0-.3 0-.5l-.8-2c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3s-1 1-1 2.4 1 2.8 1.2 3 .2.3 2 3.1a13.4 13.4 0 005.2 3.4c.6.2 1.1.2 1.5.1.5-.1 1.6-.6 1.8-1.3s.2-1.1.2-1.2-.2-.2-.5-.3z"/></svg>
+                    {{ __('loop.send_invite') }}
+                </button>
+            </div>
+            <input name="phone" class="loop-input" placeholder="{{ __('loop.phone_optional_share') }}">
+            <button name="share_via" value="sms" class="loop-btn-ghost inline-flex w-full items-center justify-center gap-2 sm:w-auto">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H5.2L4 17.2V4h16v12z"/></svg>
+                {{ __('loop.share_by_sms') }}
+            </button>
+            <p class="text-xs text-ink-muted">{{ __('loop.scout_share_hint') }}</p>
         </form>
     </section>
 </x-app-layout>

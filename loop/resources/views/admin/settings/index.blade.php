@@ -128,6 +128,21 @@
     </div>
 
     <div class="mt-6 grid gap-6 lg:grid-cols-2">
+        <form method="POST" action="{{ route('admin.settings.base-url') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_base_url') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_base_url_blurb') }}</p>
+            </div>
+            <div>
+                <label class="loop-label">{{ __('loop.base_url_field') }}</label>
+                <input type="url" name="base_url" value="{{ old('base_url', $platformUrl['base_url']) }}" class="loop-input" placeholder="https://loop.example.com" required>
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.base_url_help') }}</p>
+            </div>
+            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+        </form>
+
         <form method="POST" action="{{ route('admin.settings.sectors') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
             @csrf
             @method('PUT')

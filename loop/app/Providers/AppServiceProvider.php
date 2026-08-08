@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\PlatformUrl;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +20,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        try {
+            PlatformUrl::applyRootUrl();
+        } catch (\Throwable) {
+            // Platform settings table may not exist during early migrate.
+        }
     }
 }

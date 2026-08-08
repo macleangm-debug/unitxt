@@ -110,6 +110,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
         Route::put('/settings/sectors', [AdminSettingsHubController::class, 'updateSectors'])->name('settings.sectors');
         Route::put('/settings/sales-visibility', [AdminSettingsHubController::class, 'updateSalesVisibility'])->name('settings.sales-visibility');
+        Route::put('/settings/base-url', [AdminSettingsHubController::class, 'updatePlatformUrl'])->name('settings.base-url');
     });
 
     Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {

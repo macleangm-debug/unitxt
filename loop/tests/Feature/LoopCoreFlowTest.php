@@ -855,6 +855,52 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
+    public function test_customer_landing_page_loads(): void
+    {
+        $this->get(route('landing.customer'))
+            ->assertOk()
+            ->assertSee('Loop', false)
+            ->assertSee(__('loop.customer_landing_title'));
+    }
+
+    public function test_scout_invite_opens_whatsapp_with_platform_base_url(): void
+    {
+        \App\Models\PlatformSetting::putValue(\App\Support\PlatformUrl::KEY, [
+            'base_url' => 'https://loop.example.com',
+        ]);
+        \App\Support\PlatformUrl::applyRootUrl();
+
+        $customer = User::factory()->customer()->create([
+            'phone' => '713444001',
+            'first_name' => 'Neema',
+            'last_name' => 'Juma',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'profile_completed' => true,
+            'password' => '1234',
+        ]);
+
+        $response = $this->actingAs($customer)->post(route('business-invites.store'), [
+            'business_name' => 'Harbor Beans',
+            'share_via' => 'whatsapp',
+            'country_code' => '+255',
+            'city' => 'Dar es Salaam',
+        ]);
+
+        $response->assertRedirect();
+        $target = $response->headers->get('Location');
+        $this->assertNotNull($target);
+        $this->assertStringContainsString('https://wa.me/', $target);
+        $this->assertStringContainsString(rawurlencode('https://loop.example.com/business/register'), $target);
+        $this->assertStringContainsString('scout%3D'.$customer->id, $target);
+
+        $this->assertDatabaseHas('business_invites', [
+            'customer_id' => $customer->id,
+            'business_name' => 'Harbor Beans',
+            'status' => 'pending',
+        ]);
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

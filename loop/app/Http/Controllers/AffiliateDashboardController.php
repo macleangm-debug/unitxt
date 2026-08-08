@@ -33,10 +33,10 @@ class AffiliateDashboardController extends Controller
                 'earned' => (int) $referrals->whereIn('status', ['commissioned', 'paid'])->sum('commission_amount'),
                 'pending' => (int) $referrals->where('status', 'pending')->count(),
             ],
-            'shareUrl' => route('business.register', ['ref' => $affiliate->promo_code]),
+            'shareUrl' => \App\Support\PlatformUrl::route('business.register', ['ref' => $affiliate->promo_code]),
             'shareText' => __('loop.affiliate_share_text', [
                 'code' => $affiliate->promo_code,
-                'url' => route('business.register', ['ref' => $affiliate->promo_code]),
+                'url' => \App\Support\PlatformUrl::route('business.register', ['ref' => $affiliate->promo_code]),
             ]),
         ]);
     }

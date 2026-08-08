@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
+use App\Models\BusinessInvite;
 use App\Models\User;
 use App\Services\AffiliateService;
 use App\Services\ReferralService;
@@ -29,6 +30,11 @@ class BusinessRegisterController extends Controller
         $affiliate = $affiliates->findByPromo($ref);
         $referrer = $affiliate ? null : $referrals->findReferrer($ref);
 
+        $scoutId = $request->query('scout');
+        if (filled($scoutId) && ctype_digit((string) $scoutId)) {
+            $request->session()->put('scout_customer_id', (int) $scoutId);
+        }
+
         return view('auth.business-register', [
             'sectors' => Sectors::all(),
             'countries' => Countries::OPTIONS,
@@ -37,6 +43,7 @@ class BusinessRegisterController extends Controller
             'referrerBusiness' => $referrer,
             'referrerAffiliate' => $affiliate,
             'affiliateDiscount' => $affiliate ? AffiliateProgram::referredDiscountPercent() : null,
+            'scoutCustomerId' => $request->session()->get('scout_customer_id'),
         ]);
     }
 
@@ -109,6 +116,15 @@ class BusinessRegisterController extends Controller
 
             return $owner;
         });
+
+        $scoutId = $request->session()->pull('scout_customer_id');
+        if ($scoutId) {
+            BusinessInvite::query()
+                ->where('customer_id', $scoutId)
+                ->where('status', 'pending')
+                ->whereRaw('LOWER(business_name) = ?', [Str::lower($data['business_name'])])
+                ->update(['status' => 'converted']);
+        }
 
         event(new Registered($owner));
         Auth::login($owner);

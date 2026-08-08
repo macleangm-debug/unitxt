@@ -180,6 +180,6 @@ class ReferralService
     {
         $code = $this->ensureReferralCode($business);
 
-        return route('business.register', ['ref' => $code]);
+        return \App\Support\PlatformUrl::route('business.register', ['ref' => $code]);
     }
 }
