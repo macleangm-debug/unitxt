@@ -200,6 +200,26 @@ class LoopCoreFlowTest extends TestCase
         $this->get('/locale/sw')->assertRedirect();
     }
 
+    public function test_public_pages_use_relative_in_app_links(): void
+    {
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('127.0.0.1', $html);
+        $this->assertStringNotContainsString('http://localhost', $html);
+        $this->assertStringContainsString('href="/for-customers"', $html);
+        $this->assertStringContainsString('href="/for-business"', $html);
+        $this->assertStringContainsString('href="/customer/login"', $html);
+        $this->assertStringContainsString('href="/business/register"', $html);
+
+        $customer = $this->get('/for-customers')->assertOk()->getContent();
+        $this->assertStringNotContainsString('127.0.0.1', $customer);
+        $this->assertStringContainsString('href="/discover"', $customer);
+
+        $this->from('/for-customers')
+            ->get('/locale/en')
+            ->assertRedirect('/for-customers');
+    }
+
     public function test_discover_hides_points_for_guests_and_shows_for_customers(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();

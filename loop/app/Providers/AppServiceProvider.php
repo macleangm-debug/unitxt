@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Routing\RelativeUrlGenerator;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +13,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Default route()/action() URLs to host-relative paths so previews and
+        // tunnels never emit http://127.0.0.1:8000 links that leave the app.
+        $this->app->singleton('url', function ($app) {
+            $routes = $app['router']->getRoutes();
+            $app->instance('routes', $routes);
+
+            return new RelativeUrlGenerator(
+                $routes,
+                $app->rebinding('request', function ($app, $request) {
+                    $app['url']->setRequest($request);
+                }),
+                $app['config']['app.asset_url']
+            );
+        });
     }
 
     /**

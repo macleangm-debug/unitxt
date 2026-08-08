@@ -54,8 +54,9 @@ class PlatformUrl
     }
 
     /**
-     * Prefer the live browser host for in-app links (tunnels, custom domains).
-     * Share links should use {@see route()} / {@see base()} instead.
+     * Prefer the live browser host when an absolute URL is required
+     * (signed links, rare absolute: true callers). In-app nav uses relative
+     * {@see route()} URLs by default via RelativeUrlGenerator.
      */
     public static function applyRequestRootUrl(): void
     {
@@ -68,6 +69,7 @@ class PlatformUrl
             return;
         }
 
+        // Keep absolute generators on the browser origin (not APP_URL / localhost).
         URL::forceRootUrl($request->root());
         URL::forceScheme($request->getScheme());
     }
