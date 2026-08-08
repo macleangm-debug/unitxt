@@ -78,6 +78,10 @@
     .animate-fade-up {
         animation: loop-fade-up 0.55s ease-out both;
     }
+
+    .animate-fade-up-delay {
+        animation: loop-fade-up 0.55s ease-out 0.12s both;
+    }
 }
 
 @keyframes loop-fade-up {
