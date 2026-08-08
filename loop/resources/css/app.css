@@ -3,46 +3,48 @@
 @tailwind utilities;
 
 :root {
-    --loop-ink: #0B1F2A;
-    --loop-mint: #2DD4A8;
-    --loop-chalk: #F3F7F5;
-    --loop-coral: #FF6B4A;
+    --loop-ink: #111114;
+    --loop-violet: #5B2EFF;
+    --loop-lime: #C8FF3D;
+    --loop-chalk: #F7F7F4;
+    --loop-lavender: #E9E5FF;
 }
 
 @layer base {
     body {
         @apply bg-chalk text-ink antialiased;
-        background-image:
-            radial-gradient(circle at 12% 18%, rgba(45, 212, 168, 0.18), transparent 34%),
-            radial-gradient(circle at 88% 8%, rgba(255, 107, 74, 0.12), transparent 28%),
-            linear-gradient(180deg, #F3F7F5 0%, #EAF2EE 100%);
-        background-attachment: fixed;
+        background-image: none;
+        background-color: #F7F7F4;
     }
 }
 
 @layer components {
     .loop-shell {
-        @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+        @apply mx-auto max-w-6xl px-4 sm:px-6 lg:px-8;
     }
 
     .loop-panel {
-        @apply bg-white/80 backdrop-blur-sm border border-ink/5 rounded-2xl shadow-[0_18px_50px_rgba(11,31,42,0.06)];
+        @apply rounded-2xl border border-ink/10 bg-white;
     }
 
     .loop-btn {
-        @apply inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-ink-soft focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
     }
 
     .loop-btn-mint {
-        @apply inline-flex items-center justify-center gap-2 rounded-xl bg-mint px-5 py-3 text-sm font-semibold text-ink transition hover:bg-mint-deep focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+    }
+
+    .loop-btn-lime {
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-lime px-5 py-3.5 text-sm font-semibold text-ink transition hover:bg-lime-deep focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2;
     }
 
     .loop-btn-ghost {
-        @apply inline-flex items-center justify-center gap-2 rounded-xl border border-ink/15 bg-white/50 px-5 py-3 text-sm font-semibold text-ink transition hover:border-ink/30 hover:bg-white;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-ink/15 bg-white px-5 py-3.5 text-sm font-semibold text-ink transition hover:border-ink/30 hover:bg-chalk;
     }
 
     .loop-input {
-        @apply mt-1 block w-full rounded-xl border-ink/10 bg-white shadow-sm focus:border-mint focus:ring-mint;
+        @apply mt-1 block w-full rounded-2xl border-ink/10 bg-white shadow-sm focus:border-violet focus:ring-violet;
     }
 
     .loop-label {
@@ -50,12 +52,19 @@
     }
 
     .loop-stat {
-        @apply rounded-2xl border border-ink/5 bg-white/70 p-5 shadow-[0_12px_40px_rgba(11,31,42,0.04)] backdrop-blur-sm;
+        @apply rounded-2xl border border-ink/10 bg-white p-5;
     }
 
-    /* Horizontal rails stay inside the same shell as headings (no full-bleed drift). */
+    .loop-wallet {
+        @apply relative overflow-hidden rounded-[1.75rem] bg-ink text-white;
+        background-image:
+            radial-gradient(circle at 88% 12%, rgba(91, 46, 255, 0.55), transparent 42%),
+            radial-gradient(circle at 8% 88%, rgba(200, 255, 61, 0.18), transparent 36%),
+            linear-gradient(145deg, #1a1228 0%, #111114 48%, #0a0a0c 100%);
+    }
+
     .loop-carousel {
-        @apply flex gap-3 overflow-x-auto pb-2 sm:gap-4;
+        @apply flex gap-4 overflow-x-auto pb-1;
         scroll-snap-type: x mandatory;
         -ms-overflow-style: none;
         scrollbar-width: none;
@@ -72,6 +81,15 @@
     .loop-shop-grid {
         @apply grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5;
     }
+
+    .loop-divider {
+        @apply border-t border-ink/10;
+    }
+
+    .loop-bottom-nav {
+        @apply fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 backdrop-blur-md;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
 }
 
 @layer utilities {
@@ -81,6 +99,10 @@
 
     .animate-fade-up-delay {
         animation: loop-fade-up 0.55s ease-out 0.12s both;
+    }
+
+    .pb-nav {
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
     }
 }
 

@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? config('app.name', 'Loop') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -11,14 +11,15 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans">
-<div class="min-h-screen">
+@php $isCustomer = auth()->user()?->isCustomer(); @endphp
+<div @class(['min-h-screen', 'pb-nav md:pb-0' => $isCustomer])>
     @include('layouts.navigation')
     @isset($header)
-        <header class="loop-shell pt-8 pb-2"><div class="animate-fade-up">{{ $header }}</div></header>
+        <header class="loop-shell pt-5 pb-1 sm:pt-8 sm:pb-2"><div class="animate-fade-up">{{ $header }}</div></header>
     @endisset
-    <main class="loop-shell py-6 pb-16">
+    <main class="loop-shell py-5 sm:py-6 {{ $isCustomer ? 'pb-8' : 'pb-16' }}">
         @if (session('status') && ! session('all_set') && ! session('confirm'))
-            <div class="mb-6 rounded-xl border border-mint/40 bg-mint-soft px-4 py-3 text-sm text-ink">{{ session('status') }}</div>
+            <div class="mb-6 rounded-2xl border border-lime/50 bg-lime-soft px-4 py-3 text-sm text-ink">{{ session('status') }}</div>
         @endif
         {{ $slot }}
     </main>

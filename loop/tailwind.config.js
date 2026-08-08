@@ -12,21 +12,33 @@ export default {
     theme: {
         extend: {
             colors: {
+                // Loop Energy — violet + electric lime
                 ink: {
-                    DEFAULT: '#0B1F2A',
-                    soft: '#163545',
-                    muted: '#4A6674',
+                    DEFAULT: '#111114',
+                    soft: '#1C1C22',
+                    muted: '#6B6B76',
                 },
-                mint: {
-                    DEFAULT: '#2DD4A8',
-                    deep: '#17A881',
-                    soft: '#D8F8EE',
+                violet: {
+                    DEFAULT: '#5B2EFF',
+                    deep: '#3F18D9',
+                    soft: '#E9E5FF',
+                },
+                lime: {
+                    DEFAULT: '#C8FF3D',
+                    deep: '#A8E000',
+                    soft: '#F3FFC8',
                 },
                 chalk: {
-                    DEFAULT: '#F3F7F5',
-                    warm: '#E8F0EC',
+                    DEFAULT: '#F7F7F4',
+                    warm: '#F0F0EC',
                 },
-                coral: '#FF6B4A',
+                // Legacy aliases so existing blades keep working during migration
+                mint: {
+                    DEFAULT: '#C8FF3D',
+                    deep: '#A8E000',
+                    soft: '#E9E5FF',
+                },
+                coral: '#FF4F70',
             },
             fontFamily: {
                 display: ['Sora', ...defaultTheme.fontFamily.sans],

@@ -9,74 +9,120 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans text-ink">
-<div class="relative min-h-screen overflow-x-hidden bg-ink">
-    <x-site-header overlay>
+<div class="min-h-screen overflow-x-hidden bg-chalk">
+    <x-site-header>
         <x-slot:actions>
-            <a href="{{ route('discover') }}" class="text-sm font-semibold text-white/80 hover:text-white">{{ __('loop.browse_campaigns') }}</a>
-            <a href="{{ route('customer.login') }}" class="text-sm font-semibold text-white/80 hover:text-white">{{ __('loop.cta_customer') }}</a>
+            <a href="{{ route('discover') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.browse_campaigns') }}</a>
+            <a href="{{ route('customer.login') }}" class="text-sm font-semibold text-violet hover:text-ink">{{ __('loop.cta_customer') }}</a>
         </x-slot:actions>
     </x-site-header>
 
     <main>
-        {{-- One composition: brand + headline + line + CTA on a full-bleed shop photo --}}
-        <section class="relative min-h-[100svh] overflow-hidden">
-            <div class="absolute inset-0">
-                <img
-                    src="https://images.unsplash.com/photo-1556745753-b2904692b3cd?auto=format&fit=crop&w=2200&q=80"
-                    alt=""
-                    class="h-full w-full scale-105 object-cover object-[center_30%] motion-safe:animate-[loop-slow-pan_32s_ease-in-out_infinite_alternate]"
-                >
-                <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(11,31,42,0.55)_0%,rgba(11,31,42,0.35)_38%,rgba(11,31,42,0.82)_100%)]"></div>
-                <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(11,31,42,0.72)_0%,rgba(11,31,42,0.35)_55%,rgba(11,31,42,0.15)_100%)]"></div>
-                <div class="pointer-events-none absolute -left-16 bottom-24 h-64 w-64 rounded-full bg-mint/25 blur-3xl motion-safe:animate-pulse"></div>
+        <section class="loop-shell grid items-center gap-10 py-10 sm:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:py-16">
+            <div class="motion-safe:animate-fade-up">
+                <p class="font-display text-[clamp(3rem,11vw,5.5rem)] font-semibold leading-[0.92] tracking-tight text-ink">Loop</p>
+                <h1 class="mt-5 max-w-xl font-display text-[clamp(1.4rem,4vw,2.15rem)] font-semibold leading-snug text-ink">
+                    {{ __('loop.customer_landing_title') }}
+                </h1>
+                <p class="mt-4 max-w-md text-base leading-relaxed text-ink-muted sm:text-lg">
+                    {{ __('loop.customer_landing_wallet_body') }}
+                </p>
+                <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <a href="{{ route('customer.login') }}" class="loop-btn w-full justify-center sm:w-auto">
+                        {{ __('loop.start_using_loop') }}
+                    </a>
+                    <a href="{{ route('discover') }}" class="inline-flex items-center justify-center px-1 py-2 text-sm font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline sm:px-3">
+                        {{ __('loop.browse_campaigns') }} →
+                    </a>
+                </div>
+
+                <div class="mt-10 grid max-w-md grid-cols-3 gap-3 text-center sm:gap-4">
+                    @foreach ([
+                        ['01', 'customer_flow_phone'],
+                        ['02', 'customer_flow_points'],
+                        ['03', 'customer_flow_rewards'],
+                    ] as [$num, $key])
+                        <div>
+                            <p class="font-display text-2xl font-semibold text-violet">{{ $num }}</p>
+                            <p class="mt-1 text-xs font-semibold leading-snug text-ink sm:text-sm">{{ __('loop.'.$key) }}</p>
+                        </div>
+                    @endforeach
+                </div>
             </div>
 
-            <div class="loop-shell relative z-10 flex min-h-[100svh] flex-col justify-end pb-14 pt-[5.5rem] sm:justify-end sm:pb-20 sm:pt-28 lg:pb-24">
-                <div class="max-w-xl motion-safe:animate-fade-up">
-                    <p class="font-display text-[clamp(3.25rem,12vw,6.5rem)] font-semibold leading-[0.92] tracking-tight text-white">
-                        Loop
-                    </p>
-                    <h1 class="mt-5 max-w-lg font-display text-[clamp(1.35rem,4.2vw,2rem)] font-semibold leading-snug text-white/95">
-                        {{ __('loop.customer_landing_title') }}
-                    </h1>
-                    <p class="mt-4 max-w-md text-base leading-relaxed text-white/70 sm:text-lg">
-                        {{ __('loop.customer_landing_body') }}
-                    </p>
-                    <div class="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:items-center">
-                        <a href="{{ route('customer.login') }}" class="loop-btn-mint w-full justify-center sm:w-auto">
-                            {{ __('loop.cta_customer') }}
-                        </a>
-                        <a href="{{ route('discover') }}" class="inline-flex items-center justify-center px-1 py-2 text-sm font-semibold text-white/80 underline-offset-4 transition hover:text-white hover:underline sm:px-3">
-                            {{ __('loop.browse_campaigns') }} →
-                        </a>
+            {{-- Phone / wallet mockup as the product visual --}}
+            <div class="relative mx-auto w-full max-w-[22rem] motion-safe:animate-fade-up-delay lg:mx-0 lg:justify-self-end">
+                <div class="absolute -left-8 top-10 h-40 w-40 rounded-full bg-violet/20 blur-3xl"></div>
+                <div class="absolute -right-6 bottom-8 h-36 w-36 rounded-full bg-lime/30 blur-3xl"></div>
+
+                <div class="relative rounded-[2rem] border border-ink/10 bg-ink p-3 shadow-[0_40px_100px_rgba(17,17,20,0.28)]">
+                    <div class="overflow-hidden rounded-[1.55rem] bg-chalk">
+                        <div class="flex items-center justify-between px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <x-loop-logo class="h-7 w-7" />
+                                <span class="font-display text-sm font-semibold">Loop</span>
+                            </div>
+                            <span class="text-[10px] font-semibold text-ink-muted">9:41</span>
+                        </div>
+
+                        <div class="loop-wallet mx-3 mb-3 rounded-[1.25rem] px-4 py-5">
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
+                            <p class="mt-5 font-display text-5xl font-semibold leading-none text-lime">2,450</p>
+                            <p class="mt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-white/50">{{ __('loop.pts') }}</p>
+                            <p class="mt-2 text-sm text-white/70">{{ __('loop.across_shops', ['count' => 8]) }}</p>
+                            <div class="mt-5 rounded-xl bg-lime px-3 py-2.5 text-center text-sm font-semibold text-ink">
+                                {{ __('loop.see_rewards') }}
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 px-4 pb-5">
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.ready_to_redeem') }}</p>
+                            <div class="rounded-2xl bg-violet px-3.5 py-3 text-white">
+                                <p class="text-xs text-white/70">Harbor Beans</p>
+                                <div class="mt-1 flex items-end justify-between gap-2">
+                                    <p class="font-display text-base font-semibold">5% off anything</p>
+                                    <span class="rounded-lg bg-lime px-2 py-1 text-[11px] font-semibold text-ink">{{ __('loop.redeem') }}</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-3 pt-1">
+                                <div class="w-20 shrink-0">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-soft font-display text-sm font-semibold text-violet">H</div>
+                                    <p class="mt-1.5 truncate text-[11px] font-semibold">Harbor</p>
+                                    <p class="text-[10px] text-ink-muted">70 {{ __('loop.pts') }}</p>
+                                </div>
+                                <div class="w-20 shrink-0">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-display text-sm font-semibold text-lime">K</div>
+                                    <p class="mt-1.5 truncate text-[11px] font-semibold">Kanga</p>
+                                    <p class="text-[10px] text-ink-muted">120 {{ __('loop.pts') }}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="border-t border-ink/5 bg-[#f4f8f6] text-ink">
-            <div class="loop-shell grid gap-10 py-14 sm:grid-cols-3 sm:gap-8 sm:py-16">
-                @foreach ([
-                    ['customer_aside_1', '01'],
-                    ['customer_aside_2', '02'],
-                    ['customer_aside_3', '03'],
-                ] as [$key, $num])
-                    <div class="motion-safe:animate-fade-up">
-                        <p class="font-display text-3xl font-semibold tracking-tight text-mint-deep/45 sm:text-4xl">{{ $num }}</p>
-                        <p class="mt-3 max-w-[16rem] font-display text-lg font-semibold leading-snug sm:text-xl">{{ __('loop.'.$key) }}</p>
-                    </div>
-                @endforeach
+        <section class="border-t border-ink/8 bg-white">
+            <div class="loop-shell py-12 sm:py-16">
+                <p class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{{ __('loop.phone_points_loop') }}</p>
+                <p class="mt-3 max-w-xl text-sm text-ink-muted sm:text-base">{{ __('loop.phone_points_loop_body') }}</p>
+                <div class="mt-8 grid gap-8 sm:grid-cols-3">
+                    @foreach ([
+                        ['customer_aside_1', '01'],
+                        ['customer_aside_2', '02'],
+                        ['customer_aside_3', '03'],
+                    ] as [$key, $num])
+                        <div>
+                            <p class="font-display text-3xl font-semibold text-violet/40">{{ $num }}</p>
+                            <p class="mt-2 font-display text-lg font-semibold leading-snug">{{ __('loop.'.$key) }}</p>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </section>
     </main>
 
     <x-site-footer />
 </div>
-<style>
-@keyframes loop-slow-pan {
-    from { transform: scale(1.05) translate3d(0, 0, 0); }
-    to { transform: scale(1.1) translate3d(-1.5%, -1%, 0); }
-}
-</style>
 </body>
 </html>
