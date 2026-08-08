@@ -11,8 +11,7 @@
 <body class="font-sans text-ink">
 <x-site-header>
     <x-slot:actions>
-        <a href="{{ route('affiliates.landing') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.back') }}</a>
-        <a href="{{ route('affiliates.apply') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.become_affiliate') }}</a>
+        <a href="{{ route('affiliate.login') }}" class="loop-btn !py-2 text-sm">{{ __('loop.log_in') }}</a>
     </x-slot:actions>
 </x-site-header>
 
