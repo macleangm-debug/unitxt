@@ -82,6 +82,8 @@ class OnboardingController extends Controller
             'shop_name' => ['required', 'string', 'max:120'],
             'city' => ['required', 'string', 'max:80'],
             'address' => ['nullable', 'string', 'max:255'],
+            'hotline_country_code' => ['nullable', 'string', 'max:8'],
+            'hotline' => ['nullable', 'string', 'max:40'],
         ]);
 
         if ($business->shops()->doesntExist()) {
@@ -98,6 +100,13 @@ class OnboardingController extends Controller
             if (! $business->city) {
                 $business->update(['city' => $data['city']]);
             }
+        }
+
+        if (! blank($data['hotline'] ?? null)) {
+            $dial = $data['hotline_country_code'] ?? Countries::dial($business->country ?? 'TZ');
+            $business->update([
+                'hotline' => trim($dial.' '.Countries::normalizePhone($data['hotline'])),
+            ]);
         }
 
         return redirect()->route('onboarding.show', ['step' => 4]);

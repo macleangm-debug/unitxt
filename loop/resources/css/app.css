@@ -24,7 +24,65 @@
     }
 
     .loop-panel {
-        @apply rounded-2xl border border-ink/10 bg-white;
+        @apply relative overflow-hidden rounded-2xl border border-ink/10 bg-white;
+    }
+
+    .loop-panel--energy {
+        @apply border-violet/15 bg-gradient-to-br from-white via-violet-soft/30 to-lime/10;
+    }
+
+    .loop-panel--energy::before {
+        content: '';
+        position: absolute;
+        top: -2.5rem;
+        right: -2rem;
+        width: 7rem;
+        height: 7rem;
+        border-radius: 9999px;
+        background: radial-gradient(circle, rgba(91, 46, 255, 0.22), transparent 70%);
+        filter: blur(18px);
+        pointer-events: none;
+        animation: loop-breathe 10s ease-in-out infinite;
+    }
+
+    .loop-energy-card {
+        @apply relative overflow-hidden rounded-[1.75rem];
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease-out;
+    }
+
+    .loop-energy-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .loop-energy-card--ink {
+        @apply bg-ink text-white;
+        background-image:
+            radial-gradient(circle at 88% 12%, rgba(91, 46, 255, 0.55), transparent 42%),
+            radial-gradient(circle at 8% 88%, rgba(200, 255, 61, 0.18), transparent 36%),
+            linear-gradient(145deg, #1a1228 0%, #111114 48%, #0a0a0c 100%);
+    }
+
+    .loop-energy-card--chalk {
+        @apply border border-ink/10 bg-white;
+        background-image:
+            radial-gradient(circle at 92% 8%, rgba(91, 46, 255, 0.12), transparent 40%),
+            radial-gradient(circle at 6% 92%, rgba(200, 255, 61, 0.12), transparent 38%);
+    }
+
+    .loop-pricing-card {
+        @apply relative flex flex-col overflow-hidden rounded-[1.75rem] border p-6 transition;
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease-out, border-color 0.25s ease-out;
+    }
+
+    .loop-pricing-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .loop-pricing-card--featured {
+        @apply border-violet bg-violet-soft/40 ring-2 ring-violet;
+        background-image:
+            radial-gradient(circle at 100% 0%, rgba(91, 46, 255, 0.18), transparent 45%),
+            radial-gradient(circle at 0% 100%, rgba(200, 255, 61, 0.14), transparent 40%);
     }
 
     .loop-btn {
@@ -52,7 +110,9 @@
     }
 
     .loop-stat {
-        @apply rounded-2xl border border-ink/10 bg-white p-5;
+        @apply relative overflow-hidden rounded-2xl border border-ink/10 bg-white p-5;
+        background-image:
+            radial-gradient(circle at 100% 0%, rgba(91, 46, 255, 0.08), transparent 45%);
     }
 
     .loop-wallet {
@@ -348,6 +408,9 @@
     .loop-orb--enter,
     .loop-wallet--liquid::before,
     .loop-reveal,
+    .loop-panel--energy::before,
+    .loop-energy-card,
+    .loop-pricing-card,
     .animate-fade-up,
     .animate-fade-up-delay {
         animation: none !important;

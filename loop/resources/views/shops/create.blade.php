@@ -35,7 +35,7 @@
             </div>
             <div>
                 <label class="loop-label">{{ __('loop.phone') }}</label>
-                <input name="phone" value="{{ old('phone') }}" class="loop-input" placeholder="712000001">
+                <input name="phone" value="{{ old('phone') }}" class="loop-input" placeholder="+255 712 000 001">
             </div>
         </div>
         <p class="rounded-2xl bg-chalk/80 px-4 py-3 text-xs text-ink-muted">{{ __('loop.shared_logo_hint') }}</p>

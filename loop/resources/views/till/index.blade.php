@@ -1,8 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <h1 class="font-display text-3xl font-semibold">{{ __('loop.sale') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.sale_blurb_short') }}</p>
+        <div class="loop-wallet loop-wallet--liquid mb-2 px-5 py-6 sm:px-7 sm:py-7" x-data="loopLivingWallet()">
+            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
+            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
+            <div class="relative">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
+                <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.sale') }}</h1>
+                <p class="mt-1 text-sm text-white/60">{{ __('loop.sale_blurb_short') }}</p>
+            </div>
         </div>
     </x-slot>
 
@@ -48,7 +53,7 @@
             </div>
             <div>
                 <label class="loop-label">{{ __('loop.customer_phone') }}</label>
-                <input name="phone" class="loop-input text-lg" placeholder="712 345 678" required autofocus>
+                <input name="phone" class="loop-input text-lg" placeholder="+255 712 345 678" required autofocus>
             </div>
         </div>
         <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>

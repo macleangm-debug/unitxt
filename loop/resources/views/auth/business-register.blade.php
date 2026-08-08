@@ -17,7 +17,15 @@
         </div>
     </x-slot:aside>
 
-    <div x-data="{ step: {{ $errors->any() ? 1 : 1 }} }" class="mx-auto w-full max-w-md">
+    <div
+        x-data="{
+            step: {{ $errors->any() ? 2 : 1 }},
+            country: @js(old('country', $preferredCountry)),
+            dials: @js(collect(\App\Support\Countries::OPTIONS)->mapWithKeys(fn ($m, $c) => [$c => $m['dial']])->all()),
+            get dial() { return this.dials[this.country] || '+255'; }
+        }"
+        class="mx-auto w-full max-w-md"
+    >
         <p class="mb-6 text-xs font-semibold text-ink-muted">{{ __('loop.step') }} <span x-text="step"></span>/4</p>
 
         <h1 class="font-display text-2xl font-semibold">{{ __('loop.cta_business') }}</h1>
@@ -29,7 +37,7 @@
             <div x-show="step === 1" class="space-y-4">
                 <div>
                     <label class="loop-label">{{ __('loop.country') }}</label>
-                    <select name="country" class="loop-input" required>
+                    <select name="country" class="loop-input" required x-model="country">
                         @foreach ($countries as $code => $meta)
                             <option value="{{ $code }}" @selected(old('country', $preferredCountry) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
                         @endforeach
@@ -52,7 +60,11 @@
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.phone') }}</label>
-                    <input name="phone" value="{{ old('phone') }}" class="loop-input" placeholder="712 345 678" required>
+                    <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                        <div class="loop-input flex items-center justify-center font-semibold text-ink" x-text="dial">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</div>
+                        <input name="phone" value="{{ old('phone') }}" class="loop-input" :placeholder="dial + ' 712 345 678'" placeholder="+255 712 345 678" required>
+                    </div>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.phone_prefix_hint') }}</p>
                     <x-input-error :messages="$errors->get('phone')" class="mt-1" />
                 </div>
                 <div>
@@ -108,7 +120,7 @@
                                 <option value="{{ $meta['dial'] }}" @selected(old('hotline_country_code', \App\Support\Countries::dial(old('country', $preferredCountry))) === $meta['dial'])>{{ $meta['dial'] }}</option>
                             @endforeach
                         </select>
-                        <input name="hotline" value="{{ old('hotline') }}" class="loop-input" placeholder="712 345 678">
+                        <input name="hotline" value="{{ old('hotline') }}" class="loop-input" placeholder="+255 712 345 678">
                     </div>
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
                 </div>

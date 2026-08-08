@@ -35,7 +35,7 @@
             </div>
             <div>
                 <label class="loop-label">{{ __('loop.phone') }}</label>
-                <input name="phone" value="{{ old('phone', $localPhone) }}" class="loop-input" placeholder="712000001">
+                <input name="phone" value="{{ old('phone', $localPhone) }}" class="loop-input" placeholder="+255 712 000 001">
             </div>
         </div>
         <label class="flex items-center gap-2 text-sm">

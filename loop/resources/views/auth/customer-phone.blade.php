@@ -22,7 +22,7 @@
         </div>
         <div>
             <label class="loop-label">{{ __('loop.phone') }}</label>
-            <input name="phone" value="{{ old('phone') }}" class="loop-input text-lg tracking-wide" placeholder="712 345 678" required autofocus>
+            <input name="phone" value="{{ old('phone') }}" class="loop-input text-lg tracking-wide" placeholder="+255 712 345 678" required autofocus>
             <x-input-error :messages="$errors->get('phone')" class="mt-1" />
         </div>
         <button class="loop-btn w-full">{{ __('loop.continue') }}</button>

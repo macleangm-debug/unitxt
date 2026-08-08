@@ -9,7 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans text-ink">
-<div class="relative min-h-screen overflow-x-hidden bg-chalk">
+<div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
     <div class="pointer-events-none absolute inset-0">
         <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-violet/15 blur-3xl"></div>
         <div class="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-lime/20 blur-3xl"></div>
@@ -32,19 +32,24 @@
         </div>
 
         <div class="grid gap-4 animate-fade-up-delay">
-            <a href="{{ route('landing.business') }}" class="group relative overflow-hidden rounded-[1.75rem] bg-ink p-6 text-white transition hover:-translate-y-0.5 sm:p-8">
-                <div class="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-violet/40 blur-2xl"></div>
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.business') }}</p>
-                <h2 class="mt-3 font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.im_business') }}</h2>
-                <p class="mt-3 max-w-sm text-sm text-white/70 sm:text-base">{{ __('loop.business_blurb') }}</p>
-                <span class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-lime">{{ __('loop.continue') }} <span aria-hidden="true">→</span></span>
+            <a href="{{ route('landing.business') }}" class="loop-energy-card loop-energy-card--ink group p-6 sm:p-8">
+                <div class="loop-orb loop-orb--a !h-28 !w-28 !blur-2xl"></div>
+                <div class="loop-orb loop-orb--b !h-24 !w-24 !blur-2xl"></div>
+                <div class="relative">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.business') }}</p>
+                    <h2 class="mt-3 font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.im_business') }}</h2>
+                    <p class="mt-3 max-w-sm text-sm text-white/70 sm:text-base">{{ __('loop.business_blurb') }}</p>
+                    <span class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-lime">{{ __('loop.continue') }} <span aria-hidden="true">→</span></span>
+                </div>
             </a>
 
-            <a href="{{ route('landing.customer') }}" class="group relative overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white p-6 transition hover:-translate-y-0.5 sm:p-8">
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-violet">{{ __('loop.customer') }}</p>
-                <h2 class="mt-3 font-display text-2xl font-semibold text-ink sm:text-3xl">{{ __('loop.im_customer') }}</h2>
-                <p class="mt-3 max-w-sm text-sm text-ink-muted sm:text-base">{{ __('loop.customer_blurb') }}</p>
-                <span class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-violet">{{ __('loop.continue') }} <span aria-hidden="true">→</span></span>
+            <a href="{{ route('landing.customer') }}" class="loop-energy-card loop-energy-card--chalk group p-6 sm:p-8">
+                <div class="relative">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-violet">{{ __('loop.customer') }}</p>
+                    <h2 class="mt-3 font-display text-2xl font-semibold text-ink sm:text-3xl">{{ __('loop.im_customer') }}</h2>
+                    <p class="mt-3 max-w-sm text-sm text-ink-muted sm:text-base">{{ __('loop.customer_blurb') }}</p>
+                    <span class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-violet">{{ __('loop.continue') }} <span aria-hidden="true">→</span></span>
+                </div>
             </a>
         </div>
     </main>
@@ -57,8 +62,12 @@
                     ['01', 'how_1_title', 'how_1_body'],
                     ['02', 'how_2_title', 'how_2_body'],
                     ['03', 'how_3_title', 'how_3_body'],
-                ] as [$num, $title, $body])
-                    <div>
+                ] as $i => [$num, $title, $body])
+                    <div
+                        class="loop-reveal"
+                        x-data="loopReveal({{ 60 + ($i * 80) }})"
+                        :class="{ 'is-shown': shown }"
+                    >
                         <p class="font-display text-4xl font-semibold text-violet/40">{{ $num }}</p>
                         <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.'.$title) }}</p>
                         <p class="mt-2 text-sm leading-relaxed text-ink-muted">{{ __('loop.'.$body) }}</p>
@@ -69,23 +78,37 @@
     </section>
 
     <section class="loop-shell grid gap-5 py-14 sm:grid-cols-2 sm:gap-6 sm:py-20">
-        <div class="rounded-[1.75rem] bg-ink p-7 text-white sm:p-9">
-            <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_business_title') }}</h2>
-            <ul class="mt-6 space-y-4 text-sm text-white/75">
-                <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_1') }}</li>
-                <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_2') }}</li>
-                <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_3') }}</li>
-            </ul>
-            <a href="{{ route('business.register') }}" class="loop-btn-lime mt-8">{{ __('loop.cta_business') }}</a>
+        <div
+            class="loop-energy-card loop-energy-card--ink loop-reveal p-7 sm:p-9"
+            x-data="loopReveal(40)"
+            :class="{ 'is-shown': shown }"
+        >
+            <div class="loop-orb loop-orb--a !h-32 !w-32"></div>
+            <div class="loop-orb loop-orb--b !h-28 !w-28"></div>
+            <div class="relative">
+                <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_business_title') }}</h2>
+                <ul class="mt-6 space-y-4 text-sm text-white/75">
+                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_1') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_2') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_3') }}</li>
+                </ul>
+                <a href="{{ route('business.register') }}" class="loop-btn-lime mt-8">{{ __('loop.cta_business') }}</a>
+            </div>
         </div>
-        <div class="rounded-[1.75rem] border border-ink/10 bg-white p-7 sm:p-9">
-            <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_customers_title') }}</h2>
-            <ul class="mt-6 space-y-4 text-sm text-ink-muted">
-                <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_1') }}</li>
-                <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_2') }}</li>
-                <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
-            </ul>
-            <a href="{{ route('customer.login') }}" class="loop-btn mt-8">{{ __('loop.cta_customer') }}</a>
+        <div
+            class="loop-energy-card loop-energy-card--chalk loop-reveal p-7 sm:p-9"
+            x-data="loopReveal(120)"
+            :class="{ 'is-shown': shown }"
+        >
+            <div class="relative">
+                <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_customers_title') }}</h2>
+                <ul class="mt-6 space-y-4 text-sm text-ink-muted">
+                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_1') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_2') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
+                </ul>
+                <a href="{{ route('customer.login') }}" class="loop-btn mt-8">{{ __('loop.cta_customer') }}</a>
+            </div>
         </div>
     </section>
 
@@ -102,6 +125,7 @@
     </section>
 
     <x-site-footer />
+    <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
 </body>
 </html>

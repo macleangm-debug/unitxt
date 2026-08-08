@@ -80,7 +80,7 @@
                     </div>
                     <div class="mt-4">
                         <label class="loop-label">{{ __('loop.phone') }}</label>
-                        <input name="phone" value="{{ old('phone') }}" class="loop-input" :required="step === 1" placeholder="712000000">
+                        <input name="phone" value="{{ old('phone') }}" class="loop-input" :required="step === 1" placeholder="+255 712 000 000">
                         <x-input-error :messages="$errors->get('phone')" class="mt-1" />
                     </div>
                     <div class="mt-4">

@@ -9,7 +9,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans text-ink">
-<div class="min-h-screen bg-chalk">
+<div class="min-h-screen bg-chalk" x-data="loopPageMotion()">
 <x-site-header>
     <x-slot:actions>
         <a href="{{ route('affiliate.login') }}" class="loop-btn !py-2 text-sm">{{ __('loop.log_in') }}</a>
@@ -20,7 +20,7 @@
     <section class="relative overflow-hidden">
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(91,46,255,0.18),transparent_42%),radial-gradient(circle_at_85%_10%,rgba(200,255,61,0.16),transparent_38%)]"></div>
         <div class="loop-shell relative grid items-center gap-10 py-14 lg:grid-cols-2 lg:py-20">
-            <div>
+            <div class="animate-fade-up">
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.affiliates') }}</p>
                 <h1 class="mt-3 font-display text-5xl font-semibold tracking-tight sm:text-6xl">Loop</h1>
                 <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ __('loop.affiliate_hero_title') }}</p>
@@ -32,19 +32,29 @@
                     <a href="{{ route('affiliates.status') }}" class="loop-btn-ghost">{{ __('loop.check_status') }}</a>
                 </div>
             </div>
-            <div class="loop-wallet p-8">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.what_you_earn') }}</p>
-                <p class="mt-4 font-display text-5xl font-semibold text-lime">{{ $settings['commission_percent'] }}%</p>
-                <p class="mt-2 text-sm text-white/70">{{ __('loop.affiliate_commission_explain') }}</p>
-                <div class="mt-8 space-y-3 border-t border-white/10 pt-5 text-sm">
-                    <div class="flex justify-between gap-3"><span class="text-white/55">{{ __('loop.example_plan') }}</span><span>TZS {{ number_format($example['plan_amount']) }}</span></div>
-                    <div class="flex justify-between gap-3"><span class="text-white/55">{{ __('loop.example_discount', ['pct' => $example['discount_percent']]) }}</span><span>- TZS {{ number_format($example['discount_amount']) }}</span></div>
-                    <div class="flex justify-between gap-3 border-t border-white/10 pt-3"><span class="text-white/55">{{ __('loop.example_net') }}</span><span>TZS {{ number_format($example['net_amount']) }}</span></div>
-                    <div class="flex justify-between gap-3 text-lime"><span>{{ __('loop.example_commission', ['pct' => $example['commission_percent']]) }}</span><span class="font-display text-xl font-semibold">TZS {{ number_format($example['commission_amount']) }}</span></div>
+            <div
+                class="loop-wallet loop-wallet--liquid animate-fade-up-delay p-8"
+                x-data="loopLivingWallet()"
+            >
+                <div class="loop-orb loop-orb--a loop-orb--enter"></div>
+                <div class="loop-orb loop-orb--b loop-orb--enter"></div>
+                <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+                <div class="relative">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.what_you_earn') }}</p>
+                    <p class="mt-4 font-display text-5xl font-semibold text-lime" x-data="loopCountUp({{ (int) $settings['commission_percent'] }}, 900)">
+                        <span x-text="formatted() + '%'">{{ $settings['commission_percent'] }}%</span>
+                    </p>
+                    <p class="mt-2 text-sm text-white/70">{{ __('loop.affiliate_commission_explain') }}</p>
+                    <div class="mt-8 space-y-3 border-t border-white/10 pt-5 text-sm">
+                        <div class="flex justify-between gap-3"><span class="text-white/55">{{ __('loop.example_plan') }}</span><span>TZS {{ number_format($example['plan_amount']) }}</span></div>
+                        <div class="flex justify-between gap-3"><span class="text-white/55">{{ __('loop.example_discount', ['pct' => $example['discount_percent']]) }}</span><span>- TZS {{ number_format($example['discount_amount']) }}</span></div>
+                        <div class="flex justify-between gap-3 border-t border-white/10 pt-3"><span class="text-white/55">{{ __('loop.example_net') }}</span><span>TZS {{ number_format($example['net_amount']) }}</span></div>
+                        <div class="flex justify-between gap-3 text-lime"><span>{{ __('loop.example_commission', ['pct' => $example['commission_percent']]) }}</span><span class="font-display text-xl font-semibold">TZS {{ number_format($example['commission_amount']) }}</span></div>
+                    </div>
+                    @if ($settings['attribution_enabled'])
+                        <p class="mt-5 text-xs text-white/55">{{ __('loop.affiliate_attribution_note', ['months' => $settings['attribution_months']]) }}</p>
+                    @endif
                 </div>
-                @if ($settings['attribution_enabled'])
-                    <p class="mt-5 text-xs text-white/55">{{ __('loop.affiliate_attribution_note', ['months' => $settings['attribution_months']]) }}</p>
-                @endif
             </div>
         </div>
     </section>
@@ -54,8 +64,12 @@
             ['01', 'affiliate_step_1_title', 'affiliate_step_1_body'],
             ['02', 'affiliate_step_2_title', 'affiliate_step_2_body'],
             ['03', 'affiliate_step_3_title', 'affiliate_step_3_body'],
-        ] as [$num, $title, $body])
-            <div>
+        ] as $i => [$num, $title, $body])
+            <div
+                class="loop-reveal"
+                x-data="loopReveal({{ 50 + ($i * 90) }})"
+                :class="{ 'is-shown': shown }"
+            >
                 <p class="font-display text-4xl font-semibold text-violet/40">{{ $num }}</p>
                 <h3 class="mt-3 font-display text-xl font-semibold">{{ __("loop.$title") }}</h3>
                 <p class="mt-2 text-sm leading-relaxed text-ink-muted">{{ __("loop.$body") }}</p>
@@ -65,6 +79,7 @@
 </main>
 <x-site-footer />
 @include('partials.confirm-modal')
+<div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
 </body>
 </html>

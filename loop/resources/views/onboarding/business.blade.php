@@ -117,6 +117,23 @@
                         <label class="loop-label">{{ __('loop.address') }}</label>
                         <input name="address" value="{{ old('address') }}" class="loop-input">
                     </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.hotline') }}</label>
+                        <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                            <select name="hotline_country_code" class="loop-input">
+                                @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
+                                    <option value="{{ $meta['dial'] }}" @selected(old('hotline_country_code', \App\Support\Countries::dial($business->country ?? 'TZ')) === $meta['dial'])>{{ $meta['dial'] }}</option>
+                                @endforeach
+                            </select>
+                            @php
+                                $existingHotline = old('hotline', $business->hotline);
+                                $localHotline = $existingHotline ? preg_replace('/^\+\d+\s*/', '', (string) $existingHotline) : '';
+                            @endphp
+                            <input name="hotline" value="{{ $localHotline }}" class="loop-input" placeholder="+255 712 345 678">
+                        </div>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.onboarding_hotline_hint') }}</p>
+                        <x-input-error :messages="$errors->get('hotline')" class="mt-1" />
+                    </div>
                 </div>
                 <button class="loop-btn-mint mt-8 w-full">{{ __('loop.next') }}</button>
             </form>

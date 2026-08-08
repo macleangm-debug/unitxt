@@ -55,7 +55,7 @@
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.phone') }}</label>
-                        <input name="phone" value="{{ old('phone') }}" class="loop-input" required placeholder="712 345 678">
+                        <input name="phone" value="{{ old('phone') }}" class="loop-input" required placeholder="+255 712 345 678">
                     </div>
                     <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>
                 </form>
