@@ -39,6 +39,7 @@ class VisitController extends Controller
 
         return redirect()
             ->route('dashboard')
-            ->with('status', "Checked in at {$shop->name}. You earned {$visit->points_earned} points!");
+            ->with('status', "Checked in at {$shop->name}. You earned {$visit->points_earned} points!")
+            ->with('points_earned_flash', (int) $visit->points_earned);
     }
 }

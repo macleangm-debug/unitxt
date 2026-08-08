@@ -115,15 +115,15 @@
     <nav class="loop-bottom-nav md:hidden" aria-label="{{ __('loop.home') }}">
         <div class="relative mx-auto grid max-w-lg grid-cols-3 px-2 py-1.5 text-center text-[11px] font-semibold">
             <div class="loop-nav-pill" style="left: calc({{ $navIndex }} * 33.333% + 0.25rem)"></div>
-            <a href="{{ route('dashboard') }}" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 0 ? 'text-violet' : 'text-ink-muted'])>
+            <a href="{{ route('dashboard') }}" @click="$store.loopNav.go(@js(route('dashboard')), $event)" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 0 ? 'text-violet' : 'text-ink-muted'])>
                 <span class="text-base leading-none">⌂</span>
                 {{ __('loop.home') }}
             </a>
-            <a href="{{ route('memberships.index') }}" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 1 ? 'text-violet' : 'text-ink-muted'])>
+            <a href="{{ route('memberships.index') }}" @click="$store.loopNav.go(@js(route('memberships.index')), $event)" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 1 ? 'text-violet' : 'text-ink-muted'])>
                 <span class="text-base leading-none">◇</span>
                 {{ __('loop.wallets') }}
             </a>
-            <a href="{{ route('discover') }}" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 2 ? 'text-violet' : 'text-ink-muted'])>
+            <a href="{{ route('discover') }}" @click="$store.loopNav.go(@js(route('discover')), $event)" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 2 ? 'text-violet' : 'text-ink-muted'])>
                 <span class="text-base leading-none">◎</span>
                 {{ __('loop.browse_campaigns') }}
             </a>

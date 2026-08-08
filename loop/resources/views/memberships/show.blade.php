@@ -82,27 +82,29 @@
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.offers_at_this_shop') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offers_at_this_shop_body') }}</p>
             </div>
-            <div class="mt-3 divide-y divide-ink/5 px-2 pb-2 sm:px-3">
+
+            <div class="loop-carousel mt-4 px-4 pb-4 sm:px-5" x-data="loopParallaxCarousel()">
                 @forelse ($rewards as $reward)
                     @php
                         $progress = $membership->progressTo($reward);
                         $canRedeem = $progress['ready'];
                         $needed = $progress['needed'];
                     @endphp
-                    <div @class(['px-3 py-3.5 transition', $canRedeem ? 'bg-violet-soft/50' : ''])>
+                    <div
+                        data-loop-card
+                        class="loop-shop-card loop-unlock-card w-[16.5rem] shrink-0 rounded-[1.35rem] border border-ink/10 bg-chalk p-4 {{ $canRedeem ? 'is-ready border-violet/30 bg-violet-soft/40' : '' }}"
+                    >
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
+                                @if ($canRedeem)
+                                    <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.reward_unlocked') }}</p>
+                                @endif
                                 <p class="font-semibold leading-snug">{{ $reward->name }}</p>
                                 <p class="mt-0.5 text-sm text-ink-muted">{{ $reward->label() }}</p>
                             </div>
-                            <div class="shrink-0 text-right">
-                                <p class="text-sm font-semibold {{ $canRedeem ? 'text-violet' : 'text-ink-muted' }}">{{ $reward->points_cost }} {{ __('loop.pts') }}</p>
-                                @if ($canRedeem)
-                                    <p class="mt-0.5 text-xs font-semibold text-violet">{{ __('loop.ready') }}</p>
-                                @endif
-                            </div>
+                            <p class="shrink-0 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold {{ $canRedeem ? 'text-violet' : 'text-ink-muted' }}">{{ $reward->points_cost }} {{ __('loop.pts') }}</p>
                         </div>
-                        <div class="mt-2.5">
+                        <div class="mt-3">
                             <div class="h-1.5 overflow-hidden rounded-full bg-ink/10">
                                 <div class="h-full rounded-full transition-all duration-700 ease-out {{ $canRedeem ? 'bg-lime-deep' : 'bg-violet' }}" style="width: {{ $progress['percent'] }}%"></div>
                             </div>
@@ -117,7 +119,7 @@
                         @if ($canRedeem)
                             <button
                                 type="button"
-                                class="loop-btn mt-3 !py-2.5 text-sm"
+                                class="loop-btn mt-4 w-full !py-2.5 text-sm"
                                 @click="show({
                                     name: @js($reward->name),
                                     pts: @js(number_format($reward->points_cost).' '.__('loop.pts')),
@@ -128,7 +130,7 @@
                         @endif
                     </div>
                 @empty
-                    <p class="px-3 py-5 text-sm text-ink-muted">{{ __('loop.no_offers_yet') }}</p>
+                    <p class="px-1 py-5 text-sm text-ink-muted">{{ __('loop.no_offers_yet') }}</p>
                 @endforelse
             </div>
 
@@ -168,7 +170,7 @@
                 class="relative w-full max-w-md rounded-t-[1.75rem] bg-white p-6 text-ink shadow-2xl sm:rounded-[1.75rem]"
                 x-show="open"
                 x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="translate-y-8 scale-95 opacity-0"
+                x-transition:enter-start="translate-y-10 scale-95 opacity-0"
                 x-transition:enter-end="translate-y-0 scale-100 opacity-100"
                 x-transition:leave="transition ease-in duration-200"
                 x-transition:leave-start="translate-y-0 scale-100 opacity-100"
@@ -180,10 +182,17 @@
                 <h3 class="mt-2 font-display text-2xl font-semibold" x-text="rewardName"></h3>
                 <p class="mt-1 text-sm font-semibold text-violet" x-text="rewardPts"></p>
 
-                <div class="loop-wallet mt-6 px-5 py-6 text-center">
+                <div class="loop-wallet loop-wallet--liquid mt-6 px-5 py-6 text-center">
                     <div class="loop-orb loop-orb--a !h-24 !w-24 !blur-2xl"></div>
+                    <div class="loop-orb loop-orb--b !h-20 !w-20 !blur-2xl"></div>
                     <p class="relative text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.ready_to_redeem') }}</p>
                     <p class="relative mt-3 font-display text-xl font-semibold text-white">{{ __('loop.redeem_ticket_hint') }}</p>
+                    <div class="loop-ticket-qr relative" aria-hidden="true">
+                        @for ($i = 0; $i < 25; $i++)
+                            <span></span>
+                        @endfor
+                    </div>
+                    <p class="loop-ticket-code relative" x-text="code"></p>
                     <template x-if="hotline">
                         <a :href="'tel:' + hotline.replace(/\s+/g, '')" class="relative mt-5 inline-flex items-center gap-2 rounded-2xl bg-lime px-4 py-3 text-sm font-semibold text-ink">
                             <span x-text="hotline"></span>

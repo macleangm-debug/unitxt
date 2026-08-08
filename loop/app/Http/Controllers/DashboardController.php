@@ -164,6 +164,7 @@ class DashboardController extends Controller
             'grouped' => $memberships->groupBy(fn ($m) => $m->business->sector),
             'sectors' => Sectors::all(),
             'totalPoints' => $memberships->sum('points_balance'),
+            'pointsEarned' => (int) $request->session()->pull('points_earned_flash', 0),
             'redeemables' => $redeemables,
             'featuredRedeem' => $redeemables->count() === 1 ? $redeemables->first() : null,
             'topShops' => $topShops,

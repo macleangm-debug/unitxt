@@ -319,6 +319,7 @@ return [
     'want_to_redeem_body' => 'Pick one unlocked offer. Points are deducted on this sale.',
     'ready_to_redeem' => 'Ready to redeem',
     'ready' => 'Ready',
+    'reward_unlocked' => 'Reward unlocked',
     'need_more_points' => 'Needs :points more pts',
     'birthday_for_campaigns' => 'Birthday helps birthday campaigns. Skip if unknown.',
     'email_optional_hint' => 'Optional — not required to join Loop.',

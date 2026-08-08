@@ -2,22 +2,35 @@
     @php
         $shareLink = \App\Support\PlatformUrl::route('business.register', ['scout' => auth()->id()]);
         $phoneLabel = auth()->user()->full_phone ?? auth()->user()->phone;
+        $pointsEarned = (int) ($pointsEarned ?? 0);
     @endphp
 
     {{-- Living Wallet --}}
-    <section class="loop-wallet mb-8 px-5 py-7 sm:px-8 sm:py-9 motion-safe:animate-fade-up">
+    <section
+        class="loop-wallet loop-wallet--liquid mb-8 px-5 py-7 sm:px-8 sm:py-9"
+        :class="{ 'loop-wallet--pulse': pulsing }"
+        x-data="loopLivingWallet({{ $pointsEarned }})"
+    >
         <div class="loop-orb loop-orb--a loop-orb--enter"></div>
         <div class="loop-orb loop-orb--b loop-orb--enter"></div>
+        <div class="loop-orb loop-orb--c loop-orb--enter"></div>
         <div class="relative">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <p class="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">Loop</p>
                     <p class="mt-1 text-sm text-white/55">{{ $phoneLabel }}</p>
                 </div>
-                <a href="{{ route('discover') }}" class="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:bg-white/10">{{ __('loop.browse_campaigns') }}</a>
+                <a
+                    href="{{ route('discover') }}"
+                    class="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:bg-white/10"
+                    @click="$store.loopNav.go(@js(route('discover')), $event)"
+                >{{ __('loop.browse_campaigns') }}</a>
             </div>
 
-            <div class="mt-8" x-data="loopCountUp({{ (int) $totalPoints }})">
+            <div class="relative mt-8" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
+                <template x-if="earned">
+                    <span class="loop-points-float" x-text="'+' + earned"></span>
+                </template>
                 <p class="font-display text-[clamp(3.5rem,14vw,5.5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
             </div>
             <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
@@ -52,25 +65,38 @@
     @endif
 
     {{-- Ready to redeem --}}
-    <section id="ready" class="mb-10 scroll-mt-24 motion-safe:animate-fade-up-delay">
+    <section
+        id="ready"
+        class="loop-reveal mb-10 scroll-mt-24"
+        x-data="loopReveal(80)"
+        :class="{ 'is-shown': shown }"
+    >
         <h2 class="font-display text-xl font-semibold">{{ __('loop.ready_to_redeem') }}</h2>
 
         @if ($featuredRedeem)
-            <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="mt-4 block rounded-[1.5rem] bg-violet px-5 py-5 text-white transition hover:bg-violet-deep sm:px-6">
-                <p class="text-sm text-white/70">{{ $featuredRedeem['business']->name }}</p>
-                <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <p class="font-display text-2xl font-semibold tracking-tight">{{ $featuredRedeem['reward']->name }}</p>
-                        <p class="mt-1 text-sm text-lime">{{ number_format($featuredRedeem['reward']->points_cost) }} {{ __('loop.pts') }}</p>
+            <div class="loop-unlock-card is-ready mt-4 overflow-hidden rounded-[1.5rem] bg-violet text-white">
+                <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="block px-5 py-5 sm:px-6">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.reward_unlocked') }}</p>
+                    <p class="mt-1 text-sm text-white/70">{{ $featuredRedeem['business']->name }}</p>
+                    <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
+                        <div>
+                            <p class="font-display text-2xl font-semibold tracking-tight">{{ $featuredRedeem['reward']->name }}</p>
+                            <p class="mt-1 text-sm text-lime">{{ number_format($featuredRedeem['reward']->points_cost) }} {{ __('loop.pts') }}</p>
+                        </div>
+                        <span class="inline-flex rounded-xl bg-lime px-4 py-2.5 text-sm font-semibold text-ink">{{ __('loop.redeem') }}</span>
                     </div>
-                    <span class="inline-flex rounded-xl bg-lime px-4 py-2.5 text-sm font-semibold text-ink">{{ __('loop.redeem') }}</span>
-                </div>
-            </a>
+                </a>
+            </div>
         @elseif ($redeemables->isNotEmpty())
-            <div class="loop-carousel mt-4">
+            <div class="loop-carousel mt-4" x-data="loopParallaxCarousel()">
                 @foreach ($redeemables as $item)
-                    <a href="{{ route('memberships.show', $item['business']) }}" class="w-[15.5rem] shrink-0 rounded-[1.35rem] bg-violet p-4 text-white transition hover:bg-violet-deep">
-                        <p class="truncate text-sm text-white/70">{{ $item['business']->name }}</p>
+                    <a
+                        href="{{ route('memberships.show', $item['business']) }}"
+                        data-loop-card
+                        class="loop-shop-card loop-unlock-card is-ready w-[15.5rem] shrink-0 rounded-[1.35rem] bg-violet p-4 text-white"
+                    >
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.reward_unlocked') }}</p>
+                        <p class="mt-1 truncate text-sm text-white/70">{{ $item['business']->name }}</p>
                         <p class="mt-2 font-display text-lg font-semibold leading-snug">{{ $item['reward']->name }}</p>
                         <p class="mt-2 text-sm font-semibold text-lime">{{ number_format($item['reward']->points_cost) }} {{ __('loop.pts') }}</p>
                         <p class="mt-4 text-sm font-semibold">{{ __('loop.redeem') }} →</p>
@@ -84,11 +110,11 @@
     </section>
 
     {{-- Your Loop — aligned membership rail --}}
-    <section class="mb-10">
+    <section class="loop-reveal mb-10" x-data="loopReveal(40)" :class="{ 'is-shown': shown }">
         <div class="mb-4 flex items-baseline justify-between gap-3">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.your_loop') }}</h2>
         </div>
-        <div class="loop-carousel items-stretch">
+        <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
             @forelse ($memberships as $membership)
                 @php
                     $target = $membership->home_target_reward;
@@ -99,14 +125,18 @@
                     $ring = 2 * M_PI * 18;
                     $dash = $ring * ($pct / 100);
                 @endphp
-                <a href="{{ route('memberships.show', $membership->business) }}" class="loop-shop-card flex w-40 flex-col rounded-[1.35rem] border border-ink/10 bg-white p-3.5">
-                    <div class="relative mx-auto">
+                <a
+                    href="{{ route('memberships.show', $membership->business) }}"
+                    data-loop-card
+                    class="loop-shop-card flex w-40 flex-col rounded-[1.35rem] border border-ink/10 bg-white p-3.5 {{ ($progress['ready'] ?? false) ? 'loop-unlock-card is-ready' : '' }}"
+                >
+                    <div class="relative mx-auto overflow-hidden rounded-2xl">
                         @if ($shop)
-                            <x-shop-logo :shop="$shop" class="h-14 w-14 rounded-2xl" />
+                            <x-shop-logo :shop="$shop" class="h-14 w-14 rounded-2xl" data-loop-parallax />
                         @elseif ($membership->business->logo_path)
-                            <img src="{{ asset('storage/'.$membership->business->logo_path) }}" alt="{{ $membership->business->name }}" class="h-14 w-14 rounded-2xl object-cover">
+                            <img src="{{ asset('storage/'.$membership->business->logo_path) }}" alt="{{ $membership->business->name }}" class="h-14 w-14 rounded-2xl object-cover" data-loop-parallax>
                         @else
-                            <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink font-display text-lg font-semibold text-lime">{{ mb_substr($membership->business->name,0,2) }}</div>
+                            <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink font-display text-lg font-semibold text-lime" data-loop-parallax>{{ mb_substr($membership->business->name,0,2) }}</div>
                         @endif
                         @if ($target)
                             <svg class="loop-progress-ring pointer-events-none absolute -inset-1.5 h-[4.25rem] w-[4.25rem]" viewBox="0 0 44 44" aria-hidden="true">
@@ -121,7 +151,7 @@
                     @if ($target)
                         <p class="mt-1.5 truncate text-center text-[10px] {{ $progress['ready'] ? 'font-semibold text-violet' : 'text-ink-muted' }}">
                             @if ($progress['ready'])
-                                {{ __('loop.ready') }}
+                                {{ __('loop.reward_unlocked') }}
                             @else
                                 {{ __('loop.pts_to_unlock', ['points' => $progress['needed']]) }}
                             @endif
@@ -131,7 +161,7 @@
             @empty
                 <p class="text-sm text-ink-muted">{{ __('loop.visit_or_browse') }}</p>
             @endforelse
-            <a href="{{ route('discover') }}" class="flex w-28 shrink-0 flex-col items-center justify-center rounded-[1.35rem] border border-dashed border-ink/15 bg-white/60 px-2 py-4">
+            <a href="{{ route('discover') }}" data-loop-card class="loop-shop-card flex w-28 shrink-0 flex-col items-center justify-center rounded-[1.35rem] border border-dashed border-ink/15 bg-white/60 px-2 py-4">
                 <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-soft text-xl font-semibold text-violet">+</span>
                 <span class="mt-2 text-center text-xs font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
             </a>
@@ -139,7 +169,7 @@
     </section>
 
     {{-- Where rewards work --}}
-    <section class="mb-10">
+    <section class="loop-reveal mb-10" x-data="loopReveal(60)" :class="{ 'is-shown': shown }">
         <div class="mb-1 flex flex-wrap items-end justify-between gap-2">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.where_points_work') }}</h2>
             <a href="{{ route('discover') }}" class="text-sm font-semibold text-violet">{{ __('loop.browse_campaigns') }}</a>
@@ -175,19 +205,21 @@
     </section>
 
     @if ($otherShops->isNotEmpty())
-        <section class="mb-12">
+        <section class="loop-reveal mb-12" x-data="loopReveal(80)" :class="{ 'is-shown': shown }">
             <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.more_businesses') }}</h2>
-            <div class="loop-carousel">
+            <div class="loop-carousel" x-data="loopParallaxCarousel()">
                 @foreach ($otherShops as $business)
                     @php $shop = $business->shops->first(); @endphp
-                    <a href="{{ route('discover.show', $business) }}" class="loop-shop-card w-36">
-                        @if ($shop)
-                            <x-shop-logo :shop="$shop" class="h-16 w-full rounded-2xl object-cover" />
-                        @elseif ($business->logo_path)
-                            <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}" class="loop-parallax h-16 w-full rounded-2xl object-cover">
-                        @else
-                            <div class="flex h-16 items-center justify-center rounded-2xl bg-ink font-display text-lg text-lime">{{ mb_substr($business->name,0,2) }}</div>
-                        @endif
+                    <a href="{{ route('discover.show', $business) }}" data-loop-card class="loop-shop-card w-36">
+                        <div class="overflow-hidden rounded-2xl">
+                            @if ($shop)
+                                <x-shop-logo :shop="$shop" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax />
+                            @elseif ($business->logo_path)
+                                <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax>
+                            @else
+                                <div class="flex h-16 items-center justify-center rounded-2xl bg-ink font-display text-lg text-lime" data-loop-parallax>{{ mb_substr($business->name,0,2) }}</div>
+                            @endif
+                        </div>
                         <p class="mt-2 truncate text-sm font-semibold">{{ $business->name }}</p>
                         <p class="truncate text-[11px] text-ink-muted">{{ $sectors[$business->sector] ?? '' }} · {{ $business->city }}</p>
                     </a>

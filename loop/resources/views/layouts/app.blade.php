@@ -10,7 +10,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="font-sans">
+<body class="font-sans" x-data="loopPageMotion()">
 @php $isCustomer = auth()->user()?->isCustomer(); @endphp
 <div @class(['min-h-screen', 'pb-nav md:pb-0' => $isCustomer])>
     @include('layouts.navigation')
@@ -24,6 +24,7 @@
         {{ $slot }}
     </main>
 </div>
+<div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 
 @php
     $confirm = session('confirm');

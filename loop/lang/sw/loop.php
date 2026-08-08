@@ -319,6 +319,7 @@ return [
     'want_to_redeem_body' => 'Chagua ofa moja iliyofunguliwa. Pointi zitakatwa kwenye mauzo haya.',
     'ready_to_redeem' => 'Tayari kutumia',
     'ready' => 'Tayari',
+    'reward_unlocked' => 'Zawadi imefunguliwa',
     'need_more_points' => 'Inahitaji pointi :points zaidi',
     'birthday_for_campaigns' => 'Siku ya kuzaliwa inasaidia kampeni za birthday. Ruka ikiwa haijulikani.',
     'email_optional_hint' => 'Si lazima — haitakiwi ili kujiunga na Loop.',
