@@ -39,7 +39,6 @@
     <section class="mb-10">
         @if ($featuredRedeem)
             <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="group block overflow-hidden rounded-[1.75rem] bg-ink px-6 py-7 text-white shadow-[0_28px_70px_rgba(11,31,42,0.22)] transition hover:-translate-y-0.5 sm:px-8 sm:py-8">
-                <div class="pointer-events-none absolute"></div>
                 <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-mint">{{ $featuredRedeem['business']->name }}</p>
                 <div class="mt-3 flex flex-wrap items-end justify-between gap-5">
                     <div class="min-w-0">
