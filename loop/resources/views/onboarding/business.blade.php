@@ -19,11 +19,11 @@
         </div>
 
         <div class="mt-6 flex gap-2">
-            @foreach ([1, 2, 3, 4, 5] as $n)
+            @foreach (range(1, $totalSteps ?? 6) as $n)
                 <div class="h-1.5 flex-1 rounded-full {{ $step >= $n ? 'bg-mint-deep' : 'bg-ink/10' }}"></div>
             @endforeach
         </div>
-        <p class="mt-2 text-center text-xs font-semibold text-ink-muted">{{ __('loop.step') }} {{ $step }}/5</p>
+        <p class="mt-2 text-center text-xs font-semibold text-ink-muted">{{ __('loop.step') }} {{ $step }}/{{ $totalSteps ?? 6 }}</p>
 
         @if ($logoJustSaved)
             <div
@@ -86,13 +86,12 @@
                         <template x-if="preview">
                             <img :src="preview" alt="" class="relative z-[1] h-full w-full object-cover">
                         </template>
-                        <div x-show="!preview" class="relative z-[1] flex flex-col items-center justify-center gap-3 text-white">
-                            <span class="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
-                                <svg class="h-7 w-7 text-lime" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true">
+                        <div x-show="!preview" class="relative z-[1] flex items-center justify-center text-white">
+                            <span class="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
+                                <svg class="h-8 w-8 text-lime" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true">
                                     <path stroke-linecap="round" d="M12 5v14M5 12h14" />
                                 </svg>
                             </span>
-                            <span class="px-3 text-center text-xs font-semibold text-white/80">{{ __('loop.tap_to_add_logo') }}</span>
                         </div>
                         <div x-show="uploading" x-cloak class="absolute inset-0 z-[2] flex flex-col items-center justify-center bg-ink/80 backdrop-blur-sm">
                             <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-lime"></div>
@@ -113,7 +112,7 @@
         @elseif ($step === 2)
             <form
                 method="POST"
-                action="{{ route('onboarding.branches') }}"
+                action="{{ route('onboarding.presence') }}"
                 class="mt-6 overflow-hidden rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
                 x-data="{ presence: @js(old('presence', $business->presence ?? 'physical')) }"
             >
@@ -136,7 +135,21 @@
                         <span class="mt-1 block text-sm text-ink-muted">{{ __('loop.presence_online_body') }}</span>
                     </label>
                 </div>
-                <div class="mt-6" x-show="presence === 'physical'" x-cloak>
+                <button class="loop-btn mt-8 w-full">{{ __('loop.next') }}</button>
+                <a href="{{ route('onboarding.show', ['step' => 1]) }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">{{ __('loop.back_to_logo') }}</a>
+            </form>
+        @elseif ($step === 3)
+            <form
+                method="POST"
+                action="{{ route('onboarding.branches') }}"
+                class="mt-6 overflow-hidden rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
+            >
+                @csrf
+                <div class="text-center">
+                    <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.how_many_branches') }}</h2>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.how_many_branches_body') }}</p>
+                </div>
+                <div class="mt-6">
                     <label class="loop-label text-center">{{ __('loop.branches') }}</label>
                     <input
                         type="number"
@@ -145,15 +158,13 @@
                         name="branch_count"
                         value="{{ old('branch_count', $business->branch_count ?: 1) }}"
                         class="loop-input text-center text-2xl font-display font-semibold"
-                        x-bind:disabled="presence !== 'physical'"
-                        :required="presence === 'physical'"
+                        required
                     >
                 </div>
-                <input type="hidden" name="branch_count" value="1" x-bind:disabled="presence !== 'online'">
                 <button class="loop-btn mt-8 w-full">{{ __('loop.next') }}</button>
-                <a href="{{ route('onboarding.show', ['step' => 1]) }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">{{ __('loop.back_to_logo') }}</a>
+                <a href="{{ route('onboarding.show', ['step' => 2]) }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">← {{ __('loop.how_you_sell') }}</a>
             </form>
-        @elseif ($step === 3)
+        @elseif ($step === 4)
             <form
                 method="POST"
                 action="{{ route('onboarding.shop') }}"
@@ -219,7 +230,7 @@
                     {{ (! $isOnline && $branchIndex < $branchTotal) ? __('loop.next_branch') : __('loop.next') }}
                 </button>
             </form>
-        @elseif ($step === 4)
+        @elseif ($step === 5)
             <div
                 class="mt-6"
                 x-data="{

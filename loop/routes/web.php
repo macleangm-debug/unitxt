@@ -123,6 +123,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:owner')->group(function () {
         Route::get('/onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
         Route::post('/onboarding/logo', [OnboardingController::class, 'logo'])->name('onboarding.logo');
+        Route::post('/onboarding/presence', [OnboardingController::class, 'presence'])->name('onboarding.presence');
         Route::post('/onboarding/branches', [OnboardingController::class, 'branches'])->name('onboarding.branches');
         Route::post('/onboarding/shop', [OnboardingController::class, 'shop'])->name('onboarding.shop');
         Route::post('/onboarding/campaign', [OnboardingController::class, 'campaign'])->name('onboarding.campaign');

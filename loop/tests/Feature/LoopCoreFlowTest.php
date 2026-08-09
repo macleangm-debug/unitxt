@@ -310,7 +310,7 @@ class LoopCoreFlowTest extends TestCase
         ]);
 
         $this->actingAs($owner)
-            ->get(route('onboarding.show', ['step' => 4]))
+            ->get(route('onboarding.show', ['step' => 5]))
             ->assertOk()
             ->assertSee(__('loop.create_first_campaign'))
             ->assertDontSee('earn_with_discount');
@@ -321,7 +321,7 @@ class LoopCoreFlowTest extends TestCase
                 'spend_step' => 1000,
                 'points_per_step' => 20,
             ])
-            ->assertRedirect(route('onboarding.show', ['step' => 5]));
+            ->assertRedirect(route('onboarding.show', ['step' => 6]));
 
         $this->assertDatabaseHas('campaigns', [
             'business_id' => $business->id,
@@ -333,7 +333,7 @@ class LoopCoreFlowTest extends TestCase
         $this->assertNull($business->fresh()->onboarding_completed_at);
 
         $this->actingAs($owner)
-            ->get(route('onboarding.show', ['step' => 5]))
+            ->get(route('onboarding.show', ['step' => 6]))
             ->assertOk()
             ->assertSee(__('loop.create_first_offer'));
 
@@ -366,13 +366,17 @@ class LoopCoreFlowTest extends TestCase
         $owner->update(['business_id' => $business->id]);
 
         $this->actingAs($owner)
-            ->post(route('onboarding.branches'), [
+            ->post(route('onboarding.presence'), [
                 'presence' => 'online',
-                'branch_count' => 1,
             ])
-            ->assertRedirect(route('onboarding.show', ['step' => 3, 'branch' => 1]));
+            ->assertRedirect(route('onboarding.show', ['step' => 4, 'branch' => 1]));
 
         $this->assertSame('online', $business->fresh()->presence);
+        $this->assertSame(1, (int) $business->fresh()->branch_count);
+
+        $this->actingAs($owner)
+            ->get(route('onboarding.show', ['step' => 3]))
+            ->assertRedirect(route('onboarding.show', ['step' => 4, 'branch' => 1]));
 
         $this->actingAs($owner)
             ->post(route('onboarding.shop'), [
@@ -380,12 +384,49 @@ class LoopCoreFlowTest extends TestCase
                 'address' => '',
                 'hotline' => '712333444',
             ])
-            ->assertRedirect(route('onboarding.show', ['step' => 4]));
+            ->assertRedirect(route('onboarding.show', ['step' => 5]));
 
         $shop = $business->shops()->first();
         $this->assertNotNull($shop);
         $this->assertSame('Online', $shop->city);
         $this->assertTrue($shop->address === null || $shop->address === '');
+    }
+
+    public function test_physical_presence_moves_to_branches_step(): void
+    {
+        $owner = User::factory()->owner()->create(['phone' => '712777012']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Street Grill',
+            'slug' => 'street-grill',
+            'sector' => 'restaurants',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'branch_count' => 1,
+            'logo_path' => 'business-logos/demo.png',
+            'onboarding_completed_at' => null,
+        ]);
+        $owner->update(['business_id' => $business->id]);
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.presence'), [
+                'presence' => 'physical',
+            ])
+            ->assertRedirect(route('onboarding.show', ['step' => 3]));
+
+        $this->actingAs($owner)
+            ->get(route('onboarding.show', ['step' => 3]))
+            ->assertOk()
+            ->assertSee(__('loop.how_many_branches'));
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.branches'), [
+                'branch_count' => 2,
+            ])
+            ->assertRedirect(route('onboarding.show', ['step' => 4, 'branch' => 1]));
+
+        $this->assertSame('physical', $business->fresh()->presence);
+        $this->assertSame(2, (int) $business->fresh()->branch_count);
     }
 
     public function test_featured_product_bonus_requires_till_confirmation(): void

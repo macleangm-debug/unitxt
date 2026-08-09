@@ -211,7 +211,7 @@ return [
     'sign_in_for_points' => 'Ingia ili uone pointi zako',
     'no_shops_filter' => 'Hakuna maduka katika kichujio hiki bado.',
     'branches' => 'Matawi',
-    'onboarding_blurb' => 'Anza kwa dakika chache — nembo, jinsi unavyouza, duka, kampeni ya kwanza, kisha ofa ya kwanza.',
+    'onboarding_blurb' => 'Anza kwa dakika chache — nembo, jinsi unavyouza, matawi, kampeni ya kwanza, kisha ofa ya kwanza.',
     'add_logo' => 'Ongeza nembo ya biashara',
     'add_logo_body' => 'Hii ndiyo jambo la kwanza wateja wanaona kwenye Loop.',
     'upload' => 'Pakia',

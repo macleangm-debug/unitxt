@@ -25,10 +25,11 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $step = max(1, min(5, (int) $request->query('step', 1)));
+        $step = max(1, min(6, (int) $request->query('step', 1)));
         $branchTotal = max(1, (int) ($business->branch_count ?: 1));
         $shopsDone = $business->shops()->count();
         $branchIndex = max(1, min($branchTotal, (int) $request->query('branch', $shopsDone + 1)));
+        $isOnline = $business->isOnline();
 
         // Logo is compulsory — never skip step 1 without one.
         if ($step > 1 && blank($business->logo_path)) {
@@ -36,14 +37,19 @@ class OnboardingController extends Controller
                 ->withErrors(['logo' => __('loop.logo_required_body')]);
         }
 
-        // Step 3: walk through each branch until count is met.
-        if ($step === 3 && $shopsDone >= $branchTotal) {
-            return redirect()->route('onboarding.show', ['step' => 4]);
+        // Online businesses skip the branches count step.
+        if ($step === 3 && $isOnline) {
+            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
         }
 
-        // Step 4 = campaign first. Step 5 = offers (what they redeem).
-        if ($step === 5 && $business->campaigns()->doesntExist()) {
-            return redirect()->route('onboarding.show', ['step' => 4]);
+        // Step 4: walk through each branch / virtual location until count is met.
+        if ($step === 4 && $shopsDone >= $branchTotal) {
+            return redirect()->route('onboarding.show', ['step' => 5]);
+        }
+
+        // Step 5 = campaign first. Step 6 = offers (what they redeem).
+        if ($step === 6 && $business->campaigns()->doesntExist()) {
+            return redirect()->route('onboarding.show', ['step' => 5]);
         }
 
         return view('onboarding.business', [
@@ -60,11 +66,12 @@ class OnboardingController extends Controller
             'earnCampaign' => $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first(),
             'existingOffers' => $business->rewards()->latest()->get(),
             'step' => $step,
+            'totalSteps' => 6,
             'branchIndex' => $branchIndex,
             'branchTotal' => $branchTotal,
             'dial' => Countries::dial($business->country ?? 'TZ'),
             'logoJustSaved' => (bool) $request->session()->pull('logo_just_saved', false),
-            'isOnline' => $business->isOnline(),
+            'isOnline' => $isOnline,
             'currency' => $business->currency ?? 'TZS',
         ]);
     }
@@ -85,7 +92,7 @@ class OnboardingController extends Controller
             ->with('logo_just_saved', true);
     }
 
-    public function branches(Request $request): RedirectResponse
+    public function presence(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
@@ -96,17 +103,48 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'presence' => ['required', 'in:physical,online'],
+        ]);
+
+        if ($data['presence'] === 'online') {
+            $business->update([
+                'presence' => 'online',
+                'branch_count' => 1,
+            ]);
+
+            // Online skips branches — go straight to location / hotline.
+            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
+        }
+
+        $business->update([
+            'presence' => 'physical',
+        ]);
+
+        return redirect()->route('onboarding.show', ['step' => 3]);
+    }
+
+    public function branches(Request $request): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness()->firstOrFail();
+
+        if (blank($business->logo_path)) {
+            return redirect()->route('onboarding.show', ['step' => 1])
+                ->withErrors(['logo' => __('loop.logo_required_body')]);
+        }
+
+        if ($business->isOnline()) {
+            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
+        }
+
+        $data = $request->validate([
             'branch_count' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $branchCount = $data['presence'] === 'online' ? 1 : $data['branch_count'];
-
         $business->update([
-            'presence' => $data['presence'],
-            'branch_count' => $branchCount,
+            'presence' => 'physical',
+            'branch_count' => $data['branch_count'],
         ]);
 
-        return redirect()->route('onboarding.show', ['step' => 3, 'branch' => 1]);
+        return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
     }
 
     public function shop(Request $request): RedirectResponse
@@ -122,7 +160,7 @@ class OnboardingController extends Controller
         $shopsDone = $business->shops()->count();
 
         if ($shopsDone >= $branchTotal) {
-            return redirect()->route('onboarding.show', ['step' => 4]);
+            return redirect()->route('onboarding.show', ['step' => 5]);
         }
 
         $isOnline = $business->isOnline();
@@ -171,10 +209,10 @@ class OnboardingController extends Controller
 
         $nextIndex = $shopsDone + 2;
         if ($shopsDone + 1 < $branchTotal) {
-            return redirect()->route('onboarding.show', ['step' => 3, 'branch' => $nextIndex]);
+            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => $nextIndex]);
         }
 
-        return redirect()->route('onboarding.show', ['step' => 4]);
+        return redirect()->route('onboarding.show', ['step' => 5]);
     }
 
     public function campaign(Request $request): RedirectResponse
@@ -226,11 +264,11 @@ class OnboardingController extends Controller
             $campaign->shops()->sync($shopIds);
         }
 
-        return redirect()->route('onboarding.show', ['step' => 5])->with('confirm', Confirm::make(
+        return redirect()->route('onboarding.show', ['step' => 6])->with('confirm', Confirm::make(
             __('loop.first_campaign_done_title'),
             __('loop.first_campaign_done_body'),
             __('loop.next_to_offers'),
-            route('onboarding.show', ['step' => 5]),
+            route('onboarding.show', ['step' => 6]),
             true,
         ));
     }
@@ -240,7 +278,7 @@ class OnboardingController extends Controller
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
         if ($business->campaigns()->doesntExist()) {
-            return redirect()->route('onboarding.show', ['step' => 4]);
+            return redirect()->route('onboarding.show', ['step' => 5]);
         }
 
         $data = $request->validate([
@@ -286,7 +324,7 @@ class OnboardingController extends Controller
                     __('loop.need_offer_first_title'),
                     __('loop.need_offer_first_body'),
                     __('loop.pick_offers'),
-                    route('onboarding.show', ['step' => 5]),
+                    route('onboarding.show', ['step' => 6]),
                     false,
                 ));
         }

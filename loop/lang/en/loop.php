@@ -211,7 +211,7 @@ return [
     'sign_in_for_points' => 'Sign in to see your points',
     'no_shops_filter' => 'No shops in this filter yet.',
     'branches' => 'Branches',
-    'onboarding_blurb' => 'Get live in a few minutes — logo, how you sell, shop, first campaign, then your first offer.',
+    'onboarding_blurb' => 'Get live in a few minutes — logo, how you sell, branches, first campaign, then your first offer.',
     'add_logo' => 'Add your business logo',
     'add_logo_body' => 'This is the first thing customers see on Loop.',
     'upload' => 'Upload',
