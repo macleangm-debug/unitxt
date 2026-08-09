@@ -238,10 +238,11 @@
                     name: '',
                     description: '',
                     type: 'earn',
-                    spendStep: 1000,
+                    spendDisplay: '1,000',
                     pointsPerStep: 2,
                     bonusPoints: 10,
                     productName: '',
+                    saving: false,
                     defaults: @js(collect($groupedTemplates)->flatMap(fn ($g) => $g['templates'])->mapWithKeys(fn ($t, $k) => [$k => [
                         'name' => $t['name'],
                         'description' => $t['description'],
@@ -250,6 +251,14 @@
                         'points_per_step' => $t['points_per_step'] ?? 2,
                         'bonus_points' => $t['bonus_points'] ?? 0,
                     ]])->all()),
+                    formatSpend() {
+                        let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
+                        if (!raw) { this.spendDisplay = ''; return; }
+                        this.spendDisplay = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    },
+                    spendValue() {
+                        return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0;
+                    },
                     pick(key) {
                         const t = this.defaults[key];
                         if (!t) return;
@@ -257,10 +266,16 @@
                         this.name = t.name;
                         this.description = t.description;
                         this.type = t.type;
-                        this.spendStep = t.spend_step || 1000;
+                        this.spendDisplay = String(t.spend_step || 1000).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
                         this.pointsPerStep = t.points_per_step || 2;
                         this.bonusPoints = t.bonus_points || 10;
                         this.productName = '';
+                        this.saving = false;
+                    },
+                    startSave() {
+                        if (this.saving) return false;
+                        this.saving = true;
+                        return true;
                     }
                 }"
             >
@@ -290,32 +305,33 @@
 
                 <p class="mt-6 text-center text-xs text-ink-muted">{{ __('loop.bonus_campaigns_later_note') }}</p>
 
-                <div x-show="selected" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4" @keydown.escape.window="selected=null">
-                    <div class="absolute inset-0 bg-ink/50" @click="selected=null"></div>
+                <div x-show="selected" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4" @keydown.escape.window="!saving && (selected=null)">
+                    <div class="absolute inset-0 bg-ink/50" @click="!saving && (selected=null)"></div>
                     <div class="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
                         <p class="text-xs font-bold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.confirm_campaign') }}</p>
                         <p class="mt-2 font-display text-2xl font-bold" x-text="name"></p>
                         <p class="mt-2 text-sm text-ink-muted" x-text="description"></p>
 
-                        <form method="POST" action="{{ route('onboarding.campaign') }}" class="mt-5 space-y-4">
+                        <form method="POST" action="{{ route('onboarding.campaign') }}" class="mt-5 space-y-4" @submit="return startSave()">
                             @csrf
                             <input type="hidden" name="template" :value="selected">
+                            <input type="hidden" name="spend_step" :value="spendValue()">
 
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="loop-label">{{ __('loop.spend_amount') }} ({{ $currency }})</label>
-                                    <input type="number" name="spend_step" min="100" step="100" class="loop-input" x-model="spendStep" required>
+                                    <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" required>
                                 </div>
                                 <div>
                                     <label class="loop-label">{{ __('loop.points_earned') }}</label>
                                     <input type="number" name="points_per_step" min="1" class="loop-input" x-model="pointsPerStep" required>
                                 </div>
                             </div>
-                            <div class="rounded-2xl bg-mint-soft px-4 py-3 text-center">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.earn_rate_example_prefix') }}</p>
-                                <p class="mt-1 font-display text-xl font-bold text-ink">
+                            <div class="rounded-2xl bg-mint-soft px-4 py-4 text-center ring-1 ring-mint/30">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.customer_gets') }}</p>
+                                <p class="mt-1 font-display text-2xl font-bold text-ink">
                                     <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
-                                    <span x-text="Number(spendStep).toLocaleString()"></span> {{ $currency }}
+                                    <span x-text="spendDisplay || '0'"></span> {{ $currency }}
                                 </p>
                             </div>
 
@@ -331,42 +347,186 @@
                                 </div>
                             </div>
 
-                            <button class="loop-btn w-full text-base">{{ __('loop.save_campaign') }}</button>
-                            <button type="button" class="w-full text-sm font-semibold text-ink-muted" @click="selected=null">{{ __('loop.back') }}</button>
+                            <button class="loop-btn w-full text-base" :disabled="saving" :class="{ 'opacity-70': saving }">
+                                <span x-show="!saving">{{ __('loop.save_campaign') }}</span>
+                                <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                            </button>
+                            <button type="button" class="w-full text-sm font-semibold text-ink-muted" @click="selected=null" :disabled="saving">{{ __('loop.back') }}</button>
                         </form>
                     </div>
                 </div>
             </div>
         @else
-            <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-6" x-data="{ count: 1 }">
-                @csrf
+            <div
+                class="mt-6"
+                x-data="{
+                    currency: @js($currency),
+                    templates: @js(collect($offerTemplates)->values()->all()),
+                    drafts: [],
+                    editing: null,
+                    editIndex: null,
+                    saving: false,
+                    pick(template) {
+                        this.editing = {
+                            key: template.key,
+                            reward_type: template.reward_type,
+                            name: template.name,
+                            product_name: template.product_name || '',
+                            points_cost: template.points_cost,
+                            reward_value: template.reward_value,
+                            valueDisplay: template.reward_type === 'fixed_off'
+                                ? String(template.reward_value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                : String(template.reward_value),
+                        };
+                        this.editIndex = null;
+                    },
+                    editDraft(i) {
+                        const d = this.drafts[i];
+                        this.editing = { ...d, valueDisplay: d.reward_type === 'fixed_off'
+                            ? String(d.reward_value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                            : String(d.reward_value) };
+                        this.editIndex = i;
+                    },
+                    formatValue() {
+                        if (!this.editing || this.editing.reward_type !== 'fixed_off') return;
+                        let raw = String(this.editing.valueDisplay).replace(/[^\d]/g, '');
+                        this.editing.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+                    },
+                    valueNumber() {
+                        if (!this.editing) return 0;
+                        return parseFloat(String(this.editing.valueDisplay).replace(/,/g, '')) || 0;
+                    },
+                    summary(o) {
+                        if (o.reward_type === 'percent_off') return o.reward_value + '% off' + (o.product_name ? ' · ' + o.product_name : '');
+                        if (o.reward_type === 'fixed_off') return Number(o.reward_value).toLocaleString() + ' ' + this.currency + ' off' + (o.product_name ? ' · ' + o.product_name : '');
+                        return (o.product_name ? ('Free ' + o.product_name) : o.name);
+                    },
+                    saveEditing() {
+                        if (!this.editing) return;
+                        const row = {
+                            reward_type: this.editing.reward_type,
+                            name: this.editing.name.trim() || this.editing.key,
+                            product_name: (this.editing.product_name || '').trim(),
+                            points_cost: parseInt(this.editing.points_cost, 10) || 1,
+                            reward_value: this.editing.reward_type === 'free_item' ? 0 : this.valueNumber(),
+                        };
+                        if (this.editIndex !== null) this.drafts.splice(this.editIndex, 1, row);
+                        else this.drafts.push(row);
+                        this.editing = null;
+                        this.editIndex = null;
+                    },
+                    removeDraft(i) { this.drafts.splice(i, 1); },
+                    startFinish() {
+                        if (this.saving || this.drafts.length < 1) return false;
+                        this.saving = true;
+                        return true;
+                    }
+                }"
+            >
                 <div class="text-center">
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.create_first_offer') }}</h2>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.create_first_offer_body') }}</p>
                     @if ($earnCampaign)
-                        <p class="mt-3 rounded-full bg-mint-soft px-3 py-1 text-xs font-semibold text-mint-deep">{{ $earnCampaign->name }}</p>
+                        <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-mint-soft px-3 py-1.5 ring-1 ring-mint/30">
+                            <span class="rounded-full bg-mint px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">{{ __('loop.live') }}</span>
+                            <span class="text-sm font-semibold text-mint-deep">{{ $earnCampaign->displayName() }}</span>
+                            <span class="text-xs text-ink-muted">· {{ $earnCampaign->ruleSummary($currency) }}</span>
+                        </div>
                     @endif
                 </div>
 
-                <div class="mt-6 space-y-3">
-                    @foreach ($offerTemplates as $offer)
-                        <label class="flex cursor-pointer items-start gap-3 rounded-3xl border border-ink/10 bg-white/90 p-4 transition has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40"
-                               @change="count = [...$el.closest('form').querySelectorAll('input[name=\'offers[]\']:checked')].length">
-                            <input type="checkbox" name="offers[]" value="{{ $offer['key'] }}" class="mt-1 rounded border-ink/20 text-mint-deep focus:ring-mint-deep"
-                                   @checked($loop->first)>
-                            <span class="min-w-0 flex-1">
-                                <span class="flex items-start justify-between gap-2">
-                                    <span class="font-display text-base font-semibold">{{ $offer['name'] }}</span>
-                                    <span class="shrink-0 rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-lime">{{ $offer['points_cost'] }} pts</span>
-                                </span>
-                                <span class="mt-1 block text-sm text-ink-muted">{{ $offer['description'] }}</span>
-                            </span>
-                        </label>
-                    @endforeach
+                <div class="mt-6 space-y-3" x-show="drafts.length">
+                    <template x-for="(draft, i) in drafts" :key="i">
+                        <div class="rounded-3xl border border-mint-deep/30 bg-white/95 p-4 shadow-sm">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-display text-lg font-semibold" x-text="draft.name"></p>
+                                    <p class="mt-1 text-sm text-ink-muted" x-text="summary(draft)"></p>
+                                    <p class="mt-2 text-xs font-semibold text-ink"><span x-text="draft.points_cost"></span> {{ __('loop.pts') }}</p>
+                                </div>
+                                <div class="flex shrink-0 flex-col gap-2">
+                                    <button type="button" class="text-xs font-semibold text-violet" @click="editDraft(i)">{{ __('loop.change') }}</button>
+                                    <button type="button" class="text-xs font-semibold text-ink-muted" @click="removeDraft(i)">{{ __('loop.remove') }}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
-                <x-input-error :messages="$errors->get('offers')" class="mt-3" />
-                <button class="loop-btn mt-6 w-full" :disabled="count < 1" :class="{ 'opacity-60': count < 1 }">{{ __('loop.finish_onboarding') }}</button>
-            </form>
+
+                <div class="mt-6" x-show="!editing">
+                    <p class="text-center text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep" x-text="drafts.length ? @js(__('loop.choose_another_offer')) : @js(__('loop.pick_offer_template'))"></p>
+                    <div class="mt-3 grid gap-3">
+                        <template x-for="template in templates" :key="template.key">
+                            <button
+                                type="button"
+                                class="w-full rounded-3xl border border-ink/10 bg-white/90 p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet hover:bg-violet-soft/40"
+                                @click="pick(template)"
+                            >
+                                <p class="font-display text-lg font-semibold" x-text="template.name"></p>
+                                <p class="mt-2 text-sm text-ink-muted" x-text="template.description"></p>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ route('onboarding.offers') }}" class="mt-6" @submit="return startFinish()">
+                    @csrf
+                    <template x-for="(draft, i) in drafts" :key="'h'+i">
+                        <div>
+                            <input type="hidden" :name="`offers[${i}][reward_type]`" :value="draft.reward_type">
+                            <input type="hidden" :name="`offers[${i}][name]`" :value="draft.name">
+                            <input type="hidden" :name="`offers[${i}][product_name]`" :value="draft.product_name">
+                            <input type="hidden" :name="`offers[${i}][points_cost]`" :value="draft.points_cost">
+                            <input type="hidden" :name="`offers[${i}][reward_value]`" :value="draft.reward_value">
+                        </div>
+                    </template>
+                    <x-input-error :messages="$errors->get('offers')" class="mt-3" />
+                    <button
+                        type="submit"
+                        class="loop-btn w-full"
+                        :disabled="drafts.length < 1 || saving"
+                        :class="{ 'opacity-60': drafts.length < 1 || saving }"
+                    >
+                        <span x-show="!saving">{{ __('loop.finish_onboarding') }}</span>
+                        <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                    </button>
+                    <p class="mt-3 text-center text-xs text-ink-muted">{{ __('loop.more_offers_anytime') }}</p>
+                </form>
+
+                <div x-show="editing" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4">
+                    <div class="absolute inset-0 bg-ink/50" @click="editing=null"></div>
+                    <div class="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8" x-show="editing">
+                        <p class="text-xs font-bold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.configure_offer') }}</p>
+                        <p class="mt-2 font-display text-2xl font-bold" x-text="editing?.name"></p>
+
+                        <div class="mt-5 space-y-4">
+                            <div>
+                                <label class="loop-label">{{ __('loop.offer_name') }}</label>
+                                <input type="text" class="loop-input" x-model="editing.name">
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.points_to_unlock') }}</label>
+                                <input type="number" min="1" class="loop-input" x-model="editing.points_cost">
+                            </div>
+                            <div x-show="editing?.reward_type === 'percent_off'">
+                                <label class="loop-label">{{ __('loop.percent_off_value') }}</label>
+                                <input type="number" min="1" max="100" class="loop-input" x-model="editing.valueDisplay">
+                            </div>
+                            <div x-show="editing?.reward_type === 'fixed_off'">
+                                <label class="loop-label">{{ __('loop.fixed_off_value') }} ({{ $currency }})</label>
+                                <input type="text" inputmode="numeric" class="loop-input" x-model="editing.valueDisplay" @input="formatValue()">
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.tie_to_product_optional') }}</label>
+                                <input type="text" class="loop-input" x-model="editing.product_name" placeholder="{{ __('loop.tie_to_product_placeholder') }}">
+                                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.tie_to_product_hint') }}</p>
+                            </div>
+                            <button type="button" class="loop-btn w-full" @click="saveEditing()">{{ __('loop.save_offer') }}</button>
+                            <button type="button" class="w-full text-sm font-semibold text-ink-muted" @click="editing=null">{{ __('loop.back') }}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         @endif
     </div>
 </x-app-layout>

@@ -339,7 +339,22 @@ class LoopCoreFlowTest extends TestCase
 
         $this->actingAs($owner)
             ->post(route('onboarding.offers'), [
-                'offers' => ['percent_5_100', 'free_meal_500'],
+                'offers' => [
+                    [
+                        'reward_type' => 'percent_off',
+                        'name' => '5% off',
+                        'product_name' => '',
+                        'points_cost' => 100,
+                        'reward_value' => 5,
+                    ],
+                    [
+                        'reward_type' => 'free_item',
+                        'name' => 'Free item',
+                        'product_name' => 'Burger',
+                        'points_cost' => 100,
+                        'reward_value' => 0,
+                    ],
+                ],
             ])
             ->assertRedirect(route('dashboard'));
 
@@ -597,8 +612,11 @@ class LoopCoreFlowTest extends TestCase
 
         $offers = \App\Support\OfferTemplates::forSector('coffee');
         $keys = collect($offers)->pluck('key')->all();
-        $this->assertContains('free_coffee_100', $keys);
-        $this->assertContains('percent_5_100', $keys);
+        $this->assertContains('percent_5', $keys);
+        $this->assertContains('percent_10', $keys);
+        $this->assertContains('free_item', $keys);
+        $this->assertContains('fixed_off', $keys);
+        $this->assertNotContains('free_coffee_100', $keys);
     }
 
     public function test_admin_panel_and_business_referral_reward(): void

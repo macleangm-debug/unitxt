@@ -283,36 +283,36 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'offers' => ['required', 'array', 'min:1'],
-            'offers.*' => ['string'],
+            'offers.*.reward_type' => ['required', 'in:percent_off,fixed_off,free_item'],
+            'offers.*.name' => ['required', 'string', 'max:120'],
+            'offers.*.product_name' => ['nullable', 'string', 'max:120'],
+            'offers.*.points_cost' => ['required', 'integer', 'min:1', 'max:100000'],
+            'offers.*.reward_value' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $selected = $data['offers'];
-        $catalog = collect(OfferTemplates::forSector($business->sector ?: 'other'))->keyBy('key');
-
-        foreach ($selected as $key) {
-            $template = $catalog->get($key);
-            if (! $template) {
-                continue;
+        foreach ($data['offers'] as $offer) {
+            $type = $offer['reward_type'];
+            $value = (float) ($offer['reward_value'] ?? 0);
+            if ($type === 'free_item') {
+                $value = 0;
+            }
+            if ($type === 'percent_off') {
+                $value = max(1, min(100, $value));
             }
 
-            $already = $business->rewards()
-                ->where('points_cost', $template['points_cost'])
-                ->where('reward_type', $template['reward_type'])
-                ->where('name', $template['name'])
-                ->exists();
-
-            if ($already) {
-                continue;
-            }
+            $product = filled($offer['product_name'] ?? null) ? trim($offer['product_name']) : null;
+            $name = trim($offer['name']);
 
             Reward::create([
                 'business_id' => $business->id,
-                'name' => $template['name'],
-                'description' => $template['description'],
-                'product_name' => $template['product_name'],
-                'points_cost' => $template['points_cost'],
-                'reward_type' => $template['reward_type'],
-                'reward_value' => $template['reward_value'],
+                'name' => $name,
+                'description' => $product
+                    ? __('loop.offer_tied_product_desc', ['product' => $product])
+                    : null,
+                'product_name' => $product,
+                'points_cost' => (int) $offer['points_cost'],
+                'reward_type' => $type,
+                'reward_value' => $value,
                 'is_active' => true,
             ]);
         }
@@ -340,6 +340,12 @@ class OnboardingController extends Controller
         app(\App\Services\ReferralService::class)->qualifyForBusiness($business->fresh());
         app(\App\Services\AffiliateService::class)->qualifyForBusiness($business->fresh());
 
-        return redirect()->route('dashboard')->with('all_set', true);
+        return redirect()->route('dashboard')->with('confirm', Confirm::make(
+            __('loop.first_offer_done_title'),
+            __('loop.first_offer_done_body'),
+            __('loop.go_to_home'),
+            route('dashboard'),
+            true,
+        ))->with('all_set', true);
     }
 }

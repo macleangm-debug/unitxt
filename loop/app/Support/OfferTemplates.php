@@ -14,13 +14,6 @@ class OfferTemplates
     public static function typeStarters(): array
     {
         return [
-            self::localizeType('free_item', [
-                'reward_type' => 'free_item',
-                'points_cost' => 100,
-                'reward_value' => 0,
-                'default_name' => __('loop.offer_type_free_name'),
-                'product_name' => null,
-            ]),
             self::localizeType('percent_off', [
                 'reward_type' => 'percent_off',
                 'points_cost' => 100,
@@ -35,27 +28,11 @@ class OfferTemplates
                 'default_name' => __('loop.offer_type_fixed_name'),
                 'product_name' => null,
             ]),
-            self::localizeType('bogo', [
-                'reward_type' => 'custom',
-                'points_cost' => 200,
-                'reward_value' => 0,
-                'default_name' => __('loop.offer_type_bogo_name'),
-                'product_name' => null,
-                'description' => __('loop.offer_type_bogo_desc'),
-            ]),
-            self::localizeType('upgrade', [
-                'reward_type' => 'custom',
-                'points_cost' => 80,
-                'reward_value' => 0,
-                'default_name' => __('loop.offer_type_upgrade_name'),
-                'product_name' => null,
-                'description' => __('loop.offer_type_upgrade_desc'),
-            ]),
-            self::localizeType('custom', [
-                'reward_type' => 'custom',
+            self::localizeType('free_item', [
+                'reward_type' => 'free_item',
                 'points_cost' => 100,
                 'reward_value' => 0,
-                'default_name' => __('loop.offer_type_custom_name'),
+                'default_name' => __('loop.offer_type_free_name'),
                 'product_name' => null,
             ]),
         ];
@@ -68,106 +45,37 @@ class OfferTemplates
     }
 
     /**
-     * Sector-flavoured name ideas (optional) after a type is chosen.
+     * Editable onboarding templates — not fixed menu items.
      *
      * @return list<array<string, mixed>>
      */
-    public static function forSector(string $sector): array
+    public static function forSector(string $sector = 'other'): array
     {
-        $catalog = [
-            'percent_5_100' => [
+        // Sector kept for call-site compatibility; starters are universal and editable.
+        unset($sector);
+
+        return [
+            self::localize('percent_5', [
                 'points_cost' => 100,
                 'reward_type' => 'percent_off',
                 'reward_value' => 5,
-                'sectors' => ['*'],
-            ],
-            'percent_10_200' => [
+            ]),
+            self::localize('percent_10', [
                 'points_cost' => 200,
                 'reward_type' => 'percent_off',
                 'reward_value' => 10,
-                'sectors' => ['*'],
-            ],
-            'free_item_100' => [
+            ]),
+            self::localize('free_item', [
                 'points_cost' => 100,
                 'reward_type' => 'free_item',
                 'reward_value' => 0,
-                'product_name_key' => 'item',
-                'sectors' => ['*'],
-            ],
-            'free_item_coffee' => [
-                'points_cost' => 100,
-                'reward_type' => 'free_item',
-                'reward_value' => 0,
-                'product_name_key' => 'coffee',
-                'sectors' => ['coffee', 'restaurants', 'fast_food', 'hospitality'],
-            ],
-            'free_pastry_150' => [
+            ]),
+            self::localize('fixed_off', [
                 'points_cost' => 150,
-                'reward_type' => 'free_item',
-                'reward_value' => 0,
-                'product_name_key' => 'pastry',
-                'sectors' => ['coffee'],
-            ],
-            'free_appetizer_150' => [
-                'points_cost' => 150,
-                'reward_type' => 'free_item',
-                'reward_value' => 0,
-                'product_name_key' => 'appetizer',
-                'sectors' => ['restaurants', 'fast_food'],
-            ],
-            'free_meal_500' => [
-                'points_cost' => 500,
-                'reward_type' => 'free_item',
-                'reward_value' => 0,
-                'product_name_key' => 'meal',
-                'sectors' => ['restaurants', 'fast_food', 'hospitality'],
-            ],
-            'half_meal_400' => [
-                'points_cost' => 400,
-                'reward_type' => 'percent_off',
-                'reward_value' => 50,
-                'sectors' => ['restaurants', 'fast_food'],
-            ],
-            'half_night_800' => [
-                'points_cost' => 800,
-                'reward_type' => 'percent_off',
-                'reward_value' => 50,
-                'product_name_key' => 'night',
-                'sectors' => ['hospitality'],
-            ],
-            'free_breakfast_200' => [
-                'points_cost' => 200,
-                'reward_type' => 'free_item',
-                'reward_value' => 0,
-                'product_name_key' => 'breakfast',
-                'sectors' => ['hospitality'],
-            ],
-            'fashion_10_200' => [
-                'points_cost' => 200,
-                'reward_type' => 'percent_off',
-                'reward_value' => 10,
-                'sectors' => ['fashion', 'beauty', 'retail'],
-            ],
-            // Legacy key still used by older onboarding seeds/tests
-            'free_coffee_100' => [
-                'points_cost' => 100,
-                'reward_type' => 'free_item',
-                'reward_value' => 0,
-                'product_name_key' => 'coffee',
-                'sectors' => ['coffee', 'restaurants', 'fast_food', 'hospitality'],
-            ],
+                'reward_type' => 'fixed_off',
+                'reward_value' => 2000,
+            ]),
         ];
-
-        $out = [];
-        foreach ($catalog as $key => $item) {
-            $sectors = $item['sectors'];
-            if (! in_array('*', $sectors, true) && ! in_array($sector, $sectors, true)) {
-                continue;
-            }
-            $out[] = self::localize($key, $item);
-        }
-
-        return $out;
     }
 
     /**
@@ -212,25 +120,14 @@ class OfferTemplates
      */
     private static function localize(string $key, array $item): array
     {
-        $product = isset($item['product_name_key'])
-            ? __('loop.offer_templates.products.'.$item['product_name_key'])
-            : null;
-
-        $name = __('loop.offer_templates.'.$key.'.name');
-        if ($key === 'free_item_100') {
-            $name = __('loop.free_item');
-        }
-
-        $description = __('loop.offer_templates.'.$key.'.description');
-
         return [
             'key' => $key,
-            'name' => $name,
-            'description' => $description,
+            'name' => __('loop.offer_templates.'.$key.'.name'),
+            'description' => __('loop.offer_templates.'.$key.'.description'),
             'points_cost' => $item['points_cost'],
             'reward_type' => $item['reward_type'],
             'reward_value' => $item['reward_value'],
-            'product_name' => $product,
+            'product_name' => null,
         ];
     }
 }

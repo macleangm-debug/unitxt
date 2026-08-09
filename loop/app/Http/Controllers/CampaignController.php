@@ -237,12 +237,13 @@ class CampaignController extends Controller
             'spend_step' => ['nullable', 'integer', 'min:1'],
             'points_per_step' => ['nullable', 'integer', 'min:1'],
             'bonus_points' => ['nullable', 'integer', 'min:0'],
+            'featured_product_name' => ['nullable', 'string', 'max:120'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'is_active' => ['sometimes', 'boolean'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
-            'reward_ids' => ['required', 'array', 'min:1'],
+            'reward_ids' => ['nullable', 'array'],
             'reward_ids.*' => ['integer', 'exists:rewards,id'],
         ]);
 
@@ -253,23 +254,27 @@ class CampaignController extends Controller
             'spend_step' => $data['spend_step'] ?? null,
             'points_per_step' => $data['points_per_step'] ?? null,
             'bonus_points' => $data['bonus_points'] ?? 0,
+            'featured_product_name' => $data['featured_product_name'] ?? $campaign->featured_product_name,
             'starts_at' => $data['starts_at'],
-            'ends_at' => $data['ends_at'] ?? null,
+            'ends_at' => array_key_exists('ends_at', $data) ? ($data['ends_at'] ?? null) : $campaign->ends_at,
             'is_active' => $request->boolean('is_active', $campaign->is_active),
         ]);
 
-        $shopIds = collect($data['shop_ids'] ?? [])
-            ->filter(fn ($id) => $business->shops()->whereKey($id)->exists())
-            ->values()
-            ->all();
-        $campaign->shops()->sync($shopIds);
+        if (array_key_exists('shop_ids', $data)) {
+            $shopIds = collect($data['shop_ids'] ?? [])
+                ->filter(fn ($id) => $business->shops()->whereKey($id)->exists())
+                ->values()
+                ->all();
+            $campaign->shops()->sync($shopIds);
+        }
 
-        $rewardIds = collect($data['reward_ids'])
-            ->filter(fn ($id) => $business->rewards()->whereKey($id)->exists())
-            ->values()
-            ->all();
-        abort_if(empty($rewardIds), 422);
-        $campaign->rewards()->sync($rewardIds);
+        if (! empty($data['reward_ids'])) {
+            $rewardIds = collect($data['reward_ids'])
+                ->filter(fn ($id) => $business->rewards()->whereKey($id)->exists())
+                ->values()
+                ->all();
+            $campaign->rewards()->sync($rewardIds);
+        }
 
         return redirect()->route('campaigns.show', $campaign)->with('confirm', Confirm::make(
             __('loop.campaign_updated_title'),
