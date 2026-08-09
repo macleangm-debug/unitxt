@@ -116,9 +116,9 @@ class CampaignController extends Controller
         $localized = $templateKey ? CampaignTemplates::localized($templateKey) : null;
 
         $campaign = $business->campaigns()->create([
-            'name' => $localized['name'] ?? $data['name'],
+            'name' => $data['name'],
             'type' => $data['type'],
-            'description' => $localized['description'] ?? ($data['description'] ?? null),
+            'description' => $data['description'] ?? ($localized['description'] ?? null),
             'spend_step' => $data['spend_step'],
             'points_per_step' => $data['points_per_step'],
             'bonus_points' => $data['bonus_points'] ?? 0,
@@ -178,12 +178,17 @@ class CampaignController extends Controller
             ]);
         }
 
-        return redirect()->route('campaigns.show', $campaign)->with('confirm', Confirm::make(
-            __('loop.campaign_launched_title'),
-            __('loop.campaign_launched_body', ['name' => $campaign->displayName()]),
-            __('loop.view_campaign'),
-            route('campaigns.show', $campaign),
-        ));
+        return redirect()->route('campaigns.show', $campaign)->with(
+            'confirm',
+            Confirm::withBoldName(
+                __('loop.campaign_launched_title'),
+                'campaign_launched_body',
+                $campaign->displayName(),
+                __('loop.done'),
+                route('campaigns.show', $campaign),
+                true,
+            )
+        );
     }
 
     public function show(Request $request, Campaign $campaign): View
@@ -200,6 +205,7 @@ class CampaignController extends Controller
         return view('campaigns.show', [
             'campaign' => $campaign->load(['shops', 'rewards']),
             'business' => $business,
+            'offers' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
             'stats' => [
                 'today_visits' => $campaign->visits()->whereDate('created_at', today())->count(),
                 'total_visits' => $totalVisits,
@@ -243,7 +249,7 @@ class CampaignController extends Controller
             'is_active' => ['sometimes', 'boolean'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
-            'reward_ids' => ['nullable', 'array'],
+            'reward_ids' => ['required', 'array', 'min:1'],
             'reward_ids.*' => ['integer', 'exists:rewards,id'],
         ]);
 
@@ -268,23 +274,49 @@ class CampaignController extends Controller
             $campaign->shops()->sync($shopIds);
         }
 
-        if (! empty($data['reward_ids'])) {
-            $rewardIds = collect($data['reward_ids'])
-                ->filter(fn ($id) => $business->rewards()->whereKey($id)->exists())
-                ->values()
-                ->all();
-            $campaign->rewards()->sync($rewardIds);
-        }
+        $rewardIds = collect($data['reward_ids'])
+            ->filter(fn ($id) => $business->rewards()->whereKey($id)->exists())
+            ->values()
+            ->all();
+        $campaign->rewards()->sync($rewardIds);
 
         $campaign->refresh();
 
-        return redirect()->route('campaigns.show', $campaign)->with('confirm', Confirm::make(
-            __('loop.campaign_updated_title'),
-            __('loop.campaign_updated_body', ['name' => $campaign->name]),
-            __('loop.done'),
-            route('campaigns.show', $campaign),
-            false,
-        ));
+        return redirect()->route('campaigns.show', $campaign)->with(
+            'confirm',
+            Confirm::withBoldName(
+                __('loop.campaign_updated_title'),
+                'campaign_updated_body',
+                $campaign->name,
+                __('loop.done'),
+                route('campaigns.show', $campaign),
+                false,
+            )
+        );
+    }
+
+    public function toggle(Request $request, Campaign $campaign): RedirectResponse
+    {
+        $this->authorizeOwner($request, $campaign);
+
+        $campaign->update([
+            'is_active' => ! $campaign->is_active,
+        ]);
+        $campaign->refresh();
+
+        $live = $campaign->is_active;
+
+        return redirect()->route('campaigns.show', $campaign)->with(
+            'confirm',
+            Confirm::withBoldName(
+                $live ? __('loop.campaign_resumed_title') : __('loop.campaign_paused_title'),
+                $live ? 'campaign_resumed_body' : 'campaign_paused_body',
+                $campaign->name,
+                __('loop.done'),
+                route('campaigns.show', $campaign),
+                false,
+            )
+        );
     }
 
     public function destroy(Request $request, Campaign $campaign): RedirectResponse

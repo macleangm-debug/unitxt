@@ -47,7 +47,15 @@
               x-data="{
                 enableWelcome: {{ old('enable_welcome') ? 'true' : 'false' }},
                 enableBirthday: {{ old('enable_birthday') ? 'true' : 'false' }},
-                enableStreak: {{ old('enable_streak') ? 'true' : 'false' }}
+                enableStreak: {{ old('enable_streak') ? 'true' : 'false' }},
+                spendDisplay: @js(number_format((int) old('spend_step', $t['spend_step'] ?? 1000))),
+                pointsPerStep: {{ (int) old('points_per_step', $t['points_per_step'] ?? 2) }},
+                currency: @js($business->currency),
+                formatSpend() {
+                    let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
+                    this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+                },
+                spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; }
               }"
               class="mx-auto max-w-2xl space-y-6 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8">
             @csrf
@@ -56,7 +64,7 @@
             @endif
 
             @if ($t)
-                <div class="rounded-2xl bg-gradient-to-br from-mint/20 to-coral/10 p-4">
+                <div class="rounded-2xl border border-ink/10 bg-white p-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.start_from_template') }}</p>
                     <p class="mt-1 font-display text-xl font-semibold">{{ $t['name'] }}</p>
                 </div>
@@ -67,6 +75,7 @@
                 <div>
                     <label class="loop-label">{{ __('loop.campaign_name') }}</label>
                     <input name="name" class="loop-input" value="{{ old('name', $t['name'] ?? '') }}" required>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.campaign_name_hint', ['business' => $business->name]) }}</p>
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.type') }}</label>
@@ -81,29 +90,32 @@
                 </div>
             </section>
 
-            <section class="space-y-4 rounded-2xl bg-chalk/70 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_earn') }}</p>
-                <div class="grid gap-3 sm:grid-cols-3">
+            <section class="space-y-4 rounded-2xl border border-ink/10 bg-white p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
+                <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
+                <input type="hidden" name="spend_step" :value="spendValue()">
+                <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $t['bonus_points'] ?? 0) }}">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <div>
-                        <label class="loop-label">{{ __('loop.spend_step') }} ({{ $business->currency }})</label>
-                        <input type="number" name="spend_step" class="loop-input" value="{{ old('spend_step', $t['spend_step'] ?? 1000) }}" required>
+                        <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>
+                        <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" required>
                     </div>
                     <div>
-                        <label class="loop-label">{{ __('loop.points_per_step') }}</label>
-                        <input type="number" name="points_per_step" class="loop-input" value="{{ old('points_per_step', $t['points_per_step'] ?? 2) }}" required>
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.bonus_points') }}</label>
-                        <input type="number" name="bonus_points" class="loop-input" value="{{ old('bonus_points', $t['bonus_points'] ?? 0) }}">
+                        <label class="loop-label">{{ __('loop.points_earned') }}</label>
+                        <input type="number" name="points_per_step" class="loop-input" x-model="pointsPerStep" required>
                     </div>
                 </div>
+                <p class="text-center font-display text-xl font-bold">
+                    <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
+                    <span x-text="spendDisplay || '0'"></span> <span x-text="currency"></span>
+                </p>
             </section>
 
             <section class="space-y-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_tie_offers') }}</p>
-                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.tie_offers_title') }}</h2>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.tie_offers_body') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.customer_choices') }}</p>
+                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.customer_choices') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.campaign_needs_one_offer') }}</p>
                 </div>
                 <div class="grid gap-2">
                     @foreach ($offers as $offer)

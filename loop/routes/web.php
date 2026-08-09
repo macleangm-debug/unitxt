@@ -147,6 +147,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/raffles/{raffle}/winners/{winner}/claim', [RaffleController::class, 'claim'])->name('raffles.claim');
         Route::get('/content-studio', [ContentStudioController::class, 'index'])->name('content-studio.index');
         Route::resource('shops', ShopController::class);
+        Route::post('/campaigns/{campaign}/toggle', [CampaignController::class, 'toggle'])->name('campaigns.toggle');
         Route::resource('campaigns', CampaignController::class);
         Route::get('/offers', [RewardController::class, 'index'])->name('rewards.index');
         Route::get('/offers/create', [RewardController::class, 'create'])->name('rewards.create');

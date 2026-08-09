@@ -6,13 +6,26 @@
                 <div class="mt-3 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $campaign->displayName() }}</h1>
                     @if ($campaign->isCurrentlyActive())
-                        <span class="rounded-full bg-mint px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink">{{ __('loop.live') }}</span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-mint px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-[0_0_0_4px_rgba(46,125,50,0.18)]">
+                            <span class="h-2 w-2 animate-pulse rounded-full bg-ink"></span>
+                            {{ __('loop.live') }}
+                        </span>
+                    @else
+                        <span class="inline-flex items-center rounded-full bg-ink/10 px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink-muted">
+                            {{ __('loop.paused') }}
+                        </span>
                     @endif
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">{{ $campaign->scheduleLabel() }}</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <a href="{{ route('campaigns.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
+                <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
+                    @csrf
+                    <button class="loop-btn-ghost !py-2.5">
+                        {{ $campaign->is_active ? __('loop.pause_campaign') : __('loop.resume_campaign') }}
+                    </button>
+                </form>
                 <a href="{{ route('campaigns.edit', $campaign) }}" class="loop-btn-mint !py-2.5">{{ __('loop.edit') }}</a>
             </div>
         </div>
@@ -26,6 +39,7 @@
                 <span class="text-ink-muted">/</span>
                 {{ $business->currency }} {{ number_format($campaign->spend_step) }}
             </p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.min_spend_to_earn_hint', ['currency' => $business->currency, 'amount' => number_format($campaign->spend_step)]) }}</p>
             @if ($campaign->type === 'product_push' && $campaign->featured_product_name)
                 <p class="mt-2 text-sm text-ink-muted">
                     {{ __('loop.rule_featured_product', ['product' => $campaign->featured_product_name, 'points' => $campaign->bonus_points]) }}
@@ -53,13 +67,13 @@
     </div>
 
     <section class="mt-8 rounded-[1.5rem] border border-ink/10 bg-white p-5 sm:p-6">
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.offers') }}</h2>
-            <a href="{{ route('rewards.create') }}" class="text-sm font-semibold text-mint-deep">{{ __('loop.add_offer') }} →</a>
+        <div>
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_choices') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.customer_choices_body') }}</p>
         </div>
         <div class="mt-4 space-y-3">
-            @forelse ($campaign->rewards as $offer)
-                <a href="{{ route('rewards.show', $offer) }}" class="flex items-center justify-between gap-3 rounded-2xl border border-ink/8 px-4 py-3 transition hover:border-ink/20">
+            @forelse ($offers as $offer)
+                <div class="flex items-center justify-between gap-3 rounded-2xl border border-ink/8 px-4 py-3">
                     <div class="min-w-0">
                         <p class="font-semibold">{{ $offer->name }}</p>
                         <p class="mt-0.5 truncate text-sm text-ink-muted">
@@ -69,12 +83,12 @@
                             @endif
                         </p>
                     </div>
-                    <span class="shrink-0 text-xs font-semibold text-ink-muted">{{ __('loop.change') }}</span>
-                </a>
+                </div>
             @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_tied_offers') }}</p>
+                <p class="text-sm text-ink-muted">{{ __('loop.no_offers_yet_edit') }}</p>
             @endforelse
         </div>
+        <p class="mt-4 text-xs text-ink-muted">{{ __('loop.edit_to_manage_offers') }}</p>
     </section>
 
     @if ($recentVisits->isNotEmpty())

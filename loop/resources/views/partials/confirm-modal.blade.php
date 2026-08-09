@@ -3,6 +3,7 @@
     $confirmUrl = $confirm['url'] ?? '';
     $currentUrl = url()->current();
     $samePage = $confirmUrl !== '' && rtrim($confirmUrl, '/') === rtrim($currentUrl, '/');
+    $ctaIsDone = strcasecmp((string) ($confirm['cta'] ?? ''), (string) __('loop.done')) === 0;
 @endphp
 
 @if ($confirm)
@@ -37,13 +38,21 @@
                     <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint-soft text-3xl font-bold text-mint-deep ring-1 ring-mint/30">✓</div>
                 @endif
                 <p class="mt-6 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">{{ $confirm['title'] }}</p>
-                <p class="mt-3 text-base font-medium leading-relaxed text-ink-muted sm:text-lg">{{ $confirm['body'] }}</p>
-                @if ($samePage || !empty($confirm['dismiss']))
+                <p class="mt-3 text-base font-medium leading-relaxed text-ink-muted sm:text-lg">
+                    @if (! empty($confirm['body_html']))
+                        {!! $confirm['body_html'] !!}
+                    @else
+                        {{ $confirm['body'] }}
+                    @endif
+                </p>
+                @if ($samePage || ! empty($confirm['dismiss']))
                     <button type="button" class="loop-btn mt-8 inline-flex w-full justify-center text-base" @click="open=false">{{ $confirm['cta'] }}</button>
                 @else
                     <a href="{{ $confirmUrl }}" class="loop-btn mt-8 inline-flex w-full justify-center text-base">{{ $confirm['cta'] }}</a>
                 @endif
-                <button type="button" class="mt-4 text-sm font-semibold text-ink-muted hover:text-ink" @click="open=false">{{ __('loop.done') }}</button>
+                @unless ($samePage && $ctaIsDone)
+                    <button type="button" class="mt-4 text-sm font-semibold text-ink-muted hover:text-ink" @click="open=false">{{ __('loop.done') }}</button>
+                @endunless
             </div>
         </div>
     </div>
