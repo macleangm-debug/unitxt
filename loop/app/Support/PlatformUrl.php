@@ -106,7 +106,33 @@ class PlatformUrl
             return $path;
         }
 
-        return rtrim(self::base(), '/').'/'.ltrim($path, '/');
+        $base = self::publicBase();
+
+        return rtrim($base, '/').'/'.ltrim($path, '/');
+    }
+
+    /**
+     * Prefer the live request origin when the configured platform URL is still local.
+     */
+    public static function publicBase(): string
+    {
+        $base = self::base();
+        $host = parse_url($base, PHP_URL_HOST) ?: '';
+
+        $isLocal = $host === ''
+            || $host === 'localhost'
+            || $host === '127.0.0.1'
+            || str_ends_with($host, '.test')
+            || str_ends_with($host, '.local');
+
+        if ($isLocal && ! app()->runningInConsole()) {
+            $request = request();
+            if ($request && $request->getHost()) {
+                return rtrim($request->root(), '/');
+            }
+        }
+
+        return $base !== '' ? $base : rtrim((string) config('app.url'), '/');
     }
 
     public static function whatsappShareUrl(string $message, ?string $e164Digits = null): string

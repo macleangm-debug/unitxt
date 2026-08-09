@@ -160,6 +160,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::get('/sale', [TillController::class, 'index'])->name('till.index');
         Route::post('/sale/lookup', [TillController::class, 'lookup'])->name('till.lookup');
+        Route::get('/sale/ticket', [TillController::class, 'ticket'])->name('till.ticket');
+        Route::post('/sale/register-customer', [TillController::class, 'registerCustomer'])->name('till.register-customer');
         Route::post('/sale', [TillController::class, 'store'])->name('till.store');
     });
 

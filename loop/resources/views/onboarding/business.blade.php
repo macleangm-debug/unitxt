@@ -8,7 +8,7 @@
         <div class="text-center">
             @if ($business->logo_path)
                 <div class="mx-auto mb-4 flex h-16 w-full max-w-[14rem] items-center justify-center overflow-hidden rounded-2xl bg-chalk ring-2 ring-mint-deep/20">
-                    <img src="{{ asset('storage/'.$business->logo_path) }}" alt="" class="max-h-full max-w-full object-contain p-2">
+                    <img src="{{ $business->logoUrl() }}" alt="" class="max-h-full max-w-full object-contain p-2">
                 </div>
             @endif
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">Loop</p>
@@ -66,7 +66,9 @@
                 <div class="text-center">
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.add_logo') }}</h2>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.add_logo_body') }}</p>
-                    <p class="mt-2 text-xs text-ink-muted">{{ __('loop.add_logo_wide_hint') }}</p>
+                    <p class="mt-2 text-xs font-semibold text-violet">{{ __('loop.logo_required_body') }}</p>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.add_logo_wide_hint') }}</p>
+                    <x-input-error :messages="$errors->get('logo')" class="mt-2" />
                 </div>
                 <div class="mt-8 flex flex-col items-center">
                     {{-- Wide frame so horizontal wordmarks fit without cropping --}}

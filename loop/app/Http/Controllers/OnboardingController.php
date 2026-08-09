@@ -30,6 +30,12 @@ class OnboardingController extends Controller
         $shopsDone = $business->shops()->count();
         $branchIndex = max(1, min($branchTotal, (int) $request->query('branch', $shopsDone + 1)));
 
+        // Logo is compulsory — never skip step 1 without one.
+        if ($step > 1 && blank($business->logo_path)) {
+            return redirect()->route('onboarding.show', ['step' => 1])
+                ->withErrors(['logo' => __('loop.logo_required_body')]);
+        }
+
         // Step 3: walk through each branch until count is met.
         if ($step === 3 && $shopsDone >= $branchTotal) {
             return redirect()->route('onboarding.show', ['step' => 4]);
@@ -78,6 +84,11 @@ class OnboardingController extends Controller
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
+        if (blank($business->logo_path)) {
+            return redirect()->route('onboarding.show', ['step' => 1])
+                ->withErrors(['logo' => __('loop.logo_required_body')]);
+        }
+
         $data = $request->validate([
             'branch_count' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
@@ -90,6 +101,12 @@ class OnboardingController extends Controller
     public function shop(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+
+        if (blank($business->logo_path)) {
+            return redirect()->route('onboarding.show', ['step' => 1])
+                ->withErrors(['logo' => __('loop.logo_required_body')]);
+        }
+
         $branchTotal = max(1, (int) ($business->branch_count ?: 1));
         $shopsDone = $business->shops()->count();
 

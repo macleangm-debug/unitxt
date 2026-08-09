@@ -19,12 +19,22 @@
 
     <div
         x-data="{
-            step: {{ $errors->any() ? 2 : 1 }},
+            step: {{ $errors->any() ? max(1, (int) old('step', 4)) : 1 }},
             country: @js(old('country', $preferredCountry)),
             dials: @js(collect(\App\Support\Countries::OPTIONS)->mapWithKeys(fn ($m, $c) => [$c => $m['dial']])->all()),
-            get dial() { return this.dials[this.country] || '+255'; }
+            password: '',
+            passwordConfirm: '',
+            get dial() { return this.dials[this.country] || '+255'; },
+            get passwordsMatch() {
+                return this.password !== '' && this.password === this.passwordConfirm;
+            },
+            goPasswordNext() {
+                if (!this.passwordsMatch) return;
+                this.step = 4;
+            }
         }"
         class="mx-auto w-full max-w-md"
+        @sheet-selected.window="if ($event.detail.name === 'country') { country = $event.detail.value }"
     >
         <p class="mb-6 text-xs font-semibold text-ink-muted">{{ __('loop.step') }} <span x-text="step"></span>/4</p>
 
@@ -33,17 +43,18 @@
 
         <form method="POST" action="{{ route('business.register') }}" class="mt-6 space-y-4">
             @csrf
+            <input type="hidden" name="step" :value="step">
 
             <div x-show="step === 1" class="space-y-4">
-                <div>
-                    <label class="loop-label">{{ __('loop.country') }}</label>
-                    <select name="country" class="loop-input" required x-model="country">
-                        @foreach ($countries as $code => $meta)
-                            <option value="{{ $code }}" @selected(old('country', $preferredCountry) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
-                        @endforeach
-                    </select>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.country_first_hint') }}</p>
-                </div>
+                <x-sheet-select
+                    name="country"
+                    :label="__('loop.country')"
+                    :options="collect($countries)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])])->all()"
+                    :value="old('country', $preferredCountry)"
+                    :required="true"
+                    :placeholder="__('loop.country')"
+                />
+                <p class="text-xs text-ink-muted">{{ __('loop.country_first_hint') }}</p>
                 <button type="button" @click="step = 2" class="loop-btn w-full">{{ __('loop.next') }}</button>
             </div>
 
@@ -80,16 +91,19 @@
             <div x-show="step === 3" x-cloak class="space-y-4">
                 <div>
                     <label class="loop-label">{{ __('loop.password') }}</label>
-                    <input type="password" name="password" class="loop-input" required>
+                    <input type="password" name="password" class="loop-input" required x-model="password" autocomplete="new-password">
                     <x-input-error :messages="$errors->get('password')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.confirm_password') }}</label>
-                    <input type="password" name="password_confirmation" class="loop-input" required>
+                    <input type="password" name="password_confirmation" class="loop-input" required x-model="passwordConfirm" autocomplete="new-password"
+                           :class="passwordConfirm && !passwordsMatch ? 'border-coral focus:border-coral focus:ring-coral' : ''">
+                    <p x-show="passwordConfirm && !passwordsMatch" x-cloak class="mt-1 text-xs font-semibold text-coral">{{ __('loop.passwords_must_match') }}</p>
+                    <p x-show="passwordsMatch" x-cloak class="mt-1 text-xs font-semibold text-mint-deep">{{ __('loop.passwords_match') }}</p>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 2" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>
-                    <button type="button" @click="step = 4" class="loop-btn flex-1">{{ __('loop.next') }}</button>
+                    <button type="button" class="loop-btn flex-1" @click="goPasswordNext()" :disabled="!passwordsMatch" :class="{ 'opacity-60': !passwordsMatch }">{{ __('loop.next') }}</button>
                 </div>
             </div>
 
@@ -125,22 +139,19 @@
                     </div>
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
                 </div>
-                <div class="rounded-2xl bg-chalk px-4 py-3" x-data="{ hasCode: {{ old('referral_code', $referralCode ?? '') ? 'true' : 'false' }} }">
-                    <label class="flex cursor-pointer items-center gap-3">
-                        <input type="checkbox" class="rounded border-ink/20 text-mint-deep focus:ring-mint" x-model="hasCode"
-                               @checked(old('referral_code', $referralCode ?? '') !== null && old('referral_code', $referralCode ?? '') !== '')>
-                        <span class="text-sm font-semibold">{{ __('loop.i_have_referral_code') }}</span>
-                    </label>
-                    <div class="mt-3" x-show="hasCode" x-cloak>
-                        <label class="loop-label">{{ __('loop.referral_code') }}</label>
-                        <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
-                        @if (!empty($referrerBusiness))
-                            <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
-                        @else
-                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
-                        @endif
-                        <x-input-error :messages="$errors->get('referral_code')" class="mt-1" />
-                    </div>
+                <div class="rounded-[1.5rem] border border-violet/20 bg-violet-soft/50 p-4">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.referral_code') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.referral_code_where') }}</p>
+                    <label class="loop-label mt-3">{{ __('loop.referral_code') }}</label>
+                    <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
+                    @if (!empty($referrerBusiness))
+                        <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
+                    @elseif (!empty($referrerAffiliate))
+                        <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by_affiliate') }}</p>
+                    @else
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
+                    @endif
+                    <x-input-error :messages="$errors->get('referral_code')" class="mt-1" />
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>

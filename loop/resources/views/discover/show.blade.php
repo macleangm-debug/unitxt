@@ -31,8 +31,10 @@
         <div class="loop-wallet relative overflow-hidden p-5 sm:p-8">
             <div class="relative grid gap-5 sm:gap-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
                 <div class="mx-auto lg:mx-0">
-                    @if ($business->logo_path)
-                        <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}" class="h-28 w-28 rounded-[1.5rem] object-cover ring-4 ring-white/15 sm:h-36 sm:w-36">
+                    @if ($business->logoUrl())
+                        <div class="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] bg-white/95 ring-4 ring-white/15 sm:h-36 sm:w-36">
+                            <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="max-h-full max-w-full object-contain p-2.5">
+                        </div>
                     @else
                         <div class="flex h-28 w-28 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-violet to-lime/70 font-display text-4xl font-semibold text-white ring-4 ring-white/15 sm:h-36 sm:w-36">
                             {{ mb_substr($business->name, 0, 1) }}
@@ -40,9 +42,9 @@
                     @endif
                 </div>
                 <div class="min-w-0 text-center lg:text-left">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ $business->sectorLabel() }}</p>
-                    <h1 class="mt-1 font-display text-3xl font-semibold leading-tight sm:text-4xl">{{ $business->name }}</h1>
-                    <p class="mt-1 text-sm text-white/70">
+                    <h1 class="font-display text-3xl font-semibold leading-tight sm:text-4xl">{{ $business->name }}</h1>
+                    <p class="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ $business->sectorLabel() }}</p>
+                    <p class="mt-2 text-sm text-white/70">
                         {{ $business->city ?: ($business->shops->first()?->city) }} · {{ $business->country }}
                         @if ($business->shops->count() > 1)
                             · {{ $business->shops->count() }} {{ __('loop.branches') }}

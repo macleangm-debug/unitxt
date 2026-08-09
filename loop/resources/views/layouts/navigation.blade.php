@@ -32,7 +32,10 @@
                         <x-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings*') || request()->routeIs('admin.referrals.*') || request()->routeIs('admin.plans.*')">{{ __('loop.admin_settings_hub') }}</x-nav-link>
                     @elseif ($user->isAffiliate())
                         <x-nav-link :href="route('affiliate.dashboard')" :active="request()->routeIs('affiliate.dashboard') || request()->routeIs('affiliate.setup')">{{ __('loop.home') }}</x-nav-link>
+                        <x-nav-link :href="route('affiliate.dashboard').'#share'" :active="false">{{ __('loop.affiliate_nav_share') }}</x-nav-link>
+                        <x-nav-link :href="route('affiliate.dashboard').'#referrals'" :active="false">{{ __('loop.affiliate_nav_referrals') }}</x-nav-link>
                         <x-nav-link :href="route('affiliate.payout')" :active="request()->routeIs('affiliate.payout')">{{ __('loop.payout_settings') }}</x-nav-link>
+                        <x-nav-link :href="route('affiliates.landing')" :active="request()->routeIs('affiliates.landing')">{{ __('loop.affiliate_nav_how') }}</x-nav-link>
                     @else
                         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-nav-link>
                         @if ($user->isStaff())
@@ -52,6 +55,10 @@
             <div class="ml-auto flex shrink-0 items-center gap-2">
                 @if ($user->isCustomer())
                     <p class="hidden text-sm font-medium text-ink-muted sm:block">{{ $user->full_phone ?? $user->phone }}</p>
+                @endif
+
+                @if ($user->isAffiliate())
+                    <span class="hidden rounded-lg bg-violet-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet sm:inline-flex">{{ __('loop.affiliate_role_badge') }}</span>
                 @endif
 
                 {{-- Language always visible outside the menu --}}
@@ -116,23 +123,36 @@
                 </button>
             </div>
             <nav class="loop-mobile-actions flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+                @if ($user->isAffiliate())
+                    <div class="loop-menu-role">
+                        <span class="loop-menu-role__mark">AF</span>
+                        <div>
+                            <p class="loop-menu-role__label">{{ __('loop.your_role') }}</p>
+                            <p class="loop-menu-role__title">{{ __('loop.affiliate_role_badge') }}</p>
+                        </div>
+                    </div>
+                @endif
+
                 @if ($user->isCustomer())
-                    <a href="{{ route('dashboard') }}">{{ __('loop.home') }}</a>
-                    <a href="{{ route('memberships.index') }}">{{ __('loop.wallets') }}</a>
-                    <a href="{{ route('discover') }}">{{ __('loop.discover') }}</a>
+                    <a href="{{ route('dashboard') }}" @if(request()->routeIs('dashboard')) aria-current="page" @endif>{{ __('loop.home') }}</a>
+                    <a href="{{ route('memberships.index') }}" @if(request()->routeIs('memberships.*')) aria-current="page" @endif>{{ __('loop.wallets') }}</a>
+                    <a href="{{ route('discover') }}" @if(request()->routeIs('discover*')) aria-current="page" @endif>{{ __('loop.discover') }}</a>
                 @elseif ($user->isAdmin())
-                    <a href="{{ route('admin.dashboard') }}">{{ __('loop.admin') }}</a>
+                    <a href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>{{ __('loop.admin') }}</a>
                     <a href="{{ route('admin.reports.index') }}">{{ __('loop.admin_reports') }}</a>
                     <a href="{{ route('admin.businesses.index') }}">{{ __('loop.admin_businesses') }}</a>
                     <a href="{{ route('admin.affiliates.index') }}">{{ __('loop.admin_affiliates') }}</a>
                     <a href="{{ route('admin.settings') }}">{{ __('loop.admin_settings_hub') }}</a>
                 @elseif ($user->isAffiliate())
-                    <a href="{{ route('affiliate.dashboard') }}">{{ __('loop.home') }}</a>
-                    <a href="{{ route('affiliate.payout') }}">{{ __('loop.payout_settings') }}</a>
+                    <a href="{{ route('affiliate.dashboard') }}" @if(request()->routeIs('affiliate.dashboard') || request()->routeIs('affiliate.setup')) aria-current="page" @endif>{{ __('loop.home') }}</a>
+                    <a href="{{ route('affiliate.dashboard') }}#share">{{ __('loop.affiliate_nav_share') }}</a>
+                    <a href="{{ route('affiliate.dashboard') }}#referrals">{{ __('loop.affiliate_nav_referrals') }}</a>
+                    <a href="{{ route('affiliate.payout') }}" @if(request()->routeIs('affiliate.payout')) aria-current="page" @endif>{{ __('loop.payout_settings') }}</a>
+                    <a href="{{ route('affiliates.landing') }}">{{ __('loop.affiliate_nav_how') }}</a>
                 @else
-                    <a href="{{ route('dashboard') }}">{{ __('loop.home') }}</a>
+                    <a href="{{ route('dashboard') }}" @if(request()->routeIs('dashboard')) aria-current="page" @endif>{{ __('loop.home') }}</a>
                     @if ($user->isStaff())
-                        <a href="{{ route('till.index') }}">{{ __('loop.sale') }}</a>
+                        <a href="{{ route('till.index') }}" @if(request()->routeIs('till.*')) aria-current="page" @endif>{{ __('loop.sale') }}</a>
                         @if ($user->isOwner() || \App\Support\SalesVisibility::frontDeskCanSee())
                             <a href="{{ route('transactions.index') }}">{{ __('loop.transactions') }}</a>
                         @endif

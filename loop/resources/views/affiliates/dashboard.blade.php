@@ -17,7 +17,7 @@
             <div class="loop-orb loop-orb--a loop-orb--enter"></div>
             <div class="loop-orb loop-orb--b loop-orb--enter"></div>
             <div class="loop-orb loop-orb--c loop-orb--enter"></div>
-            <div class="relative">
+            <div class="relative" id="share">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.affiliates') }}</p>
@@ -75,7 +75,7 @@
         </div>
     </div>
 
-    <section class="mt-10 loop-reveal" x-data="loopReveal(240)" :class="{ 'is-shown': shown }">
+    <section id="referrals" class="mt-10 loop-reveal" x-data="loopReveal(240)" :class="{ 'is-shown': shown }">
         <h2 class="font-display text-xl font-semibold">{{ __('loop.your_referrals') }}</h2>
         <div class="mt-4 space-y-3">
             @forelse ($referrals as $row)

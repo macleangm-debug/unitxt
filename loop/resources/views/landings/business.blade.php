@@ -29,15 +29,6 @@
                     <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.cta_business') }}</a>
                     <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
                 </div>
-                <a href="tel:{{ preg_replace('/\s+/', '', __('loop.loop_hotline_tel')) }}" class="mt-6 inline-flex items-center gap-2.5 text-sm font-semibold text-violet hover:text-ink">
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-violet/10 text-violet">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.4 21 3 13.6 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.02l-2.2 2.19z"/></svg>
-                    </span>
-                    <span>
-                        <span class="block text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.loop_hotline_label') }}</span>
-                        <span class="underline underline-offset-2">{{ __('loop.loop_hotline_display') }}</span>
-                    </span>
-                </a>
             </div>
             <div
                 class="loop-wallet loop-wallet--liquid animate-fade-up-delay p-6 sm:p-8"

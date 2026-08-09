@@ -61,22 +61,37 @@ class LoopCoreFlowTest extends TestCase
         ]);
 
         $this->actingAs($staff)
-            ->post(route('till.store'), [
+            ->post(route('till.lookup'), [
                 'shop_id' => $shop->id,
                 'country_code' => '+255',
                 'phone' => '713555666',
                 'channel' => 'in_store',
-                'amount_spent' => 5000,
+            ])
+            ->assertRedirect(route('till.ticket'));
+
+        $this->actingAs($staff)
+            ->post(route('till.register-customer'), [
                 'first_name' => 'Kojo',
                 'last_name' => 'Mensah',
             ])
-            ->assertRedirect(route('till.index'));
+            ->assertRedirect(route('till.ticket'));
 
         $this->assertDatabaseHas('users', [
             'phone' => '713555666',
             'role' => 'customer',
             'first_name' => 'Kojo',
         ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555666',
+                'channel' => 'in_store',
+                'amount_spent' => 5000,
+            ])
+            ->assertRedirect(route('till.index'));
+
         $this->assertDatabaseHas('memberships', [
             'business_id' => $business->id,
             'points_balance' => 10,
@@ -215,7 +230,8 @@ class LoopCoreFlowTest extends TestCase
 
         $business = $this->get('/for-business')->assertOk()->getContent();
         $this->assertStringContainsString('id="pricing"', $business);
-        $this->assertStringContainsString('tel:+255747001001', $business);
+        $this->assertStringNotContainsString('tel:+255747001001', $business);
+        $this->assertStringNotContainsString(__('loop.loop_hotline_display'), $business);
 
         $customer = $this->get('/for-customers')->assertOk()->getContent();
         $this->assertStringNotContainsString('127.0.0.1', $customer);
@@ -224,6 +240,9 @@ class LoopCoreFlowTest extends TestCase
         $this->from('/for-customers')
             ->get('/locale/en')
             ->assertRedirect('/for-customers');
+
+        $this->get('/locale/sw?return='.urlencode('http://localhost/sale/lookup'))
+            ->assertRedirect(route('home'));
     }
 
     public function test_discover_hides_points_for_guests_and_shows_for_customers(): void
@@ -664,7 +683,8 @@ class LoopCoreFlowTest extends TestCase
         $this->get(route('landing.business'))
             ->assertOk()
             ->assertSee(__('loop.pricing_title'))
-            ->assertSee('tel:+255747001001', false);
+            ->assertDontSee('tel:+255747001001', false)
+            ->assertDontSee(__('loop.loop_hotline_display'), false);
     }
 
     public function test_owner_can_upgrade_plan_and_admin_can_export_reports(): void
