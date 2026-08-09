@@ -5,6 +5,7 @@
     'highlight' => 'growth',
     'showTrialNote' => true,
     'compact' => false,
+    'animate' => true,
 ])
 
 @php
@@ -17,12 +18,15 @@
         @php $isHighlight = $plan->key === $highlight; @endphp
         <div
             @class([
-                'loop-pricing-card loop-reveal',
+                'loop-pricing-card',
+                'loop-reveal' => $animate,
                 'loop-pricing-card--featured' => $isHighlight,
                 'border-ink/10 bg-white' => ! $isHighlight,
             ])
-            x-data="loopReveal({{ 60 + ($index * 70) }})"
-            :class="{ 'is-shown': shown }"
+            @if ($animate)
+                x-data="loopReveal({{ 60 + ($index * 70) }})"
+                :class="{ 'is-shown': shown }"
+            @endif
         >
             @if ($isHighlight)
                 <div class="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-violet/25 blur-2xl" aria-hidden="true"></div>
