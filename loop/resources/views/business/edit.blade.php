@@ -61,6 +61,9 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.pay_with_points_settings') }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.pay_with_points_settings_help') }}</p>
             </div>
+            @if (! \App\Support\FeatureFlags::enabled('pay_with_points'))
+                <p class="rounded-xl bg-white px-3 py-2 text-sm text-ink-muted">{{ __('loop.feature_disabled_by_platform') }}</p>
+            @else
             <label class="flex items-start gap-2 text-sm font-semibold">
                 <input type="checkbox" name="allow_pay_with_points" value="1" x-model="enabled" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
                 <span>{{ __('loop.allow_pay_with_points') }}</span>
@@ -85,6 +88,7 @@
                     · {{ __('loop.pay_max_percent_example', ['percent' => old('pay_points_max_percent', $business->pay_points_max_percent ?: 50)]) }}
                 </p>
             </div>
+            @endif
         </section>
 
         <button class="loop-btn-mint w-full">{{ __('loop.save_changes') }}</button>

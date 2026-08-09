@@ -23,6 +23,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\PricingController;
@@ -86,6 +87,9 @@ Route::post('/logout', [StaffSessionController::class, 'destroy'])->middleware('
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
@@ -109,6 +113,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/sectors', [AdminSettingsHubController::class, 'updateSectors'])->name('settings.sectors');
         Route::put('/settings/sales-visibility', [AdminSettingsHubController::class, 'updateSalesVisibility'])->name('settings.sales-visibility');
         Route::put('/settings/base-url', [AdminSettingsHubController::class, 'updatePlatformUrl'])->name('settings.base-url');
+        Route::put('/settings/feature-flags', [AdminSettingsHubController::class, 'updateFeatureFlags'])->name('settings.feature-flags');
     });
 
     Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {

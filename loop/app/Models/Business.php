@@ -178,6 +178,10 @@ class Business extends Model
 
     public function payWithPointsEnabled(): bool
     {
+        if (! \App\Support\FeatureFlags::enabled('pay_with_points')) {
+            return false;
+        }
+
         return (bool) $this->allow_pay_with_points
             && (int) $this->pay_spend_step > 0
             && (int) $this->pay_points_per_step > 0;

@@ -41,7 +41,8 @@ class BusinessController extends Controller
             $business->logo_path = $request->file('logo')->store('business-logos', 'public');
         }
 
-        $allowPay = $request->boolean('allow_pay_with_points');
+        $allowPay = $request->boolean('allow_pay_with_points')
+            && \App\Support\FeatureFlags::enabled('pay_with_points');
 
         $business->update([
             'name' => $data['name'],

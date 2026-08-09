@@ -192,6 +192,29 @@
             </label>
             <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
         </form>
+
+        <form method="POST" action="{{ route('admin.settings.feature-flags') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] lg:col-span-2">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_product_updates') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_product_updates_blurb') }}</p>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+                @foreach ($featureCatalog as $feature)
+                    @php $key = $feature['key']; @endphp
+                    <label class="flex items-start gap-3 rounded-2xl border border-ink/10 px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/30">
+                        <input type="checkbox" name="{{ $key }}" value="1" class="mt-1 rounded border-ink/20 text-mint-deep focus:ring-mint-deep" @checked(old($key, $featureFlags[$key] ?? false))>
+                        <span>
+                            <span class="block font-semibold">{{ __('loop.feature_'.$key.'_title') }}</span>
+                            <span class="mt-1 block text-xs text-ink-muted">{{ __('loop.feature_'.$key.'_body') }}</span>
+                            <span class="mt-2 inline-block rounded-lg bg-chalk px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{{ __('loop.feature_cat_'.$feature['category']) }}</span>
+                        </span>
+                    </label>
+                @endforeach
+            </div>
+            <button class="loop-btn-mint w-full sm:w-auto">{{ __('loop.save_product_updates') }}</button>
+        </form>
     </div>
 
     <div class="mt-6 grid gap-4 sm:grid-cols-3">

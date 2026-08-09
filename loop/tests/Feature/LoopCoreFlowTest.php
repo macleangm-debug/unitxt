@@ -231,6 +231,68 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee('Earn');
     }
 
+    public function test_admin_feature_flags_and_owner_daily_notifications(): void
+    {
+        \App\Models\PlatformSetting::putValue(\App\Support\FeatureFlags::KEY, \App\Support\FeatureFlags::defaults());
+
+        $admin = User::factory()->admin()->create(['phone' => '710111222', 'password' => 'password']);
+        $this->actingAs($admin)
+            ->get(route('admin.settings'))
+            ->assertOk()
+            ->assertSee(__('loop.admin_product_updates'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.feature-flags'), [
+                'pay_with_points' => 1,
+                'premium_clients' => 1,
+                'owner_daily_digest' => 1,
+                'customer_unlock_hints' => 1,
+                'birthday_campaigns' => 1,
+                'welcome_campaigns' => 1,
+                'streak_campaigns' => 1,
+                'featured_product' => 1,
+                'raffles' => 0,
+                'content_studio' => 0,
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse(\App\Support\FeatureFlags::enabled('raffles'));
+        $this->assertTrue(\App\Support\FeatureFlags::enabled('owner_daily_digest'));
+
+        [$owner, $business] = $this->seedBusiness();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+
+        $created = app(\App\Services\DailyNotificationService::class)->generateForBusiness($business);
+        $this->assertGreaterThan(0, $created);
+
+        $this->actingAs($owner)
+            ->get(route('notifications.index'))
+            ->assertOk()
+            ->assertSee(__('loop.notifications_title'));
+
+        $this->assertDatabaseHas('in_app_notifications', [
+            'user_id' => $owner->id,
+            'business_id' => $business->id,
+            'audience' => 'owner',
+        ]);
+    }
+
     public function test_customer_can_login_with_pin(): void
     {
         User::factory()->customer()->create([

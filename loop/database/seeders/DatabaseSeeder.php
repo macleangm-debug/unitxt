@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
         \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, \App\Support\BillingSettings::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\ReferralProgram::KEY, \App\Support\ReferralProgram::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\GrowthSettings::KEY, \App\Support\GrowthSettings::defaults());
+        \App\Models\PlatformSetting::putValue(\App\Support\FeatureFlags::KEY, \App\Support\FeatureFlags::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\AffiliateProgram::KEY, \App\Support\AffiliateProgram::defaults());
 
         User::factory()->admin()->create([

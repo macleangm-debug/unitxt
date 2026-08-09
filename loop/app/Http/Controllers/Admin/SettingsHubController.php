@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\PlatformSetting;
 use App\Support\BillingSettings;
 use App\Support\Confirm;
+use App\Support\FeatureFlags;
 use App\Support\GrowthSettings;
 use App\Support\Plans;
 use App\Support\PlatformUrl;
@@ -27,6 +28,8 @@ class SettingsHubController extends Controller
             'referral' => ReferralProgram::settings(),
             'salesVisibility' => SalesVisibility::settings(),
             'platformUrl' => PlatformUrl::settings(),
+            'featureFlags' => FeatureFlags::settings(),
+            'featureCatalog' => FeatureFlags::catalog(),
             'sectors' => Sectors::list(),
             'plans' => Plan::query()->orderBy('sort_order')->get(),
             'integrations' => [
@@ -179,6 +182,24 @@ class SettingsHubController extends Controller
         return back()->with('confirm', Confirm::make(
             __('loop.admin_base_url_saved_title'),
             __('loop.admin_base_url_saved'),
+            __('loop.done'),
+            route('admin.settings'),
+            false,
+        ));
+    }
+
+    public function updateFeatureFlags(Request $request): RedirectResponse
+    {
+        $input = [];
+        foreach (FeatureFlags::defaults() as $key => $_) {
+            $input[$key] = $request->boolean($key);
+        }
+
+        PlatformSetting::putValue(FeatureFlags::KEY, FeatureFlags::normalizeInput($input));
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_features_saved_title'),
+            __('loop.admin_features_saved'),
             __('loop.done'),
             route('admin.settings'),
             false,
