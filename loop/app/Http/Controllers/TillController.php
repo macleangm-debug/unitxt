@@ -110,10 +110,7 @@ class TillController extends Controller
         }
 
         $mode = $request->query('mode', 'sale');
-        if (! in_array($mode, ['sale', 'redeem', 'pay'], true)) {
-            $mode = 'sale';
-        }
-        if ($mode === 'pay' && ! $business->payWithPointsEnabled()) {
+        if (! in_array($mode, ['sale', 'redeem'], true)) {
             $mode = 'sale';
         }
 
