@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
 <div class="min-h-screen bg-chalk" x-data="loopPageMotion()">
@@ -21,7 +22,7 @@
     <section class="relative overflow-hidden">
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(91,46,255,0.16),transparent_40%),radial-gradient(circle_at_80%_20%,rgba(200,255,61,0.18),transparent_35%)]"></div>
         <div class="loop-shell relative grid items-center gap-10 py-12 lg:grid-cols-2 lg:py-16">
-            <div class="animate-fade-up">
+            <div>
                 <p class="text-sm font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.business') }}</p>
                 <h1 class="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">Loop</h1>
                 <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ __('loop.tagline') }}</p>
@@ -31,24 +32,21 @@
                     <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
                 </div>
             </div>
-            <div
-                class="loop-wallet loop-wallet--liquid animate-fade-up-delay p-6 sm:p-8"
-                x-data="loopLivingWallet()"
-            >
-                <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-                <div class="loop-orb loop-orb--b loop-orb--enter"></div>
-                <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+            <div class="loop-wallet relative overflow-hidden p-6 sm:p-8">
+                {{-- Soft static atmosphere — no enter/breathe animations (those caused page flicker) --}}
+                <div class="pointer-events-none absolute -right-8 -top-10 h-44 w-44 rounded-full bg-violet/40 blur-3xl" aria-hidden="true"></div>
+                <div class="pointer-events-none absolute -bottom-10 -left-6 h-36 w-36 rounded-full bg-lime/25 blur-3xl" aria-hidden="true"></div>
                 <div class="relative">
                     <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.sale_first') }}</p>
                     <p class="mt-4 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{{ __('loop.with_your_phone') }}</p>
                     <p class="mt-3 max-w-sm text-sm text-white/65">{{ __('loop.sale_first_body') }}</p>
                     <div class="mt-8 grid grid-cols-3 gap-3 border-t border-white/10 pt-6 text-center">
-                        <div x-data="loopCountUp(1, 700)">
-                            <p class="font-display text-2xl font-semibold text-lime" x-text="formatted()">1</p>
+                        <div>
+                            <p class="font-display text-2xl font-semibold text-lime">1</p>
                             <p class="mt-1 text-[11px] text-white/55">{{ __('loop.shops') }}</p>
                         </div>
-                        <div x-data="loopCountUp(14, 900)">
-                            <p class="font-display text-2xl font-semibold text-white" x-text="formatted()">14</p>
+                        <div>
+                            <p class="font-display text-2xl font-semibold text-white">14</p>
                             <p class="mt-1 text-[11px] text-white/55">{{ __('loop.pricing') }}</p>
                         </div>
                         <div>
@@ -66,12 +64,8 @@
             ['01', 'flex_campaigns', 'flex_campaigns_body'],
             ['02', 'front_desk_ready', 'front_desk_body'],
             ['03', 'one_phone', 'one_phone_body'],
-        ] as $i => [$num, $title, $body])
-            <div
-                class="loop-reveal"
-                x-data="loopReveal({{ 40 + ($i * 90) }})"
-                :class="{ 'is-shown': shown }"
-            >
+        ] as [$num, $title, $body])
+            <div>
                 <p class="font-display text-3xl font-semibold text-violet/35">{{ $num }}</p>
                 <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.'.$title) }}</p>
                 <p class="mt-2 text-sm text-ink-muted">{{ __('loop.'.$body) }}</p>
@@ -86,7 +80,7 @@
                 <h2 class="mt-3 font-display text-3xl font-semibold">{{ __('loop.pricing_title') }}</h2>
                 <p class="mt-3 text-ink-muted">{{ __('loop.pricing_blurb') }}</p>
             </div>
-            <x-pricing-grid :plans="$plans" :cta-route="route('business.register')" :cta-label="__('loop.cta_business')" />
+            <x-pricing-grid :plans="$plans" :cta-route="route('business.register')" :cta-label="__('loop.cta_business')" :animate="false" />
         </div>
     </section>
 </main>
