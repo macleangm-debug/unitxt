@@ -7,13 +7,13 @@
 
     {{-- Living Wallet --}}
     <section
-        class="loop-wallet loop-wallet--liquid mb-8 px-5 py-7 sm:px-8 sm:py-9"
+        class="loop-wallet  mb-8 px-5 py-7 sm:px-8 sm:py-9"
         :class="{ 'loop-wallet--pulse': pulsing }"
         x-data="loopLivingWallet({{ $pointsEarned }})"
     >
-        <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-        <div class="loop-orb loop-orb--b loop-orb--enter"></div>
-        <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+        <div class="loop-orb loop-orb--a "></div>
+        <div class="loop-orb loop-orb--b "></div>
+        <div class="loop-orb loop-orb--c "></div>
         <div class="relative">
             <div class="flex items-start justify-between gap-3">
                 <div>
@@ -67,9 +67,7 @@
     {{-- Ready to redeem --}}
     <section
         id="ready"
-        class="loop-reveal mb-10 scroll-mt-24"
-        x-data="loopReveal(80)"
-        :class="{ 'is-shown': shown }"
+        class=" mb-10 scroll-mt-24"
     >
         <h2 class="font-display text-xl font-semibold">{{ __('loop.ready_to_redeem') }}</h2>
 
@@ -110,7 +108,7 @@
     </section>
 
     {{-- Your Loop — aligned membership rail --}}
-    <section class="loop-reveal mb-10" x-data="loopReveal(40)" :class="{ 'is-shown': shown }">
+    <section class=" mb-10">
         <div class="mb-4 flex items-baseline justify-between gap-3">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.your_loop') }}</h2>
         </div>
@@ -169,7 +167,7 @@
     </section>
 
     {{-- Where rewards work --}}
-    <section class="loop-reveal mb-10" x-data="loopReveal(60)" :class="{ 'is-shown': shown }">
+    <section class=" mb-10">
         <div class="mb-1 flex flex-wrap items-end justify-between gap-2">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.where_points_work') }}</h2>
             <a href="{{ route('discover') }}" class="text-sm font-semibold text-violet">{{ __('loop.browse_campaigns') }}</a>
@@ -205,7 +203,7 @@
     </section>
 
     @if ($otherShops->isNotEmpty())
-        <section class="loop-reveal mb-12" x-data="loopReveal(80)" :class="{ 'is-shown': shown }">
+        <section class=" mb-12">
             <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.more_businesses') }}</h2>
             <div class="loop-carousel" x-data="loopParallaxCarousel()">
                 @foreach ($otherShops as $business)

@@ -5,7 +5,7 @@
     'highlight' => 'growth',
     'showTrialNote' => true,
     'compact' => false,
-    'animate' => true,
+    'animate' => false,
 ])
 
 @php

@@ -5,9 +5,9 @@
 @endphp
 <x-app-layout>
     <x-slot name="header">
-        <div class="loop-wallet loop-wallet--liquid mb-2 px-5 py-6 sm:px-7 sm:py-7" x-data="loopLivingWallet()">
-            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
+        <div class="loop-wallet  mb-2 px-5 py-6 sm:px-7 sm:py-7" x-data="loopLivingWallet()">
+            <div class="loop-orb loop-orb--a "></div>
+            <div class="loop-orb loop-orb--b "></div>
             <div class="relative">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
                 <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.sale') }}</h1>

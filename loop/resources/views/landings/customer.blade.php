@@ -7,9 +7,15 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
-<div class="min-h-screen overflow-x-hidden bg-chalk">
+<div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
+    <div class="pointer-events-none absolute inset-0">
+        <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-violet/15 blur-3xl"></div>
+        <div class="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-lime/20 blur-3xl"></div>
+    </div>
+
     <x-site-header>
         <x-slot:actions>
             <a href="{{ route('discover') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.browse_campaigns') }}</a>
@@ -17,9 +23,9 @@
         </x-slot:actions>
     </x-site-header>
 
-    <main>
+    <main class="relative z-10">
         <section class="loop-shell grid items-center gap-10 py-10 sm:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:py-16">
-            <div class="motion-safe:animate-fade-up">
+            <div class="animate-fade-up">
                 <p class="font-display text-[clamp(3rem,11vw,5.5rem)] font-semibold leading-[0.92] tracking-tight text-ink">Loop</p>
                 <h1 class="mt-5 max-w-xl font-display text-[clamp(1.4rem,4vw,2.15rem)] font-semibold leading-snug text-ink">
                     {{ __('loop.customer_landing_title') }}
@@ -42,7 +48,7 @@
                         ['02', 'customer_flow_points'],
                         ['03', 'customer_flow_rewards'],
                     ] as [$num, $key])
-                        <div>
+                        <div class="loop-glass px-2 py-3">
                             <p class="font-display text-2xl font-semibold text-violet">{{ $num }}</p>
                             <p class="mt-1 text-xs font-semibold leading-snug text-ink sm:text-sm">{{ __('loop.'.$key) }}</p>
                         </div>
@@ -50,13 +56,12 @@
                 </div>
             </div>
 
-            {{-- Phone / wallet mockup as the product visual --}}
-            <div class="relative mx-auto w-full max-w-[22rem] motion-safe:animate-fade-up-delay lg:mx-0 lg:justify-self-end">
+            <div class="relative mx-auto w-full max-w-[22rem] animate-fade-up-delay lg:mx-0 lg:justify-self-end">
                 <div class="absolute -left-8 top-10 h-40 w-40 rounded-full bg-violet/20 blur-3xl"></div>
                 <div class="absolute -right-6 bottom-8 h-36 w-36 rounded-full bg-lime/30 blur-3xl"></div>
 
-                <div class="relative rounded-[2rem] border border-ink/10 bg-ink p-3 shadow-[0_40px_100px_rgba(17,17,20,0.28)]">
-                    <div class="overflow-hidden rounded-[1.55rem] bg-chalk">
+                <div class="loop-glass relative !rounded-[2rem] p-3">
+                    <div class="overflow-hidden rounded-[1.55rem] bg-chalk/80">
                         <div class="flex items-center justify-between px-4 py-3">
                             <div class="flex items-center gap-2">
                                 <x-loop-logo class="h-7 w-7" />
@@ -77,23 +82,11 @@
 
                         <div class="space-y-3 px-4 pb-5">
                             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.ready_to_redeem') }}</p>
-                            <div class="rounded-2xl bg-violet px-3.5 py-3 text-white">
+                            <div class="rounded-2xl bg-violet/90 px-3.5 py-3 text-white backdrop-blur-md">
                                 <p class="text-xs text-white/70">Harbor Beans</p>
                                 <div class="mt-1 flex items-end justify-between gap-2">
                                     <p class="font-display text-base font-semibold">5% off anything</p>
                                     <span class="rounded-lg bg-lime px-2 py-1 text-[11px] font-semibold text-ink">{{ __('loop.redeem') }}</span>
-                                </div>
-                            </div>
-                            <div class="flex gap-3 pt-1">
-                                <div class="w-20 shrink-0">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-soft font-display text-sm font-semibold text-violet">H</div>
-                                    <p class="mt-1.5 truncate text-[11px] font-semibold">Harbor</p>
-                                    <p class="text-[10px] text-ink-muted">70 {{ __('loop.pts') }}</p>
-                                </div>
-                                <div class="w-20 shrink-0">
-                                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-display text-sm font-semibold text-lime">K</div>
-                                    <p class="mt-1.5 truncate text-[11px] font-semibold">Kanga</p>
-                                    <p class="text-[10px] text-ink-muted">120 {{ __('loop.pts') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -102,17 +95,17 @@
             </div>
         </section>
 
-        <section class="border-t border-ink/8 bg-white">
+        <section class="border-t border-ink/8 bg-white/40">
             <div class="loop-shell py-12 sm:py-16">
                 <p class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{{ __('loop.phone_points_loop') }}</p>
                 <p class="mt-3 max-w-xl text-sm text-ink-muted sm:text-base">{{ __('loop.phone_points_loop_body') }}</p>
-                <div class="mt-8 grid gap-8 sm:grid-cols-3">
+                <div class="mt-8 grid gap-4 sm:grid-cols-3 sm:gap-5">
                     @foreach ([
                         ['customer_aside_1', '01'],
                         ['customer_aside_2', '02'],
                         ['customer_aside_3', '03'],
                     ] as [$key, $num])
-                        <div>
+                        <div class="loop-glass p-6">
                             <p class="font-display text-3xl font-semibold text-violet/40">{{ $num }}</p>
                             <p class="mt-2 font-display text-lg font-semibold leading-snug">{{ __('loop.'.$key) }}</p>
                         </div>
@@ -123,6 +116,7 @@
     </main>
 
     <x-site-footer />
+    <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
 </body>
 </html>

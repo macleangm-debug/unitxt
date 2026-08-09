@@ -10,7 +10,12 @@
     <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
-<div class="min-h-screen bg-chalk" x-data="loopPageMotion()">
+<div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
+    <div class="pointer-events-none absolute inset-0">
+        <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-violet/15 blur-3xl"></div>
+        <div class="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-lime/20 blur-3xl"></div>
+    </div>
+
 <x-site-header>
     <x-slot:actions>
         <a href="{{ route('staff.login') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.staff_login') }}</a>
@@ -18,11 +23,10 @@
     </x-slot:actions>
 </x-site-header>
 
-<main>
+<main class="relative z-10">
     <section class="relative overflow-hidden">
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(91,46,255,0.16),transparent_40%),radial-gradient(circle_at_80%_20%,rgba(200,255,61,0.18),transparent_35%)]"></div>
         <div class="loop-shell relative grid items-center gap-10 py-12 lg:grid-cols-2 lg:py-16">
-            <div>
+            <div class="animate-fade-up">
                 <p class="text-sm font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.business') }}</p>
                 <h1 class="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">Loop</h1>
                 <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ __('loop.tagline') }}</p>
@@ -32,10 +36,10 @@
                     <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
                 </div>
             </div>
-            <div class="loop-wallet relative overflow-hidden p-6 sm:p-8">
-                {{-- Soft static atmosphere — no enter/breathe animations (those caused page flicker) --}}
-                <div class="pointer-events-none absolute -right-8 -top-10 h-44 w-44 rounded-full bg-violet/40 blur-3xl" aria-hidden="true"></div>
-                <div class="pointer-events-none absolute -bottom-10 -left-6 h-36 w-36 rounded-full bg-lime/25 blur-3xl" aria-hidden="true"></div>
+            <div class="loop-wallet animate-fade-up-delay p-6 sm:p-8">
+                <div class="loop-orb loop-orb--a"></div>
+                <div class="loop-orb loop-orb--b"></div>
+                <div class="loop-orb loop-orb--c"></div>
                 <div class="relative">
                     <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">{{ __('loop.sale_first') }}</p>
                     <p class="mt-4 font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">{{ __('loop.with_your_phone') }}</p>
@@ -59,13 +63,13 @@
         </div>
     </section>
 
-    <section class="loop-shell grid gap-8 border-t border-ink/10 py-16 md:grid-cols-3">
+    <section class="loop-shell grid gap-4 border-t border-ink/10 py-16 md:grid-cols-3 md:gap-5">
         @foreach ([
             ['01', 'flex_campaigns', 'flex_campaigns_body'],
             ['02', 'front_desk_ready', 'front_desk_body'],
             ['03', 'one_phone', 'one_phone_body'],
         ] as [$num, $title, $body])
-            <div>
+            <div class="loop-glass p-6">
                 <p class="font-display text-3xl font-semibold text-violet/35">{{ $num }}</p>
                 <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.'.$title) }}</p>
                 <p class="mt-2 text-sm text-ink-muted">{{ __('loop.'.$body) }}</p>
@@ -73,7 +77,7 @@
         @endforeach
     </section>
 
-    <section id="pricing" class="border-t border-ink/10 bg-white">
+    <section id="pricing" class="border-t border-ink/10 bg-white/35">
         <div class="loop-shell py-16">
             <div class="mx-auto max-w-2xl text-center">
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.pricing') }}</p>

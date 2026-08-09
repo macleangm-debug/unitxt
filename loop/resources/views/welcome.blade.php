@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
 <div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
@@ -56,20 +57,16 @@
         </div>
     </main>
 
-    <section id="how" class="relative z-10 border-t border-ink/10 bg-white">
+    <section id="how" class="relative z-10 border-t border-ink/10 bg-white/40">
         <div class="loop-shell py-14 sm:py-20">
             <h2 class="font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.how_title') }}</h2>
-            <div class="mt-10 grid gap-8 sm:grid-cols-3">
+            <div class="mt-10 grid gap-4 sm:grid-cols-3 sm:gap-5">
                 @foreach ([
                     ['01', 'how_1_title', 'how_1_body'],
                     ['02', 'how_2_title', 'how_2_body'],
                     ['03', 'how_3_title', 'how_3_body'],
-                ] as $i => [$num, $title, $body])
-                    <div
-                        class="loop-reveal"
-                        x-data="loopReveal({{ 60 + ($i * 80) }})"
-                        :class="{ 'is-shown': shown }"
-                    >
+                ] as [$num, $title, $body])
+                    <div class="loop-glass p-6">
                         <p class="font-display text-4xl font-semibold text-violet/40">{{ $num }}</p>
                         <p class="mt-3 font-display text-lg font-semibold">{{ __('loop.'.$title) }}</p>
                         <p class="mt-2 text-sm leading-relaxed text-ink-muted">{{ __('loop.'.$body) }}</p>
@@ -80,39 +77,31 @@
     </section>
 
     <section class="loop-shell grid gap-5 py-14 sm:grid-cols-2 sm:gap-6 sm:py-20">
-        <div
-            class="loop-energy-card loop-energy-card--ink loop-wallet--liquid loop-reveal p-7 sm:p-9"
-            x-data="loopReveal(40)"
-            :class="{ 'is-shown': shown, 'is-alive': shown }"
-        >
-            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+        <div class="loop-energy-card loop-energy-card--ink p-7 sm:p-9">
+            <div class="loop-orb loop-orb--a"></div>
+            <div class="loop-orb loop-orb--b"></div>
+            <div class="loop-orb loop-orb--c"></div>
             <div class="relative">
                 <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_business_title') }}</h2>
                 <ul class="mt-6 space-y-4 text-sm text-white/75">
-                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_1') }}</li>
-                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_2') }}</li>
-                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_3') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_1') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_2') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-lime">◆</span>{{ __('loop.for_business_3') }}</li>
                 </ul>
-                <a href="{{ route('business.register') }}" class="loop-btn-lime loop-energy-cta mt-8">{{ __('loop.cta_business') }}</a>
+                <a href="{{ route('business.register') }}" class="loop-btn-lime mt-8">{{ __('loop.cta_business') }}</a>
             </div>
         </div>
-        <div
-            class="loop-energy-card loop-energy-card--chalk loop-reveal p-7 sm:p-9"
-            x-data="loopReveal(160)"
-            :class="{ 'is-shown': shown, 'is-alive': shown }"
-        >
+        <div class="loop-energy-card loop-energy-card--chalk p-7 sm:p-9">
             <div class="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-violet/20 blur-3xl" aria-hidden="true"></div>
             <div class="pointer-events-none absolute -bottom-8 -left-6 h-32 w-32 rounded-full bg-lime/25 blur-3xl" aria-hidden="true"></div>
             <div class="relative">
                 <h2 class="font-display text-2xl font-semibold">{{ __('loop.for_customers_title') }}</h2>
                 <ul class="mt-6 space-y-4 text-sm text-ink-muted">
-                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_1') }}</li>
-                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_2') }}</li>
-                    <li class="loop-energy-line flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_1') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_2') }}</li>
+                    <li class="flex gap-3"><span class="mt-0.5 text-violet">●</span>{{ __('loop.for_customers_3') }}</li>
                 </ul>
-                <a href="{{ route('customer.login') }}" class="loop-btn loop-energy-cta mt-8">{{ __('loop.cta_customer') }}</a>
+                <a href="{{ route('customer.login') }}" class="loop-btn mt-8">{{ __('loop.cta_customer') }}</a>
             </div>
         </div>
     </section>
@@ -123,7 +112,7 @@
             <p class="mt-3 max-w-2xl text-sm text-ink-muted sm:text-base">{{ __('loop.countries_body') }}</p>
             <div class="mt-8 flex flex-wrap gap-2">
                 @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
-                    <span class="rounded-full border border-ink/10 bg-white px-3.5 py-1.5 text-sm font-medium">{{ $meta['flag'] }} {{ $meta['name'] }}</span>
+                    <span class="loop-glass !rounded-full px-3.5 py-1.5 text-sm font-medium">{{ $meta['flag'] }} {{ $meta['name'] }}</span>
                 @endforeach
             </div>
         </div>

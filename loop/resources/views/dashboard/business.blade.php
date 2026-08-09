@@ -1,12 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
         <div
-            class="loop-wallet loop-wallet--liquid mb-2 px-5 py-6 sm:px-7 sm:py-7"
-            x-data="loopLivingWallet()"
+            class="loop-wallet mb-2 px-5 py-6 sm:px-7 sm:py-7"
         >
-            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+            <div class="loop-orb loop-orb--a "></div>
+            <div class="loop-orb loop-orb--b "></div>
+            <div class="loop-orb loop-orb--c "></div>
             <div class="relative flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
@@ -19,22 +18,22 @@
     </x-slot>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-stat loop-reveal" x-data="loopReveal(40)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.shops') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $shopCount }})" x-text="formatted()">{{ $shopCount }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold">{{ $shopCount }}</p>
         </div>
-        <div class="loop-stat loop-reveal" x-data="loopReveal(90)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.today') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $todayVisits }})" x-text="formatted()">{{ $todayVisits }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold">{{ $todayVisits }}</p>
             <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($todaySpend, 0) }}</p>
         </div>
-        <div class="loop-stat loop-reveal" x-data="loopReveal(140)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.members') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $memberCount }})" x-text="formatted()">{{ $memberCount }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold">{{ $memberCount }}</p>
         </div>
-        <div class="loop-stat loop-reveal" x-data="loopReveal(190)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $visitCount }})" x-text="formatted()">{{ $visitCount }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold">{{ $visitCount }}</p>
         </div>
     </div>
 
@@ -92,7 +91,7 @@
     @endif
 
     @if ($isOwner && $referralProgress)
-        <section class="loop-wallet loop-wallet--liquid mt-6 p-6" x-data="loopLivingWallet()">
+        <section class="loop-wallet loop-wallet--liquid mt-6 p-6">
             <div class="loop-orb loop-orb--a !h-28 !w-28 !blur-2xl"></div>
             <div class="loop-orb loop-orb--b !h-24 !w-24 !blur-2xl"></div>
             <div class="relative flex flex-wrap items-start justify-between gap-4">

@@ -17,8 +17,8 @@
 @endphp
 
 <a href="{{ $href }}" {{ $attributes->merge(['class' => $sizeClass]) }}>
-    <div class="overflow-hidden rounded-[1.5rem] border border-ink/10 bg-white transition group-hover:-translate-y-1">
-        <div class="relative aspect-[4/5] overflow-hidden bg-ink">
+    <div class="overflow-hidden rounded-[1.5rem] border border-white/55 bg-white/55 shadow-[0_12px_40px_rgba(17,17,20,0.06)] backdrop-blur-xl transition group-hover:-translate-y-1">
+        <div class="relative aspect-[4/5] overflow-hidden bg-ink" @if($carousel) data-loop-parallax @endif>
             @if ($business->logoUrl())
                 <img src="{{ $business->logoUrl() }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
             @else

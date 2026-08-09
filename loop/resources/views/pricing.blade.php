@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
 <div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
@@ -29,15 +30,14 @@
             <p class="mt-4 text-base text-ink-muted sm:text-lg">{{ __('loop.pricing_blurb') }}</p>
         </div>
 
-        <x-pricing-grid :plans="$plans" />
+        <div class="animate-fade-up-delay">
+            <x-pricing-grid :plans="$plans" :animate="false" />
+        </div>
 
-        <section
-            class="loop-wallet loop-wallet--liquid mx-auto mt-16 max-w-3xl p-8 sm:p-10 animate-fade-up"
-            x-data="loopLivingWallet()"
-        >
-            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+        <section class="loop-wallet mx-auto mt-16 max-w-3xl p-8 sm:p-10">
+            <div class="loop-orb loop-orb--a"></div>
+            <div class="loop-orb loop-orb--b"></div>
+            <div class="loop-orb loop-orb--c"></div>
             <div class="relative">
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.why_trial_title') }}</p>
                 <h2 class="mt-3 font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.why_trial_headline') }}</h2>

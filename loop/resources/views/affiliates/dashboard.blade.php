@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div
-            class="loop-wallet loop-wallet--liquid mb-2 px-5 py-6 sm:px-7 sm:py-8"
+            class="loop-wallet  mb-2 px-5 py-6 sm:px-7 sm:py-8"
             x-data="{
                 code: @js($affiliate->promo_code),
                 url: @js($shareUrl),
@@ -14,9 +14,9 @@
                 }
             }"
         >
-            <div class="loop-orb loop-orb--a loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--b loop-orb--enter"></div>
-            <div class="loop-orb loop-orb--c loop-orb--enter"></div>
+            <div class="loop-orb loop-orb--a "></div>
+            <div class="loop-orb loop-orb--b "></div>
+            <div class="loop-orb loop-orb--c "></div>
             <div class="relative" id="share">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
@@ -44,7 +44,7 @@
         </div>
     </x-slot>
 
-    <section class="loop-panel loop-panel--energy loop-reveal p-6 sm:p-8" x-data="loopReveal(60)" :class="{ 'is-shown': shown }">
+    <section class="loop-panel loop-panel--energy p-6 sm:p-8">
         <h2 class="relative font-display text-xl font-semibold">{{ __('loop.customize_promo') }}</h2>
         <p class="relative mt-1 text-sm text-ink-muted">{{ __('loop.customize_promo_body') }}</p>
         <form method="POST" action="{{ route('affiliate.promo.update') }}" class="relative mt-5 flex flex-wrap gap-3">
@@ -57,25 +57,25 @@
     </section>
 
     <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="loop-stat loop-reveal" x-data="loopReveal(80)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-violet">{{ __('loop.signups') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $stats['signups'] }})" x-text="formatted()">{{ $stats['signups'] }}</p>
         </div>
-        <div class="loop-stat loop-reveal" x-data="loopReveal(120)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-violet">{{ __('loop.qualified') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $stats['qualified'] }})" x-text="formatted()">{{ $stats['qualified'] }}</p>
         </div>
-        <div class="loop-stat loop-reveal" x-data="loopReveal(160)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-violet">{{ __('loop.earned') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $stats['earned'] }})" x-text="formatted()">{{ number_format($stats['earned']) }}</p>
         </div>
-        <div class="loop-stat loop-reveal" x-data="loopReveal(200)" :class="{ 'is-shown': shown }">
+        <div class="loop-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-violet">{{ __('loop.pending') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold" x-data="loopCountUp({{ (int) $stats['pending'] }})" x-text="formatted()">{{ $stats['pending'] }}</p>
         </div>
     </div>
 
-    <section id="referrals" class="mt-10 loop-reveal" x-data="loopReveal(240)" :class="{ 'is-shown': shown }">
+    <section id="referrals" class="mt-10">
         <h2 class="font-display text-xl font-semibold">{{ __('loop.your_referrals') }}</h2>
         <div class="mt-4 space-y-3">
             @forelse ($referrals as $row)
