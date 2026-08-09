@@ -7,7 +7,7 @@
     <div class="mx-auto max-w-lg">
         <div class="text-center">
             @if ($business->logo_path)
-                <div class="mx-auto mb-4 flex h-16 w-full max-w-[14rem] items-center justify-center overflow-hidden rounded-2xl bg-chalk ring-2 ring-mint-deep/20">
+                <div class="mx-auto mb-4 flex h-16 w-full max-w-[14rem] items-center justify-center overflow-hidden rounded-2xl bg-ink ring-2 ring-violet/25">
                     <img src="{{ $business->logoUrl() }}" alt="" class="max-h-full max-w-full object-contain p-2">
                 </div>
             @endif
@@ -45,18 +45,25 @@
                 class="mt-6 overflow-hidden rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
                 x-data="{
                     fileName: '',
-                    preview: null,
+                    preview: @js($business->logoUrl()),
+                    hadLogo: @js((bool) $business->logo_path),
+                    dirty: false,
                     uploading: false,
+                    openPicker() {
+                        this.$refs.logoInput.value = '';
+                        this.$refs.logoInput.click();
+                    },
                     pick(e) {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         this.fileName = file.name;
+                        this.dirty = true;
                         const reader = new FileReader();
                         reader.onload = (ev) => { this.preview = ev.target.result; };
                         reader.readAsDataURL(file);
                     },
                     submit(e) {
-                        if (!this.fileName || this.uploading) { e.preventDefault(); return; }
+                        if (!this.dirty || this.uploading) { e.preventDefault(); return; }
                         this.uploading = true;
                     }
                 }"
@@ -66,29 +73,50 @@
                 <div class="text-center">
                     <h2 class="font-display text-2xl font-semibold">{{ __('loop.add_logo') }}</h2>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.add_logo_body') }}</p>
-                    <p class="mt-2 text-xs font-semibold text-violet">{{ __('loop.logo_required_body') }}</p>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.add_logo_wide_hint') }}</p>
-                    <x-input-error :messages="$errors->get('logo')" class="mt-2" />
+                    <p class="mt-2 text-xs text-ink-muted">{{ __('loop.logo_style_hint') }}</p>
                 </div>
                 <div class="mt-8 flex flex-col items-center">
-                    {{-- Wide frame so horizontal wordmarks fit without cropping --}}
-                    <div class="relative flex h-32 w-full max-w-sm items-center justify-center overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-chalk via-white to-mint-soft ring-4 ring-mint-deep/15">
-                        <template x-if="preview"><img :src="preview" alt="" class="max-h-full max-w-full object-contain p-4"></template>
-                        <div x-show="!preview" class="flex h-full w-full items-center justify-center font-display text-4xl text-mint-deep">{{ mb_substr($business->name, 0, 1) }}</div>
-                        <div x-show="uploading" x-cloak class="absolute inset-0 flex flex-col items-center justify-center bg-ink/70 backdrop-blur-sm">
+                    {{-- Dark frame (Loop style) so white logos stay visible — Instagram-style --}}
+                    <button
+                        type="button"
+                        class="relative flex h-40 w-full max-w-sm items-center justify-center overflow-hidden rounded-[1.75rem] bg-ink ring-4 ring-violet/25 transition hover:ring-lime/40 focus:outline-none focus:ring-lime/50"
+                        @click="openPicker()"
+                        aria-label="{{ __('loop.add_logo') }}"
+                    >
+                        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(91,46,255,0.35),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(200,255,61,0.18),transparent_45%)]"></div>
+                        <template x-if="preview">
+                            <img :src="preview" alt="" class="relative z-[1] max-h-full max-w-full object-contain p-6">
+                        </template>
+                        <div x-show="!preview" class="relative z-[1] flex flex-col items-center justify-center gap-3 text-white">
+                            <span class="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20 backdrop-blur-sm">
+                                <svg class="h-8 w-8 text-lime" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" aria-hidden="true">
+                                    <path stroke-linecap="round" d="M12 5v14M5 12h14" />
+                                </svg>
+                            </span>
+                            <span class="text-sm font-semibold text-white/80">{{ __('loop.tap_to_add_logo') }}</span>
+                        </div>
+                        <div x-show="uploading" x-cloak class="absolute inset-0 z-[2] flex flex-col items-center justify-center bg-ink/80 backdrop-blur-sm">
                             <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/30 border-t-lime"></div>
                             <p class="mt-3 text-xs font-semibold text-white">{{ __('loop.uploading') }}</p>
                         </div>
-                    </div>
-                    <label class="mt-6 inline-flex cursor-pointer items-center justify-center rounded-xl bg-mint-deep px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink">
-                        <span x-text="fileName ? '{{ __('loop.change_image') }}' : '{{ __('loop.upload') }}'"></span>
-                        <input type="file" name="logo" accept="image/*" class="sr-only" required @change="pick">
-                    </label>
+                    </button>
+                    <input type="file" name="logo" accept="image/*" class="sr-only" x-ref="logoInput" @change="pick" :required="!hadLogo">
+                    <button
+                        type="button"
+                        x-show="preview && dirty"
+                        x-cloak
+                        class="mt-4 text-sm font-semibold text-violet underline underline-offset-2"
+                        @click="openPicker()"
+                    >{{ __('loop.change_image') }}</button>
+                    <p x-show="hadLogo && !dirty" x-cloak class="mt-4 text-xs text-ink-muted">{{ __('loop.tap_logo_to_replace') }}</p>
                 </div>
-                <button type="submit" class="loop-btn mt-8 w-full" :disabled="!fileName || uploading" :class="{ 'opacity-60': !fileName || uploading }">
+                <button type="submit" class="loop-btn mt-8 w-full" :disabled="!dirty || uploading" :class="{ 'opacity-60': !dirty || uploading }">
                     <span x-show="!uploading">{{ __('loop.save_logo') }}</span>
                     <span x-show="uploading" x-cloak>{{ __('loop.uploading') }}</span>
                 </button>
+                @if ($business->logo_path)
+                    <a href="{{ route('onboarding.show', ['step' => 2]) }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">{{ __('loop.keep_this_logo') }} →</a>
+                @endif
             </form>
         @elseif ($step === 2)
             <form method="POST" action="{{ route('onboarding.branches') }}" class="mt-6 overflow-hidden rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8">
@@ -102,6 +130,7 @@
                     <input type="number" min="1" max="50" name="branch_count" value="{{ old('branch_count', $business->branch_count ?: 1) }}" class="loop-input text-center text-2xl font-display font-semibold" required>
                 </div>
                 <button class="loop-btn mt-8 w-full">{{ __('loop.next') }}</button>
+                <a href="{{ route('onboarding.show', ['step' => 1]) }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">{{ __('loop.back_to_logo') }}</a>
             </form>
         @elseif ($step === 3)
             <form
@@ -181,10 +210,11 @@
                     @if ($branchIndex === 1)
                         <div>
                             <label class="loop-label">{{ __('loop.hotline') }}</label>
-                            <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
-                                <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink">{{ $dial }}</span>
-                                <input name="hotline" value="{{ old('hotline', $business->hotline ? preg_replace('/^\+\d+\s*/', '', (string) $business->hotline) : '') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm focus:ring-0" placeholder="712 345 678">
-                            </div>
+                            <x-phone-field
+                                name="hotline"
+                                :dial="$dial"
+                                :value="old('hotline', $business->hotline ? preg_replace('/^\+\d+\s*/', '', (string) $business->hotline) : '')"
+                            />
                             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.onboarding_hotline_hint') }}</p>
                         </div>
                     @endif

@@ -71,12 +71,13 @@
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.phone') }}</label>
-                    <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
-                        <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink" x-text="dial">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</span>
-                        <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm focus:ring-0" placeholder="712 345 678" required>
-                    </div>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.phone_prefix_hint') }}</p>
-                    <x-input-error :messages="$errors->get('phone')" class="mt-1" />
+                    <x-phone-field
+                        name="phone"
+                        :dial="\App\Support\Countries::dial(old('country', $preferredCountry))"
+                        x-dial="dial"
+                        :value="old('phone')"
+                        :required="true"
+                    />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.email_optional') }}</label>
@@ -132,26 +133,23 @@
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.hotline') }}</label>
-                    <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
-                        <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink" x-text="dial">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</span>
-                        <input type="hidden" name="hotline_country_code" :value="dial">
-                        <input name="hotline" value="{{ old('hotline') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm focus:ring-0" placeholder="712 345 678">
-                    </div>
+                    <x-phone-field
+                        name="hotline"
+                        :dial="\App\Support\Countries::dial(old('country', $preferredCountry))"
+                        x-dial="dial"
+                        hidden-dial-name="hotline_country_code"
+                        :value="old('hotline')"
+                    />
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
                 </div>
-                <div class="rounded-[1.5rem] border border-violet/20 bg-violet-soft/50 p-4">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.referral_code') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.referral_code_where') }}</p>
-                    <label class="loop-label mt-3">{{ __('loop.referral_code') }}</label>
+                <div>
+                    <label class="loop-label">{{ __('loop.referral_code') }} ({{ __('loop.optional') }})</label>
                     <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
                     @if (!empty($referrerBusiness))
                         <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
                     @elseif (!empty($referrerAffiliate))
                         <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by_affiliate') }}</p>
-                    @else
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
                     @endif
-                    <x-input-error :messages="$errors->get('referral_code')" class="mt-1" />
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>

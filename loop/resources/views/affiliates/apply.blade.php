@@ -25,6 +25,8 @@
         <div
             x-data="{
                 step: {{ (int) old('_step', 1) }},
+                country: @js(old('country', $preferredCountry)),
+                dials: @js(collect($countries)->mapWithKeys(fn ($m, $c) => [$c => $m['dial']])->all()),
                 go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
                 next() {
                     const form = this.$refs.form;
@@ -72,7 +74,7 @@
                     </div>
                     <div class="mt-4">
                         <label class="loop-label">{{ __('loop.country') }}</label>
-                        <select name="country" class="loop-input" :required="step === 1">
+                        <select name="country" class="loop-input" :required="step === 1" x-model="country">
                             @foreach ($countries as $code => $meta)
                                 <option value="{{ $code }}" @selected(old('country', $preferredCountry) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
                             @endforeach
@@ -80,8 +82,10 @@
                     </div>
                     <div class="mt-4">
                         <label class="loop-label">{{ __('loop.phone') }}</label>
-                        <input name="phone" value="{{ old('phone') }}" class="loop-input" :required="step === 1" placeholder="+255 712 000 000">
-                        <x-input-error :messages="$errors->get('phone')" class="mt-1" />
+                        <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                            <span class="flex shrink-0 items-center border-r border-ink/10 bg-chalk px-3.5 text-sm font-semibold tabular-nums text-ink" x-text="dials[country] || '+255'">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</span>
+                            <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" :required="step === 1" placeholder="7xxxxxxxx" inputmode="tel">
+                        </div>
                     </div>
                     <div class="mt-4">
                         <label class="loop-label">{{ __('loop.email_optional') }}</label>

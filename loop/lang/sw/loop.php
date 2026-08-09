@@ -1215,4 +1215,12 @@ return [
     'affiliate_nav_share' => 'Shiriki na pata',
     'affiliate_nav_referrals' => 'Rufaa zako',
     'affiliate_nav_how' => 'Jinsi inavyofanya kazi',
+    'optional' => 'si lazima',
+    'login_failed_title' => 'Imeshindikana kuingia',
+    'login_failed_body' => 'Taarifa hazilingani. Angalia simu na nywila, kisha jaribu tena.',
+    'logo_style_hint' => 'Inaonekana kwenye fremu nyeusi ya Loop ili nembo nyeupe zionekane wazi.',
+    'tap_to_add_logo' => 'Gusa kuongeza nembo',
+    'tap_logo_to_replace' => 'Gusa nembo kubadilisha, kisha hifadhi.',
+    'keep_this_logo' => 'Endelea na nembo hii',
+    'back_to_logo' => '← Badilisha nembo',
 ];

@@ -55,9 +55,13 @@ class AffiliateAuthController extends Controller
         }
 
         if (! $ok) {
-            return back()->withInput()->withErrors([
-                $data['method'] === 'pin' ? 'pin' : 'password' => __('loop.affiliate_login_failed'),
-            ]);
+            return back()->withInput()->with('confirm', Confirm::make(
+                __('loop.login_failed_title'),
+                __('loop.affiliate_login_failed'),
+                __('loop.try_again'),
+                route('affiliate.login'),
+                false,
+            ));
         }
 
         Auth::login($user);

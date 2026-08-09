@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Confirm;
 use App\Support\Countries;
 use App\Support\Sectors;
 use Illuminate\Http\RedirectResponse;
@@ -80,7 +81,13 @@ class CustomerAuthController extends Controller
             ->first();
 
         if (! $user || ! $user->password || ! Hash::check($data['pin'], $user->password)) {
-            return back()->withErrors(['pin' => __('loop.pin_incorrect')]);
+            return back()->with('confirm', Confirm::make(
+                __('loop.login_failed_title'),
+                __('loop.pin_incorrect'),
+                __('loop.try_again'),
+                route('customer.pin'),
+                false,
+            ));
         }
 
         Auth::login($user);

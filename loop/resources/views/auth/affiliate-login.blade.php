@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <div class="mx-auto max-w-md">
+    <div class="mx-auto w-full max-w-md">
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.affiliates') }}</p>
         <h1 class="mt-2 font-display text-3xl font-semibold">{{ __('loop.affiliate_login') }}</h1>
         <p class="mt-2 text-sm text-ink-muted">{{ __('loop.affiliate_login_blurb') }}</p>
@@ -7,16 +7,15 @@
         <form method="POST" action="{{ route('affiliate.login') }}" class="mt-8 space-y-4" x-data="{ method: 'pin' }">
             @csrf
             <div>
-                <label class="loop-label">{{ __('loop.country_code') }}</label>
-                <select name="country_code" class="loop-input" required>
-                    @foreach ($countries as $code => $meta)
-                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
                 <label class="loop-label">{{ __('loop.phone') }}</label>
-                <input name="phone" value="{{ old('phone') }}" class="loop-input" required>
+                <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                    <select name="country_code" class="shrink-0 border-0 border-r border-ink/10 bg-chalk py-3 pl-3 pr-8 text-sm font-semibold focus:ring-0" required>
+                        @foreach ($countries as $code => $meta)
+                            <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
+                        @endforeach
+                    </select>
+                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required inputmode="tel" autocomplete="tel-national">
+                </div>
             </div>
 
             <div class="flex gap-2">
@@ -28,12 +27,10 @@
             <div x-show="method==='pin'">
                 <label class="loop-label">{{ __('loop.pin') }} ({{ $pinLength }} {{ __('loop.digits') }})</label>
                 <input type="password" inputmode="numeric" name="pin" maxlength="{{ $pinLength }}" class="loop-input" autocomplete="one-time-code">
-                <x-input-error :messages="$errors->get('pin')" class="mt-1" />
             </div>
             <div x-show="method==='password'" x-cloak>
                 <label class="loop-label">{{ __('loop.password') }}</label>
                 <input type="password" name="password" class="loop-input" autocomplete="current-password">
-                <x-input-error :messages="$errors->get('password')" class="mt-1" />
             </div>
 
             <button class="loop-btn-mint w-full">{{ __('loop.log_in') }}</button>

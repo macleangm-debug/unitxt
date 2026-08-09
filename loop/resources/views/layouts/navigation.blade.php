@@ -117,8 +117,15 @@
                 aria-label="{{ __('loop.menu') }}"
             >
             <div class="flex items-center justify-between border-b border-ink/10 px-4 py-4">
-                <p class="font-display text-lg font-semibold">{{ __('loop.menu') }}</p>
-                <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-ink/10 bg-chalk" @click="open = false" aria-label="{{ __('loop.close') }}">
+                <div>
+                    <p class="font-display text-lg font-semibold">{{ __('loop.menu') }}</p>
+                    @if ($user->isAffiliate())
+                        <p class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.affiliate_role_badge') }}</p>
+                    @else
+                        <p class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">Loop</p>
+                    @endif
+                </div>
+                <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white" @click="open = false" aria-label="{{ __('loop.close') }}">
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
                 </button>
             </div>

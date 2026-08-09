@@ -6,24 +6,25 @@
     :aside-point2="__('loop.auth_aside_2')"
     :aside-point3="__('loop.auth_aside_3')"
 >
-    <form method="POST" action="{{ route('staff.login') }}" class="space-y-4">
+    <form method="POST" action="{{ route('staff.login') }}" class="space-y-4" x-data="{
+        country: @js(old('country_code', \App\Support\Countries::dial(session('preferred_country', 'TZ')))),
+        dials: @js(collect($countries)->mapWithKeys(fn ($m, $c) => [$m['dial'] => $m['dial']])->all()),
+    }">
         @csrf
         <div>
             <h1 class="font-display text-2xl font-semibold">{{ __('loop.staff_login') }}</h1>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.staff_login_blurb') }}</p>
         </div>
         <div>
-            <label class="loop-label">{{ __('loop.country_prefix') }}</label>
-            <select name="country_code" class="loop-input">
-                @foreach ($countries as $code => $meta)
-                    <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial(session('preferred_country', 'TZ'))) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div>
             <label class="loop-label">{{ __('loop.phone') }}</label>
-            <input name="phone" value="{{ old('phone') }}" class="loop-input" placeholder="+255 712 345 678" required autofocus>
-            <x-input-error :messages="$errors->get('phone')" class="mt-1" />
+            <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                <select name="country_code" x-model="country" class="shrink-0 border-0 border-r border-ink/10 bg-chalk py-3 pl-3 pr-8 text-sm font-semibold focus:ring-0">
+                    @foreach ($countries as $code => $meta)
+                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial(session('preferred_country', 'TZ'))) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
+                    @endforeach
+                </select>
+                <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="tel" autocomplete="tel-national">
+            </div>
         </div>
         <div>
             <label class="loop-label">{{ __('loop.password') }}</label>

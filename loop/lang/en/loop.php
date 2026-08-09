@@ -1223,4 +1223,12 @@ return [
     'affiliate_nav_share' => 'Share & earn',
     'affiliate_nav_referrals' => 'Your referrals',
     'affiliate_nav_how' => 'How it works',
+    'optional' => 'optional',
+    'login_failed_title' => 'Couldn’t sign in',
+    'login_failed_body' => 'Those details don’t match our records. Check the phone and password, then try again.',
+    'logo_style_hint' => 'Shown on a dark Loop frame so light and white logos stay clear.',
+    'tap_to_add_logo' => 'Tap to add logo',
+    'tap_logo_to_replace' => 'Tap the logo to replace it, then save.',
+    'keep_this_logo' => 'Keep this logo',
+    'back_to_logo' => '← Change logo',
 ];

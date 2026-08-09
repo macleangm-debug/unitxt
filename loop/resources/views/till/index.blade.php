@@ -54,11 +54,13 @@
 
         <div>
             <label class="loop-label">{{ __('loop.customer_phone') }}</label>
-            <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
-                <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink">{{ $defaultDial }}</span>
-                <input type="hidden" name="country_code" value="{{ $defaultDial }}">
-                <input name="phone" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-lg focus:ring-0" placeholder="712 345 678" required autofocus>
-            </div>
+            <x-phone-field
+                name="phone"
+                :dial="$defaultDial"
+                hidden-dial-name="country_code"
+                :required="true"
+                :autofocus="true"
+            />
         </div>
         <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
     </form>

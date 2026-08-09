@@ -46,16 +46,15 @@
                 <form method="POST" action="{{ route('affiliates.status.lookup') }}" class="space-y-4">
                     @csrf
                     <div>
-                        <label class="loop-label">{{ __('loop.country_code') }}</label>
-                        <select name="country_code" class="loop-input" required>
-                            @foreach ($countries as $code => $meta)
-                                <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
                         <label class="loop-label">{{ __('loop.phone') }}</label>
-                        <input name="phone" value="{{ old('phone') }}" class="loop-input" required placeholder="+255 712 345 678">
+                        <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                            <select name="country_code" class="shrink-0 border-0 border-r border-ink/10 bg-chalk py-3 pl-3 pr-8 text-sm font-semibold focus:ring-0" required>
+                                @foreach ($countries as $code => $meta)
+                                    <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
+                                @endforeach
+                            </select>
+                            <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" required placeholder="7xxxxxxxx" inputmode="tel">
+                        </div>
                     </div>
                     <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>
                 </form>

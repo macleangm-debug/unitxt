@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Confirm;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,9 +38,13 @@ class StaffSessionController extends Controller
             ->first();
 
         if (! $user || ! $user->is_active || ! $user->password || ! Hash::check($data['password'], $user->password)) {
-            return back()->withInput($request->only('country_code', 'phone'))->withErrors([
-                'phone' => 'Those staff credentials do not match our records.',
-            ]);
+            return back()->withInput($request->only('country_code', 'phone'))->with('confirm', Confirm::make(
+                __('loop.login_failed_title'),
+                __('loop.login_failed_body'),
+                __('loop.try_again'),
+                route('staff.login'),
+                false,
+            ));
         }
 
         Auth::login($user, $request->boolean('remember'));

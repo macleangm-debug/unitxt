@@ -32,7 +32,7 @@
             <div class="relative grid gap-5 sm:gap-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
                 <div class="mx-auto lg:mx-0">
                     @if ($business->logoUrl())
-                        <div class="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] bg-white/95 ring-4 ring-white/15 sm:h-36 sm:w-36">
+                        <div class="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] bg-ink ring-4 ring-white/15 sm:h-36 sm:w-36">
                             <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="max-h-full max-w-full object-contain p-2.5">
                         </div>
                     @else

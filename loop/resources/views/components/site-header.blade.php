@@ -113,10 +113,13 @@
                         aria-label="{{ __('loop.menu') }}"
                     >
                     <div class="flex items-center justify-between border-b border-ink/10 px-4 py-4">
-                        <p class="font-display text-lg font-semibold text-ink">{{ __('loop.menu') }}</p>
+                        <div>
+                            <p class="font-display text-lg font-semibold text-ink">{{ __('loop.menu') }}</p>
+                            <p class="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">Loop</p>
+                        </div>
                         <button
                             type="button"
-                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-ink/10 bg-chalk text-ink"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white"
                             @click="menuOpen = false"
                             aria-label="{{ __('loop.close') }}"
                         >
