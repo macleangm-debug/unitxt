@@ -14,6 +14,10 @@
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin') }}</p>
             <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.integrations_hub') }}</h1>
             <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.integrations_hub_blurb') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">
+                {{ __('loop.integrations_settings_note') }}
+                <a href="{{ route('admin.settings') }}" class="font-semibold text-violet">{{ __('loop.admin_settings_hub') }} →</a>
+            </p>
         </div>
     </x-slot>
 

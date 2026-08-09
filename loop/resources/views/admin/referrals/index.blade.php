@@ -15,8 +15,16 @@
     <div class="loop-admin-tabs" role="tablist">
         <a href="{{ route('admin.referrals.index', ['tab' => 'progress']) }}"
            class="loop-admin-tab {{ $tab === 'progress' ? 'is-active' : '' }}">{{ __('loop.referral_tab_progress') }}</a>
-        <a href="{{ route('admin.referrals.program') }}"
-           class="loop-admin-tab {{ request()->routeIs('admin.referrals.program*') ? 'is-active' : '' }}">{{ __('loop.referral_tab_program') }}</a>
+        <a href="{{ route('admin.settings', ['tab' => 'referrals']) }}"
+           class="loop-admin-tab">{{ __('loop.referral_tab_program') }}</a>
+    </div>
+
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-mint-soft/50 px-4 py-3 text-sm text-ink">
+        <div>
+            <p class="font-semibold">{{ __('loop.settings_source_of_truth') }}</p>
+            <p class="mt-1 text-ink-muted">{{ __('loop.referral_settings_managed_in_hub') }}</p>
+        </div>
+        <a href="{{ route('admin.settings', ['tab' => 'referrals']) }}" class="loop-btn-mint !py-2">{{ __('loop.edit_in_settings_hub') }} →</a>
     </div>
 
     <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -1610,4 +1610,11 @@ return [
     'report_referrals' => 'Business referrals',
     'report_daily_signups' => 'Daily business signups',
     'affiliate_kpi_governed' => 'You are governed by KPIs',
+    'settings_source_of_truth' => 'Settings live here',
+    'edit_in_settings_hub' => 'Edit in Settings Hub',
+    'affiliate_settings_managed_in_hub' => 'Affiliate program settings are managed in the Settings Hub.',
+    'referral_settings_managed_in_hub' => 'Referral program settings are managed in the Settings Hub.',
+    'plans_managed_in_hub' => 'Plan catalog is edited in the Settings Hub. This page is a read-only view.',
+    'settings_hub_and_integrations' => 'All platform settings are edited here. Payments, messaging, and email live in the Integrations hub.',
+    'integrations_settings_note' => 'Integration credentials and health only. Program, billing, and product settings are in the Settings Hub.',
 ];

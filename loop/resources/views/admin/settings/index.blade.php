@@ -28,6 +28,7 @@
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.source_of_truth') }}</p>
             <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.admin_settings_hub') }}</h1>
             <p class="mt-1 text-ink-muted">{{ __('loop.admin_settings_hub_blurb') }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_hub_and_integrations') }}</p>
         </div>
     </x-slot>
 
@@ -67,6 +68,10 @@
                         <p class="mt-1 text-xs text-ink-muted">{{ $blurb }}</p>
                     </a>
                 @endforeach
+                <a href="{{ route('admin.integrations.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30 hover:bg-white">
+                    <p class="font-semibold">{{ __('loop.integrations_hub') }}</p>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.integrations_hub_blurb') }}</p>
+                </a>
             </div>
         </section>
     @endif
@@ -590,25 +595,29 @@
                     <p class="font-display text-lg font-semibold">{{ __('loop.edit_plan_catalog') }}</p>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_packages') }}</p>
                 </a>
-                <a href="{{ route('admin.plans.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.view_plans') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_plans') }}</p>
+                <a href="{{ route('admin.settings', ['tab' => 'affiliates']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="font-display text-lg font-semibold">{{ __('loop.configure_affiliates') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_affiliates') }}</p>
+                </a>
+                <a href="{{ route('admin.settings', ['tab' => 'referrals']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_referrals') }}</p>
                 </a>
                 <a href="{{ route('admin.integrations.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
                     <p class="font-display text-lg font-semibold">{{ __('loop.integrations_hub') }}</p>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.integrations_hub_blurb') }}</p>
                 </a>
                 <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.configure_affiliates') }}</p>
+                    <p class="font-display text-lg font-semibold">{{ __('loop.affiliate_applications_queue') }}</p>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_affiliates') }}</p>
                 </a>
                 <a href="{{ route('admin.referrals.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
                     <p class="font-display text-lg font-semibold">{{ __('loop.referral_progress_title') }}</p>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_referrals') }}</p>
                 </a>
-                <a href="{{ route('admin.referrals.program') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_referral_program') }}</p>
+                <a href="{{ route('admin.plans.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="font-display text-lg font-semibold">{{ __('loop.view_plans') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_plans') }}</p>
                 </a>
             </div>
         </section>

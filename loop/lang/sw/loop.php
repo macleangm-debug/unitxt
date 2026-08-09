@@ -1610,4 +1610,11 @@ return [
     'report_referrals' => 'Rufaa za biashara',
     'report_daily_signups' => 'Usajili wa kila siku',
     'affiliate_kpi_governed' => 'Unasimamiwa kwa KPI',
+    'settings_source_of_truth' => 'Mipangilio iko hapa',
+    'edit_in_settings_hub' => 'Hariri kwenye Kitovu cha Mipangilio',
+    'affiliate_settings_managed_in_hub' => 'Mipangilio ya washirika inasimamiwa kwenye Kitovu cha Mipangilio.',
+    'referral_settings_managed_in_hub' => 'Mipangilio ya rufaa inasimamiwa kwenye Kitovu cha Mipangilio.',
+    'plans_managed_in_hub' => 'Orodha ya mipango inahaririwa kwenye Kitovu cha Mipangilio. Ukurasa huu ni wa kusoma tu.',
+    'settings_hub_and_integrations' => 'Mipangilio yote ya jukwaa inahaririwa hapa. Malipo, ujumbe, na barua pepe zipo kwenye Kitovu cha Uunganaji.',
+    'integrations_settings_note' => 'Vitambulisho na afya ya uunganaji pekee. Programu, bili, na bidhaa zipo kwenye Kitovu cha Mipangilio.',
 ];

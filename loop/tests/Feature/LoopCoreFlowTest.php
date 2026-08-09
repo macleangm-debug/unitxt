@@ -847,8 +847,16 @@ class LoopCoreFlowTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('admin.referrals.program'))
+            ->assertRedirect(route('admin.settings', ['tab' => 'referrals']));
+
+        $this->actingAs($admin)
+            ->get(route('admin.affiliates.index', ['tab' => 'settings']))
+            ->assertRedirect(route('admin.settings', ['tab' => 'affiliates']));
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings', ['tab' => 'affiliates']))
             ->assertOk()
-            ->assertSee(__('loop.admin_referral_program'));
+            ->assertSee(__('loop.affiliate_program_settings'));
 
         $this->actingAs($admin)
             ->get(route('admin.reports.index', ['tab' => 'sectors']))

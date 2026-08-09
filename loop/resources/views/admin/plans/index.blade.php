@@ -6,6 +6,14 @@
 
     @include('admin.partials.nav')
 
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-mint-soft/50 px-4 py-3 text-sm text-ink">
+        <div>
+            <p class="font-semibold">{{ __('loop.settings_source_of_truth') }}</p>
+            <p class="mt-1 text-ink-muted">{{ __('loop.plans_managed_in_hub') }}</p>
+        </div>
+        <a href="{{ route('admin.settings', ['tab' => 'packages']) }}" class="loop-btn-mint !py-2">{{ __('loop.edit_in_settings_hub') }} →</a>
+    </div>
+
     <div class="grid gap-4 sm:grid-cols-2">
         @foreach ($plans as $plan)
             <div class="loop-panel p-6">
