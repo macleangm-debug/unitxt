@@ -96,26 +96,23 @@
             </div>
 
             <div class="space-y-4 p-6" x-show="step === 2" x-cloak>
-                <p class="text-sm text-ink-muted">{{ __('loop.birthday_for_campaigns') }}</p>
+                <p class="font-display text-xl font-semibold">{{ __('loop.birthday_for_campaigns') }}</p>
+                <p class="text-sm text-ink-muted">{{ __('loop.birthday_premium_hint') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label class="loop-label">{{ __('loop.month') }}</label>
-                        <select name="birth_month" class="loop-input">
-                            <option value="">—</option>
-                            @for ($m = 1; $m <= 12; $m++)
-                                <option value="{{ $m }}" @selected(old('birth_month') == $m)>{{ $m }}</option>
-                            @endfor
-                        </select>
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.day') }}</label>
-                        <select name="birth_day" class="loop-input">
-                            <option value="">—</option>
-                            @for ($d = 1; $d <= 31; $d++)
-                                <option value="{{ $d }}" @selected(old('birth_day') == $d)>{{ $d }}</option>
-                            @endfor
-                        </select>
-                    </div>
+                    <x-sheet-select
+                        name="birth_month"
+                        :label="__('loop.month')"
+                        :options="collect(range(1,12))->mapWithKeys(fn ($m) => [$m => $m])->all()"
+                        :value="old('birth_month', '')"
+                        :placeholder="__('loop.month')"
+                    />
+                    <x-sheet-select
+                        name="birth_day"
+                        :label="__('loop.day')"
+                        :options="collect(range(1,31))->mapWithKeys(fn ($d) => [$d => $d])->all()"
+                        :value="old('birth_day', '')"
+                        :placeholder="__('loop.day')"
+                    />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.email_optional') }}</label>
@@ -123,7 +120,7 @@
                 </div>
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click="step = 1">{{ __('loop.back') }}</button>
-                    <button type="button" class="loop-btn-mint flex-1" @click="step = 3">{{ __('loop.next') }}</button>
+                    <button type="button" class="loop-btn flex-1" @click="step = 3">{{ __('loop.next') }}</button>
                 </div>
             </div>
         @endunless
@@ -203,7 +200,7 @@
                 @unless ($customer)
                     <button type="button" class="loop-btn-ghost flex-1" @click="step = 2">{{ __('loop.back') }}</button>
                 @endunless
-                <button class="loop-btn-mint flex-1">{{ __('loop.complete_sale') }}</button>
+                <button class="loop-btn flex-1">{{ __('loop.complete_sale') }}</button>
             </div>
             <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
         </div>

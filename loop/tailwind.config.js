@@ -25,18 +25,18 @@ export default {
                 },
                 lime: {
                     DEFAULT: '#C8FF3D',
-                    deep: '#A8E000',
-                    soft: '#F3FFC8',
+                    deep: '#1B5E20',
+                    soft: '#E8F5E9',
                 },
                 chalk: {
                     DEFAULT: '#F7F7F4',
                     warm: '#F0F0EC',
                 },
-                // Legacy aliases so existing blades keep working during migration
+                // Legacy aliases — deep green for readable text on light surfaces
                 mint: {
-                    DEFAULT: '#C8FF3D',
-                    deep: '#A8E000',
-                    soft: '#E9E5FF',
+                    DEFAULT: '#2E7D32',
+                    deep: '#1B5E20',
+                    soft: '#E8F5E9',
                 },
                 coral: '#FF4F70',
             },

@@ -76,6 +76,27 @@ class Countries
         return self::OPTIONS[$country]['cities'] ?? [];
     }
 
+    /**
+     * Popular area / street suggestions after a city is chosen.
+     *
+     * @return list<string>
+     */
+    public static function areas(string $city): array
+    {
+        $map = [
+            'Dar es Salaam' => ['Masaki', 'Mikocheni', 'Kinondoni', 'Kawe', 'Mbezi', 'Upanga', 'Oysterbay', 'Sinza', 'Mbezi Beach', 'Kariakoo'],
+            'Arusha' => ['Njiro', 'Sakina', 'Kaloleni', 'Sombetini', 'Themi'],
+            'Mwanza' => ['Isamilo', 'Nyamagana', 'Ilemela', 'Pamba'],
+            'Nairobi' => ['Westlands', 'Kilimani', 'Karen', 'Lavington', 'CBD', 'Eastleigh'],
+            'Mombasa' => ['Nyali', 'Bamburi', 'Old Town', 'Likoni'],
+            'Kampala' => ['Kololo', 'Nakasero', 'Bugolobi', 'Ntinda', 'Makerere'],
+            'Kigali' => ['Kimihurura', 'Nyarutarama', 'Remera', 'Kacyiru'],
+            'Harare' => ['Borrowdale', 'Avondale', 'CBD', 'Mount Pleasant'],
+        ];
+
+        return $map[$city] ?? [];
+    }
+
     public static function fromDial(string $dial): ?string
     {
         foreach (self::OPTIONS as $code => $meta) {

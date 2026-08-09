@@ -1,3 +1,8 @@
+@php
+    $shopCount = $shops->count();
+    $defaultDial = \App\Support\Countries::dial($business->country ?? session('preferred_country', 'TZ'));
+    $hasRecent = ! empty($showRecent) && isset($recent) && $recent->count() > 0;
+@endphp
 <x-app-layout>
     <x-slot name="header">
         <div class="loop-wallet loop-wallet--liquid mb-2 px-5 py-6 sm:px-7 sm:py-7" x-data="loopLivingWallet()">
@@ -23,50 +28,49 @@
 
     <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 animate-fade-up {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
         @csrf
-        <div>
-            <label class="loop-label">{{ __('loop.shop') }}</label>
-            <select name="shop_id" class="loop-input" required>
-                @foreach ($shops as $shop)
-                    <option value="{{ $shop->id }}">{{ $shop->name }}</option>
-                @endforeach
-            </select>
-        </div>
+        @if ($shopCount > 1)
+            <x-sheet-select
+                name="shop_id"
+                :label="__('loop.shop')"
+                :options="$shops->mapWithKeys(fn ($s) => [$s->id => $s->name])->all()"
+                :value="old('shop_id', $shops->first()?->id)"
+                :required="true"
+            />
+        @else
+            <input type="hidden" name="shop_id" value="{{ $shops->first()?->id }}">
+        @endif
+
         <div>
             <label class="loop-label">{{ __('loop.channel') }}</label>
             <div class="mt-2 grid grid-cols-2 gap-3">
-                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft">
+                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
                     <input type="radio" name="channel" value="in_store" class="sr-only" checked> {{ __('loop.in_store') }}
                 </label>
-                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft">
+                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
                     <input type="radio" name="channel" value="phone_order" class="sr-only"> {{ __('loop.phone_order') }}
                 </label>
             </div>
         </div>
-        <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-            <div>
-                <label class="loop-label">{{ __('loop.country_prefix') }}</label>
-                <select name="country_code" class="loop-input">
-                    @foreach ($countries as $meta)
-                        <option value="{{ $meta['dial'] }}" @selected($meta['dial'] === '+255')>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="loop-label">{{ __('loop.customer_phone') }}</label>
-                <input name="phone" class="loop-input text-lg" placeholder="+255 712 345 678" required autofocus>
+
+        <div>
+            <label class="loop-label">{{ __('loop.customer_phone') }}</label>
+            <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink">{{ $defaultDial }}</span>
+                <input type="hidden" name="country_code" value="{{ $defaultDial }}">
+                <input name="phone" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-lg focus:ring-0" placeholder="712 345 678" required autofocus>
             </div>
         </div>
-        <button class="loop-btn-mint w-full">{{ __('loop.look_up') }}</button>
+        <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
     </form>
 
-    @if (! empty($showRecent))
+    @if ($hasRecent)
         <section class="mx-auto mt-10 max-w-xl">
             <div class="mb-3 flex items-center justify-between">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_till') }}</h2>
                 <a href="{{ route('transactions.index') }}" class="text-sm font-semibold text-mint-deep">{{ __('loop.view_all') }} →</a>
             </div>
             <div class="space-y-3">
-                @forelse ($recent as $visit)
+                @foreach ($recent as $visit)
                     <div class="loop-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                         <div>
                             <p class="font-semibold">{{ $visit->customer->name }} · {{ $visit->shop->name }}</p>
@@ -76,11 +80,9 @@
                                 · {{ $visit->created_at->format('d M Y · H:i') }}
                             </p>
                         </div>
-                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold">+{{ $visit->points_earned }} {{ __('loop.pts') }}</span>
+                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }} {{ __('loop.pts') }}</span>
                     </div>
-                @empty
-                    <p class="text-sm text-ink-muted">{{ __('loop.no_sales_yet') }}</p>
-                @endforelse
+                @endforeach
             </div>
         </section>
     @endif

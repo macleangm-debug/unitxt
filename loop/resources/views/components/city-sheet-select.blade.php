@@ -5,6 +5,7 @@
     'cities' => [],
     'required' => false,
     'countryField' => 'country',
+    'country' => null,
 ])
 
 @php
@@ -12,16 +13,19 @@
     $citiesByCountry = collect(\App\Support\Countries::OPTIONS)
         ->mapWithKeys(fn ($meta, $code) => [$code => $meta['cities'] ?? []])
         ->all();
+    $fixedCountry = $country;
 @endphp
 
 <div
     x-data="{
         open: false,
         value: @js(old($name, $value)),
-        country: @js(session('preferred_country', 'TZ')),
+        country: @js($fixedCountry ?: session('preferred_country', 'TZ')),
         citiesByCountry: @js($citiesByCountry),
+        fixedCountry: @js($fixedCountry),
         q: '',
         get cities() {
+            if (this.fixedCountry) return this.citiesByCountry[this.fixedCountry] || [];
             return this.citiesByCountry[this.country] || [];
         },
         get filtered() {
@@ -30,6 +34,10 @@
             return this.cities.filter(c => c.toLowerCase().includes(q));
         },
         syncCountry() {
+            if (this.fixedCountry) {
+                this.country = this.fixedCountry;
+                return;
+            }
             const el = this.$root.closest('form')?.querySelector('[name={{ $countryField }}]');
             if (el) this.country = el.value;
         },
@@ -37,6 +45,7 @@
             this.value = city;
             this.open = false;
             this.q = '';
+            this.$dispatch('city-picked', { city });
         }
     }"
     x-init="

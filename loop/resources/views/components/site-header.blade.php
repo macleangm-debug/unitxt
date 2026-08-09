@@ -19,12 +19,15 @@
     $burgerClass = $overlay
         ? 'inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white md:hidden'
         : 'inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink/10 bg-white text-ink md:hidden';
+    $actionsHtml = isset($actions) ? (string) $actions : null;
+    $here = url()->full();
 @endphp
 
 <div
     class="{{ $shellClass }}"
     x-data="{ menuOpen: false }"
     @keydown.escape.window="menuOpen = false"
+    x-effect="document.documentElement.classList.toggle('overflow-hidden', menuOpen)"
 >
     <div class="loop-shell flex h-14 items-center gap-3 sm:h-16 sm:gap-4">
         <a href="/" class="flex shrink-0 items-center gap-2 {{ $brandClass }}">
@@ -33,15 +36,14 @@
         </a>
 
         @unless ($slim)
-            @isset($actions)
-                {{-- Desktop / web: horizontal CTAs --}}
+            @if ($actionsHtml)
                 <nav class="hidden min-w-0 flex-1 items-center gap-4 md:flex">
-                    {{ $actions }}
+                    {!! $actionsHtml !!}
                 </nav>
                 <div class="flex-1 md:hidden"></div>
             @else
                 <div class="flex-1"></div>
-            @endisset
+            @endif
         @else
             <div class="flex-1"></div>
         @endunless
@@ -57,12 +59,12 @@
             </form>
 
             <div class="{{ $langWrap }}">
-                <a href="{{ route('locale', 'en') }}" class="rounded-md px-2 py-1 {{ app()->getLocale() === 'en' ? $langActive : $langIdle }}">EN</a>
-                <a href="{{ route('locale', 'sw') }}" class="rounded-md px-2 py-1 {{ app()->getLocale() === 'sw' ? $langActive : $langIdle }}">SW</a>
+                <a href="{{ route('locale', ['locale' => 'en', 'return' => $here]) }}" class="rounded-md px-2 py-1 {{ app()->getLocale() === 'en' ? $langActive : $langIdle }}">EN</a>
+                <a href="{{ route('locale', ['locale' => 'sw', 'return' => $here]) }}" class="rounded-md px-2 py-1 {{ app()->getLocale() === 'sw' ? $langActive : $langIdle }}">SW</a>
             </div>
 
             @unless ($slim)
-                @isset($actions)
+                @if ($actionsHtml)
                     <button
                         type="button"
                         class="{{ $burgerClass }}"
@@ -78,55 +80,57 @@
                             <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
                         </svg>
                     </button>
-                @endisset
+                @endif
             @endunless
         </div>
     </div>
 
     @unless ($slim)
-        @isset($actions)
-            {{-- Mobile: CTAs in side drawer from the three-line icon --}}
-            <div
-                x-show="menuOpen"
-                x-cloak
-                x-transition.opacity.duration.200ms
-                class="fixed inset-0 z-40 bg-ink/40 md:hidden"
-                @click="menuOpen = false"
-                aria-hidden="true"
-            ></div>
-            <div
-                id="loop-mobile-nav"
-                x-show="menuOpen"
-                x-cloak
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="translate-x-full opacity-0"
-                x-transition:enter-end="translate-x-0 opacity-100"
-                x-transition:leave="transition ease-in duration-200"
-                x-transition:leave-start="translate-x-0 opacity-100"
-                x-transition:leave-end="translate-x-full opacity-0"
-                class="fixed inset-y-0 right-0 z-50 flex w-[min(100%,20rem)] flex-col border-l border-ink/10 bg-chalk shadow-2xl md:hidden"
-                role="dialog"
-                aria-modal="true"
-                aria-label="{{ __('loop.menu') }}"
-                @click.outside="menuOpen = false"
-            >
-                <div class="flex items-center justify-between border-b border-ink/10 px-4 py-4">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.menu') }}</p>
-                    <button
-                        type="button"
-                        class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-ink/10 bg-white text-ink"
+        @if ($actionsHtml)
+            <template x-teleport="body">
+                <div>
+                    <div
+                        x-show="menuOpen"
+                        x-cloak
+                        x-transition.opacity.duration.200ms
+                        class="fixed inset-0 z-[60] bg-ink/45 md:hidden"
                         @click="menuOpen = false"
-                        aria-label="{{ __('loop.close') }}"
+                        aria-hidden="true"
+                    ></div>
+                    <div
+                        id="loop-mobile-nav"
+                        x-show="menuOpen"
+                        x-cloak
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="translate-x-full"
+                        x-transition:enter-end="translate-x-0"
+                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave-start="translate-x-0"
+                        x-transition:leave-end="translate-x-full"
+                        class="fixed inset-y-0 right-0 z-[70] flex w-[min(100%,20rem)] flex-col bg-white shadow-2xl md:hidden"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="{{ __('loop.menu') }}"
                     >
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
-                        </svg>
-                    </button>
+                    <div class="flex items-center justify-between border-b border-ink/10 px-4 py-4">
+                        <p class="font-display text-lg font-semibold text-ink">{{ __('loop.menu') }}</p>
+                        <button
+                            type="button"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-ink/10 bg-chalk text-ink"
+                            @click="menuOpen = false"
+                            aria-label="{{ __('loop.close') }}"
+                        >
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+                            </svg>
+                        </button>
+                    </div>
+                    <nav class="loop-mobile-actions flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+                        {!! $actionsHtml !!}
+                    </nav>
+                    </div>
                 </div>
-                <nav class="loop-mobile-actions flex flex-1 flex-col gap-2 overflow-y-auto p-4">
-                    {{ $actions }}
-                </nav>
-            </div>
-        @endisset
+            </template>
+        @endif
     @endunless
 </div>

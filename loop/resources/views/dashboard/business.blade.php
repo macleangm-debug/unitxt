@@ -162,23 +162,23 @@
             </div>
         </section>
         <section>
-            <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
-            <div class="divide-y divide-ink/10">
-                @forelse ($recentVisits as $visit)
-                    <div class="flex items-center justify-between gap-4 py-3.5">
-                        <div class="min-w-0">
-                            <p class="font-semibold">{{ $visit->customer->name }}</p>
-                            <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
-                            <p class="mt-0.5 text-xs font-medium text-violet">+{{ $visit->points_earned }} pts</p>
+            @if ($recentVisits->isNotEmpty())
+                <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
+                <div class="divide-y divide-ink/10">
+                    @foreach ($recentVisits as $visit)
+                        <div class="flex items-center justify-between gap-4 py-3.5">
+                            <div class="min-w-0">
+                                <p class="font-semibold">{{ $visit->customer->name }}</p>
+                                <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
+                                <p class="mt-0.5 text-xs font-medium text-violet">+{{ $visit->points_earned }} pts</p>
+                            </div>
+                            <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
+                                {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                            </p>
                         </div>
-                        <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
-                            {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                        </p>
-                    </div>
-                @empty
-                    <p class="py-3 text-sm text-ink-muted">{{ __('loop.no_sales') }}</p>
-                @endforelse
-            </div>
+                    @endforeach
+                </div>
+            @endif
         </section>
     </div>
 </x-app-layout>

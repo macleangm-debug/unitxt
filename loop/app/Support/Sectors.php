@@ -12,6 +12,8 @@ class Sectors
         'restaurants' => 'Restaurants',
         'coffee' => 'Coffee & cafés',
         'fast_food' => 'Fast food',
+        'bars' => 'Bars & nightlife',
+        'bakery' => 'Bakery & pastry',
         'fashion' => 'Fashion & apparel',
         'beauty' => 'Beauty & salon',
         'health' => 'Health & pharmacy',
@@ -20,10 +22,13 @@ class Sectors
         'electronics' => 'Electronics',
         'retail' => 'General retail',
         'automotive' => 'Automotive',
+        'petrol' => 'Petrol & energy',
         'fitness' => 'Fitness & wellness',
         'hospitality' => 'Hotels & lodging',
         'education' => 'Education & tutoring',
         'services' => 'Professional services',
+        'telecom' => 'Telecom & mobile money',
+        'agriculture' => 'Agriculture & agro',
         'other' => 'Other',
     ];
 

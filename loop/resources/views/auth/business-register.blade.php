@@ -60,9 +60,9 @@
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.phone') }}</label>
-                    <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-                        <div class="loop-input flex items-center justify-center font-semibold text-ink" x-text="dial">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</div>
-                        <input name="phone" value="{{ old('phone') }}" class="loop-input" :placeholder="dial + ' 712 345 678'" placeholder="+255 712 345 678" required>
+                    <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                        <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink" x-text="dial">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</span>
+                        <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm focus:ring-0" placeholder="712 345 678" required>
                     </div>
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.phone_prefix_hint') }}</p>
                     <x-input-error :messages="$errors->get('phone')" class="mt-1" />
@@ -101,26 +101,27 @@
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.sector') }}</label>
-                    <select name="sector" id="sector" class="loop-input" onchange="document.getElementById('other-sector-box').classList.toggle('hidden', this.value !== 'other')">
-                        @foreach ($sectors as $key => $label)
-                            <option value="{{ $key }}" @selected(old('sector', 'coffee') === $key)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div id="other-sector-box" class="{{ old('sector') === 'other' ? '' : 'hidden' }}">
-                    <label class="loop-label">{{ __('loop.other_sector') }}</label>
-                    <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
-                    <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
+                    <x-sheet-select
+                        name="sector"
+                        :options="$sectors"
+                        :value="old('sector', 'coffee')"
+                        :required="true"
+                        :placeholder="__('loop.sector')"
+                    />
+                    <div id="other-sector-box" class="mt-3 {{ old('sector') === 'other' ? '' : 'hidden' }}"
+                         x-data
+                         @sheet-selected.window="if ($event.detail.name === 'sector') { $el.classList.toggle('hidden', $event.detail.value !== 'other') }">
+                        <label class="loop-label">{{ __('loop.other_sector') }}</label>
+                        <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
+                        <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
+                    </div>
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.hotline') }}</label>
-                    <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-                        <select name="hotline_country_code" class="loop-input">
-                            @foreach ($countries as $code => $meta)
-                                <option value="{{ $meta['dial'] }}" @selected(old('hotline_country_code', \App\Support\Countries::dial(old('country', $preferredCountry))) === $meta['dial'])>{{ $meta['dial'] }}</option>
-                            @endforeach
-                        </select>
-                        <input name="hotline" value="{{ old('hotline') }}" class="loop-input" placeholder="+255 712 345 678">
+                    <div class="mt-1 flex overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm focus-within:border-violet focus-within:ring-1 focus-within:ring-violet">
+                        <span class="flex items-center border-r border-ink/10 bg-chalk px-3 text-sm font-semibold text-ink" x-text="dial">{{ \App\Support\Countries::dial(old('country', $preferredCountry)) }}</span>
+                        <input type="hidden" name="hotline_country_code" :value="dial">
+                        <input name="hotline" value="{{ old('hotline') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm focus:ring-0" placeholder="712 345 678">
                     </div>
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
                 </div>

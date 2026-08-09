@@ -16,6 +16,18 @@ class PreferenceController extends Controller
 
         $request->session()->put('locale', $locale);
 
+        $return = $request->query('return');
+        if (is_string($return) && $return !== '') {
+            if (str_starts_with($return, '/') && ! str_starts_with($return, '//')) {
+                return redirect()->to($return);
+            }
+
+            $returnHost = parse_url($return, PHP_URL_HOST);
+            if ($returnHost && $returnHost === $request->getHost()) {
+                return redirect()->to($return);
+            }
+        }
+
         return back();
     }
 

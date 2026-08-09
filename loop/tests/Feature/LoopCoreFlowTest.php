@@ -267,7 +267,7 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee('10 pts');
     }
 
-    public function test_onboarding_offers_then_campaign_completes_setup(): void
+    public function test_onboarding_campaign_then_offers_completes_setup(): void
     {
         $owner = User::factory()->owner()->create(['phone' => '712777001']);
         $business = Business::create([
@@ -293,33 +293,32 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('onboarding.show', ['step' => 4]))
             ->assertOk()
-            ->assertSee(__('loop.pick_offers'))
-            ->assertSee(__('loop.offer_templates.free_meal_500.name'));
-
-        $this->actingAs($owner)
-            ->post(route('onboarding.offers'), [
-                'offers' => ['percent_5_100', 'free_meal_500'],
-            ])
-            ->assertRedirect(route('onboarding.show', ['step' => 5]));
-
-        $this->assertSame(2, $business->rewards()->count());
-        $this->assertNull($business->fresh()->onboarding_completed_at);
-
-        $this->actingAs($owner)
-            ->get(route('onboarding.show', ['step' => 5]))
-            ->assertOk()
-            ->assertSee(__('loop.pick_campaign_earn_only'))
+            ->assertSee(__('loop.pick_campaign'))
             ->assertDontSee('earn_with_discount');
 
         $this->actingAs($owner)
             ->post(route('onboarding.campaign'), ['template' => 'everyday_earn'])
-            ->assertRedirect(route('dashboard'));
+            ->assertRedirect(route('onboarding.show', ['step' => 5]));
 
         $this->assertDatabaseHas('campaigns', [
             'business_id' => $business->id,
             'template_key' => 'everyday_earn',
             'type' => 'earn',
         ]);
+        $this->assertNull($business->fresh()->onboarding_completed_at);
+
+        $this->actingAs($owner)
+            ->get(route('onboarding.show', ['step' => 5]))
+            ->assertOk()
+            ->assertSee(__('loop.pick_offers'));
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.offers'), [
+                'offers' => ['percent_5_100', 'free_meal_500'],
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertSame(2, $business->rewards()->count());
         $this->assertNotNull($business->fresh()->onboarding_completed_at);
         $campaign = $business->campaigns()->first();
         $this->assertSame(2, $campaign->rewards()->count());

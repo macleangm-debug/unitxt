@@ -120,6 +120,7 @@ class TillController extends Controller
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
+        $wasNewCustomer = $customer === null;
         $payWithPoints = $request->boolean('pay_with_points');
 
         if ((float) $data['amount_spent'] <= 0 && ! $payWithPoints) {
@@ -169,11 +170,18 @@ class TillController extends Controller
             $body .= ' — '.$visit->notes;
         }
 
+        $title = $wasNewCustomer
+            ? __('loop.customer_registered_sale_title')
+            : __('loop.sale_done_title');
+
         return redirect()->route('till.index')->with('confirm', Confirm::make(
-            __('loop.sale_done_title'),
-            $body,
+            $title,
+            $wasNewCustomer
+                ? __('loop.customer_registered_sale_body', ['name' => $visit->customer->name, 'earned' => $visit->points_earned])
+                : $body,
             __('loop.next_sale'),
             route('till.index'),
+            $wasNewCustomer,
         ));
     }
 }
