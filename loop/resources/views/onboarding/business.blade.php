@@ -279,9 +279,9 @@
 
                 <p class="mt-6 text-center text-xs text-ink-muted">{{ __('loop.bonus_campaigns_later_note') }}</p>
 
-                <div x-show="selected" x-cloak class="fixed inset-0 z-50 flex items-end justify-center sm:items-center px-0 sm:px-4" @keydown.escape.window="selected=null">
+                <div x-show="selected" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4" @keydown.escape.window="selected=null">
                     <div class="absolute inset-0 bg-ink/50" @click="selected=null"></div>
-                    <div class="relative w-full max-w-md rounded-t-[1.75rem] bg-white p-6 shadow-2xl sm:rounded-3xl sm:p-8">
+                    <div class="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
                         <p class="text-xs font-bold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.confirm_campaign') }}</p>
                         <p class="mt-2 font-display text-2xl font-bold" x-text="name"></p>
                         <p class="mt-2 text-sm text-ink-muted" x-text="description"></p>
@@ -300,13 +300,13 @@
                                     <input type="number" name="points_per_step" min="1" class="loop-input" x-model="pointsPerStep" required>
                                 </div>
                             </div>
-                            <p class="text-xs text-ink-muted">
-                                {{ __('loop.earn_rate_example_prefix') }}
-                                <span class="font-semibold text-ink" x-text="pointsPerStep"></span>
-                                {{ __('loop.pts') }} /
-                                <span class="font-semibold text-ink" x-text="Number(spendStep).toLocaleString()"></span>
-                                {{ $currency }}
-                            </p>
+                            <div class="rounded-2xl bg-mint-soft px-4 py-3 text-center">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.earn_rate_example_prefix') }}</p>
+                                <p class="mt-1 font-display text-xl font-bold text-ink">
+                                    <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
+                                    <span x-text="Number(spendStep).toLocaleString()"></span> {{ $currency }}
+                                </p>
+                            </div>
 
                             <div x-show="type === 'product_push'" x-cloak class="space-y-3 rounded-2xl border border-violet/20 bg-violet-soft/40 p-4">
                                 <div>
