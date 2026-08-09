@@ -119,4 +119,46 @@ class RewardController extends Controller
             'recentRedemptions' => $recent,
         ]);
     }
+
+    public function edit(Request $request, Reward $reward): View
+    {
+        $business = $request->user()->ownedBusiness()->firstOrFail();
+        abort_unless($reward->business_id === $business->id, 403);
+
+        return view('rewards.edit', [
+            'business' => $business,
+            'reward' => $reward,
+        ]);
+    }
+
+    public function update(Request $request, Reward $reward): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness()->firstOrFail();
+        abort_unless($reward->business_id === $business->id, 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'product_name' => ['nullable', 'string', 'max:120'],
+            'points_cost' => ['required', 'integer', 'min:1'],
+            'reward_type' => ['required', 'in:percent_off,fixed_off,free_item,custom'],
+            'reward_value' => ['nullable', 'numeric', 'min:0'],
+            'stock' => ['nullable', 'integer', 'min:0'],
+            'max_redemptions_per_member' => ['nullable', 'integer', 'min:1'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $reward->update([
+            ...$data,
+            'is_active' => $request->boolean('is_active', $reward->is_active),
+        ]);
+
+        return redirect()->route('rewards.show', $reward)->with('confirm', Confirm::make(
+            __('loop.offer_updated_title'),
+            __('loop.offer_updated_body', ['name' => $reward->name]),
+            __('loop.done'),
+            route('rewards.show', $reward),
+            false,
+        ));
+    }
 }
