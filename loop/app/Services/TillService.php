@@ -59,7 +59,6 @@ class TillService
         Shop $shop,
         User $customer,
         float $amountSpent,
-        ?int $rewardId = null,
         ?string $receiptRef = null,
         string $channel = 'in_store',
         bool $applyPointsAsPayment = false,
@@ -92,7 +91,7 @@ class TillService
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
-        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $limits) {
+        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $limits) {
             $existingMembership = Membership::query()
                 ->where('business_id', $business->id)
                 ->where('customer_id', $customer->id)
@@ -149,50 +148,38 @@ class TillService
                 $bonuses = array_merge($bonuses, $streakBonus['labels']);
             }
 
-            $reward = null;
             $pointsRedeemed = 0;
             $discount = 0.0;
 
-            if ($rewardId) {
-                $reward = Reward::query()
-                    ->where('business_id', $business->id)
-                    ->whereKey($rewardId)
-                    ->firstOrFail();
-
-                if (! $reward->isAvailable()) {
-                    throw ValidationException::withMessages(['reward_id' => 'This offer is not available.']);
-                }
-
-                $membershipFresh = Membership::query()->findOrFail($membership->id);
-                if ($membershipFresh->points_balance < $reward->points_cost) {
-                    throw ValidationException::withMessages(['reward_id' => 'Customer does not have enough points yet.']);
-                }
-
-                if ($reward->max_redemptions_per_member) {
-                    $used = Redemption::query()
-                        ->where('reward_id', $reward->id)
-                        ->where('membership_id', $membership->id)
-                        ->count();
-                    if ($used >= $reward->max_redemptions_per_member) {
-                        throw ValidationException::withMessages(['reward_id' => __('loop.offer_max_reached')]);
-                    }
-                }
-
-                $pointsRedeemed = $reward->points_cost;
-                $discount = $reward->discountForAmount($amountSpent);
-            }
-
             if ($applyPointsAsPayment && $pointsToSpend) {
+                if (! $business->payWithPointsEnabled()) {
+                    throw ValidationException::withMessages(['pay_with_points' => __('loop.pay_with_points_disabled')]);
+                }
+
                 $membershipFresh = Membership::query()->findOrFail($membership->id);
-                $needed = $pointsRedeemed + $pointsToSpend;
-                if ($membershipFresh->points_balance < $needed) {
+                if ($membershipFresh->points_balance < $pointsToSpend) {
                     throw ValidationException::withMessages(['points_to_spend' => 'Not enough points.']);
                 }
-                $earn = $this->findEarnCampaign($shop);
-                if ($earn && $earn->points_per_step > 0 && $earn->spend_step > 0) {
-                    $discount += ($pointsToSpend / $earn->points_per_step) * $earn->spend_step;
+
+                $rate = $business->payCurrencyPerPoint();
+                $maxPercent = $business->payPointsMaxPercent();
+                $maxCurrency = $amountSpent > 0
+                    ? round($amountSpent * ($maxPercent / 100), 2)
+                    : PHP_FLOAT_MAX;
+                $requestedCurrency = round($pointsToSpend * $rate, 2);
+
+                if ($amountSpent > 0 && $requestedCurrency > $maxCurrency + 0.009) {
+                    throw ValidationException::withMessages([
+                        'points_to_spend' => __('loop.pay_with_points_max_error', [
+                            'percent' => $maxPercent,
+                            'currency' => $business->currency,
+                            'amount' => number_format($maxCurrency, 0),
+                        ]),
+                    ]);
                 }
-                $pointsRedeemed += $pointsToSpend;
+
+                $discount = min($requestedCurrency, $maxCurrency === PHP_FLOAT_MAX ? $requestedCurrency : $maxCurrency);
+                $pointsRedeemed = $pointsToSpend;
             }
 
             $visit = Visit::create([
@@ -204,7 +191,7 @@ class TillService
                 'recorded_by' => $staff->id,
                 'amount_spent' => $amountSpent,
                 'points_earned' => $pointsEarned,
-                'reward_id' => $reward?->id,
+                'reward_id' => null,
                 'points_redeemed' => $pointsRedeemed,
                 'discount_amount' => $discount,
                 'receipt_ref' => $receiptRef,
@@ -218,26 +205,8 @@ class TillService
                     $pointsRedeemed,
                     $staff,
                     $visit,
-                    $reward ? __('loop.applied_offer', ['name' => $reward->name]) : __('loop.paid_with_points')
+                    __('loop.paid_with_points')
                 );
-
-                if ($reward && $reward->stock !== null) {
-                    $reward->decrement('stock');
-                }
-
-                if ($reward) {
-                    Redemption::create([
-                        'reward_id' => $reward->id,
-                        'membership_id' => $membership->id,
-                        'customer_id' => $customer->id,
-                        'visit_id' => $visit->id,
-                        'recorded_by' => $staff->id,
-                        'points_spent' => $reward->points_cost,
-                        'discount_amount' => $discount,
-                        'status' => 'applied',
-                    ]);
-                }
-
                 $membership->refresh();
             }
 
@@ -256,6 +225,94 @@ class TillService
             }
 
             return $visit->fresh(['customer', 'shop', 'campaign', 'reward', 'membership']);
+        });
+    }
+
+    /**
+     * Redeem an offer without requiring a sale. Points come from one business-wide balance.
+     */
+    public function redeemOffer(
+        User $staff,
+        Shop $shop,
+        User $customer,
+        int $rewardId,
+        ?string $notes = null,
+    ): Redemption {
+        if (! $staff->canUseTill()) {
+            throw ValidationException::withMessages(['staff' => 'You are not allowed to redeem offers.']);
+        }
+
+        $business = $staff->workplace();
+        if (! $business || $shop->business_id !== $business->id) {
+            throw ValidationException::withMessages(['shop' => 'This shop does not belong to your business.']);
+        }
+
+        $limits = app(PlanLimitService::class);
+        $limits->syncTrialStatus($business->fresh());
+        $business = $business->fresh();
+
+        if (! $limits->canUseTill($business)) {
+            throw ValidationException::withMessages(['plan' => $limits->trialExpiredMessage()]);
+        }
+
+        return DB::transaction(function () use ($staff, $shop, $customer, $rewardId, $notes, $business) {
+            $membership = $this->memberships->join($business, $customer, $shop);
+            $reward = Reward::query()
+                ->where('business_id', $business->id)
+                ->whereKey($rewardId)
+                ->firstOrFail();
+
+            if (! $reward->isAvailable()) {
+                throw ValidationException::withMessages(['reward_id' => 'This offer is not available.']);
+            }
+
+            $membershipFresh = Membership::query()->lockForUpdate()->findOrFail($membership->id);
+            if ($membershipFresh->points_balance < $reward->points_cost) {
+                throw ValidationException::withMessages(['reward_id' => 'Customer does not have enough points yet.']);
+            }
+
+            if ($reward->max_redemptions_per_member) {
+                $used = Redemption::query()
+                    ->where('reward_id', $reward->id)
+                    ->where('membership_id', $membership->id)
+                    ->count();
+                if ($used >= $reward->max_redemptions_per_member) {
+                    throw ValidationException::withMessages(['reward_id' => __('loop.offer_max_reached')]);
+                }
+            }
+
+            $note = trim((string) $notes);
+            if ($note === '') {
+                $note = __('loop.redemption_default_note', [
+                    'offer' => $reward->name,
+                    'label' => $reward->label(),
+                ]);
+            }
+
+            $this->points->redeem(
+                $membershipFresh,
+                $reward->points_cost,
+                $staff,
+                null,
+                __('loop.applied_offer', ['name' => $reward->name])
+            );
+
+            if ($reward->stock !== null) {
+                $reward->decrement('stock');
+            }
+
+            return Redemption::create([
+                'reward_id' => $reward->id,
+                'membership_id' => $membership->id,
+                'customer_id' => $customer->id,
+                'visit_id' => null,
+                'shop_id' => $shop->id,
+                'recorded_by' => $staff->id,
+                'points_spent' => $reward->points_cost,
+                'discount_amount' => 0,
+                'status' => 'applied',
+                'notes' => $note,
+            ])->fresh(['reward', 'customer', 'shop', 'membership']);
         });
     }
 

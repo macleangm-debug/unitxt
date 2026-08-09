@@ -333,7 +333,6 @@ class OnboardingController extends Controller
 
         $campaign = $business->campaigns()->latest()->first();
         if ($campaign) {
-            $campaign->rewards()->sync($business->rewards()->pluck('id'));
             $campaign->shops()->sync($business->shops()->pluck('id'));
         }
 

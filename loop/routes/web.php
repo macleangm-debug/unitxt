@@ -165,6 +165,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/sale/ticket', [TillController::class, 'ticket'])->name('till.ticket');
         Route::post('/sale/register-customer', [TillController::class, 'registerCustomer'])->name('till.register-customer');
         Route::post('/sale', [TillController::class, 'store'])->name('till.store');
+        Route::post('/sale/redeem', [TillController::class, 'redeem'])->name('till.redeem');
     });
 
     Route::middleware('role:customer')->group(function () {

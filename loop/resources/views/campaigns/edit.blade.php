@@ -84,32 +84,10 @@
             </div>
         @endif
 
-        <div class="space-y-2 rounded-2xl border border-ink/10 bg-white p-4">
-            <div class="flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.offers') }}</p>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.customer_choices_body') }}</p>
-                </div>
-                <a href="{{ route('rewards.create') }}" class="shrink-0 text-sm font-semibold text-mint-deep">{{ __('loop.add_offer') }} →</a>
-            </div>
-            @if ($offers->isNotEmpty())
-                @foreach ($offers as $offer)
-                    <label class="flex items-center gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
-                        <input type="checkbox" name="reward_ids[]" value="{{ $offer->id }}" @checked(in_array($offer->id, old('reward_ids', $campaign->rewards->pluck('id')->all()), false))>
-                        <span>
-                            <span class="block text-sm font-semibold">{{ $offer->name }}</span>
-                            <span class="text-xs text-ink-muted">{{ $offer->points_cost }} {{ __('loop.pts') }} · {{ $offer->label() }}</span>
-                        </span>
-                    </label>
-                @endforeach
-                <x-input-error :messages="$errors->get('reward_ids')" class="mt-1" />
-            @else
-                <p class="text-sm text-ink-muted">{{ __('loop.no_offers_yet_edit') }}</p>
-                @foreach ($campaign->rewards as $offer)
-                    <input type="hidden" name="reward_ids[]" value="{{ $offer->id }}">
-                @endforeach
-            @endif
-        </div>
+        <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
+            {{ __('loop.campaign_offers_untied_hint') }}
+            <a href="{{ route('rewards.index') }}" class="font-semibold text-mint-deep">{{ __('loop.offers') }} →</a>
+        </p>
 
         <label class="flex items-center gap-2 text-sm font-semibold">
             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $campaign->is_active)) class="rounded border-ink/20 text-mint-deep focus:ring-mint-deep">

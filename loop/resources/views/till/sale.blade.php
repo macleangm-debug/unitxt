@@ -2,6 +2,10 @@
     $availableOffers = ($customer && $membership) ? $membership->availableRewards() : collect();
     $hasRedeemable = $availableOffers->isNotEmpty();
     $needsRegister = $needsRegister ?? false;
+    $mode = $mode ?? 'sale';
+    $payEnabled = $business->payWithPointsEnabled();
+    $payRate = $business->payCurrencyPerPoint();
+    $payMaxPercent = $business->payPointsMaxPercent();
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -26,7 +30,6 @@
             x-data="{ open: true, step: 1 }"
             class="mx-auto max-w-xl"
         >
-            {{-- Confirm: not on Loop --}}
             <div
                 x-show="open && step === 1"
                 x-cloak
@@ -96,11 +99,11 @@
         </div>
     @else
         @if ($customer && $membership)
-            <div class="mb-6 grid gap-3 sm:grid-cols-3 animate-fade-up">
+            <div class="mb-6 grid gap-3 sm:grid-cols-3">
                 <div class="rounded-[1.5rem] bg-gradient-to-br from-ink to-ink-soft p-5 text-white">
                     <p class="text-sm text-white/70">{{ __('loop.balance') }}</p>
                     <p class="mt-2 font-display text-4xl font-semibold">{{ $membership->points_balance }}</p>
-                    <p class="text-xs text-white/55">{{ __('loop.pts') }}</p>
+                    <p class="text-xs text-white/55">{{ __('loop.pts') }} · {{ __('loop.one_wallet_hint') }}</p>
                 </div>
                 <div class="loop-panel p-5 sm:col-span-2">
                     <p class="text-sm font-semibold">{{ __('loop.ready_to_redeem') }}</p>
@@ -123,111 +126,152 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('till.store') }}"
-              class="mx-auto max-w-xl overflow-hidden rounded-[2rem] border border-ink/10 bg-white/90 shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
-              x-data="{
-                amountDisplay: '{{ old('amount_spent') }}',
-                wantRedeem: {{ old('reward_id') ? 'true' : 'false' }},
-                selectedOffer: '{{ old('reward_id', '') }}',
-                payWithPoints: {{ old('pay_with_points') ? 'true' : 'false' }},
-                pointsToSpend: '{{ old('points_to_spend', '') }}',
-                balance: {{ $membership->points_balance ?? 0 }},
-                rate: {{ $campaign?->currencyPerPoint() ?? 0 }},
-                currency: @js($business->currency),
-                formatAmount() {
-                    let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
-                    const parts = raw.split('.');
-                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                    this.amountDisplay = parts.join('.');
-                },
-                amountValue() { return String(this.amountDisplay).replace(/,/g, ''); },
-                pointsValue() { return Math.min(parseInt(this.pointsToSpend || 0, 10) || 0, this.balance); },
-                pointsDiscount() { return Math.round(this.pointsValue() * this.rate); }
-              }">
-            @csrf
-            <input type="hidden" name="shop_id" value="{{ $shop->id }}">
-            <input type="hidden" name="country_code" value="{{ $country_code }}">
-            <input type="hidden" name="phone" value="{{ $phone }}">
-            <input type="hidden" name="channel" value="{{ $channel }}">
-            <input type="hidden" name="amount_spent" :value="amountValue()">
+        @if ($customer)
+            <div class="mx-auto mb-4 grid max-w-xl gap-2 {{ $payEnabled ? 'grid-cols-3' : 'grid-cols-2' }}">
+                <a href="{{ route('till.ticket', ['mode' => 'sale']) }}"
+                   class="rounded-2xl border px-3 py-3 text-center text-sm font-semibold {{ $mode === 'sale' ? 'border-mint-deep bg-mint-soft/50' : 'border-ink/10 bg-white' }}">
+                    {{ __('loop.mode_sale') }}
+                </a>
+                <a href="{{ route('till.ticket', ['mode' => 'redeem']) }}"
+                   class="rounded-2xl border px-3 py-3 text-center text-sm font-semibold {{ $mode === 'redeem' ? 'border-mint-deep bg-mint-soft/50' : 'border-ink/10 bg-white' }}">
+                    {{ __('loop.mode_redeem') }}
+                </a>
+                @if ($payEnabled)
+                    <a href="{{ route('till.ticket', ['mode' => 'pay']) }}"
+                       class="rounded-2xl border px-3 py-3 text-center text-sm font-semibold {{ $mode === 'pay' ? 'border-mint-deep bg-mint-soft/50' : 'border-ink/10 bg-white' }}">
+                        {{ __('loop.mode_pay_points') }}
+                    </a>
+                @endif
+            </div>
+        @endif
 
-            <div class="space-y-5 p-6">
+        @if ($mode === 'redeem' && $customer)
+            <form method="POST" action="{{ route('till.redeem') }}"
+                  class="mx-auto max-w-xl space-y-5 overflow-hidden rounded-[2rem] border border-ink/10 bg-white p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
+                  x-data="{ selectedOffer: '{{ old('reward_id', '') }}' }">
+                @csrf
+                <input type="hidden" name="shop_id" value="{{ $shop->id }}">
+                <input type="hidden" name="country_code" value="{{ $country_code }}">
+                <input type="hidden" name="phone" value="{{ $phone }}">
+                <input type="hidden" name="reward_id" :value="selectedOffer">
+
                 <div>
-                    <label class="loop-label">{{ __('loop.amount_spent') }} ({{ $business->currency }})</label>
-                    <input type="text" inputmode="decimal" x-model="amountDisplay" @input="formatAmount()" class="loop-input text-3xl font-display font-semibold" placeholder="0">
-                    @if ($campaign)
-                        <p class="mt-2 text-xs text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
-                    @endif
-                    <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.mode_redeem') }}</p>
+                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.redeem_pick_title') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_pick_body') }}</p>
                 </div>
 
-                @if ($campaign && $campaign->type === 'product_push' && filled($campaign->featured_product_name))
-                    <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
-                        <input type="checkbox" name="includes_featured_product" value="1" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(old('includes_featured_product'))>
-                        <span>
-                            <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $campaign->featured_product_name]) }}</span>
-                            <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $campaign->bonus_points]) }}</span>
-                        </span>
-                    </label>
-                @endif
-
                 @if ($hasRedeemable)
-                    <div class="rounded-[1.5rem] border border-mint-deep/20 bg-mint-soft/40 p-5">
-                        <p class="font-display text-lg font-semibold">{{ __('loop.ask_redeem_title') }}</p>
-                        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.ask_redeem_body') }}</p>
-                        <div class="mt-4 grid gap-2">
-                            <button type="button"
-                                    class="rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition"
-                                    :class="!wantRedeem ? 'border-mint-deep bg-white' : 'border-ink/10 bg-white'"
-                                    @click="wantRedeem=false; selectedOffer=''">
-                                {{ __('loop.keep_earning') }}
-                            </button>
-                            <button type="button"
-                                    class="rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition"
-                                    :class="wantRedeem ? 'border-mint-deep bg-white' : 'border-ink/10 bg-white'"
-                                    @click="wantRedeem=true">
-                                {{ __('loop.want_to_redeem') }}
-                            </button>
-                        </div>
-                        <div x-show="wantRedeem" x-cloak class="mt-4 space-y-2">
-                            <input type="hidden" name="reward_id" :value="wantRedeem ? selectedOffer : ''">
-                            @foreach ($availableOffers as $reward)
-                                <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
-                                    <input type="radio" value="{{ $reward->id }}" class="mt-1 text-mint-deep focus:ring-mint-deep" x-model="selectedOffer">
-                                    <span>
-                                        <span class="block text-sm font-semibold">{{ $reward->name }}</span>
-                                        <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} {{ __('loop.pts') }} · {{ $reward->label() }}</span>
-                                    </span>
-                                </label>
-                            @endforeach
-                        </div>
-                        <template x-if="!wantRedeem">
-                            <input type="hidden" name="reward_id" value="">
-                        </template>
+                    <div class="space-y-2">
+                        @foreach ($availableOffers as $reward)
+                            <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" value="{{ $reward->id }}" class="mt-1 text-mint-deep focus:ring-mint-deep" x-model="selectedOffer" required>
+                                <span>
+                                    <span class="block text-sm font-semibold">{{ $reward->name }}</span>
+                                    <span class="mt-0.5 block text-xs text-ink-muted">{{ $reward->points_cost }} {{ __('loop.pts') }} · {{ $reward->label() }}</span>
+                                </span>
+                            </label>
+                        @endforeach
                     </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.redeem_note_label') }}</label>
+                        <input name="notes" class="loop-input" value="{{ old('notes') }}" placeholder="{{ __('loop.redeem_note_placeholder') }}">
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.redeem_note_help') }}</p>
+                    </div>
+                    <x-input-error :messages="$errors->get('reward_id')" class="mt-1" />
+                    <button class="loop-btn-mint w-full" name="continue_to_sale" value="1">{{ __('loop.redeem_and_sale') }}</button>
+                    <button class="loop-btn-ghost w-full" type="submit">{{ __('loop.redeem_only') }}</button>
                 @else
-                    <input type="hidden" name="reward_id" value="">
+                    <p class="rounded-2xl border border-dashed border-ink/15 px-4 py-6 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
+                    <a href="{{ route('till.ticket', ['mode' => 'sale']) }}" class="loop-btn w-full text-center">{{ __('loop.mode_sale') }}</a>
                 @endif
+                <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
+            </form>
+        @else
+            <form method="POST" action="{{ route('till.store') }}"
+                  class="mx-auto max-w-xl overflow-hidden rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
+                  x-data="{
+                    amountDisplay: '{{ old('amount_spent') }}',
+                    payWithPoints: {{ ($mode === 'pay' || old('pay_with_points')) ? 'true' : 'false' }},
+                    pointsToSpend: '{{ old('points_to_spend', '') }}',
+                    balance: {{ $membership->points_balance ?? 0 }},
+                    rate: {{ $payRate }},
+                    maxPercent: {{ $payMaxPercent }},
+                    currency: @js($business->currency),
+                    formatAmount() {
+                        let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
+                        const parts = raw.split('.');
+                        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        this.amountDisplay = parts.join('.');
+                    },
+                    amountValue() { return parseFloat(String(this.amountDisplay).replace(/,/g, '')) || 0; },
+                    maxPointsByPercent() {
+                        if (!this.rate || !this.amountValue()) return this.balance;
+                        const maxCurrency = this.amountValue() * (this.maxPercent / 100);
+                        return Math.min(this.balance, Math.floor(maxCurrency / this.rate));
+                    },
+                    pointsValue() { return Math.min(parseInt(this.pointsToSpend || 0, 10) || 0, this.maxPointsByPercent()); },
+                    pointsDiscount() { return Math.round(this.pointsValue() * this.rate); }
+                  }">
+                @csrf
+                <input type="hidden" name="shop_id" value="{{ $shop->id }}">
+                <input type="hidden" name="country_code" value="{{ $country_code }}">
+                <input type="hidden" name="phone" value="{{ $phone }}">
+                <input type="hidden" name="channel" value="{{ $channel }}">
+                <input type="hidden" name="amount_spent" :value="amountValue()">
 
-                @if ($membership && $membership->points_balance > 0 && $campaign && $campaign->currencyPerPoint() > 0)
-                    <div class="rounded-2xl border border-ink/10 bg-chalk/70 p-4">
-                        <label class="flex items-start gap-3 text-sm font-semibold">
-                            <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
+                <div class="space-y-5 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">
+                            {{ $mode === 'pay' ? __('loop.mode_pay_points') : __('loop.mode_sale') }}
+                        </p>
+                        <label class="loop-label mt-2">{{ __('loop.amount_spent') }} ({{ $business->currency }})</label>
+                        <input type="text" inputmode="decimal" x-model="amountDisplay" @input="formatAmount()" class="loop-input text-3xl font-display font-semibold" placeholder="0">
+                        @if ($campaign && $mode !== 'pay')
+                            <p class="mt-2 text-xs text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
+                        @endif
+                        @if ($mode === 'sale')
+                            <p class="mt-2 text-xs text-ink-muted">{{ __('loop.sale_after_redeem_hint') }}</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
+                    </div>
+
+                    @if ($mode !== 'pay' && $campaign && $campaign->type === 'product_push' && filled($campaign->featured_product_name))
+                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
+                            <input type="checkbox" name="includes_featured_product" value="1" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(old('includes_featured_product'))>
                             <span>
-                                {{ __('loop.pay_with_points') }}
-                                <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.pay_with_points_hint', ['rate' => number_format($campaign->currencyPerPoint(), 0), 'currency' => $business->currency]) }}</span>
+                                <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $campaign->featured_product_name]) }}</span>
+                                <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $campaign->bonus_points]) }}</span>
                             </span>
                         </label>
-                        <div x-show="payWithPoints" x-cloak class="mt-3 space-y-2">
-                            <label class="loop-label">{{ __('loop.points_to_spend') }} (max {{ $membership->points_balance }})</label>
-                            <input type="number" name="points_to_spend" min="1" max="{{ $membership->points_balance }}" x-model="pointsToSpend" class="loop-input">
-                        </div>
-                    </div>
-                @endif
+                    @endif
 
-                <button class="loop-btn w-full">{{ __('loop.complete_sale') }}</button>
-                <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
-            </div>
-        </form>
+                    @if ($mode === 'pay' && $membership && $payEnabled)
+                        <input type="hidden" name="pay_with_points" value="1">
+                        <div class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 space-y-3">
+                            <p class="text-sm text-ink-muted">{{ __('loop.pay_with_points_till_help', [
+                                'rate' => number_format($payRate, 0),
+                                'currency' => $business->currency,
+                                'percent' => $payMaxPercent,
+                            ]) }}</p>
+                            <div>
+                                <label class="loop-label">{{ __('loop.points_to_spend') }}</label>
+                                <input type="number" name="points_to_spend" min="1" :max="maxPointsByPercent()" x-model="pointsToSpend" class="loop-input" required>
+                                <p class="mt-1 text-xs text-ink-muted">
+                                    {{ __('loop.max') }}: <span x-text="maxPointsByPercent()"></span> {{ __('loop.pts') }}
+                                    · ≈ <span x-text="currency + ' ' + pointsDiscount().toLocaleString()"></span>
+                                </p>
+                            </div>
+                            <x-input-error :messages="$errors->get('points_to_spend')" class="mt-1" />
+                        </div>
+                    @endif
+
+                    <button class="loop-btn w-full">
+                        {{ $mode === 'pay' ? __('loop.complete_pay_points') : __('loop.complete_sale') }}
+                    </button>
+                    <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
+                </div>
+            </form>
+        @endif
     @endif
 </x-app-layout>

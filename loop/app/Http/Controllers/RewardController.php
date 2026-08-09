@@ -101,7 +101,7 @@ class RewardController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $reward->business_id === $business->id, 403);
 
-        $redemptions = $reward->redemptions()->with(['customer', 'visit.shop'])->latest();
+        $redemptions = $reward->redemptions()->with(['customer', 'visit.shop', 'shop'])->latest();
         $totalRedemptions = (clone $redemptions)->count();
         $pointsSpent = (int) (clone $redemptions)->sum('points_spent');
         $recent = (clone $redemptions)->take(12)->get();

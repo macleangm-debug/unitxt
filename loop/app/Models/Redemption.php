@@ -11,10 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'membership_id',
     'customer_id',
     'visit_id',
+    'shop_id',
     'recorded_by',
     'points_spent',
     'discount_amount',
     'status',
+    'notes',
 ])]
 class Redemption extends Model
 {
@@ -44,6 +46,11 @@ class Redemption extends Model
     public function visit(): BelongsTo
     {
         return $this->belongsTo(Visit::class);
+    }
+
+    public function shop(): BelongsTo
+    {
+        return $this->belongsTo(Shop::class);
     }
 
     public function recorder(): BelongsTo

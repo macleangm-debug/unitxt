@@ -81,10 +81,15 @@
                     <div class="min-w-0">
                         <p class="font-semibold">{{ $redemption->customer?->name ?? __('loop.customer') }}</p>
                         <p class="text-xs text-ink-muted">{{ $redemption->created_at->format('d M Y · H:i') }}
-                            @if ($redemption->visit?->shop)
+                            @if ($redemption->shop)
+                                · {{ $redemption->shop->name }}
+                            @elseif ($redemption->visit?->shop)
                                 · {{ $redemption->visit->shop->name }}
                             @endif
                         </p>
+                        @if ($redemption->notes)
+                            <p class="mt-1 text-sm text-ink">{{ $redemption->notes }}</p>
+                        @endif
                     </div>
                     <span class="shrink-0 font-display text-lg font-semibold text-coral">−{{ $redemption->points_spent }}</span>
                 </div>

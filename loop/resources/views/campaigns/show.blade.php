@@ -66,31 +66,6 @@
         </div>
     </div>
 
-    <section class="mt-8 rounded-[1.5rem] border border-ink/10 bg-white p-5 sm:p-6">
-        <div>
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_choices') }}</h2>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.customer_choices_body') }}</p>
-        </div>
-        <div class="mt-4 space-y-3">
-            @forelse ($offers as $offer)
-                <div class="flex items-center justify-between gap-3 rounded-2xl border border-ink/8 px-4 py-3">
-                    <div class="min-w-0">
-                        <p class="font-semibold">{{ $offer->name }}</p>
-                        <p class="mt-0.5 truncate text-sm text-ink-muted">
-                            {{ $offer->points_cost }} {{ __('loop.pts') }} · {{ $offer->label() }}
-                            @if ($offer->product_name)
-                                · {{ $offer->product_name }}
-                            @endif
-                        </p>
-                    </div>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_offers_yet_edit') }}</p>
-            @endforelse
-        </div>
-        <p class="mt-4 text-xs text-ink-muted">{{ __('loop.edit_to_manage_offers') }}</p>
-    </section>
-
     @if ($recentVisits->isNotEmpty())
         <section class="mt-8">
             <div class="mb-4 flex items-end justify-between gap-3">

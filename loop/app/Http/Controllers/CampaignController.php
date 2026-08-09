@@ -88,8 +88,6 @@ class CampaignController extends Controller
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
-            'reward_ids' => ['required', 'array', 'min:1'],
-            'reward_ids.*' => ['integer', 'exists:rewards,id'],
             'template_key' => ['nullable', 'string'],
             'enable_welcome' => ['nullable', 'boolean'],
             'welcome_points' => ['nullable', 'integer', 'min:1'],
@@ -133,12 +131,6 @@ class CampaignController extends Controller
             ->values()
             ->all();
         $campaign->shops()->sync($shopIds);
-
-        $rewardIds = collect($data['reward_ids'])
-            ->filter(fn ($id) => $business->rewards()->whereKey($id)->exists())
-            ->values()
-            ->all();
-        $campaign->rewards()->sync($rewardIds);
 
         if ($request->boolean('enable_welcome')) {
             $business->campaigns()->create([
@@ -203,9 +195,8 @@ class CampaignController extends Controller
         $recentVisits = $campaign->visits()->with(['customer', 'shop'])->latest()->take(10)->get();
 
         return view('campaigns.show', [
-            'campaign' => $campaign->load(['shops', 'rewards']),
+            'campaign' => $campaign->load(['shops']),
             'business' => $business,
-            'offers' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
             'stats' => [
                 'today_visits' => $campaign->visits()->whereDate('created_at', today())->count(),
                 'total_visits' => $totalVisits,
@@ -222,10 +213,9 @@ class CampaignController extends Controller
         $this->authorizeOwner($request, $campaign);
 
         return view('campaigns.edit', [
-            'campaign' => $campaign->load(['shops', 'rewards']),
+            'campaign' => $campaign->load(['shops']),
             'business' => $campaign->business,
             'shops' => $campaign->business->shops()->orderBy('name')->get(),
-            'offers' => $campaign->business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
             'template' => null,
             'templateKey' => null,
         ]);
@@ -249,8 +239,6 @@ class CampaignController extends Controller
             'is_active' => ['sometimes', 'boolean'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
-            'reward_ids' => ['required', 'array', 'min:1'],
-            'reward_ids.*' => ['integer', 'exists:rewards,id'],
         ]);
 
         $campaign->update([
@@ -273,12 +261,6 @@ class CampaignController extends Controller
                 ->all();
             $campaign->shops()->sync($shopIds);
         }
-
-        $rewardIds = collect($data['reward_ids'])
-            ->filter(fn ($id) => $business->rewards()->whereKey($id)->exists())
-            ->values()
-            ->all();
-        $campaign->rewards()->sync($rewardIds);
 
         $campaign->refresh();
 

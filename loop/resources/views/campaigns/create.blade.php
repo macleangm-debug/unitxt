@@ -1,6 +1,5 @@
 @php
     $selectedShops = old('shop_ids', []);
-    $selectedRewards = old('reward_ids', []);
     $t = $template ?? null;
     $defaultType = old('type', $t['type'] ?? 'earn');
     if (! in_array($defaultType, ['earn', 'product_push'], true)) {
@@ -111,29 +110,9 @@
                 </p>
             </section>
 
-            <section class="space-y-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.customer_choices') }}</p>
-                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.customer_choices') }}</h2>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.campaign_needs_one_offer') }}</p>
-                </div>
-                <div class="grid gap-2">
-                    @foreach ($offers as $offer)
-                        <label class="flex items-center gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
-                            <input type="checkbox" name="reward_ids[]" value="{{ $offer->id }}" @checked(in_array($offer->id, $selectedRewards, false) || (empty($selectedRewards) && $loop->first))>
-                            <span>
-                                <span class="block text-sm font-semibold">{{ $offer->name }}</span>
-                                <span class="text-xs text-ink-muted">{{ $offer->points_cost }} {{ __('loop.pts') }} · {{ $offer->label() }}</span>
-                            </span>
-                        </label>
-                    @endforeach
-                </div>
-                <x-input-error :messages="$errors->get('reward_ids')" class="mt-1" />
-            </section>
-
             <section class="space-y-4 rounded-2xl border border-ink/8 bg-gradient-to-br from-white to-mint/10 p-5">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_bonuses') }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_bonuses') }}</p>
                     <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.bonuses_title') }}</h2>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.bonuses_body') }}</p>
                 </div>
@@ -174,7 +153,7 @@
             </section>
 
             <section class="space-y-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">5 · {{ __('loop.section_schedule') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_schedule') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <x-date-field name="starts_at" :label="__('loop.starts')" :value="old('starts_at', now()->format('Y-m-d'))" required />
                     <x-date-field name="ends_at" :label="__('loop.ends')" :value="old('ends_at')" optional />

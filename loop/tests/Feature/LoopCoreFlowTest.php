@@ -113,7 +113,15 @@ class LoopCoreFlowTest extends TestCase
             'points_balance' => 12,
         ]);
 
-        $this->actingAs($staff)
+        $business->update([
+            'allow_pay_with_points' => true,
+            'pay_spend_step' => 1000,
+            'pay_points_per_step' => 2,
+            'pay_points_max_percent' => 100,
+        ]);
+        $staff->unsetRelation('business');
+
+        $this->actingAs($staff->fresh())
             ->post(route('till.store'), [
                 'shop_id' => $shop->id,
                 'country_code' => '+255',
@@ -129,6 +137,74 @@ class LoopCoreFlowTest extends TestCase
             'business_id' => $business->id,
             'points_balance' => 12, // +4 earned from 2000, −4 spent
         ]);
+    }
+
+    public function test_standalone_redeem_does_not_require_a_sale(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999088',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713555777',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+        $reward = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off',
+            'points_cost' => 4,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555777',
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.ticket'));
+
+        $this->actingAs($staff)
+            ->post(route('till.redeem'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555777',
+                'reward_id' => $reward->id,
+                'notes' => '5% off coffee — charged 4,750',
+            ])
+            ->assertRedirect(route('till.index'));
+
+        $this->assertDatabaseHas('redemptions', [
+            'reward_id' => $reward->id,
+            'customer_id' => $customer->id,
+            'points_spent' => 4,
+            'notes' => '5% off coffee — charged 4,750',
+        ]);
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'points_balance' => 0,
+        ]);
+        $this->assertNull(\App\Models\Redemption::first()->visit_id);
     }
 
     public function test_owner_settings_and_campaign_detail(): void
@@ -362,8 +438,12 @@ class LoopCoreFlowTest extends TestCase
 
         $this->assertSame(2, $business->rewards()->count());
         $this->assertNotNull($business->fresh()->onboarding_completed_at);
-        $campaign = $business->campaigns()->first();
-        $this->assertSame(2, $campaign->rewards()->count());
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'name' => 'Coastal Bites Points',
+        ]);
+        // Offers are business-wide — not pivoted onto the campaign.
+        $this->assertSame(0, $business->campaigns()->first()->rewards()->count());
     }
 
     public function test_online_presence_skips_physical_address(): void
@@ -475,7 +555,7 @@ class LoopCoreFlowTest extends TestCase
         ]);
 
         $without = app(\App\Services\TillService::class)->recordSale(
-            $staff, $shop, $customer, 2000, null, null, 'in_store', false, null, false
+            $staff, $shop, $customer, 2000, null, 'in_store', false, null, false
         );
         $this->assertSame(4, $without->points_earned);
 
@@ -487,7 +567,7 @@ class LoopCoreFlowTest extends TestCase
             'profile_completed' => true,
         ]);
         $with = app(\App\Services\TillService::class)->recordSale(
-            $staff, $shop, $customer2, 2000, null, null, 'in_store', false, null, true
+            $staff, $shop, $customer2, 2000, null, 'in_store', false, null, true
         );
         $this->assertSame(19, $with->points_earned);
     }

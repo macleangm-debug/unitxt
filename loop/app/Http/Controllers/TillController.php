@@ -97,10 +97,7 @@ class TillController extends Controller
             ->first();
 
         $membership = $customer
-            ? $business->memberships()
-                ->where('customer_id', $customer->id)
-                ->where('shop_id', $shop->id)
-                ->first()
+            ? $business->memberships()->where('customer_id', $customer->id)->first()
             : null;
 
         $rewards = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
@@ -110,6 +107,14 @@ class TillController extends Controller
                 ->filter(fn ($r) => $r->points_cost > $membership->points_balance)
                 ->sortBy('points_cost')
                 ->first();
+        }
+
+        $mode = $request->query('mode', 'sale');
+        if (! in_array($mode, ['sale', 'redeem', 'pay'], true)) {
+            $mode = 'sale';
+        }
+        if ($mode === 'pay' && ! $business->payWithPointsEnabled()) {
+            $mode = 'sale';
         }
 
         return view('till.sale', [
@@ -123,6 +128,7 @@ class TillController extends Controller
             'rewards' => $rewards,
             'campaign' => $campaign,
             'nextOffer' => $nextOffer,
+            'mode' => $mode,
             'needsRegister' => (bool) ($ticket['needs_register'] ?? false) && ! $customer,
             'justRegistered' => (bool) $request->session()->pull('till.just_registered', false),
         ]);
@@ -175,6 +181,7 @@ class TillController extends Controller
     {
         $business = $request->user()->workplace();
         abort_unless($business && $request->user()->canUseTill(), 403);
+        $business = $business->fresh();
 
         $amountRaw = str_replace([',', ' '], '', (string) $request->input('amount_spent', '0'));
         $request->merge(['amount_spent' => $amountRaw]);
@@ -185,7 +192,6 @@ class TillController extends Controller
             'phone' => ['required', 'string', 'max:32'],
             'channel' => ['required', 'in:in_store,phone_order'],
             'amount_spent' => ['required', 'numeric', 'min:0'],
-            'reward_id' => ['nullable', 'exists:rewards,id'],
             'receipt_ref' => ['nullable', 'string', 'max:80'],
             'pay_with_points' => ['nullable', 'boolean'],
             'points_to_spend' => ['nullable', 'integer', 'min:1'],
@@ -204,6 +210,10 @@ class TillController extends Controller
             ]);
         }
 
+        if ($payWithPoints && ! $business->payWithPointsEnabled()) {
+            return back()->withErrors(['pay_with_points' => __('loop.pay_with_points_disabled')])->withInput();
+        }
+
         if ((float) $data['amount_spent'] <= 0 && ! $payWithPoints) {
             return back()->withErrors(['amount_spent' => __('loop.amount_required')])->withInput();
         }
@@ -213,7 +223,6 @@ class TillController extends Controller
             $shop,
             $customer,
             (float) $data['amount_spent'],
-            $data['reward_id'] ?? null,
             $data['receipt_ref'] ?? null,
             $data['channel'],
             $payWithPoints,
@@ -239,6 +248,67 @@ class TillController extends Controller
 
         return redirect()->route('till.index')->with('confirm', Confirm::make(
             __('loop.sale_done_title'),
+            $body,
+            __('loop.next_sale'),
+            route('till.index'),
+        ));
+    }
+
+    public function redeem(Request $request, TillService $till): RedirectResponse
+    {
+        $business = $request->user()->workplace();
+        abort_unless($business && $request->user()->canUseTill(), 403);
+
+        $data = $request->validate([
+            'shop_id' => ['required', 'exists:shops,id'],
+            'country_code' => ['required', 'string', 'max:8'],
+            'phone' => ['required', 'string', 'max:32'],
+            'reward_id' => ['required', 'exists:rewards,id'],
+            'notes' => ['nullable', 'string', 'max:255'],
+            'continue_to_sale' => ['nullable', 'boolean'],
+        ]);
+
+        $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
+        $phone = Countries::normalizePhone($data['phone']);
+        $customer = $till->findCustomer($data['country_code'], $phone);
+
+        if (! $customer) {
+            return redirect()->route('till.index')->withErrors([
+                'phone' => __('loop.customer_must_register_first'),
+            ]);
+        }
+
+        $redemption = $till->redeemOffer(
+            $request->user(),
+            $shop,
+            $customer,
+            (int) $data['reward_id'],
+            $data['notes'] ?? null,
+        );
+
+        $body = __('loop.redeem_done_body', [
+            'name' => $customer->name,
+            'offer' => $redemption->reward->name,
+            'points' => $redemption->points_spent,
+        ]);
+        if ($redemption->notes) {
+            $body .= ' — '.$redemption->notes;
+        }
+
+        if ($request->boolean('continue_to_sale')) {
+            return redirect()->route('till.ticket', ['mode' => 'sale'])->with('confirm', Confirm::make(
+                __('loop.redeem_done_title'),
+                $body.' '.__('loop.redeem_then_sale_hint'),
+                __('loop.continue_to_sale'),
+                route('till.ticket', ['mode' => 'sale']),
+                true,
+            ));
+        }
+
+        $request->session()->forget('till.ticket');
+
+        return redirect()->route('till.index')->with('confirm', Confirm::make(
+            __('loop.redeem_done_title'),
             $body,
             __('loop.next_sale'),
             route('till.index'),

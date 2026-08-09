@@ -24,6 +24,10 @@ use Illuminate\Support\Str;
     'description',
     'logo_path',
     'is_active',
+    'allow_pay_with_points',
+    'pay_spend_step',
+    'pay_points_per_step',
+    'pay_points_max_percent',
     'onboarding_completed_at',
     'plan_key',
     'referral_code',
@@ -42,6 +46,10 @@ class Business extends Model
     {
         return [
             'is_active' => 'boolean',
+            'allow_pay_with_points' => 'boolean',
+            'pay_spend_step' => 'integer',
+            'pay_points_per_step' => 'integer',
+            'pay_points_max_percent' => 'integer',
             'onboarding_completed_at' => 'datetime',
             'branch_count' => 'integer',
             'trial_ends_at' => 'datetime',
@@ -166,6 +174,28 @@ class Business extends Model
     public function isOnline(): bool
     {
         return ($this->presence ?? 'physical') === 'online';
+    }
+
+    public function payWithPointsEnabled(): bool
+    {
+        return (bool) $this->allow_pay_with_points
+            && (int) $this->pay_spend_step > 0
+            && (int) $this->pay_points_per_step > 0;
+    }
+
+    /** Currency value of one point when paying (worse rate than earn is typical). */
+    public function payCurrencyPerPoint(): float
+    {
+        if (! $this->payWithPointsEnabled()) {
+            return 0.0;
+        }
+
+        return (float) $this->pay_spend_step / (float) $this->pay_points_per_step;
+    }
+
+    public function payPointsMaxPercent(): int
+    {
+        return max(1, min(100, (int) ($this->pay_points_max_percent ?: 50)));
     }
 
     public function effectiveMonthlyPrice(): int

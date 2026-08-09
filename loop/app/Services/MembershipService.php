@@ -14,11 +14,11 @@ class MembershipService
     {
         return Membership::firstOrCreate(
             [
-                'shop_id' => $shop->id,
+                'business_id' => $business->id,
                 'customer_id' => $customer->id,
             ],
             [
-                'business_id' => $business->id,
+                'shop_id' => $shop->id,
                 'member_code' => 'LP-'.Str::upper(Str::random(8)),
                 'joined_at' => now(),
             ]
