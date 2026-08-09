@@ -243,6 +243,12 @@
                     bonusPoints: 10,
                     productName: '',
                     saving: false,
+                    businessName: @js($business->name),
+                    nameIdeas: @js([
+                        $business->name.' '.__('loop.name_idea_points'),
+                        $business->name.' '.__('loop.name_idea_loyalty'),
+                        $business->name.' '.__('loop.name_idea_club'),
+                    ]),
                     defaults: @js(collect($groupedTemplates)->flatMap(fn ($g) => $g['templates'])->mapWithKeys(fn ($t, $k) => [$k => [
                         'name' => $t['name'],
                         'description' => $t['description'],
@@ -263,7 +269,7 @@
                         const t = this.defaults[key];
                         if (!t) return;
                         this.selected = key;
-                        this.name = t.name;
+                        this.name = this.nameIdeas[0] || t.name;
                         this.description = t.description;
                         this.type = t.type;
                         this.spendDisplay = String(t.spend_step || 1000).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -272,6 +278,7 @@
                         this.productName = '';
                         this.saving = false;
                     },
+                    useIdea(idea) { this.name = idea; },
                     startSave() {
                         if (this.saving) return false;
                         this.saving = true;
@@ -309,13 +316,23 @@
                     <div class="absolute inset-0 bg-ink/50" @click="!saving && (selected=null)"></div>
                     <div class="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
                         <p class="text-xs font-bold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.confirm_campaign') }}</p>
-                        <p class="mt-2 font-display text-2xl font-bold" x-text="name"></p>
                         <p class="mt-2 text-sm text-ink-muted" x-text="description"></p>
 
                         <form method="POST" action="{{ route('onboarding.campaign') }}" class="mt-5 space-y-4" @submit="return startSave()">
                             @csrf
                             <input type="hidden" name="template" :value="selected">
                             <input type="hidden" name="spend_step" :value="spendValue()">
+
+                            <div>
+                                <label class="loop-label">{{ __('loop.campaign_name') }}</label>
+                                <input type="text" name="name" class="loop-input font-display text-lg font-semibold" x-model="name" required maxlength="120">
+                                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.campaign_name_hint', ['business' => $business->name]) }}</p>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <template x-for="idea in nameIdeas" :key="idea">
+                                        <button type="button" class="rounded-full border border-ink/10 bg-chalk/80 px-3 py-1 text-xs font-semibold text-ink" @click="useIdea(idea)" x-text="idea"></button>
+                                    </template>
+                                </div>
+                            </div>
 
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
@@ -327,7 +344,7 @@
                                     <input type="number" name="points_per_step" min="1" class="loop-input" x-model="pointsPerStep" required>
                                 </div>
                             </div>
-                            <div class="rounded-2xl bg-mint-soft px-4 py-4 text-center ring-1 ring-mint/30">
+                            <div class="rounded-2xl border border-ink/10 bg-chalk/60 px-4 py-4 text-center">
                                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.customer_gets') }}</p>
                                 <p class="mt-1 font-display text-2xl font-bold text-ink">
                                     <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
@@ -361,16 +378,20 @@
                 class="mt-6"
                 x-data="{
                     currency: @js($currency),
+                    businessName: @js($business->name),
                     templates: @js(collect($offerTemplates)->values()->all()),
                     drafts: [],
                     editing: null,
                     editIndex: null,
                     saving: false,
                     pick(template) {
+                        const branded = this.businessName
+                            ? (this.businessName + ' ' + template.name)
+                            : template.name;
                         this.editing = {
                             key: template.key,
                             reward_type: template.reward_type,
-                            name: template.name,
+                            name: branded,
                             product_name: template.product_name || '',
                             points_cost: template.points_cost,
                             reward_value: template.reward_value,
@@ -502,7 +523,8 @@
                         <div class="mt-5 space-y-4">
                             <div>
                                 <label class="loop-label">{{ __('loop.offer_name') }}</label>
-                                <input type="text" class="loop-input" x-model="editing.name">
+                                <input type="text" class="loop-input font-display text-lg font-semibold" x-model="editing.name">
+                                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.offer_name_hint', ['business' => $business->name]) }}</p>
                             </div>
                             <div>
                                 <label class="loop-label">{{ __('loop.points_to_unlock') }}</label>

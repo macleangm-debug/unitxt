@@ -1,8 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <h1 class="font-display text-3xl font-semibold">{{ __('loop.transactions') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.transactions_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.transactions') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.transactions_blurb') }}</p>
+            </div>
+            <a href="{{ route('campaigns.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
 

@@ -15,7 +15,7 @@
 <div @class(['min-h-screen', 'pb-nav md:pb-0' => $isCustomer])>
     @include('layouts.navigation')
     @isset($header)
-        <header class="loop-shell pt-5 pb-1 sm:pt-8 sm:pb-2"><div class="animate-fade-up">{{ $header }}</div></header>
+        <header class="loop-shell pt-5 pb-1 sm:pt-8 sm:pb-2">{{ $header }}</header>
     @endisset
     <main class="loop-shell py-5 sm:py-6 {{ $isCustomer ? 'pb-8' : 'pb-16' }}">
         @if (session('status') && ! session('all_set') && ! session('confirm'))

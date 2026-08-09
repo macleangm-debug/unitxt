@@ -145,11 +145,37 @@ class Campaign extends Model
 
     public function displayName(): string
     {
-        return \App\Support\CampaignTemplates::nameFor($this->template_key, $this->name);
+        // Always prefer the saved name so personalized campaigns (e.g. "Real Burger Points") stick.
+        if (filled($this->name)) {
+            return $this->name;
+        }
+
+        return \App\Support\CampaignTemplates::nameFor($this->template_key, 'Campaign');
     }
 
     public function displayDescription(): ?string
     {
-        return \App\Support\CampaignTemplates::descriptionFor($this->template_key, $this->description);
+        if (filled($this->description)) {
+            return $this->description;
+        }
+
+        return \App\Support\CampaignTemplates::descriptionFor($this->template_key, null);
+    }
+
+    public function scheduleLabel(): string
+    {
+        $start = $this->starts_at?->format('d M Y');
+        if (! $start) {
+            return __('loop.open_ended');
+        }
+
+        if ($this->ends_at) {
+            return __('loop.campaign_date_range', [
+                'from' => $start,
+                'to' => $this->ends_at->format('d M Y'),
+            ]);
+        }
+
+        return __('loop.campaign_ongoing_from', ['from' => $start]);
     }
 }

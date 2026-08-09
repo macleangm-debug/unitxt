@@ -318,6 +318,7 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->post(route('onboarding.campaign'), [
                 'template' => 'everyday_earn',
+                'name' => 'Coastal Bites Points',
                 'spend_step' => 1000,
                 'points_per_step' => 20,
             ])
@@ -327,6 +328,7 @@ class LoopCoreFlowTest extends TestCase
             'business_id' => $business->id,
             'template_key' => 'everyday_earn',
             'type' => 'earn',
+            'name' => 'Coastal Bites Points',
             'spend_step' => 1000,
             'points_per_step' => 20,
         ]);

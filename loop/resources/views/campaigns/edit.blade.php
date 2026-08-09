@@ -16,12 +16,19 @@
             pointsPerStep: {{ (int) old('points_per_step', $campaign->points_per_step ?: 2) }},
             type: @js(old('type', $campaign->type)),
             currency: @js($business->currency),
+            saving: false,
             formatSpend() {
                 let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
                 this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
             },
-            spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; }
+            spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; },
+            startSave() {
+                if (this.saving) return false;
+                this.saving = true;
+                return true;
+            }
         }"
+        @submit="return startSave()"
     >
         @csrf
         @method('PUT')
@@ -101,6 +108,9 @@
             {{ __('loop.live') }}
         </label>
 
-        <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+        <button class="loop-btn-mint w-full" :disabled="saving" :class="{ 'opacity-70': saving }">
+            <span x-show="!saving">{{ __('loop.save') }}</span>
+            <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+        </button>
     </form>
 </x-app-layout>

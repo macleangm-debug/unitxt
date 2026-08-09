@@ -221,6 +221,7 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'template' => ['required', 'string'],
+            'name' => ['required', 'string', 'max:120'],
             'spend_step' => ['nullable', 'integer', 'min:100'],
             'points_per_step' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'bonus_points' => ['nullable', 'integer', 'min:0', 'max:10000'],
@@ -242,11 +243,12 @@ class OnboardingController extends Controller
         // Prefer submitted rates; fall back to template defaults for earn / product push.
         $spendStep = (int) ($data['spend_step'] ?? $template['spend_step'] ?? 1000);
         $pointsPerStep = (int) ($data['points_per_step'] ?? $template['points_per_step'] ?? 2);
+        $campaignName = trim($data['name']) !== '' ? trim($data['name']) : $template['name'];
 
         if ($business->campaigns()->doesntExist()) {
             $campaign = Campaign::create([
                 'business_id' => $business->id,
-                'name' => $template['name'],
+                'name' => $campaignName,
                 'type' => $template['type'],
                 'description' => $template['description'],
                 'spend_step' => $spendStep,
@@ -266,7 +268,7 @@ class OnboardingController extends Controller
 
         return redirect()->route('onboarding.show', ['step' => 6])->with('confirm', Confirm::make(
             __('loop.first_campaign_done_title'),
-            __('loop.first_campaign_done_body'),
+            __('loop.first_campaign_done_body', ['name' => $campaignName]),
             __('loop.next_to_offers'),
             route('onboarding.show', ['step' => 6]),
             true,

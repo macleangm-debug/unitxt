@@ -276,10 +276,12 @@ class CampaignController extends Controller
             $campaign->rewards()->sync($rewardIds);
         }
 
+        $campaign->refresh();
+
         return redirect()->route('campaigns.show', $campaign)->with('confirm', Confirm::make(
             __('loop.campaign_updated_title'),
-            __('loop.campaign_updated_body', ['name' => $campaign->displayName()]),
-            __('loop.view_campaign'),
+            __('loop.campaign_updated_body', ['name' => $campaign->name]),
+            __('loop.done'),
             route('campaigns.show', $campaign),
             false,
         ));
