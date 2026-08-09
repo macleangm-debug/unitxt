@@ -4,7 +4,7 @@
         <p class="mt-1 text-ink-muted">Tell Loop about your brand so you can add shops and campaigns.</p>
     </x-slot>
 
-    <form method="POST" action="{{ route('business.store') }}" class="loop-panel max-w-xl space-y-4 p-6 animate-fade-up">
+    <form method="POST" action="{{ route('business.store') }}" class="loop-panel max-w-xl space-y-4 p-6">
         @csrf
         <div>
             <label class="loop-label" for="name">Business name</label>

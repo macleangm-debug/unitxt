@@ -13,6 +13,7 @@
 <x-site-header>
     <x-slot:actions>
         <a href="{{ route('staff.login') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.staff_login') }}</a>
+        <a href="{{ route('staff.login', ['admin' => 1]) }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.admin_login') }}</a>
     </x-slot:actions>
 </x-site-header>
 

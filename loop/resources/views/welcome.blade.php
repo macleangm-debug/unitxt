@@ -21,6 +21,7 @@
             <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
             <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.business') }}</a>
             <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.customer') }}</a>
+            <a href="{{ route('staff.login', ['admin' => 1]) }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.admin_login') }}</a>
         </x-slot:actions>
     </x-site-header>
 

@@ -343,10 +343,16 @@
         background: rgba(255, 255, 255, 0.9);
     }
 
+    /* Visible by default — JS may animate below-fold sections without FOUC/flicker */
     .loop-reveal {
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.55s ease-out, transform 0.55s ease-out;
+    }
+
+    .loop-reveal.is-pending {
         opacity: 0;
         transform: translateY(14px);
-        transition: opacity 0.55s ease-out, transform 0.55s ease-out;
     }
 
     .loop-reveal.is-shown {
@@ -560,6 +566,7 @@
     .loop-orb--enter,
     .loop-wallet--liquid::before,
     .loop-reveal,
+    .loop-reveal.is-pending,
     .loop-panel--energy::before,
     .loop-energy-card,
     .loop-energy-line,

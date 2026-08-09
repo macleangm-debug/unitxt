@@ -171,20 +171,28 @@ Alpine.data('loopRedeem', () => ({
 
 /**
  * Viewport reveal — one fade/slide when section enters view.
+ * Starts visible (no FOUC). Only below-fold sections briefly pending.
  */
 Alpine.data('loopReveal', (delay = 0) => ({
-    shown: false,
+    shown: true,
     init() {
         if (prefersReducedMotion()) {
-            this.shown = true;
             return;
         }
+        const rect = this.$el.getBoundingClientRect();
+        const inView = rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+        if (inView) {
+            return;
+        }
+        this.shown = false;
+        this.$el.classList.add('is-pending');
         const io = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         setTimeout(() => {
                             this.shown = true;
+                            this.$el.classList.remove('is-pending');
                         }, delay);
                         io.disconnect();
                     }

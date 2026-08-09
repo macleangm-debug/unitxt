@@ -4,7 +4,7 @@
         <p class="mt-1 text-ink-muted">Enter the shop code to earn points from the active campaign.</p>
     </x-slot>
 
-    <form method="POST" action="{{ route('visits.store') }}" class="loop-panel max-w-md space-y-4 p-6 animate-fade-up">
+    <form method="POST" action="{{ route('visits.store') }}" class="loop-panel max-w-md space-y-4 p-6">
         @csrf
         <div>
             <label class="loop-label" for="code">Shop code</label>
