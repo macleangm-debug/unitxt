@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Support\AffiliateProgram;
 use App\Support\BillingSettings;
 use App\Support\Confirm;
 use App\Support\FeatureFlags;
@@ -26,6 +27,7 @@ class SettingsHubController extends Controller
             'billing' => BillingSettings::settings(),
             'growth' => GrowthSettings::settings(),
             'referral' => ReferralProgram::settings(),
+            'affiliate' => AffiliateProgram::settings(),
             'salesVisibility' => SalesVisibility::settings(),
             'platformUrl' => PlatformUrl::settings(),
             'featureFlags' => FeatureFlags::settings(),
@@ -202,6 +204,58 @@ class SettingsHubController extends Controller
             __('loop.admin_features_saved'),
             __('loop.done'),
             route('admin.settings', ['tab' => 'product']),
+            false,
+        ));
+    }
+
+    public function updateReferrals(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'goal_count' => ['required', 'integer', 'min:1', 'max:50'],
+            'referrer_extra_days_per_referral' => ['required', 'integer', 'min:0', 'max:90'],
+            'referred_extra_trial_days' => ['required', 'integer', 'min:0', 'max:180'],
+            'referrer_discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            'referrer_months_per_referral' => ['nullable', 'integer', 'min:0', 'max:12'],
+            'referred_bonus_months' => ['nullable', 'integer', 'min:0', 'max:12'],
+        ]);
+
+        PlatformSetting::putValue(ReferralProgram::KEY, ReferralProgram::normalizeInput([
+            ...$data,
+            'referrer_months_per_referral' => $data['referrer_months_per_referral'] ?? 0,
+            'referred_bonus_months' => $data['referred_bonus_months'] ?? 0,
+        ]));
+
+        return redirect()->route('admin.settings', ['tab' => 'referrals'])->with('confirm', Confirm::make(
+            __('loop.admin_referral_program_saved_title'),
+            __('loop.admin_referral_program_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'referrals']),
+            false,
+        ));
+    }
+
+    public function updateAffiliates(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'commission_percent' => ['required', 'integer', 'min:1', 'max:50'],
+            'referred_discount_percent' => ['required', 'integer', 'min:0', 'max:50'],
+            'attribution_months' => ['required', 'integer', 'min:1', 'max:36'],
+            'pin_length' => ['required', 'integer', 'min:4', 'max:6'],
+            'enabled' => ['sometimes', 'boolean'],
+            'attribution_enabled' => ['sometimes', 'boolean'],
+        ]);
+
+        PlatformSetting::putValue(AffiliateProgram::KEY, AffiliateProgram::normalizeInput([
+            ...$data,
+            'enabled' => $request->boolean('enabled'),
+            'attribution_enabled' => $request->boolean('attribution_enabled'),
+        ]));
+
+        return redirect()->route('admin.settings', ['tab' => 'affiliates'])->with('confirm', Confirm::make(
+            __('loop.affiliate_settings_saved_title'),
+            __('loop.affiliate_settings_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'affiliates']),
             false,
         ));
     }

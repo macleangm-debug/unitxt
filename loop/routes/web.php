@@ -108,6 +108,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/affiliates/{affiliate}', [AdminAffiliateController::class, 'show'])->name('affiliates.show');
         Route::post('/affiliates/{affiliate}/decide', [AdminAffiliateController::class, 'decide'])->name('affiliates.decide');
         Route::get('/plans', [AdminPlanController::class, 'index'])->name('plans.index');
+        Route::put('/plans/{plan}', [AdminPlanController::class, 'update'])->name('plans.update');
         Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
         Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
         Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
@@ -115,6 +116,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/sales-visibility', [AdminSettingsHubController::class, 'updateSalesVisibility'])->name('settings.sales-visibility');
         Route::put('/settings/base-url', [AdminSettingsHubController::class, 'updatePlatformUrl'])->name('settings.base-url');
         Route::put('/settings/feature-flags', [AdminSettingsHubController::class, 'updateFeatureFlags'])->name('settings.feature-flags');
+        Route::put('/settings/referrals', [AdminSettingsHubController::class, 'updateReferrals'])->name('settings.referrals');
+        Route::put('/settings/affiliates', [AdminSettingsHubController::class, 'updateAffiliates'])->name('settings.affiliates');
     });
 
     Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {

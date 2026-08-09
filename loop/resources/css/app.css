@@ -539,8 +539,32 @@
         @apply h-2.5 overflow-hidden rounded-full bg-chalk;
     }
 
-    .loop-hbar > span {
-        @apply block h-full rounded-full bg-violet;
+    .loop-bar-chart__bar--mint {
+        @apply bg-mint-deep/80;
+    }
+
+    .loop-hbar--mint > span {
+        @apply bg-mint-deep;
+    }
+
+    .loop-insight {
+        @apply rounded-[1.4rem] border px-4 py-4;
+    }
+
+    .loop-insight--mint {
+        @apply border-mint/30 bg-mint-soft/50 text-ink;
+    }
+
+    .loop-insight--violet {
+        @apply border-violet/25 bg-violet-soft/60 text-ink;
+    }
+
+    .loop-insight--ink {
+        @apply border-ink/10 bg-white/80 text-ink;
+    }
+
+    .loop-insight--coral {
+        @apply border-coral/25 bg-coral/10 text-ink;
     }
 
     .loop-table-wrap {

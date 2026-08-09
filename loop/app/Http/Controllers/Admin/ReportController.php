@@ -115,7 +115,9 @@ class ReportController extends Controller
             default => [
                 'basename' => 'overview',
                 'headers' => ['metric', 'value'],
-                'rows' => collect($reports->overview())->map(fn ($v, $k) => [$k, $v]),
+                'rows' => collect($reports->overview())
+                    ->filter(fn ($v) => is_scalar($v) || $v === null)
+                    ->map(fn ($v, $k) => [$k, $v]),
             ],
         };
     }

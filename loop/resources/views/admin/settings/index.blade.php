@@ -1,6 +1,6 @@
 @php
     $tab = request('tab', 'overview');
-    $allowed = ['overview', 'packages', 'billing', 'growth', 'platform', 'sectors', 'visibility', 'product', 'links'];
+    $allowed = ['overview', 'packages', 'billing', 'growth', 'platform', 'sectors', 'visibility', 'referrals', 'affiliates', 'product', 'links'];
     if (! in_array($tab, $allowed, true)) {
         $tab = 'overview';
     }
@@ -12,6 +12,8 @@
         'platform' => __('loop.settings_tab_platform'),
         'sectors' => __('loop.settings_tab_sectors'),
         'visibility' => __('loop.settings_tab_visibility'),
+        'referrals' => __('loop.settings_tab_referrals'),
+        'affiliates' => __('loop.settings_tab_affiliates'),
         'product' => __('loop.settings_tab_product'),
         'links' => __('loop.settings_tab_links'),
     ];
@@ -49,6 +51,8 @@
                     'platform' => [__('loop.settings_tab_platform'), __('loop.admin_base_url_blurb')],
                     'sectors' => [__('loop.settings_tab_sectors'), __('loop.admin_sectors_blurb')],
                     'visibility' => [__('loop.settings_tab_visibility'), __('loop.admin_sales_visibility_blurb')],
+                    'referrals' => [__('loop.settings_tab_referrals'), __('loop.settings_tab_referrals_blurb')],
+                    'affiliates' => [__('loop.settings_tab_affiliates'), __('loop.settings_tab_affiliates_blurb')],
                     'product' => [__('loop.settings_tab_product'), __('loop.admin_product_updates_blurb')],
                     'links' => [__('loop.settings_tab_links'), __('loop.settings_tab_links_blurb')],
                 ] as $key => [$title, $blurb])
@@ -62,39 +66,69 @@
     @endif
 
     @if ($tab === 'packages')
-        <section class="loop-glass p-6">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_packages') }}</h2>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_packages_blurb') }}</p>
-                </div>
-                <a href="{{ route('admin.plans.index') }}" class="loop-btn-mint !py-2">{{ __('loop.view_plans') }}</a>
+        <section class="space-y-5">
+            <div class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_packages') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_packages_edit_blurb') }}</p>
             </div>
-            <div class="mt-5 loop-table-wrap">
-                <table class="loop-table">
-                    <thead>
-                        <tr>
-                            <th>{{ __('loop.plan') }}</th>
-                            <th>{{ __('loop.price') }}</th>
-                            <th>{{ __('loop.status') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($plans as $plan)
-                            <tr>
-                                <td>
-                                    <p class="font-semibold">{{ $plan->name }}</p>
-                                    <p class="text-xs text-ink-muted">{{ $plan->key }}</p>
-                                </td>
-                                <td>{{ $plan->priceLabel() }}</td>
-                                <td>{{ $plan->is_public ? __('loop.live') : __('loop.off') }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="3" class="py-6 text-ink-muted">{{ __('loop.no_data_yet') }}</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            @forelse ($plans as $plan)
+                <form method="POST" action="{{ route('admin.plans.update', $plan) }}" class="loop-glass space-y-4 p-6">
+                    @csrf
+                    @method('PUT')
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ $plan->key }}</p>
+                            <h3 class="mt-1 font-display text-xl font-semibold">{{ $plan->name }}</h3>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm font-semibold">
+                            <input type="checkbox" name="is_public" value="1" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(old('is_public', $plan->is_public))>
+                            {{ __('loop.show_on_pricing') }}
+                        </label>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="loop-label">{{ __('loop.plan_name') }}</label>
+                            <input name="name" value="{{ old('name', $plan->name) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.price_monthly') }}</label>
+                            <input type="number" min="0" name="price_monthly" value="{{ old('price_monthly', $plan->price_monthly) }}" class="loop-input" required>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="loop-label">{{ __('loop.tagline') }}</label>
+                            <input name="tagline" value="{{ old('tagline', $plan->tagline) }}" class="loop-input">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.currency') }}</label>
+                            <input name="currency" value="{{ old('currency', $plan->currency) }}" maxlength="3" class="loop-input uppercase" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.sort_order') }}</label>
+                            <input type="number" min="0" name="sort_order" value="{{ old('sort_order', $plan->sort_order) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.max_shops') }}</label>
+                            <input type="number" min="1" name="max_shops" value="{{ old('max_shops', $plan->max_shops) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.max_members') }}</label>
+                            <input type="number" min="1" name="max_members" value="{{ old('max_members', $plan->max_members) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.max_monthly_visits') }}</label>
+                            <input type="number" min="1" name="max_monthly_visits" value="{{ old('max_monthly_visits', $plan->max_monthly_visits) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="loop-label">{{ __('loop.plan_features') }}</label>
+                            <textarea name="features_text" rows="4" class="loop-input" placeholder="{{ __('loop.plan_features_help') }}">{{ old('features_text', implode("\n", $plan->features ?? [])) }}</textarea>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.plan_features_help') }}</p>
+                        </div>
+                    </div>
+                    <button class="loop-btn-mint">{{ __('loop.save_package') }}</button>
+                </form>
+            @empty
+                <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
+            @endforelse
         </section>
     @endif
 
@@ -283,6 +317,85 @@
         </form>
     @endif
 
+    @if ($tab === 'referrals')
+        <form method="POST" action="{{ route('admin.settings.referrals') }}" class="loop-glass space-y-5 p-6">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_referral_program') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_referrals_blurb') }}</p>
+            </div>
+            <div class="rounded-2xl bg-mint-soft/50 p-4 text-sm text-ink">
+                <p class="font-semibold">{{ __('loop.admin_referral_both_sides') }}</p>
+                <p class="mt-1 text-ink-muted">{{ __('loop.admin_referral_both_sides_body') }}</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="loop-label">{{ __('loop.goal_count') }}</label>
+                    <input type="number" min="1" name="goal_count" value="{{ old('goal_count', $referral['goal_count']) }}" class="loop-input" required>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.goal_count_help') }}</p>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.referrer_extra_days') }}</label>
+                    <input type="number" min="0" name="referrer_extra_days_per_referral" value="{{ old('referrer_extra_days_per_referral', $referral['referrer_extra_days_per_referral']) }}" class="loop-input" required>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referrer_extra_days_help') }}</p>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.referred_extra_trial_days') }}</label>
+                    <input type="number" min="0" name="referred_extra_trial_days" value="{{ old('referred_extra_trial_days', $referral['referred_extra_trial_days']) }}" class="loop-input" required>
+                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referred_extra_trial_days_help') }}</p>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.referrer_discount_percent') }}</label>
+                    <input type="number" min="0" max="100" name="referrer_discount_percent" value="{{ old('referrer_discount_percent', $referral['referrer_discount_percent']) }}" class="loop-input" required>
+                </div>
+            </div>
+            <input type="hidden" name="referrer_months_per_referral" value="0">
+            <input type="hidden" name="referred_bonus_months" value="0">
+            <div class="flex flex-wrap gap-3">
+                <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                <a href="{{ route('admin.referrals.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
+            </div>
+        </form>
+    @endif
+
+    @if ($tab === 'affiliates')
+        <form method="POST" action="{{ route('admin.settings.affiliates') }}" class="loop-glass space-y-4 p-6">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.affiliate_program_settings') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_affiliates_blurb') }}</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <label class="loop-label">{{ __('loop.commission_percent') }}</label>
+                    <input type="number" min="1" max="50" name="commission_percent" value="{{ old('commission_percent', $affiliate['commission_percent']) }}" class="loop-input" required>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.referred_discount_percent') }}</label>
+                    <input type="number" min="0" max="50" name="referred_discount_percent" value="{{ old('referred_discount_percent', $affiliate['referred_discount_percent']) }}" class="loop-input" required>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.attribution_months') }}</label>
+                    <input type="number" min="1" max="36" name="attribution_months" value="{{ old('attribution_months', $affiliate['attribution_months']) }}" class="loop-input" required>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.pin_length') }}</label>
+                    <input type="number" min="4" max="6" name="pin_length" value="{{ old('pin_length', $affiliate['pin_length']) }}" class="loop-input" required>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-4 text-sm">
+                <label class="flex items-center gap-2"><input type="checkbox" name="enabled" value="1" @checked(old('enabled', $affiliate['enabled']))> {{ __('loop.affiliate_program_enabled') }}</label>
+                <label class="flex items-center gap-2"><input type="checkbox" name="attribution_enabled" value="1" @checked(old('attribution_enabled', $affiliate['attribution_enabled']))> {{ __('loop.attribution_enabled') }}</label>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="loop-btn-ghost !py-2.5">{{ __('loop.affiliate_applications_queue') }} →</a>
+            </div>
+        </form>
+    @endif
+
     @if ($tab === 'product')
         <form method="POST" action="{{ route('admin.settings.feature-flags') }}" class="loop-glass space-y-5 p-6">
             @csrf
@@ -290,6 +403,7 @@
             <div>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_product_updates') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_product_updates_blurb') }}</p>
+                <p class="mt-3 rounded-2xl bg-chalk/70 px-4 py-3 text-sm text-ink-muted">{{ __('loop.admin_product_updates_rollout') }}</p>
             </div>
             <div class="grid gap-3 sm:grid-cols-2">
                 @foreach ($featureCatalog as $feature)

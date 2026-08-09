@@ -1,127 +1,208 @@
 @php
+    $tabs = [
+        'pulse' => __('loop.dash_tab_pulse'),
+        'till' => __('loop.dash_tab_till'),
+        'subscriptions' => __('loop.dash_tab_subscriptions'),
+        'sectors' => __('loop.dash_tab_sectors'),
+        'growth' => __('loop.dash_tab_growth'),
+    ];
     $maxDaily = max(1, (int) collect($dailySales)->max('revenue'));
-    $maxSector = max(1, (float) collect($salesBySector)->take(3)->max('revenue'));
-    $topThree = collect($topBusinesses)->take(3);
+    $maxSignups = max(1, (int) collect($dailySignups)->max('signups'));
+    $maxSectorGmv = max(1, (float) collect($salesBySector)->max('revenue'));
+    $maxSectorBiz = max(1, (int) collect($businessesBySector)->max('businesses'));
+    $maxPkg = max(1, (int) collect($packages)->max('subscribers'), (int) collect($packages)->max('total'));
     $sectorThree = collect($salesBySector)->take(3);
+    $bizSectorThree = collect($businessesBySector)->take(3);
+    $topThree = collect($topBusinesses)->take(3);
 @endphp
 <x-app-layout>
     <x-slot name="header">
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin') }}</p>
             <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.admin_dashboard') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.admin_dashboard_blurb') }}</p>
+            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.admin_dashboard_blurb') }}</p>
         </div>
     </x-slot>
 
     @include('admin.partials.nav')
 
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-glass--ink rounded-[1.5rem] p-5">
-            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-white/55">{{ __('loop.revenue_today') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">TZS {{ number_format($revenue_today) }}</p>
-            <p class="mt-1 text-xs text-white/55">{{ $sales_today }} {{ __('loop.sales') }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.revenue_month') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">TZS {{ number_format($revenue_month) }}</p>
-            <p class="mt-1 text-xs text-ink-muted">{{ $sales_month }} {{ __('loop.sales') }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.unique_customers') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $unique_customers }}</p>
-            <p class="mt-1 text-xs text-ink-muted">{{ $unique_customers_with_membership }} {{ __('loop.with_memberships') }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.admin_businesses') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $active_businesses }}</p>
-            <p class="mt-1 text-xs text-ink-muted">{{ $paid_active }} {{ __('loop.paid') }} · {{ $trialing }} {{ __('loop.trialing') }} · {{ $past_due }} {{ __('loop.past_due') }}</p>
-        </div>
+    <div class="mb-4 rounded-2xl border border-violet/20 bg-violet-soft/50 px-4 py-3 text-sm text-ink">
+        <p class="font-semibold">{{ __('loop.metric_legend_title') }}</p>
+        <p class="mt-1 text-ink-muted">{{ __('loop.metric_legend_body') }}</p>
     </div>
 
-    <div class="mt-6 grid gap-3 sm:grid-cols-3">
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.referral_pending') }}</p>
-            <p class="mt-1 font-display text-2xl font-semibold">{{ $referralPending }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.referral_qualified') }}</p>
-            <p class="mt-1 font-display text-2xl font-semibold">{{ $referralQualified }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.referral_rewarded') }}</p>
-            <p class="mt-1 font-display text-2xl font-semibold">{{ $referralRewarded }}</p>
-        </div>
+    <div class="loop-admin-tabs" role="tablist">
+        @foreach ($tabs as $key => $label)
+            <a href="{{ route('admin.dashboard', ['tab' => $key]) }}"
+               class="loop-admin-tab {{ $tab === $key ? 'is-active' : '' }}"
+               role="tab"
+               aria-selected="{{ $tab === $key ? 'true' : 'false' }}">{{ $label }}</a>
+        @endforeach
     </div>
 
-    <section class="mt-10 loop-glass p-6">
-        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.last_14_days_sales') }}</h2>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.last_14_days_sales_blurb') }}</p>
+    @if ($tab === 'pulse')
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="loop-glass--ink rounded-[1.5rem] p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-white/55">{{ __('loop.estimated_mrr') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold">TZS {{ number_format($estimated_mrr) }}</p>
+                <p class="mt-1 text-xs text-white/55">{{ __('loop.estimated_mrr_blurb') }}</p>
             </div>
-            <a href="{{ route('admin.reports.index', ['tab' => 'trend']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+            <div class="loop-stat">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.till_gmv_month') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold">TZS {{ number_format($revenue_month) }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $sales_month }} {{ __('loop.till_sales') }} · {{ __('loop.avg_ticket') }} TZS {{ number_format($avg_ticket_month) }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.paid_subscribers') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold">{{ $paid_active }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $trialing }} {{ __('loop.trialing') }} · {{ $trial_conversion_pct }}% {{ __('loop.trial_conversion') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.admin_businesses') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold">{{ $active_businesses }}</p>
+                <p class="mt-1 text-xs text-ink-muted">+{{ $businesses_new_14d }} {{ __('loop.last_14_days') }} · {{ $unique_customers }} {{ __('loop.customers') }}</p>
+            </div>
         </div>
-        <div class="loop-bar-chart">
-            @foreach ($dailySales as $day)
-                @php
-                    $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100));
-                    $label = \Illuminate\Support\Carbon::parse($day->day)->format('d');
-                @endphp
-                <div class="loop-bar-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ $day->sales_count }} {{ __('loop.sales') }}">
-                    <div class="loop-bar-chart__bar" style="height: {{ $h }}%"></div>
-                    <span class="loop-bar-chart__label">{{ $label }}</span>
-                </div>
-            @endforeach
-        </div>
-        <div class="mt-4 overflow-x-auto">
-            <table class="loop-table min-w-full">
-                <thead>
-                    <tr>
-                        <th>{{ __('loop.day') }}</th>
-                        <th>{{ __('loop.sales') }}</th>
-                        <th>{{ __('loop.revenue') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($dailySales->take(5) as $day)
-                        <tr>
-                            <td class="font-medium">{{ $day->day }}</td>
-                            <td>{{ $day->sales_count }}</td>
-                            <td>TZS {{ number_format($day->revenue) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </section>
 
-    <div class="mt-10 grid gap-6 lg:grid-cols-2">
-        <section class="loop-glass p-6">
-            <div class="mb-4 flex items-end justify-between gap-3">
-                <div>
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.sales_by_sector') }}</h2>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.top_3_sectors_blurb') }}</p>
-                </div>
-                <a href="{{ route('admin.reports.index', ['tab' => 'sectors']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
-            </div>
-            <div class="space-y-4">
-                @forelse ($sectorThree as $row)
-                    @php $pct = max(4, (int) round(((float) $row->revenue / $maxSector) * 100)); @endphp
-                    <div>
-                        <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                            <p class="font-semibold">{{ $row->sector_label }}</p>
-                            <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
-                        </div>
-                        <div class="loop-hbar"><span style="width: {{ $pct }}%"></span></div>
-                        <p class="mt-1 text-xs text-ink-muted">{{ $row->sales_count }} {{ __('loop.sales') }} · {{ $row->unique_customers }} {{ __('loop.unique_customers') }}</p>
-                    </div>
-                @empty
-                    <p class="text-sm text-ink-muted">{{ __('loop.no_sales_yet') }}</p>
-                @endforelse
+        <section class="mt-8">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.insights_title') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.insights_blurb') }}</p>
+            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($insights as $insight)
+                    <article class="loop-insight loop-insight--{{ $insight['tone'] }}">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em]">{{ $insight['title'] }}</p>
+                        <p class="mt-2 text-sm leading-relaxed">{{ $insight['body'] }}</p>
+                    </article>
+                @endforeach
             </div>
         </section>
 
-        <section class="loop-glass p-6">
+        <div class="mt-8 grid gap-6 lg:grid-cols-2">
+            <section class="loop-glass p-6">
+                <div class="mb-4 flex items-end justify-between gap-3">
+                    <div>
+                        <h2 class="font-display text-xl font-semibold">{{ __('loop.best_sector_gmv') }}</h2>
+                        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.best_sector_gmv_blurb') }}</p>
+                    </div>
+                    <a href="{{ route('admin.dashboard', ['tab' => 'sectors']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                </div>
+                <div class="space-y-4">
+                    @forelse ($sectorThree as $row)
+                        @php $pct = max(4, (int) round(((float) $row->revenue / $maxSectorGmv) * 100)); @endphp
+                        <div>
+                            <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                                <p class="font-semibold">{{ $row->sector_label }}</p>
+                                <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
+                            </div>
+                            <div class="loop-hbar"><span style="width: {{ $pct }}%"></span></div>
+                            <p class="mt-1 text-xs text-ink-muted">{{ $row->sales_count }} {{ __('loop.till_sales') }} · {{ $row->unique_customers }} {{ __('loop.customers') }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
+                    @endforelse
+                </div>
+            </section>
+
+            <section class="loop-glass p-6">
+                <div class="mb-4 flex items-end justify-between gap-3">
+                    <div>
+                        <h2 class="font-display text-xl font-semibold">{{ __('loop.best_package') }}</h2>
+                        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.best_package_blurb') }}</p>
+                    </div>
+                    <a href="{{ route('admin.dashboard', ['tab' => 'subscriptions']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                </div>
+                <div class="space-y-4">
+                    @forelse ($packages->sortByDesc('subscribers')->take(4) as $pkg)
+                        @php $pct = max(4, (int) round(((int) $pkg->subscribers / max(1, $maxPkg)) * 100)); @endphp
+                        <div>
+                            <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                                <p class="font-semibold">{{ $pkg->name }}</p>
+                                <p class="font-semibold">{{ $pkg->subscribers }} {{ __('loop.paid_subscribers_short') }}</p>
+                            </div>
+                            <div class="loop-hbar loop-hbar--mint"><span style="width: {{ $pct }}%"></span></div>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.estimated_mrr') }} TZS {{ number_format($pkg->estimated_mrr) }} · {{ $pkg->trialing }} {{ __('loop.trialing') }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
+                    @endforelse
+                </div>
+            </section>
+        </div>
+
+        <div class="mt-8 grid gap-6 lg:grid-cols-2">
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.till_gmv_14d') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_gmv_14d_blurb') }}</p>
+                <div class="mt-4 loop-bar-chart">
+                    @foreach ($dailySales as $day)
+                        @php $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100)); @endphp
+                        <div class="loop-bar-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }}">
+                            <div class="loop-bar-chart__bar" style="height: {{ $h }}%"></div>
+                            <span class="loop-bar-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.signups_14d') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.signups_14d_blurb') }}</p>
+                <div class="mt-4 loop-bar-chart">
+                    @foreach ($dailySignups as $day)
+                        @php $h = max(4, (int) round(((int) $day->signups / $maxSignups) * 100)); @endphp
+                        <div class="loop-bar-chart__col" title="{{ $day->day }} · {{ $day->signups }}">
+                            <div class="loop-bar-chart__bar loop-bar-chart__bar--mint" style="height: {{ $h }}%"></div>
+                            <span class="loop-bar-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        </div>
+    @endif
+
+    @if ($tab === 'till')
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.till_gmv_today') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($revenue_today) }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $sales_today }} {{ __('loop.till_sales') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.till_gmv_month') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($revenue_month) }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $sales_month }} {{ __('loop.till_sales') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.till_gmv_all') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($revenue_all) }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $sales_all }} {{ __('loop.till_sales') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.avg_ticket') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($avg_ticket_month) }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.this_month') }}</p>
+            </div>
+        </div>
+
+        <section class="mt-8 loop-glass p-6">
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.till_gmv_14d') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_gmv_14d_blurb') }}</p>
+                </div>
+                <a href="{{ route('admin.reports.index', ['tab' => 'trend']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+            </div>
+            <div class="loop-bar-chart">
+                @foreach ($dailySales as $day)
+                    @php $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100)); @endphp
+                    <div class="loop-bar-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ $day->sales_count }}">
+                        <div class="loop-bar-chart__bar" style="height: {{ $h }}%"></div>
+                        <span class="loop-bar-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="mt-8 loop-glass p-6">
             <div class="mb-4 flex items-end justify-between gap-3">
                 <div>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.top_businesses') }}</h2>
@@ -132,14 +213,9 @@
             <div class="space-y-3">
                 @forelse ($topThree as $biz)
                     <a href="{{ route('admin.businesses.show', $biz->id) }}" class="flex items-center justify-between gap-3 rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 transition hover:border-violet/30">
-                        <div class="flex items-center gap-3">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-soft font-display text-sm font-semibold text-violet">
-                                {{ mb_substr($biz->name, 0, 1) }}
-                            </div>
-                            <div>
-                                <p class="font-semibold">{{ $biz->name }}</p>
-                                <p class="text-xs text-ink-muted">{{ $biz->sector_label }} · {{ $biz->plan_key }}</p>
-                            </div>
+                        <div>
+                            <p class="font-semibold">{{ $biz->name }}</p>
+                            <p class="text-xs text-ink-muted">{{ $biz->sector_label }} · {{ $biz->plan_key }}</p>
                         </div>
                         <div class="text-right text-sm">
                             <p class="font-semibold">TZS {{ number_format($biz->revenue) }}</p>
@@ -151,5 +227,175 @@
                 @endforelse
             </div>
         </section>
-    </div>
+    @endif
+
+    @if ($tab === 'subscriptions')
+        <div class="mb-4 rounded-2xl border border-ink/10 bg-chalk/60 px-4 py-3 text-sm text-ink-muted">
+            {{ __('loop.subscriptions_note') }}
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="loop-glass--ink rounded-[1.5rem] p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-white/55">{{ __('loop.estimated_mrr') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold">TZS {{ number_format($estimated_mrr) }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.paid_subscribers') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $paid_active }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.trialing') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $trialing }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $trial_conversion_pct }}% {{ __('loop.trial_conversion') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.past_due') }} / {{ __('loop.suspended') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $past_due }} / {{ $suspended }}</p>
+            </div>
+        </div>
+
+        <section class="mt-8 loop-glass p-6">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.package_performance') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.package_performance_blurb') }}</p>
+                </div>
+                <a href="{{ route('admin.settings', ['tab' => 'packages']) }}" class="loop-btn-mint !py-2">{{ __('loop.edit_packages') }}</a>
+            </div>
+            <div class="mt-6 space-y-5">
+                @foreach ($packages as $pkg)
+                    @php
+                        $subPct = max(0, (int) round(((int) $pkg->subscribers / max(1, $maxPkg)) * 100));
+                        $totalPct = max(4, (int) round(((int) $pkg->total / max(1, (int) collect($packages)->max('total'))) * 100));
+                    @endphp
+                    <div class="rounded-2xl border border-ink/8 bg-white/70 p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p class="font-display text-lg font-semibold">{{ $pkg->name }}</p>
+                                <p class="text-xs text-ink-muted">{{ $pkg->plan_key }} · {{ number_format($pkg->price_monthly) }} {{ $pkg->currency }}/{{ __('loop.mo') }}</p>
+                            </div>
+                            <div class="text-right text-sm">
+                                <p class="font-semibold">{{ __('loop.estimated_mrr') }} TZS {{ number_format($pkg->estimated_mrr) }}</p>
+                                <p class="text-xs text-ink-muted">{{ $pkg->subscribers }} {{ __('loop.paid') }} · {{ $pkg->trialing }} {{ __('loop.trialing') }} · {{ $pkg->total }} {{ __('loop.total') }}</p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="mb-1 flex justify-between text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+                                <span>{{ __('loop.paid_subscribers') }}</span>
+                                <span>{{ $subPct }}%</span>
+                            </div>
+                            <div class="loop-hbar loop-hbar--mint"><span style="width: {{ max(4, $subPct) }}%"></span></div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="mb-1 flex justify-between text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+                                <span>{{ __('loop.all_on_package') }}</span>
+                                <span>{{ $totalPct }}%</span>
+                            </div>
+                            <div class="loop-hbar"><span style="width: {{ $totalPct }}%"></span></div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if ($tab === 'sectors')
+        <div class="grid gap-6 lg:grid-cols-2">
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.best_sector_gmv') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.best_sector_gmv_full_blurb') }}</p>
+                <div class="mt-5 space-y-4">
+                    @forelse ($salesBySector as $i => $row)
+                        @php $pct = max(4, (int) round(((float) $row->revenue / $maxSectorGmv) * 100)); @endphp
+                        <div>
+                            <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-sm">
+                                <p class="font-semibold">
+                                    <span class="mr-2 text-ink-muted">#{{ $i + 1 }}</span>{{ $row->sector_label }}
+                                </p>
+                                <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
+                            </div>
+                            <div class="loop-hbar"><span style="width: {{ $pct }}%"></span></div>
+                            <p class="mt-1 text-xs text-ink-muted">{{ $row->sales_count }} {{ __('loop.till_sales') }} · {{ $row->unique_customers }} {{ __('loop.customers') }} · {{ $row->businesses }} {{ __('loop.admin_businesses') }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
+                    @endforelse
+                </div>
+            </section>
+
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.best_sector_businesses') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.best_sector_businesses_blurb') }}</p>
+                <div class="mt-5 space-y-4">
+                    @forelse ($businessesBySector as $i => $row)
+                        @php $pct = max(4, (int) round(((int) $row->businesses / $maxSectorBiz) * 100)); @endphp
+                        <div>
+                            <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-sm">
+                                <p class="font-semibold">
+                                    <span class="mr-2 text-ink-muted">#{{ $i + 1 }}</span>{{ $row->sector_label }}
+                                </p>
+                                <p class="font-semibold">{{ $row->businesses }}</p>
+                            </div>
+                            <div class="loop-hbar loop-hbar--mint"><span style="width: {{ $pct }}%"></span></div>
+                            <p class="mt-1 text-xs text-ink-muted">{{ $row->active_businesses }} {{ __('loop.live') }} · {{ $row->paid_businesses }} {{ __('loop.paid') }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
+                    @endforelse
+                </div>
+            </section>
+        </div>
+    @endif
+
+    @if ($tab === 'growth')
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.businesses_new_14d') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $businesses_new_14d }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $businesses_new_30d }} {{ __('loop.last_30_days') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.referral_pending') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $referralPending }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.referral_rewarded') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $referralRewarded }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $referral_total }} {{ __('loop.total') }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-xs text-ink-muted">{{ __('loop.affiliate_applications') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">{{ $affiliate_pending }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $affiliate_active }} {{ __('loop.affiliate_tab_active') }}</p>
+            </div>
+        </div>
+
+        <section class="mt-8 loop-glass p-6">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.signups_14d') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.signups_14d_blurb') }}</p>
+            <div class="mt-4 loop-bar-chart">
+                @foreach ($dailySignups as $day)
+                    @php $h = max(4, (int) round(((int) $day->signups / $maxSignups) * 100)); @endphp
+                    <div class="loop-bar-chart__col" title="{{ $day->day }} · {{ $day->signups }}">
+                        <div class="loop-bar-chart__bar loop-bar-chart__bar--mint" style="height: {{ $h }}%"></div>
+                        <span class="loop-bar-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+
+        <div class="mt-6 grid gap-3 sm:grid-cols-3">
+            <a href="{{ route('admin.referrals.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referrals') }}</p>
+                <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.referral_progress_title') }}</p>
+            </a>
+            <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_affiliates') }}</p>
+                <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.affiliate_applications_queue') }}</p>
+            </a>
+            <a href="{{ route('admin.settings', ['tab' => 'product']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_product_updates') }}</p>
+                <p class="mt-2 font-display text-lg font-semibold">{{ $features_on }} {{ __('loop.on') }} / {{ $features_off }} {{ __('loop.off') }}</p>
+            </a>
+        </div>
+    @endif
 </x-app-layout>
