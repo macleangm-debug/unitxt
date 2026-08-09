@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
     'spend_step',
     'points_per_step',
     'bonus_points',
+    'featured_product_name',
     'streak_target',
     'streak_period',
     'max_earns_per_day',
@@ -105,7 +106,8 @@ class Campaign extends Model
 
         $steps = intdiv((int) floor($amount), $this->spend_step);
 
-        return ($steps * $this->points_per_step) + $this->bonus_points;
+        // Featured-product bonus is applied at the till when staff confirms the product is in the sale.
+        return $steps * $this->points_per_step;
     }
 
     public function currencyPerPoint(): float
@@ -124,7 +126,12 @@ class Campaign extends Model
                 'currency' => $currency,
                 'step' => number_format($this->spend_step),
                 'points' => $this->points_per_step,
-            ]),
+            ]).($this->type === 'product_push' && $this->featured_product_name
+                ? ' · '.__('loop.rule_featured_product', [
+                    'product' => $this->featured_product_name,
+                    'points' => $this->bonus_points,
+                ])
+                : ''),
             self::TYPE_BIRTHDAY => __('loop.rule_birthday', ['points' => $this->bonus_points]),
             self::TYPE_WELCOME => __('loop.rule_welcome', ['points' => $this->bonus_points]),
             self::TYPE_STREAK => __('loop.rule_streak_detail', [

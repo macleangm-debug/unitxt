@@ -6,7 +6,7 @@
     $logo = $business?->logoUrl();
 @endphp
 @if ($logo)
-    <img src="{{ $logo }}" alt="{{ $name }}" {{ $attributes->merge(['class' => 'h-12 w-12 rounded-2xl object-contain bg-white']) }}>
+    <img src="{{ $logo }}" alt="{{ $name }}" {{ $attributes->merge(['class' => 'h-12 w-12 rounded-2xl object-cover bg-ink']) }}>
 @else
     <x-shop-mark :initials="$initials" {{ $attributes->merge(['class' => 'h-12 w-12']) }} />
 @endif

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -21,6 +20,7 @@ use Illuminate\Support\Str;
     'city',
     'hotline',
     'branch_count',
+    'presence',
     'description',
     'logo_path',
     'is_active',
@@ -159,7 +159,13 @@ class Business extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->logo_path);
+        // Always relative so Cloudflare / tunnel hosts still load the file.
+        return '/storage/'.ltrim($this->logo_path, '/');
+    }
+
+    public function isOnline(): bool
+    {
+        return ($this->presence ?? 'physical') === 'online';
     }
 
     public function effectiveMonthlyPrice(): int

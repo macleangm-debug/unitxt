@@ -161,6 +161,16 @@
                     <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
                 </div>
 
+                @if ($campaign && $campaign->type === 'product_push' && filled($campaign->featured_product_name))
+                    <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
+                        <input type="checkbox" name="includes_featured_product" value="1" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(old('includes_featured_product'))>
+                        <span>
+                            <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $campaign->featured_product_name]) }}</span>
+                            <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $campaign->bonus_points]) }}</span>
+                        </span>
+                    </label>
+                @endif
+
                 @if ($hasRedeemable)
                     <div class="rounded-[1.5rem] border border-mint-deep/20 bg-mint-soft/40 p-5">
                         <p class="font-display text-lg font-semibold">{{ __('loop.ask_redeem_title') }}</p>

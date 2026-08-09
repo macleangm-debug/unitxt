@@ -64,6 +64,7 @@ class TillService
         string $channel = 'in_store',
         bool $applyPointsAsPayment = false,
         ?int $pointsToSpend = null,
+        bool $includesFeaturedProduct = false,
     ): Visit {
         if (! $staff->canUseTill()) {
             throw ValidationException::withMessages(['staff' => 'You are not allowed to record sales.']);
@@ -91,7 +92,7 @@ class TillService
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
-        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $limits) {
+        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $rewardId, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $limits) {
             $existingMembership = Membership::query()
                 ->where('business_id', $business->id)
                 ->where('customer_id', $customer->id)
@@ -109,6 +110,20 @@ class TillService
 
             if ($basePoints > 0) {
                 $bonuses[] = __('loop.bonus_from_purchase', ['points' => $basePoints]);
+            }
+
+            if (
+                $includesFeaturedProduct
+                && $campaign
+                && $campaign->type === 'product_push'
+                && filled($campaign->featured_product_name)
+                && (int) $campaign->bonus_points > 0
+            ) {
+                $pointsEarned += (int) $campaign->bonus_points;
+                $bonuses[] = __('loop.bonus_from_featured', [
+                    'product' => $campaign->featured_product_name,
+                    'points' => $campaign->bonus_points,
+                ]);
             }
 
             $birthdayCampaign = $this->findBirthdayCampaign($business);

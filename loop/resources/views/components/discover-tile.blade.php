@@ -20,7 +20,7 @@
     <div class="overflow-hidden rounded-[1.5rem] border border-ink/10 bg-white transition group-hover:-translate-y-1">
         <div class="relative aspect-[4/5] overflow-hidden bg-ink">
             @if ($business->logoUrl())
-                <img src="{{ $business->logoUrl() }}" alt="" class="h-full w-full object-contain bg-ink p-3 transition duration-500 group-hover:scale-105">
+                <img src="{{ $business->logoUrl() }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
             @else
                 <div class="flex h-full w-full flex-col justify-between bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 p-4">
                     <span class="font-display text-3xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>

@@ -12,8 +12,8 @@
         @method('PATCH')
 
         <div class="flex items-center gap-4 rounded-2xl bg-chalk/70 p-4">
-            @if ($business->logo_path)
-                <img src="{{ asset('storage/'.$business->logo_path) }}" alt="" class="h-16 w-16 rounded-2xl object-cover">
+            @if ($business->logoUrl())
+                <img src="{{ $business->logoUrl() }}" alt="" class="h-16 w-16 rounded-2xl object-cover">
             @else
                 <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-ink font-display text-xl text-mint">{{ mb_substr($business->name, 0, 1) }}</div>
             @endif

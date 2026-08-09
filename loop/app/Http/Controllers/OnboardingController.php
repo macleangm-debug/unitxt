@@ -52,7 +52,10 @@ class OnboardingController extends Controller
             'areasByCity' => collect(Countries::cities($business->country ?? 'TZ'))
                 ->mapWithKeys(fn ($city) => [$city => Countries::areas($city)])
                 ->all(),
-            'groupedTemplates' => CampaignTemplates::grouped(),
+            'groupedTemplates' => CampaignTemplates::grouped([
+                // Retention / bonus campaigns come after the first earn + offer.
+                'visit_streak', 'monthly_streak', 'birthday_treat', 'welcome_bonus',
+            ]),
             'offerTemplates' => OfferTemplates::forSector($business->sector ?: 'other'),
             'earnCampaign' => $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first(),
             'existingOffers' => $business->rewards()->latest()->get(),
@@ -61,6 +64,8 @@ class OnboardingController extends Controller
             'branchTotal' => $branchTotal,
             'dial' => Countries::dial($business->country ?? 'TZ'),
             'logoJustSaved' => (bool) $request->session()->pull('logo_just_saved', false),
+            'isOnline' => $business->isOnline(),
+            'currency' => $business->currency ?? 'TZS',
         ]);
     }
 
@@ -90,10 +95,16 @@ class OnboardingController extends Controller
         }
 
         $data = $request->validate([
+            'presence' => ['required', 'in:physical,online'],
             'branch_count' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $business->update(['branch_count' => $data['branch_count']]);
+        $branchCount = $data['presence'] === 'online' ? 1 : $data['branch_count'];
+
+        $business->update([
+            'presence' => $data['presence'],
+            'branch_count' => $branchCount,
+        ]);
 
         return redirect()->route('onboarding.show', ['step' => 3, 'branch' => 1]);
     }
@@ -114,33 +125,40 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.show', ['step' => 4]);
         }
 
+        $isOnline = $business->isOnline();
+
         $data = $request->validate([
-            'city' => ['required', 'string', 'max:80'],
-            'address' => ['nullable', 'string', 'max:255'],
+            'city' => [$isOnline ? 'nullable' : 'required', 'string', 'max:80'],
+            'address' => [$isOnline ? 'nullable' : 'required', 'string', 'max:255'],
             'hotline' => ['nullable', 'string', 'max:40'],
         ]);
 
+        $city = $data['city'] ?? ($business->city ?: 'Online');
+        if ($isOnline) {
+            $city = $city !== '' ? $city : 'Online';
+        }
+
         $shopName = $branchTotal === 1
             ? $business->name
-            : $business->name.' — '.$data['city'];
+            : $business->name.' — '.$city;
 
         // Avoid duplicate city names when adding multiple in same city.
         if ($branchTotal > 1 && $business->shops()->where('name', $shopName)->exists()) {
-            $shopName = $business->name.' — '.$data['city'].' '.($shopsDone + 1);
+            $shopName = $business->name.' — '.$city.' '.($shopsDone + 1);
         }
 
         Shop::create([
             'business_id' => $business->id,
             'name' => $shopName,
-            'city' => $data['city'],
-            'address' => $data['address'] ?? null,
+            'city' => $city,
+            'address' => $isOnline ? ($data['address'] ?? null) : $data['address'],
             'code' => 'SHOP-'.Str::upper(Str::random(6)),
             'is_active' => true,
             'logo_path' => $business->logo_path,
         ]);
 
-        if (! $business->city) {
-            $business->update(['city' => $data['city']]);
+        if (! $business->city && $city !== 'Online') {
+            $business->update(['city' => $city]);
         }
 
         // Hotline once (first branch), dial fixed to business country.
@@ -165,10 +183,27 @@ class OnboardingController extends Controller
 
         $data = $request->validate([
             'template' => ['required', 'string'],
+            'spend_step' => ['nullable', 'integer', 'min:100'],
+            'points_per_step' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'bonus_points' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            'featured_product_name' => ['nullable', 'string', 'max:120'],
         ]);
 
         $template = CampaignTemplates::localized($data['template']);
         abort_unless($template, 422);
+
+        if ($template['type'] === 'product_push') {
+            $request->validate([
+                'featured_product_name' => ['required', 'string', 'max:120'],
+                'bonus_points' => ['required', 'integer', 'min:1', 'max:10000'],
+            ]);
+            $data['featured_product_name'] = $request->input('featured_product_name');
+            $data['bonus_points'] = (int) $request->input('bonus_points');
+        }
+
+        // Prefer submitted rates; fall back to template defaults for earn / product push.
+        $spendStep = (int) ($data['spend_step'] ?? $template['spend_step'] ?? 1000);
+        $pointsPerStep = (int) ($data['points_per_step'] ?? $template['points_per_step'] ?? 2);
 
         if ($business->campaigns()->doesntExist()) {
             $campaign = Campaign::create([
@@ -176,9 +211,12 @@ class OnboardingController extends Controller
                 'name' => $template['name'],
                 'type' => $template['type'],
                 'description' => $template['description'],
-                'spend_step' => $template['spend_step'],
-                'points_per_step' => $template['points_per_step'],
-                'bonus_points' => $template['bonus_points'],
+                'spend_step' => $spendStep,
+                'points_per_step' => $pointsPerStep,
+                'bonus_points' => $data['bonus_points'] ?? ($template['bonus_points'] ?? 0),
+                'featured_product_name' => $data['featured_product_name'] ?? null,
+                'streak_target' => $template['streak_target'] ?? null,
+                'streak_period' => $template['streak_period'] ?? null,
                 'starts_at' => now(),
                 'is_active' => true,
                 'template_key' => $data['template'],
@@ -188,7 +226,13 @@ class OnboardingController extends Controller
             $campaign->shops()->sync($shopIds);
         }
 
-        return redirect()->route('onboarding.show', ['step' => 5]);
+        return redirect()->route('onboarding.show', ['step' => 5])->with('confirm', Confirm::make(
+            __('loop.first_campaign_done_title'),
+            __('loop.first_campaign_done_body'),
+            __('loop.next_to_offers'),
+            route('onboarding.show', ['step' => 5]),
+            true,
+        ));
     }
 
     public function offers(Request $request): RedirectResponse

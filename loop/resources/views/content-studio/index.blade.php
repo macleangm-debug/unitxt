@@ -70,8 +70,8 @@
                     'bg-[#F7F3EA] text-ink ring-1 ring-ink/10': design==='cream_soft'
                  }">
                 <div class="flex items-center gap-3">
-                    @if ($business->logo_path)
-                        <img src="{{ asset('storage/'.$business->logo_path) }}" alt="" class="h-14 w-14 rounded-2xl object-cover">
+                    @if ($business->logoUrl())
+                        <img src="{{ $business->logoUrl() }}" alt="" class="h-14 w-14 rounded-2xl object-cover">
                     @else
                         <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 font-display text-xl font-semibold">{{ mb_substr($business->name,0,1) }}</div>
                     @endif

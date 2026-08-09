@@ -133,8 +133,8 @@
                     <div class="relative mx-auto overflow-hidden rounded-2xl">
                         @if ($shop)
                             <x-shop-logo :shop="$shop" class="h-14 w-14 rounded-2xl" data-loop-parallax />
-                        @elseif ($membership->business->logo_path)
-                            <img src="{{ asset('storage/'.$membership->business->logo_path) }}" alt="{{ $membership->business->name }}" class="h-14 w-14 rounded-2xl object-cover" data-loop-parallax>
+                        @elseif ($membership->business->logoUrl())
+                            <img src="{{ $membership->business->logoUrl() }}" alt="{{ $membership->business->name }}" class="h-14 w-14 rounded-2xl object-cover" data-loop-parallax>
                         @else
                             <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-ink font-display text-lg font-semibold text-lime" data-loop-parallax>{{ mb_substr($membership->business->name,0,2) }}</div>
                         @endif
@@ -185,8 +185,8 @@
                 <a href="{{ route('discover.show', $business) }}" class="flex items-center gap-3 px-3 py-3.5 transition hover:bg-violet-soft/40 first:rounded-t-[1.25rem] last:rounded-b-[1.25rem]">
                     @if ($shop)
                         <x-shop-logo :shop="$shop" class="h-12 w-12 shrink-0 rounded-xl" />
-                    @elseif ($business->logo_path)
-                        <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}" class="h-12 w-12 shrink-0 rounded-xl object-cover">
+                    @elseif ($business->logoUrl())
+                        <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="h-12 w-12 shrink-0 rounded-xl object-cover">
                     @else
                         <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ink font-display font-semibold text-lime">{{ mb_substr($business->name,0,2) }}</div>
                     @endif
@@ -214,8 +214,8 @@
                         <div class="overflow-hidden rounded-2xl">
                             @if ($shop)
                                 <x-shop-logo :shop="$shop" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax />
-                            @elseif ($business->logo_path)
-                                <img src="{{ asset('storage/'.$business->logo_path) }}" alt="{{ $business->name }}" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax>
+                            @elseif ($business->logoUrl())
+                                <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax>
                             @else
                                 <div class="flex h-16 items-center justify-center rounded-2xl bg-ink font-display text-lg text-lime" data-loop-parallax>{{ mb_substr($business->name,0,2) }}</div>
                             @endif

@@ -33,7 +33,7 @@
                 <div class="mx-auto lg:mx-0">
                     @if ($business->logoUrl())
                         <div class="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] bg-ink ring-4 ring-white/15 sm:h-36 sm:w-36">
-                            <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="max-h-full max-w-full object-contain p-2.5">
+                            <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="h-full w-full object-cover">
                         </div>
                     @else
                         <div class="flex h-28 w-28 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-violet to-lime/70 font-display text-4xl font-semibold text-white ring-4 ring-white/15 sm:h-36 sm:w-36">

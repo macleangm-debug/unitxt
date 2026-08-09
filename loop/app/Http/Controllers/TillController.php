@@ -189,12 +189,14 @@ class TillController extends Controller
             'receipt_ref' => ['nullable', 'string', 'max:80'],
             'pay_with_points' => ['nullable', 'boolean'],
             'points_to_spend' => ['nullable', 'integer', 'min:1'],
+            'includes_featured_product' => ['nullable', 'boolean'],
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
         $payWithPoints = $request->boolean('pay_with_points');
+        $includesFeatured = $request->boolean('includes_featured_product');
 
         if (! $customer) {
             return redirect()->route('till.index')->withErrors([
@@ -216,6 +218,7 @@ class TillController extends Controller
             $data['channel'],
             $payWithPoints,
             $payWithPoints ? ($data['points_to_spend'] ?? null) : null,
+            $includesFeatured,
         );
 
         $body = __('loop.sale_done_body', [

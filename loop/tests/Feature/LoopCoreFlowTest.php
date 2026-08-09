@@ -312,24 +312,30 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('onboarding.show', ['step' => 4]))
             ->assertOk()
-            ->assertSee(__('loop.pick_campaign'))
+            ->assertSee(__('loop.create_first_campaign'))
             ->assertDontSee('earn_with_discount');
 
         $this->actingAs($owner)
-            ->post(route('onboarding.campaign'), ['template' => 'everyday_earn'])
+            ->post(route('onboarding.campaign'), [
+                'template' => 'everyday_earn',
+                'spend_step' => 1000,
+                'points_per_step' => 20,
+            ])
             ->assertRedirect(route('onboarding.show', ['step' => 5]));
 
         $this->assertDatabaseHas('campaigns', [
             'business_id' => $business->id,
             'template_key' => 'everyday_earn',
             'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 20,
         ]);
         $this->assertNull($business->fresh()->onboarding_completed_at);
 
         $this->actingAs($owner)
             ->get(route('onboarding.show', ['step' => 5]))
             ->assertOk()
-            ->assertSee(__('loop.pick_offers'));
+            ->assertSee(__('loop.create_first_offer'));
 
         $this->actingAs($owner)
             ->post(route('onboarding.offers'), [
@@ -341,6 +347,91 @@ class LoopCoreFlowTest extends TestCase
         $this->assertNotNull($business->fresh()->onboarding_completed_at);
         $campaign = $business->campaigns()->first();
         $this->assertSame(2, $campaign->rewards()->count());
+    }
+
+    public function test_online_presence_skips_physical_address(): void
+    {
+        $owner = User::factory()->owner()->create(['phone' => '712777011']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Net Juice',
+            'slug' => 'net-juice',
+            'sector' => 'other',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'branch_count' => 1,
+            'logo_path' => 'business-logos/demo.png',
+            'onboarding_completed_at' => null,
+        ]);
+        $owner->update(['business_id' => $business->id]);
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.branches'), [
+                'presence' => 'online',
+                'branch_count' => 1,
+            ])
+            ->assertRedirect(route('onboarding.show', ['step' => 3, 'branch' => 1]));
+
+        $this->assertSame('online', $business->fresh()->presence);
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.shop'), [
+                'city' => 'Online',
+                'address' => '',
+                'hotline' => '712333444',
+            ])
+            ->assertRedirect(route('onboarding.show', ['step' => 4]));
+
+        $shop = $business->shops()->first();
+        $this->assertNotNull($shop);
+        $this->assertSame('Online', $shop->city);
+        $this->assertTrue($shop->address === null || $shop->address === '');
+    }
+
+    public function test_featured_product_bonus_requires_till_confirmation(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Featured push',
+            'type' => 'product_push',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'bonus_points' => 15,
+            'featured_product_name' => 'New Coffee',
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999102',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713999102',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+
+        $without = app(\App\Services\TillService::class)->recordSale(
+            $staff, $shop, $customer, 2000, null, null, 'in_store', false, null, false
+        );
+        $this->assertSame(4, $without->points_earned);
+
+        $customer2 = User::factory()->customer()->create([
+            'phone' => '713999103',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+        $with = app(\App\Services\TillService::class)->recordSale(
+            $staff, $shop, $customer2, 2000, null, null, 'in_store', false, null, true
+        );
+        $this->assertSame(19, $with->points_earned);
     }
 
     public function test_campaign_create_requires_an_offer(): void
