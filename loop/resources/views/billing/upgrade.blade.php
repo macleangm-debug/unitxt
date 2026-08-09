@@ -61,10 +61,19 @@
                 @if ($isCurrent)
                     <span class="mt-6 inline-flex justify-center rounded-xl bg-chalk px-4 py-3 text-sm font-semibold text-ink-muted">{{ __('loop.current_plan') }}</span>
                 @else
-                    <form method="POST" action="{{ route('billing.choose') }}" class="mt-6">
+                    <form method="POST" action="{{ route('billing.choose') }}" class="mt-6 space-y-3">
                         @csrf
                         <input type="hidden" name="plan_key" value="{{ $plan->key }}">
-                        <button class="loop-btn-mint w-full">{{ __('loop.choose_plan', ['plan' => $plan->name]) }}</button>
+                        <input type="hidden" name="country" value="{{ $country }}">
+                        <div>
+                            <label class="loop-label">{{ __('loop.pay_with_phone') }}</label>
+                            <div class="flex gap-2">
+                                <span class="inline-flex items-center rounded-2xl border border-ink/10 bg-chalk px-3 text-sm font-semibold">{{ $dial }}</span>
+                                <input name="phone" value="{{ old('phone') }}" class="loop-input !mt-0" placeholder="7XXXXXXXX" required>
+                            </div>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.pay_with_phone_help', ['currency' => $plan->currency ?: $currency]) }}</p>
+                        </div>
+                        <button class="loop-btn-mint w-full">{{ __('loop.pay_and_activate', ['plan' => $plan->name]) }}</button>
                     </form>
                 @endif
             </div>

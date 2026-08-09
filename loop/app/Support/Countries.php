@@ -71,6 +71,24 @@ class Countries
         return self::OPTIONS[$country]['currency'] ?? 'TZS';
     }
 
+    /**
+     * Markets enabled in Settings Hub (expansion-ready).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function enabledOptions(): array
+    {
+        $enabled = CountrySettings::settings()['enabled'];
+        $out = [];
+        foreach ($enabled as $code) {
+            if (isset(self::OPTIONS[$code])) {
+                $out[$code] = self::OPTIONS[$code];
+            }
+        }
+
+        return $out !== [] ? $out : ['TZ' => self::OPTIONS['TZ']];
+    }
+
     public static function cities(string $country = 'TZ'): array
     {
         return self::OPTIONS[$country]['cities'] ?? [];

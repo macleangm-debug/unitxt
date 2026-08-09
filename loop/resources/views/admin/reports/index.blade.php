@@ -143,35 +143,39 @@
         <section>
             <h2 class="font-display text-xl font-semibold">{{ __('loop.customers_by_business') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.customers_by_business_blurb') }}</p>
-            <div class="mt-4 loop-table-wrap">
-                <table class="loop-table">
-                    <thead>
-                        <tr>
-                            <th>{{ __('loop.business') }}</th>
-                            <th>{{ __('loop.sector') }}</th>
-                            <th>{{ __('loop.unique_customers') }}</th>
-                            <th>{{ __('loop.sales') }}</th>
-                            <th>{{ __('loop.revenue') }}</th>
-                            <th>{{ __('loop.plan') }}</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($customersByBusiness as $row)
-                            <tr>
-                                <td class="font-medium">{{ $row->name }}</td>
-                                <td>{{ $row->sector_label }}</td>
-                                <td>{{ $row->unique_customers }}</td>
-                                <td>{{ $row->sales_count }}</td>
-                                <td>TZS {{ number_format($row->revenue) }}</td>
-                                <td>{{ $row->plan_key }} · {{ $row->billing_status }}</td>
-                                <td class="text-right">
-                                    <a href="{{ route('admin.businesses.show', $row->id) }}" class="text-sm font-semibold text-violet">{{ __('loop.view') }} →</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            <div class="mt-4">
+                <x-admin.empty-state :empty="$customersByBusiness->isEmpty()" :title="__('loop.customers_by_business')">
+                    <div class="loop-table-wrap">
+                        <table class="loop-table">
+                            <thead>
+                                <tr>
+                                    <th>{{ __('loop.business') }}</th>
+                                    <th>{{ __('loop.sector') }}</th>
+                                    <th>{{ __('loop.unique_customers') }}</th>
+                                    <th>{{ __('loop.sales') }}</th>
+                                    <th>{{ __('loop.revenue') }}</th>
+                                    <th>{{ __('loop.plan') }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($customersByBusiness as $row)
+                                    <tr>
+                                        <td class="font-medium">{{ $row->name }}</td>
+                                        <td>{{ $row->sector_label }}</td>
+                                        <td>{{ $row->unique_customers }}</td>
+                                        <td>{{ $row->sales_count }}</td>
+                                        <td>TZS {{ number_format($row->revenue) }}</td>
+                                        <td>{{ $row->plan_key }} · {{ $row->billing_status }}</td>
+                                        <td class="text-right">
+                                            <a href="{{ route('admin.businesses.show', $row->id) }}" class="text-sm font-semibold text-violet">{{ __('loop.view') }} →</a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </x-admin.empty-state>
             </div>
         </section>
     @endif

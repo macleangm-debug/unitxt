@@ -29,7 +29,7 @@
             <div class="animate-fade-up">
                 <p class="text-sm font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.business') }}</p>
                 <h1 class="mt-3 font-display text-4xl font-semibold leading-tight sm:text-5xl">Loop</h1>
-                <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ __('loop.tagline') }}</p>
+                <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ $heroTagline ?? __('loop.tagline') }}</p>
                 <p class="mt-5 max-w-lg text-lg text-ink-muted">{{ __('loop.business_hero_body') }}</p>
                 <div class="mt-8 flex flex-wrap gap-3">
                     <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.cta_business') }}</a>
@@ -82,7 +82,7 @@
             <div class="mx-auto max-w-2xl text-center">
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.pricing') }}</p>
                 <h2 class="mt-3 font-display text-3xl font-semibold">{{ __('loop.pricing_title') }}</h2>
-                <p class="mt-3 text-ink-muted">{{ __('loop.pricing_blurb') }}</p>
+                <p class="mt-3 text-ink-muted">{{ $pricingBlurb ?? __('loop.pricing_blurb', ['days' => 14]) }}</p>
             </div>
             <x-pricing-grid :plans="$plans" :cta-route="route('business.register')" :cta-label="__('loop.cta_business')" :animate="false" />
         </div>

@@ -342,4 +342,79 @@ class AdminReportService
 
         return (int) round(($paid / $denom) * 100);
     }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function affiliatesExport(): Collection
+    {
+        return Affiliate::query()
+            ->latest()
+            ->get()
+            ->map(fn (Affiliate $a) => (object) [
+                'name' => $a->name,
+                'full_phone' => $a->full_phone,
+                'status' => $a->status,
+                'promo_code' => $a->promo_code,
+                'created_at' => $a->created_at,
+            ]);
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function affiliateReferralsExport(): Collection
+    {
+        return \App\Models\AffiliateReferral::query()
+            ->with(['affiliate', 'business'])
+            ->latest()
+            ->limit(2000)
+            ->get()
+            ->map(fn ($r) => (object) [
+                'affiliate_name' => $r->affiliate?->name,
+                'business_name' => $r->business?->name,
+                'status' => $r->status,
+                'commission_amount' => $r->commission_amount,
+                'created_at' => $r->created_at,
+            ]);
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function businessReferralsExport(): Collection
+    {
+        return BusinessReferral::query()
+            ->with(['referrer', 'referred'])
+            ->latest()
+            ->limit(2000)
+            ->get()
+            ->map(fn ($r) => (object) [
+                'referrer_name' => $r->referrer?->name,
+                'referred_name' => $r->referred?->name,
+                'code_used' => $r->code_used,
+                'status' => $r->status,
+                'created_at' => $r->created_at,
+            ]);
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function paymentsExport(): Collection
+    {
+        return \App\Models\PaymentIntent::query()
+            ->latest()
+            ->limit(2000)
+            ->get()
+            ->map(fn ($p) => (object) [
+                'reference' => $p->provider_ref ?? $p->uuid,
+                'purpose' => $p->purpose,
+                'amount' => $p->amount,
+                'currency' => $p->currency,
+                'status' => $p->status,
+                'phone' => $p->phone,
+                'created_at' => $p->created_at,
+            ]);
+    }
 }

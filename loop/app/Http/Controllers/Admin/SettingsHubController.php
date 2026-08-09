@@ -8,8 +8,11 @@ use App\Models\PlatformSetting;
 use App\Support\AffiliateProgram;
 use App\Support\BillingSettings;
 use App\Support\Confirm;
+use App\Support\CountrySettings;
 use App\Support\FeatureFlags;
 use App\Support\GrowthSettings;
+use App\Support\MarketingSettings;
+use App\Support\NotificationSettings;
 use App\Support\Plans;
 use App\Support\PlatformUrl;
 use App\Support\ReferralProgram;
@@ -34,11 +37,10 @@ class SettingsHubController extends Controller
             'featureCatalog' => FeatureFlags::catalog(),
             'sectors' => Sectors::list(),
             'plans' => Plan::query()->orderBy('sort_order')->get(),
-            'integrations' => [
-                ['key' => 'mobile_money', 'name' => __('loop.integration_mobile_money'), 'status' => 'coming'],
-                ['key' => 'sms', 'name' => __('loop.integration_sms'), 'status' => 'coming'],
-                ['key' => 'whatsapp', 'name' => __('loop.integration_whatsapp'), 'status' => 'coming'],
-            ],
+            'countries' => CountrySettings::settings(),
+            'notifications' => NotificationSettings::settings(),
+            'marketing' => MarketingSettings::settings(),
+            'countryCatalog' => \App\Support\Countries::OPTIONS,
         ]);
     }
 
@@ -240,15 +242,30 @@ class SettingsHubController extends Controller
             'commission_percent' => ['required', 'integer', 'min:1', 'max:50'],
             'referred_discount_percent' => ['required', 'integer', 'min:0', 'max:50'],
             'attribution_months' => ['required', 'integer', 'min:1', 'max:36'],
+            'cookie_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'pin_length' => ['required', 'integer', 'min:4', 'max:6'],
+            'monthly_paying_business_target' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'min_payout_amount' => ['nullable', 'integer', 'min:0'],
+            'payout_schedule' => ['nullable', 'in:weekly,biweekly,monthly'],
+            'tax_withholding_percent' => ['nullable', 'integer', 'min:0', 'max:40'],
+            'fraud_hold_days' => ['nullable', 'integer', 'min:0', 'max:90'],
+            'terms_url' => ['nullable', 'string', 'max:255'],
             'enabled' => ['sometimes', 'boolean'],
             'attribution_enabled' => ['sometimes', 'boolean'],
+            'kpi_enabled' => ['sometimes', 'boolean'],
+            'show_kpis_to_affiliates' => ['sometimes', 'boolean'],
+            'block_self_referral' => ['sometimes', 'boolean'],
+            'require_tax_id' => ['sometimes', 'boolean'],
         ]);
 
         PlatformSetting::putValue(AffiliateProgram::KEY, AffiliateProgram::normalizeInput([
             ...$data,
             'enabled' => $request->boolean('enabled'),
             'attribution_enabled' => $request->boolean('attribution_enabled'),
+            'kpi_enabled' => $request->boolean('kpi_enabled'),
+            'show_kpis_to_affiliates' => $request->boolean('show_kpis_to_affiliates'),
+            'block_self_referral' => $request->boolean('block_self_referral'),
+            'require_tax_id' => $request->boolean('require_tax_id'),
         ]));
 
         return redirect()->route('admin.settings', ['tab' => 'affiliates'])->with('confirm', Confirm::make(
@@ -256,6 +273,50 @@ class SettingsHubController extends Controller
             __('loop.affiliate_settings_saved'),
             __('loop.done'),
             route('admin.settings', ['tab' => 'affiliates']),
+            false,
+        ));
+    }
+
+    public function updateCountries(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['nullable', 'array'],
+            'enabled.*' => ['string', 'size:2'],
+        ]);
+
+        PlatformSetting::putValue(CountrySettings::KEY, CountrySettings::normalizeInput($data));
+
+        return redirect()->route('admin.settings', ['tab' => 'countries'])->with('confirm', Confirm::make(
+            __('loop.countries_saved_title'),
+            __('loop.countries_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'countries']),
+            false,
+        ));
+    }
+
+    public function updateNotifications(Request $request): RedirectResponse
+    {
+        PlatformSetting::putValue(NotificationSettings::KEY, NotificationSettings::normalizeInput($request->all()));
+
+        return redirect()->route('admin.settings', ['tab' => 'notifications'])->with('confirm', Confirm::make(
+            __('loop.notifications_saved_title'),
+            __('loop.notifications_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'notifications']),
+            false,
+        ));
+    }
+
+    public function updateMarketing(Request $request): RedirectResponse
+    {
+        PlatformSetting::putValue(MarketingSettings::KEY, MarketingSettings::normalizeInput($request->all()));
+
+        return redirect()->route('admin.settings', ['tab' => 'marketing'])->with('confirm', Confirm::make(
+            __('loop.marketing_saved_title'),
+            __('loop.marketing_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'marketing']),
             false,
         ));
     }

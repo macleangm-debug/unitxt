@@ -1009,7 +1009,19 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee(__('loop.upgrade_title'));
 
         $this->actingAs($owner)
-            ->post(route('billing.choose'), ['plan_key' => 'growth'])
+            ->post(route('billing.choose'), [
+                'plan_key' => 'growth',
+                'phone' => '714123456',
+                'country' => 'TZ',
+            ])
+            ->assertRedirect();
+
+        $intent = \App\Models\PaymentIntent::query()->latest('id')->first();
+        $this->assertNotNull($intent);
+        $this->assertSame('processing', $intent->status);
+
+        $this->actingAs($owner)
+            ->post(route('payments.stub-confirm', $intent))
             ->assertRedirect(route('billing.show'));
 
         $this->assertDatabaseHas('businesses', [

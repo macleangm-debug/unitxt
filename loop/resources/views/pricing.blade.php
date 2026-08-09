@@ -27,7 +27,7 @@
         <div class="mx-auto max-w-2xl text-center animate-fade-up">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-violet">Loop</p>
             <h1 class="mt-3 font-display text-4xl font-semibold tracking-tight sm:text-5xl">{{ __('loop.pricing_title') }}</h1>
-            <p class="mt-4 text-base text-ink-muted sm:text-lg">{{ __('loop.pricing_blurb') }}</p>
+            <p class="mt-4 text-base text-ink-muted sm:text-lg">{{ $pricingBlurb }}</p>
         </div>
 
         <div class="animate-fade-up-delay">

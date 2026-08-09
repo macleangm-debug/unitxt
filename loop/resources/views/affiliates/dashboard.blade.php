@@ -56,6 +56,22 @@
         <x-input-error :messages="$errors->get('promo_code')" class="relative mt-2" />
     </section>
 
+    @if (! empty($kpi['enabled']))
+        <section class="mt-8 loop-panel loop-panel--energy p-6 sm:p-8">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.affiliate_kpi_governed') }}</p>
+            <h2 class="mt-2 font-display text-xl font-semibold">{{ __('loop.affiliate_kpi_banner') }}</h2>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.affiliate_kpi_banner_body', ['target' => $kpi['target'], 'count' => $kpi['month_paying']]) }}</p>
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                <p class="font-display text-3xl font-semibold">{{ $kpi['month_paying'] }} / {{ $kpi['target'] }}</p>
+                <span class="rounded-lg px-3 py-1.5 text-xs font-semibold {{ $kpi['met'] ? 'bg-mint-soft text-ink' : 'bg-coral/15 text-ink' }}">
+                    {{ $kpi['met'] ? __('loop.kpi_met') : __('loop.kpi_behind') }}
+                </span>
+            </div>
+            @php $pct = $kpi['target'] > 0 ? min(100, (int) round(($kpi['month_paying'] / $kpi['target']) * 100)) : 0; @endphp
+            <div class="loop-hbar mt-4"><span style="width: {{ max(4, $pct) }}%"></span></div>
+        </section>
+    @endif
+
     <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="loop-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-violet">{{ __('loop.signups') }}</p>

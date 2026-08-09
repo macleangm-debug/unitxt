@@ -84,7 +84,7 @@
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.best_sector_gmv') }}</h2>
                         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.best_sector_gmv_blurb') }}</p>
                     </div>
-                    <a href="{{ route('admin.dashboard', ['tab' => 'sectors']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                    <a href="{{ route('admin.insights.sectors') }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
                 </div>
                 <div class="space-y-4">
                     @forelse ($sectorThree as $row)
@@ -109,7 +109,7 @@
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.best_package') }}</h2>
                         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.best_package_blurb') }}</p>
                     </div>
-                    <a href="{{ route('admin.dashboard', ['tab' => 'subscriptions']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                    <a href="{{ route('admin.insights.packages') }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
                 </div>
                 <div class="space-y-4">
                     @forelse ($packages->sortByDesc('subscribers')->take(4) as $pkg)
@@ -208,7 +208,7 @@
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.top_businesses') }}</h2>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.top_3_businesses_blurb') }}</p>
                 </div>
-                <a href="{{ route('admin.businesses.index') }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                <a href="{{ route('admin.insights.till-businesses') }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
             </div>
             <div class="space-y-3">
                 @forelse ($topThree as $biz)
@@ -259,7 +259,7 @@
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.package_performance') }}</h2>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.package_performance_blurb') }}</p>
                 </div>
-                <a href="{{ route('admin.settings', ['tab' => 'packages']) }}" class="loop-btn-mint !py-2">{{ __('loop.edit_packages') }}</a>
+                <a href="{{ route('admin.insights.packages') }}" class="loop-btn-mint !py-2">{{ __('loop.view_more') }}</a>
             </div>
             <div class="mt-6 space-y-5">
                 @foreach ($packages as $pkg)
@@ -388,9 +388,9 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referrals') }}</p>
                 <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.referral_progress_title') }}</p>
             </a>
-            <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+            <a href="{{ route('admin.insights.affiliate-performance') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_affiliates') }}</p>
-                <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.affiliate_applications_queue') }}</p>
+                <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.affiliate_performance') }}</p>
             </a>
             <a href="{{ route('admin.settings', ['tab' => 'product']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_product_updates') }}</p>

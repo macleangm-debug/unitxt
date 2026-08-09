@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AffiliateService;
+use App\Support\AffiliateProgram;
 use App\Support\Confirm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,13 @@ class AffiliateDashboardController extends Controller
         }
 
         $referrals = $affiliate->referrals()->with('business')->latest()->get();
+        $settings = AffiliateProgram::settings();
+        $monthStart = now()->copy()->startOfMonth();
+        $monthPaying = (int) $affiliate->referrals()
+            ->where('created_at', '>=', $monthStart)
+            ->whereIn('status', ['qualified', 'commissioned', 'paid'])
+            ->count();
+        $target = (int) $settings['monthly_paying_business_target'];
 
         return view('affiliates.dashboard', [
             'affiliate' => $affiliate,
@@ -32,6 +40,12 @@ class AffiliateDashboardController extends Controller
                 'qualified' => $referrals->whereIn('status', ['qualified', 'commissioned', 'paid'])->count(),
                 'earned' => (int) $referrals->whereIn('status', ['commissioned', 'paid'])->sum('commission_amount'),
                 'pending' => (int) $referrals->where('status', 'pending')->count(),
+            ],
+            'kpi' => [
+                'enabled' => (bool) $settings['kpi_enabled'] && (bool) $settings['show_kpis_to_affiliates'],
+                'target' => $target,
+                'month_paying' => $monthPaying,
+                'met' => $monthPaying >= $target,
             ],
             'shareUrl' => \App\Support\PlatformUrl::route('business.register', ['ref' => $affiliate->promo_code]),
             'shareText' => __('loop.affiliate_share_text', [

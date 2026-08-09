@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\AffiliateController as AdminAffiliateController;
 use App\Http\Controllers\Admin\BusinessController as AdminBusinessController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\InsightController as AdminInsightController;
+use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\Admin\ReferralProgramController as AdminReferralProgramController;
@@ -25,6 +27,7 @@ use App\Http\Controllers\DiscoverController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\PricingController;
 use App\Http\Controllers\RaffleController;
@@ -36,6 +39,7 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\TillController;
 use App\Http\Controllers\TransactionController;
 use App\Models\Plan;
+use App\Support\MarketingSettings;
 use App\Support\Plans;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +50,9 @@ Route::get('/', function () {
 Route::get('/for-business', function () {
     return view('landings.business', [
         'plans' => Plans::publicPlans(),
+        'pricingBlurb' => MarketingSettings::pricingBlurb(),
+        'heroTagline' => MarketingSettings::heroTagline(),
+        'marketing' => MarketingSettings::settings(),
     ]);
 })->name('landing.business');
 
@@ -58,6 +65,7 @@ Route::post('/affiliates/status', [AffiliateLandingController::class, 'statusLoo
 Route::get('/pricing', PricingController::class)->name('pricing');
 Route::get('/locale/{locale}', [PreferenceController::class, 'locale'])->name('locale');
 Route::post('/preference/country', [PreferenceController::class, 'country'])->name('preference.country');
+Route::post('/webhooks/payin', [PaymentController::class, 'payinWebhook'])->name('payments.webhook.payin');
 
 Route::get('/discover', DiscoverController::class)->name('discover');
 Route::get('/discover/{business:slug}', [DiscoverController::class, 'show'])->name('discover.show');
@@ -109,6 +117,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/affiliates/{affiliate}/decide', [AdminAffiliateController::class, 'decide'])->name('affiliates.decide');
         Route::get('/plans', [AdminPlanController::class, 'index'])->name('plans.index');
         Route::put('/plans/{plan}', [AdminPlanController::class, 'update'])->name('plans.update');
+        Route::get('/insights/sectors', [AdminInsightController::class, 'sectors'])->name('insights.sectors');
+        Route::get('/insights/packages', [AdminInsightController::class, 'packages'])->name('insights.packages');
+        Route::get('/insights/till-businesses', [AdminInsightController::class, 'tillBusinesses'])->name('insights.till-businesses');
+        Route::get('/insights/affiliate-performance', [AdminInsightController::class, 'affiliatePerformance'])->name('insights.affiliate-performance');
+        Route::get('/integrations', [AdminIntegrationController::class, 'index'])->name('integrations.index');
+        Route::put('/integrations', [AdminIntegrationController::class, 'update'])->name('integrations.update');
+        Route::post('/integrations/test-pay', [AdminIntegrationController::class, 'testPay'])->name('integrations.test-pay');
+        Route::post('/integrations/switch-primary', [AdminIntegrationController::class, 'switchPrimary'])->name('integrations.switch-primary');
         Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
         Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
         Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
@@ -118,7 +134,14 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/feature-flags', [AdminSettingsHubController::class, 'updateFeatureFlags'])->name('settings.feature-flags');
         Route::put('/settings/referrals', [AdminSettingsHubController::class, 'updateReferrals'])->name('settings.referrals');
         Route::put('/settings/affiliates', [AdminSettingsHubController::class, 'updateAffiliates'])->name('settings.affiliates');
+        Route::put('/settings/countries', [AdminSettingsHubController::class, 'updateCountries'])->name('settings.countries');
+        Route::put('/settings/notifications', [AdminSettingsHubController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::put('/settings/marketing', [AdminSettingsHubController::class, 'updateMarketing'])->name('settings.marketing');
     });
+
+    Route::get('/payments/{payment}/wait', [PaymentController::class, 'wait'])->name('payments.wait');
+    Route::get('/payments/{payment}/status', [PaymentController::class, 'status'])->name('payments.status');
+    Route::post('/payments/{payment}/stub-confirm', [PaymentController::class, 'stubConfirm'])->name('payments.stub-confirm');
 
     Route::middleware('role:affiliate')->prefix('affiliate')->name('affiliate.')->group(function () {
         Route::get('/', AffiliateDashboardController::class)->name('dashboard');

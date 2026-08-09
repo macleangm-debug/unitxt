@@ -49,7 +49,7 @@
             <form method="POST" action="{{ route('preference.country') }}">
                 @csrf
                 <select name="country" onchange="this.form.submit()" aria-label="{{ __('loop.country') }}" class="{{ $controlClass }}">
-                    @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
+                    @foreach (\App\Support\Countries::enabledOptions() as $code => $meta)
                         <option value="{{ $code }}" @selected(session('preferred_country', 'TZ') === $code)>{{ $meta['flag'] }} {{ $code }}</option>
                     @endforeach
                 </select>

@@ -11,54 +11,51 @@
         <button class="loop-btn-mint !py-2.5">{{ __('loop.apply') }}</button>
     </form>
 
-    <div class="loop-table-wrap">
-        <table class="loop-table">
-            <thead>
-                <tr>
-                    <th>{{ __('loop.business') }}</th>
-                    <th>{{ __('loop.sector') }}</th>
-                    <th>{{ __('loop.plan') }}</th>
-                    <th>{{ __('loop.billing_status') }}</th>
-                    <th>{{ __('loop.shops') }}</th>
-                    <th>{{ __('loop.members') }}</th>
-                    <th>{{ __('loop.sales') }}</th>
-                    <th>{{ __('loop.status') }}</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($businesses as $business)
+    <x-admin.empty-state :empty="$businesses->isEmpty()" :title="__('loop.admin_businesses')">
+        <div class="loop-table-wrap">
+            <table class="loop-table">
+                <thead>
                     <tr>
-                        <td>
-                            <p class="font-semibold">{{ $business->name }}</p>
-                            <p class="text-xs text-ink-muted">{{ $business->owner?->name }} · {{ $business->city }}</p>
-                            @if (! empty($abuseFlags[$business->id]))
-                                <p class="mt-1 text-[11px] font-semibold text-coral">{{ __('loop.admin_multi_branch_flag') }}</p>
-                            @endif
-                        </td>
-                        <td>{{ \App\Support\Sectors::label($business->sector, $business->sector_other) }}</td>
-                        <td class="capitalize">{{ $business->plan_key }}</td>
-                        <td class="capitalize">{{ $business->billing_status }}</td>
-                        <td>{{ $business->shops_count }}</td>
-                        <td>{{ $business->memberships_count }}</td>
-                        <td>{{ $business->visits_count }}</td>
-                        <td>
-                            <span class="rounded-lg px-2 py-1 text-xs font-semibold {{ $business->is_active ? 'bg-mint-soft text-ink' : 'bg-coral/20 text-ink' }}">
-                                {{ $business->is_active ? __('loop.live') : __('loop.off') }}
-                            </span>
-                        </td>
-                        <td class="text-right">
-                            <a href="{{ route('admin.businesses.show', $business) }}" class="text-sm font-semibold text-violet">{{ __('loop.view') }} →</a>
-                        </td>
+                        <th>{{ __('loop.business') }}</th>
+                        <th>{{ __('loop.sector') }}</th>
+                        <th>{{ __('loop.plan') }}</th>
+                        <th>{{ __('loop.billing_status') }}</th>
+                        <th>{{ __('loop.shops') }}</th>
+                        <th>{{ __('loop.members') }}</th>
+                        <th>{{ __('loop.sales') }}</th>
+                        <th>{{ __('loop.status') }}</th>
+                        <th></th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="9" class="py-8 text-ink-muted">{{ __('loop.no_data_yet') }}</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    <div class="mt-6">{{ $businesses->links() }}</div>
+                </thead>
+                <tbody>
+                    @foreach ($businesses as $business)
+                        <tr>
+                            <td>
+                                <p class="font-semibold">{{ $business->name }}</p>
+                                <p class="text-xs text-ink-muted">{{ $business->owner?->name }} · {{ $business->city }}</p>
+                                @if (! empty($abuseFlags[$business->id]))
+                                    <p class="mt-1 text-[11px] font-semibold text-coral">{{ __('loop.admin_multi_branch_flag') }}</p>
+                                @endif
+                            </td>
+                            <td>{{ \App\Support\Sectors::label($business->sector, $business->sector_other) }}</td>
+                            <td class="capitalize">{{ $business->plan_key }}</td>
+                            <td class="capitalize">{{ $business->billing_status }}</td>
+                            <td>{{ $business->shops_count }}</td>
+                            <td>{{ $business->memberships_count }}</td>
+                            <td>{{ $business->visits_count }}</td>
+                            <td>
+                                <span class="rounded-lg px-2 py-1 text-xs font-semibold {{ $business->is_active ? 'bg-mint-soft text-ink' : 'bg-coral/20 text-ink' }}">
+                                    {{ $business->is_active ? __('loop.live') : __('loop.off') }}
+                                </span>
+                            </td>
+                            <td class="text-right">
+                                <a href="{{ route('admin.businesses.show', $business) }}" class="text-sm font-semibold text-violet">{{ __('loop.view') }} →</a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-6">{{ $businesses->links() }}</div>
+    </x-admin.empty-state>
 </x-app-layout>

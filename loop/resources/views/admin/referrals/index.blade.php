@@ -61,58 +61,55 @@
         </div>
     </section>
 
-    <div class="loop-table-wrap">
-        <table class="loop-table">
-            <thead>
-                <tr>
-                    <th>{{ __('loop.referrer') }}</th>
-                    <th>{{ __('loop.referred') }}</th>
-                    <th>{{ __('loop.ref_code') }}</th>
-                    <th>{{ __('loop.status') }}</th>
-                    <th>{{ __('loop.when') }}</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($referrals as $referral)
+    <x-admin.empty-state :empty="$referrals->isEmpty()" :title="__('loop.referral_progress_title')">
+        <div class="loop-table-wrap">
+            <table class="loop-table">
+                <thead>
                     <tr>
-                        <td class="font-semibold">{{ $referral->referrer?->name ?? '—' }}</td>
-                        <td>{{ $referral->referred?->name ?? '—' }}</td>
-                        <td class="font-mono text-xs">{{ $referral->code_used }}</td>
-                        <td>
-                            <span class="rounded-lg bg-chalk px-2 py-1 text-xs font-semibold capitalize">{{ $referral->status }}</span>
-                            @if ($referral->reward_type)
-                                <span class="mt-1 block text-[11px] text-ink-muted">{{ $referral->reward_type }} × {{ $referral->reward_value }}</span>
-                            @endif
-                        </td>
-                        <td class="text-ink-muted">{{ $referral->created_at->diffForHumans() }}</td>
-                        <td class="text-right">
-                            <div class="flex flex-wrap justify-end gap-2">
-                                @if ($referral->isPending())
-                                    <form method="POST" action="{{ route('admin.referrals.qualify', $referral) }}">
-                                        @csrf
-                                        <button class="loop-btn-ghost !py-1.5 !text-xs">{{ __('loop.mark_qualified') }}</button>
-                                    </form>
-                                @endif
-                                @if (! $referral->isRewarded())
-                                    <form method="POST" action="{{ route('admin.referrals.reward', $referral) }}">
-                                        @csrf
-                                        <button class="loop-btn-mint !py-1.5 !text-xs">{{ __('loop.grant_reward') }}</button>
-                                    </form>
-                                @else
-                                    <span class="rounded-lg bg-mint-soft px-3 py-1.5 text-xs font-semibold">{{ __('loop.rewarded') }}</span>
-                                @endif
-                            </div>
-                        </td>
+                        <th>{{ __('loop.referrer') }}</th>
+                        <th>{{ __('loop.referred') }}</th>
+                        <th>{{ __('loop.ref_code') }}</th>
+                        <th>{{ __('loop.status') }}</th>
+                        <th>{{ __('loop.when') }}</th>
+                        <th></th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" class="py-8 text-ink-muted">{{ __('loop.no_referrals_yet') }}</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    <div class="mt-6">{{ $referrals->links() }}</div>
+                </thead>
+                <tbody>
+                    @foreach ($referrals as $referral)
+                        <tr>
+                            <td class="font-semibold">{{ $referral->referrer?->name ?? '—' }}</td>
+                            <td>{{ $referral->referred?->name ?? '—' }}</td>
+                            <td class="font-mono text-xs">{{ $referral->code_used }}</td>
+                            <td>
+                                <span class="rounded-lg bg-chalk px-2 py-1 text-xs font-semibold capitalize">{{ $referral->status }}</span>
+                                @if ($referral->reward_type)
+                                    <span class="mt-1 block text-[11px] text-ink-muted">{{ $referral->reward_type }} × {{ $referral->reward_value }}</span>
+                                @endif
+                            </td>
+                            <td class="text-ink-muted">{{ $referral->created_at->diffForHumans() }}</td>
+                            <td class="text-right">
+                                <div class="flex flex-wrap justify-end gap-2">
+                                    @if ($referral->isPending())
+                                        <form method="POST" action="{{ route('admin.referrals.qualify', $referral) }}">
+                                            @csrf
+                                            <button class="loop-btn-ghost !py-1.5 !text-xs">{{ __('loop.mark_qualified') }}</button>
+                                        </form>
+                                    @endif
+                                    @if (! $referral->isRewarded())
+                                        <form method="POST" action="{{ route('admin.referrals.reward', $referral) }}">
+                                            @csrf
+                                            <button class="loop-btn-mint !py-1.5 !text-xs">{{ __('loop.grant_reward') }}</button>
+                                        </form>
+                                    @else
+                                        <span class="rounded-lg bg-mint-soft px-3 py-1.5 text-xs font-semibold">{{ __('loop.rewarded') }}</span>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-6">{{ $referrals->links() }}</div>
+    </x-admin.empty-state>
 </x-app-layout>

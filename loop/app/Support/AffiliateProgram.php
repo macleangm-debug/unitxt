@@ -33,7 +33,20 @@ class AffiliateProgram
             'referred_discount_percent' => 10,
             'attribution_enabled' => true,
             'attribution_months' => 12,
+            'cookie_days' => 30,
             'pin_length' => 4,
+            // KPIs — affiliates are governed by these targets
+            'kpi_enabled' => true,
+            'monthly_paying_business_target' => 5,
+            'show_kpis_to_affiliates' => true,
+            // International affiliate program standards
+            'block_self_referral' => true,
+            'min_payout_amount' => 50000,
+            'payout_schedule' => 'monthly', // weekly|biweekly|monthly
+            'tax_withholding_percent' => 0,
+            'require_tax_id' => false,
+            'terms_url' => '',
+            'fraud_hold_days' => 14,
         ];
     }
 
@@ -43,13 +56,29 @@ class AffiliateProgram
      */
     public static function normalizeInput(array $input): array
     {
+        $schedule = (string) ($input['payout_schedule'] ?? 'monthly');
+        if (! in_array($schedule, ['weekly', 'biweekly', 'monthly'], true)) {
+            $schedule = 'monthly';
+        }
+
         return [
             'enabled' => ! empty($input['enabled']),
             'commission_percent' => max(1, min(50, (int) ($input['commission_percent'] ?? 10))),
             'referred_discount_percent' => max(0, min(50, (int) ($input['referred_discount_percent'] ?? 10))),
             'attribution_enabled' => ! empty($input['attribution_enabled']),
             'attribution_months' => max(1, min(36, (int) ($input['attribution_months'] ?? 12))),
+            'cookie_days' => max(1, min(365, (int) ($input['cookie_days'] ?? 30))),
             'pin_length' => max(4, min(6, (int) ($input['pin_length'] ?? 4))),
+            'kpi_enabled' => ! empty($input['kpi_enabled']),
+            'monthly_paying_business_target' => max(1, min(100, (int) ($input['monthly_paying_business_target'] ?? 5))),
+            'show_kpis_to_affiliates' => ! empty($input['show_kpis_to_affiliates']),
+            'block_self_referral' => ! empty($input['block_self_referral']),
+            'min_payout_amount' => max(0, (int) ($input['min_payout_amount'] ?? 50000)),
+            'payout_schedule' => $schedule,
+            'tax_withholding_percent' => max(0, min(40, (int) ($input['tax_withholding_percent'] ?? 0))),
+            'require_tax_id' => ! empty($input['require_tax_id']),
+            'terms_url' => trim((string) ($input['terms_url'] ?? '')),
+            'fraud_hold_days' => max(0, min(90, (int) ($input['fraud_hold_days'] ?? 14))),
         ];
     }
 
@@ -73,8 +102,15 @@ class AffiliateProgram
         return (int) self::settings()['pin_length'];
     }
 
+    public static function monthlyPayingTarget(): int
+    {
+        return (int) self::settings()['monthly_paying_business_target'];
+    }
+
     /**
      * Commission on the amount remaining after the business discount.
+     *
+     * @return array{plan_amount: int, discount_percent: int, discount_amount: int, net_amount: int, commission_percent: int, commission_amount: int}
      */
     public static function commissionOn(int $planAmount, ?int $discountPercent = null, ?int $commissionPercent = null): array
     {
