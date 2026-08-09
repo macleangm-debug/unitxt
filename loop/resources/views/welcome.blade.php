@@ -18,7 +18,6 @@
 
     <x-site-header>
         <x-slot:actions>
-            <a href="{{ route('home') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.home') }}</a>
             <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
             <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.business') }}</a>
             <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.customer') }}</a>

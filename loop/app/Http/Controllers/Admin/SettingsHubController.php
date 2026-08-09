@@ -75,7 +75,7 @@ class SettingsHubController extends Controller
             __('loop.admin_billing_saved_title'),
             __('loop.admin_billing_saved'),
             __('loop.done'),
-            route('admin.settings'),
+            route('admin.settings', ['tab' => 'billing']),
             false,
         ));
     }
@@ -119,7 +119,7 @@ class SettingsHubController extends Controller
             __('loop.admin_growth_saved_title'),
             __('loop.admin_growth_saved'),
             __('loop.done'),
-            route('admin.settings'),
+            route('admin.settings', ['tab' => 'growth']),
             false,
         ));
     }
@@ -148,7 +148,7 @@ class SettingsHubController extends Controller
             __('loop.admin_sectors_saved_title'),
             __('loop.admin_sectors_saved'),
             __('loop.done'),
-            route('admin.settings'),
+            route('admin.settings', ['tab' => 'sectors']),
             false,
         ));
     }
@@ -166,7 +166,7 @@ class SettingsHubController extends Controller
             __('loop.admin_sales_visibility_saved_title'),
             __('loop.admin_sales_visibility_saved'),
             __('loop.done'),
-            route('admin.settings'),
+            route('admin.settings', ['tab' => 'visibility']),
             false,
         ));
     }
@@ -183,7 +183,7 @@ class SettingsHubController extends Controller
             __('loop.admin_base_url_saved_title'),
             __('loop.admin_base_url_saved'),
             __('loop.done'),
-            route('admin.settings'),
+            route('admin.settings', ['tab' => 'platform']),
             false,
         ));
     }
@@ -201,7 +201,7 @@ class SettingsHubController extends Controller
             __('loop.admin_features_saved_title'),
             __('loop.admin_features_saved'),
             __('loop.done'),
-            route('admin.settings'),
+            route('admin.settings', ['tab' => 'product']),
             false,
         ));
     }

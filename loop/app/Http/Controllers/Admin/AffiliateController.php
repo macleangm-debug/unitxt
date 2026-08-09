@@ -16,21 +16,25 @@ class AffiliateController extends Controller
 {
     public function index(Request $request): View
     {
-        $tab = $request->query('tab', 'pending');
-        if (! in_array($tab, ['pending', 'approved', 'active', 'rejected', 'all'], true)) {
-            $tab = 'pending';
+        $tab = $request->query('tab', 'applications');
+        if (! in_array($tab, ['applications', 'pending', 'approved', 'active', 'rejected', 'all', 'settings'], true)) {
+            $tab = 'applications';
+        }
+        if ($tab === 'pending') {
+            $tab = 'applications';
         }
 
         $query = Affiliate::query()->latest();
-        if ($tab !== 'all') {
-            $query->where('status', $tab === 'approved' ? 'approved' : $tab);
-            if ($tab === 'approved') {
-                // show approved awaiting activation too — already filtered
-            }
+        if ($tab === 'applications') {
+            $query->where('status', 'pending');
+        } elseif ($tab !== 'all' && $tab !== 'settings') {
+            $query->where('status', $tab);
         }
 
         return view('admin.affiliates.index', [
-            'affiliates' => $query->paginate(20)->withQueryString(),
+            'affiliates' => $tab === 'settings'
+                ? Affiliate::query()->whereRaw('1 = 0')->paginate(1)
+                : $query->paginate(20)->withQueryString(),
             'tab' => $tab,
             'counts' => [
                 'pending' => Affiliate::query()->where('status', 'pending')->count(),
@@ -90,11 +94,11 @@ class AffiliateController extends Controller
 
         PlatformSetting::putValue(AffiliateProgram::KEY, $normalized);
 
-        return back()->with('confirm', Confirm::make(
+        return redirect()->route('admin.affiliates.index', ['tab' => 'settings'])->with('confirm', Confirm::make(
             __('loop.affiliate_settings_saved_title'),
             __('loop.affiliate_settings_saved'),
             __('loop.done'),
-            route('admin.affiliates.index'),
+            route('admin.affiliates.index', ['tab' => 'settings']),
             false,
         ));
     }

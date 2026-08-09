@@ -1,21 +1,111 @@
+@php
+    $tab = request('tab', 'overview');
+    $allowed = ['overview', 'packages', 'billing', 'growth', 'platform', 'sectors', 'visibility', 'product', 'links'];
+    if (! in_array($tab, $allowed, true)) {
+        $tab = 'overview';
+    }
+    $tabs = [
+        'overview' => __('loop.settings_tab_overview'),
+        'packages' => __('loop.settings_tab_packages'),
+        'billing' => __('loop.settings_tab_billing'),
+        'growth' => __('loop.settings_tab_growth'),
+        'platform' => __('loop.settings_tab_platform'),
+        'sectors' => __('loop.settings_tab_sectors'),
+        'visibility' => __('loop.settings_tab_visibility'),
+        'product' => __('loop.settings_tab_product'),
+        'links' => __('loop.settings_tab_links'),
+    ];
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_settings_hub') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.admin_settings_hub_blurb') }}</p>
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.source_of_truth') }}</p>
+            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.admin_settings_hub') }}</h1>
+            <p class="mt-1 text-ink-muted">{{ __('loop.admin_settings_hub_blurb') }}</p>
+        </div>
     </x-slot>
 
     @include('admin.partials.nav')
 
-    <div class="grid gap-6 lg:grid-cols-2">
-        <form method="POST" action="{{ route('admin.settings.billing') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+    <div class="loop-admin-tabs" role="tablist">
+        @foreach ($tabs as $key => $label)
+            <a href="{{ route('admin.settings', ['tab' => $key]) }}"
+               class="loop-admin-tab {{ $tab === $key ? 'is-active' : '' }}"
+               role="tab"
+               aria-selected="{{ $tab === $key ? 'true' : 'false' }}">{{ $label }}</a>
+        @endforeach
+    </div>
+
+    @if ($tab === 'overview')
+        <section class="loop-glass p-6">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_hub_quick') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_hub_quick_blurb') }}</p>
+            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ([
+                    'packages' => [__('loop.settings_tab_packages'), __('loop.settings_tab_packages_blurb')],
+                    'billing' => [__('loop.settings_tab_billing'), __('loop.billing_trial_settings_blurb')],
+                    'growth' => [__('loop.settings_tab_growth'), __('loop.growth_banners_settings_blurb')],
+                    'platform' => [__('loop.settings_tab_platform'), __('loop.admin_base_url_blurb')],
+                    'sectors' => [__('loop.settings_tab_sectors'), __('loop.admin_sectors_blurb')],
+                    'visibility' => [__('loop.settings_tab_visibility'), __('loop.admin_sales_visibility_blurb')],
+                    'product' => [__('loop.settings_tab_product'), __('loop.admin_product_updates_blurb')],
+                    'links' => [__('loop.settings_tab_links'), __('loop.settings_tab_links_blurb')],
+                ] as $key => [$title, $blurb])
+                    <a href="{{ route('admin.settings', ['tab' => $key]) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30 hover:bg-white">
+                        <p class="font-semibold">{{ $title }}</p>
+                        <p class="mt-1 text-xs text-ink-muted">{{ $blurb }}</p>
+                    </a>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if ($tab === 'packages')
+        <section class="loop-glass p-6">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_packages') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_packages_blurb') }}</p>
+                </div>
+                <a href="{{ route('admin.plans.index') }}" class="loop-btn-mint !py-2">{{ __('loop.view_plans') }}</a>
+            </div>
+            <div class="mt-5 loop-table-wrap">
+                <table class="loop-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('loop.plan') }}</th>
+                            <th>{{ __('loop.price') }}</th>
+                            <th>{{ __('loop.status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($plans as $plan)
+                            <tr>
+                                <td>
+                                    <p class="font-semibold">{{ $plan->name }}</p>
+                                    <p class="text-xs text-ink-muted">{{ $plan->key }}</p>
+                                </td>
+                                <td>{{ $plan->priceLabel() }}</td>
+                                <td>{{ $plan->is_public ? __('loop.live') : __('loop.off') }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3" class="py-6 text-ink-muted">{{ __('loop.no_data_yet') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
+
+    @if ($tab === 'billing')
+        <form method="POST" action="{{ route('admin.settings.billing') }}" class="loop-glass space-y-5 p-6">
             @csrf
             @method('PUT')
-
             <div>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.billing_trial_settings') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.billing_trial_settings_blurb') }}</p>
             </div>
-
             <div class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <label class="loop-label">{{ __('loop.trial_days') }}</label>
@@ -34,7 +124,6 @@
                     <input type="number" min="1" name="free_max_monthly_visits" value="{{ old('free_max_monthly_visits', $billing['free_max_monthly_visits']) }}" class="loop-input" required>
                 </div>
             </div>
-
             <label class="flex items-start gap-3 text-sm">
                 <input type="checkbox" name="block_till_when_trial_ends" value="1" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint" @checked(old('block_till_when_trial_ends', $billing['block_till_when_trial_ends']))>
                 <span>
@@ -42,19 +131,18 @@
                     <span class="mt-1 block text-ink-muted">{{ __('loop.block_till_when_trial_ends_help') }}</span>
                 </span>
             </label>
-
-            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+            <button class="loop-btn-mint">{{ __('loop.save') }}</button>
         </form>
+    @endif
 
-        <form method="POST" action="{{ route('admin.settings.growth') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+    @if ($tab === 'growth')
+        <form method="POST" action="{{ route('admin.settings.growth') }}" class="loop-glass space-y-5 p-6">
             @csrf
             @method('PUT')
-
             <div>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.growth_banners_settings') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.growth_banners_settings_blurb') }}</p>
             </div>
-
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_section_raffles') }}</p>
                 <div class="mt-3 grid gap-4 sm:grid-cols-2">
@@ -78,7 +166,6 @@
                     </div>
                 </div>
             </div>
-
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_section_banners') }}</p>
                 <div class="mt-3 grid gap-4 sm:grid-cols-2">
@@ -104,7 +191,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="space-y-2 text-sm">
                 @foreach ([
                     'banner_show_campaign_up' => __('loop.banner_show_campaign_up'),
@@ -122,13 +208,12 @@
                     </label>
                 @endforeach
             </div>
-
-            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+            <button class="loop-btn-mint">{{ __('loop.save') }}</button>
         </form>
-    </div>
+    @endif
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
-        <form method="POST" action="{{ route('admin.settings.base-url') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+    @if ($tab === 'platform')
+        <form method="POST" action="{{ route('admin.settings.base-url') }}" class="loop-glass space-y-5 p-6">
             @csrf
             @method('PUT')
             <div>
@@ -140,10 +225,12 @@
                 <input type="url" name="base_url" value="{{ old('base_url', $platformUrl['base_url']) }}" class="loop-input" placeholder="https://loop.example.com" required>
                 <p class="mt-1 text-xs text-ink-muted">{{ __('loop.base_url_help') }}</p>
             </div>
-            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+            <button class="loop-btn-mint">{{ __('loop.save') }}</button>
         </form>
+    @endif
 
-        <form method="POST" action="{{ route('admin.settings.sectors') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+    @if ($tab === 'sectors')
+        <form method="POST" action="{{ route('admin.settings.sectors') }}" class="loop-glass space-y-5 p-6">
             @csrf
             @method('PUT')
             <div>
@@ -166,10 +253,12 @@
                     <input name="new_label" class="loop-input" placeholder="{{ __('loop.sector_label_placeholder') }}">
                 </div>
             </div>
-            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+            <button class="loop-btn-mint">{{ __('loop.save') }}</button>
         </form>
+    @endif
 
-        <form method="POST" action="{{ route('admin.settings.sales-visibility') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+    @if ($tab === 'visibility')
+        <form method="POST" action="{{ route('admin.settings.sales-visibility') }}" class="loop-glass space-y-5 p-6">
             @csrf
             @method('PUT')
             <div>
@@ -190,10 +279,12 @@
                     <span class="mt-1 block text-ink-muted">{{ __('loop.front_desk_see_sales_help') }}</span>
                 </span>
             </label>
-            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+            <button class="loop-btn-mint">{{ __('loop.save') }}</button>
         </form>
+    @endif
 
-        <form method="POST" action="{{ route('admin.settings.feature-flags') }}" class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] lg:col-span-2">
+    @if ($tab === 'product')
+        <form method="POST" action="{{ route('admin.settings.feature-flags') }}" class="loop-glass space-y-5 p-6">
             @csrf
             @method('PUT')
             <div>
@@ -213,26 +304,36 @@
                     </label>
                 @endforeach
             </div>
-            <button class="loop-btn-mint w-full sm:w-auto">{{ __('loop.save_product_updates') }}</button>
+            <button class="loop-btn-mint">{{ __('loop.save_product_updates') }}</button>
         </form>
-    </div>
+    @endif
 
-    <div class="mt-6 grid gap-4 sm:grid-cols-3">
-        <a href="{{ route('admin.affiliates.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_affiliates') }}</p>
-            <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_affiliates') }}</p>
-        </a>
-        <a href="{{ route('admin.referrals.program') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referral_program') }}</p>
-            <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
-        </a>
-        <a href="{{ route('admin.plans.index') }}" class="loop-panel block p-5 transition hover:-translate-y-0.5">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_plans') }}</p>
-            <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.view_plans') }}</p>
-        </a>
-        <div class="loop-panel p-5">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.integrations') }}</p>
-            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.integrations_blurb') }}</p>
-        </div>
-    </div>
+    @if ($tab === 'links')
+        <section class="loop-glass p-6">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_links') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_links_blurb') }}</p>
+            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_affiliates') }}</p>
+                    <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_affiliates') }}</p>
+                </a>
+                <a href="{{ route('admin.referrals.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referrals') }}</p>
+                    <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.referral_progress_title') }}</p>
+                </a>
+                <a href="{{ route('admin.referrals.program') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_referral_program') }}</p>
+                    <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.configure_referrals') }}</p>
+                </a>
+                <a href="{{ route('admin.plans.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_plans') }}</p>
+                    <p class="mt-2 font-display text-lg font-semibold">{{ __('loop.view_plans') }}</p>
+                </a>
+                <div class="rounded-2xl border border-ink/8 bg-white/70 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.integrations') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.integrations_blurb') }}</p>
+                </div>
+            </div>
+        </section>
+    @endif
 </x-app-layout>

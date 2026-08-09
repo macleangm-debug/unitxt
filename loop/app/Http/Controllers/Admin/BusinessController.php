@@ -43,6 +43,42 @@ class BusinessController extends Controller
         ]);
     }
 
+    public function show(Business $business, PlanLimitService $limits): View
+    {
+        $business->load(['owner', 'plan', 'shops']);
+        $business->loadCount(['shops', 'memberships', 'visits', 'rewards', 'campaigns', 'referralsMade']);
+
+        $sectorPeers = Business::query()
+            ->where('sector', $business->sector)
+            ->where('id', '!=', $business->id)
+            ->where('is_active', true)
+            ->withCount('visits')
+            ->orderByDesc('visits_count')
+            ->limit(5)
+            ->get();
+
+        $recentVisits = $business->visits()
+            ->with(['customer', 'shop'])
+            ->latest()
+            ->limit(12)
+            ->get();
+
+        $revenue = (float) $business->visits()->sum('amount_spent');
+        $salesMonth = $business->visits()->where('created_at', '>=', now()->startOfMonth())->count();
+        $revenueMonth = (float) $business->visits()->where('created_at', '>=', now()->startOfMonth())->sum('amount_spent');
+
+        return view('admin.businesses.show', [
+            'business' => $business,
+            'plans' => Plan::query()->orderBy('sort_order')->get(),
+            'abuseFlag' => $limits->looksLikeMultiBranchAbuse($business),
+            'sectorPeers' => $sectorPeers,
+            'recentVisits' => $recentVisits,
+            'revenue' => $revenue,
+            'salesMonth' => $salesMonth,
+            'revenueMonth' => $revenueMonth,
+        ]);
+    }
+
     public function update(Request $request, Business $business): RedirectResponse
     {
         $data = $request->validate([

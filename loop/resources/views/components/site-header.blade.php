@@ -35,20 +35,17 @@
             <span class="font-display text-lg font-semibold tracking-tight sm:text-xl">Loop</span>
         </a>
 
+        <div class="flex-1"></div>
+
         @unless ($slim)
             @if ($actionsHtml)
-                <nav class="hidden min-w-0 flex-1 items-center gap-4 md:flex">
+                <nav class="loop-top-nav hidden items-center gap-6 md:flex lg:gap-8">
                     {!! $actionsHtml !!}
                 </nav>
-                <div class="flex-1 md:hidden"></div>
-            @else
-                <div class="flex-1"></div>
             @endif
-        @else
-            <div class="flex-1"></div>
         @endunless
 
-        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2 {{ $actionsHtml && ! $slim ? 'md:ml-4 lg:ml-6' : '' }}">
             <form method="POST" action="{{ route('preference.country') }}">
                 @csrf
                 <select name="country" onchange="this.form.submit()" aria-label="{{ __('loop.country') }}" class="{{ $controlClass }}">

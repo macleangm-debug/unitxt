@@ -237,7 +237,7 @@ class LoopCoreFlowTest extends TestCase
 
         $admin = User::factory()->admin()->create(['phone' => '710111222', 'password' => 'password']);
         $this->actingAs($admin)
-            ->get(route('admin.settings'))
+            ->get(route('admin.settings', ['tab' => 'product']))
             ->assertOk()
             ->assertSee(__('loop.admin_product_updates'));
 
@@ -851,12 +851,12 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee(__('loop.admin_referral_program'));
 
         $this->actingAs($admin)
-            ->get(route('admin.reports.index'))
+            ->get(route('admin.reports.index', ['tab' => 'sectors']))
             ->assertOk()
             ->assertSee(__('loop.customers_by_sector'));
 
         $this->actingAs($admin)
-            ->get(route('admin.settings'))
+            ->get(route('admin.settings', ['tab' => 'billing']))
             ->assertOk()
             ->assertSee(__('loop.billing_trial_settings'));
 

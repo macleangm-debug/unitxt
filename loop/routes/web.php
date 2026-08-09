@@ -96,6 +96,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/export', [AdminReportController::class, 'export'])->name('reports.export');
         Route::get('/businesses', [AdminBusinessController::class, 'index'])->name('businesses.index');
+        Route::get('/businesses/{business}', [AdminBusinessController::class, 'show'])->name('businesses.show');
         Route::patch('/businesses/{business}', [AdminBusinessController::class, 'update'])->name('businesses.update');
         Route::get('/referrals', [AdminReferralController::class, 'index'])->name('referrals.index');
         Route::get('/referrals/program', [AdminReferralProgramController::class, 'edit'])->name('referrals.program');

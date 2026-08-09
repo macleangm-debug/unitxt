@@ -6,7 +6,12 @@
 
     @include('admin.partials.nav')
 
-    <form method="POST" action="{{ route('admin.referrals.program.update') }}" class="mx-auto max-w-2xl space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+    <div class="loop-admin-tabs" role="tablist">
+        <a href="{{ route('admin.referrals.index', ['tab' => 'progress']) }}" class="loop-admin-tab">{{ __('loop.referral_tab_progress') }}</a>
+        <a href="{{ route('admin.referrals.program') }}" class="loop-admin-tab is-active">{{ __('loop.referral_tab_program') }}</a>
+    </div>
+
+    <form method="POST" action="{{ route('admin.referrals.program.update') }}" class="mx-auto max-w-2xl space-y-5 loop-glass p-6">
         @csrf
         @method('PUT')
 
