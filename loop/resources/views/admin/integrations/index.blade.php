@@ -5,7 +5,6 @@
         'console' => __('loop.integrations_tab_console'),
         'messaging' => __('loop.integrations_tab_messaging'),
         'email' => __('loop.integrations_tab_email'),
-        'automation' => __('loop.integrations_tab_automation'),
     ];
 @endphp
 <x-app-layout>
@@ -45,6 +44,17 @@
             <div class="loop-glass p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.messaging') }} / {{ __('loop.email') }}</p>
                 <p class="mt-2 text-sm">{{ $settings['messaging']['enabled'] ? __('loop.on') : __('loop.off') }} · {{ $settings['email']['enabled'] ? __('loop.on') : __('loop.off') }}</p>
+            </div>
+            <div class="loop-glass p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.payin_balance') }}</p>
+                @if (!empty($payinBalance['stub']))
+                    <p class="mt-2 font-display text-xl font-semibold">{{ __('loop.stub_mode') }}</p>
+                @elseif (($payinBalance['ok'] ?? false) && $payinBalance['overall_balance'] !== null)
+                    <p class="mt-2 font-display text-xl font-semibold">{{ $payinBalance['currency'] ?? 'TZS' }} {{ number_format((float) $payinBalance['overall_balance']) }}</p>
+                @else
+                    <p class="mt-2 font-display text-xl font-semibold">—</p>
+                @endif
+                <p class="mt-1 text-sm text-ink-muted">{{ $payinBalance['message'] ?? '' }}</p>
             </div>
         </div>
         <p class="mt-6 text-sm text-ink-muted">{{ __('loop.payin_docs_hint') }} <a class="font-semibold text-violet underline" href="https://docs.payin.co.tz/" target="_blank" rel="noopener">docs.payin.co.tz</a></p>
@@ -213,24 +223,6 @@
                             <input type="email" name="email[from_address]" value="{{ $settings['email']['from_address'] }}" class="loop-input">
                         </div>
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
-                </x-admin.settings-lock>
-            </form>
-        </div>
-    @endif
-
-    @if ($tab === 'automation')
-        <div class="loop-glass p-6">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.automated_comms') }}</h2>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.automated_comms_blurb') }}</p>
-            <form method="POST" action="{{ route('admin.integrations.update') }}" class="mt-4">
-                @csrf
-                @method('PUT')
-                <input type="hidden" name="return_tab" value="automation">
-                <x-admin.settings-lock>
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="automation[holiday_messages]" value="1" @checked($settings['automation']['holiday_messages'])> {{ __('loop.holiday_messages') }}</label>
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="automation[in_app_digest]" value="1" @checked($settings['automation']['in_app_digest'])> {{ __('loop.in_app_digest') }}</label>
-                    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="automation[trial_reminders]" value="1" @checked($settings['automation']['trial_reminders'])> {{ __('loop.trial_reminders') }}</label>
                     <button class="loop-btn-mint">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>

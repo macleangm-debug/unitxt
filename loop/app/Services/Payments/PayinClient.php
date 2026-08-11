@@ -152,4 +152,87 @@ class PayinClient
                 : 'PayIn keys missing — stub mode active for UI tests',
         ];
     }
+
+    /**
+     * Verify PayIn webhook HMAC (docs.payin.co.tz Signature Verification).
+     * Signature = HMAC-SHA256(timestamp + "." + rawBody, webhook_secret)
+     */
+    public function verifyWebhookSignature(string $rawBody, ?string $signature, ?string $timestamp): bool
+    {
+        $cfg = IntegrationSettings::provider('payin');
+        $secret = trim((string) ($cfg['webhook_secret'] ?? ''));
+
+        // Stub / local: no secret configured → accept (UI testing without live keys).
+        if ($secret === '') {
+            return true;
+        }
+
+        if (! filled($signature) || ! filled($timestamp)) {
+            return false;
+        }
+
+        // Reject stale timestamps (>5 minutes) when secret is set.
+        if (abs(time() - (int) $timestamp) > 300) {
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $timestamp.'.'.$rawBody, $secret);
+
+        return hash_equals($expected, $signature);
+    }
+
+    /**
+     * @return array{ok: bool, overall_balance?: float|int|null, currency?: string, message: string, stub?: bool, raw?: mixed}
+     */
+    public function balance(): array
+    {
+        $cfg = IntegrationSettings::provider('payin');
+        $key = trim((string) ($cfg['api_key'] ?? ''));
+        $secret = trim((string) ($cfg['api_secret'] ?? ''));
+
+        if ($key === '' || $secret === '') {
+            return [
+                'ok' => true,
+                'overall_balance' => null,
+                'currency' => 'TZS',
+                'message' => 'Stub mode — balance unavailable without API keys',
+                'stub' => true,
+            ];
+        }
+
+        $mode = $cfg['mode'] ?? 'sandbox';
+        $base = $mode === 'live'
+            ? 'https://api.payin.co.tz/api/v1'
+            : 'https://api.sandbox.payin.co.tz/api/v1';
+
+        try {
+            $response = Http::withHeaders([
+                'X-API-Key' => $key,
+                'X-API-Secret' => $secret,
+                'Accept' => 'application/json',
+            ])->timeout(15)->get($base.'/balance');
+
+            $json = $response->json() ?? [];
+            if (! $response->successful()) {
+                return [
+                    'ok' => false,
+                    'message' => (string) ($json['message'] ?? 'Balance lookup failed'),
+                    'raw' => $json,
+                ];
+            }
+
+            return [
+                'ok' => true,
+                'overall_balance' => $json['overall_balance'] ?? null,
+                'currency' => (string) ($json['currency'] ?? 'TZS'),
+                'message' => 'Balance loaded',
+                'raw' => $json,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
 }

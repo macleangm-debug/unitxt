@@ -58,11 +58,6 @@ class IntegrationSettings
                 'from_address' => '',
                 'api_key' => '',
             ],
-            'automation' => [
-                'holiday_messages' => true,
-                'in_app_digest' => true,
-                'trial_reminders' => true,
-            ],
         ];
     }
 
@@ -116,15 +111,6 @@ class IntegrationSettings
                 'from_name' => (string) ($e['from_name'] ?? 'Loop'),
                 'from_address' => (string) ($e['from_address'] ?? ''),
                 'api_key' => (string) ($e['api_key'] ?? ''),
-            ];
-        }
-
-        if (isset($input['automation']) && is_array($input['automation'])) {
-            $a = $input['automation'];
-            $current['automation'] = [
-                'holiday_messages' => ! empty($a['holiday_messages']),
-                'in_app_digest' => ! empty($a['in_app_digest']),
-                'trial_reminders' => ! empty($a['trial_reminders']),
             ];
         }
 

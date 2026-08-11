@@ -83,7 +83,7 @@
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_packages_edit_blurb') }}</p>
             </div>
             @forelse ($plans as $plan)
-                <form method="POST" action="{{ route('admin.plans.update', $plan) }}" class="loop-glass space-y-4 p-6">
+                <form method="POST" action="{{ route('admin.settings.plans.update', $plan) }}" class="loop-glass space-y-4 p-6">
                     @csrf
                     @method('PUT')
                     <x-admin.settings-lock>
@@ -389,6 +389,9 @@
                             'affiliate_in_app' => __('loop.notif_affiliate_in_app'),
                             'affiliate_sms' => __('loop.notif_affiliate_sms'),
                             'admin_digest' => __('loop.notif_admin_digest'),
+                            'holiday_messages' => __('loop.holiday_messages'),
+                            'in_app_digest' => __('loop.in_app_digest'),
+                            'trial_reminders' => __('loop.trial_reminders'),
                         ] as $key => $label)
                             <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="{{ $key }}" value="1" @checked(old($key, $notifications[$key]))> {{ $label }}</label>
                         @endforeach

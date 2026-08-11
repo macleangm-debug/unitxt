@@ -36,6 +36,9 @@ class NotificationSettings
             'affiliate_in_app' => true,
             'affiliate_sms' => true,
             'admin_digest' => true,
+            'holiday_messages' => true,
+            'in_app_digest' => true,
+            'trial_reminders' => true,
             'quiet_hours_start' => 21,
             'quiet_hours_end' => 7,
         ];
@@ -56,6 +59,9 @@ class NotificationSettings
             'affiliate_in_app' => ! empty($input['affiliate_in_app']),
             'affiliate_sms' => ! empty($input['affiliate_sms']),
             'admin_digest' => ! empty($input['admin_digest']),
+            'holiday_messages' => ! empty($input['holiday_messages']),
+            'in_app_digest' => ! empty($input['in_app_digest']),
+            'trial_reminders' => ! empty($input['trial_reminders']),
             'quiet_hours_start' => max(0, min(23, (int) ($input['quiet_hours_start'] ?? 21))),
             'quiet_hours_end' => max(0, min(23, (int) ($input['quiet_hours_end'] ?? 7))),
         ];

@@ -1545,6 +1545,7 @@ return [
     'pay_with_phone' => 'Simu ya mobile money',
     'pay_with_phone_help' => 'Tunatuma USSD push kwa nambari hii. Weka PIN yako kwa mtandao.',
     'payin_docs_hint' => 'Nyaraka: docs.payin.co.tz — andaa vibali kabla ya live.',
+    'payin_balance' => 'Salio la pochi ya PayIn',
     'payin_mode' => 'Hali ya PayIn',
     'payment_amount_line' => 'Kiasi: :amount :currency',
     'payment_console' => 'Konsoli ya majaribio ya malipo',

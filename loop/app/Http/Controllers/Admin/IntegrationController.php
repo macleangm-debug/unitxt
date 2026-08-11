@@ -16,15 +16,21 @@ use Illuminate\View\View;
 
 class IntegrationController extends Controller
 {
-    public function index(PayinClient $payin): View
+    public function index(PayinClient $payin): View|RedirectResponse
     {
         $settings = IntegrationSettings::settings();
+        $tab = request('tab', 'overview');
+        if ($tab === 'automation') {
+            // Automation toggles moved to Settings Hub → Notifications
+            return redirect()->route('admin.settings', ['tab' => 'notifications']);
+        }
 
         return view('admin.integrations.index', [
             'settings' => $settings,
             'payinHealth' => $payin->health(),
+            'payinBalance' => $payin->balance(),
             'recentPayments' => PaymentIntent::query()->latest()->limit(15)->get(),
-            'tab' => request('tab', 'overview'),
+            'tab' => $tab,
         ]);
     }
 

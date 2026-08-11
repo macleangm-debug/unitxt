@@ -1265,6 +1265,171 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
+    public function test_settings_hub_is_source_of_truth_for_program_config(): void
+    {
+        foreach (\App\Support\Plans::catalog() as $key => $plan) {
+            \App\Models\Plan::query()->create([
+                'key' => $key,
+                'name' => $plan['name'],
+                'tagline' => $plan['tagline'],
+                'price_monthly' => $plan['price_monthly'],
+                'currency' => $plan['currency'],
+                'max_shops' => $plan['max_shops'],
+                'max_members' => $plan['max_members'],
+                'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
+                'is_public' => true,
+                'sort_order' => $plan['sort_order'],
+                'features' => $plan['features'],
+            ]);
+        }
+
+        $admin = User::factory()->admin()->create(['phone' => '710000333', 'password' => 'password']);
+        $plan = \App\Models\Plan::query()->where('key', 'growth')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('admin.plans.index'))
+            ->assertOk()
+            ->assertSee(__('loop.edit_in_settings_hub'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.plans.update', $plan), [
+                'name' => 'Hacked',
+                'price_monthly' => 1,
+                'currency' => 'TZS',
+                'sort_order' => 1,
+            ])
+            ->assertRedirect(route('admin.settings', ['tab' => 'packages']));
+
+        $this->assertSame('Growth', $plan->fresh()->name);
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.plans.update', $plan), [
+                'name' => 'Growth Plus',
+                'tagline' => 'More till energy',
+                'price_monthly' => 45000,
+                'currency' => 'TZS',
+                'sort_order' => 2,
+                'is_public' => 1,
+                'features_text' => "More shops\nMore members",
+            ])
+            ->assertRedirect(route('admin.settings', ['tab' => 'packages']));
+
+        $this->assertSame('Growth Plus', $plan->fresh()->name);
+        $this->assertSame(45000, $plan->fresh()->price_monthly);
+
+        $this->actingAs($admin)
+            ->put(route('admin.affiliates.settings'), [])
+            ->assertRedirect(route('admin.settings', ['tab' => 'affiliates']));
+
+        $this->actingAs($admin)
+            ->put(route('admin.referrals.program.update'), [])
+            ->assertRedirect(route('admin.settings', ['tab' => 'referrals']));
+
+        $this->actingAs($admin)
+            ->get(route('admin.integrations.index', ['tab' => 'automation']))
+            ->assertRedirect(route('admin.settings', ['tab' => 'notifications']));
+
+        $this->actingAs($admin)
+            ->get(route('admin.integrations.index'))
+            ->assertOk()
+            ->assertDontSee(__('loop.integrations_tab_automation'))
+            ->assertSee(__('loop.payin_balance'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.settings.notifications'), [
+                'owner_in_app' => 1,
+                'holiday_messages' => 1,
+                'trial_reminders' => 1,
+                'quiet_hours_start' => 22,
+                'quiet_hours_end' => 6,
+            ])
+            ->assertRedirect(route('admin.settings', ['tab' => 'notifications']));
+
+        $this->assertTrue(\App\Support\NotificationSettings::settings()['holiday_messages']);
+        $this->assertSame(22, \App\Support\NotificationSettings::settings()['quiet_hours_start']);
+    }
+
+    public function test_payin_webhook_verifies_signature_and_marks_paid(): void
+    {
+        \App\Models\PlatformSetting::putValue(\App\Support\IntegrationSettings::KEY, [
+            'payments' => [
+                'primary' => 'payin',
+                'secondary' => null,
+                'providers' => [
+                    'payin' => [
+                        'enabled' => true,
+                        'mode' => 'sandbox',
+                        'api_key' => 'pk_test',
+                        'api_secret' => 'sk_test',
+                        'webhook_secret' => 'whsec_test',
+                        'docs_url' => 'https://docs.payin.co.tz/',
+                    ],
+                ],
+            ],
+            'messaging' => \App\Support\IntegrationSettings::defaults()['messaging'],
+            'email' => \App\Support\IntegrationSettings::defaults()['email'],
+        ]);
+
+        [$owner, $business] = array_slice($this->seedBusiness(), 0, 2);
+        $intent = \App\Models\PaymentIntent::query()->create([
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'business_id' => $business->id,
+            'user_id' => $owner->id,
+            'purpose' => 'plan_upgrade',
+            'plan_key' => 'growth',
+            'amount' => 35000,
+            'currency' => 'TZS',
+            'phone' => '255714123456',
+            'country' => 'TZ',
+            'provider' => 'payin',
+            'provider_ref' => 'PAYTESTREF001',
+            'status' => \App\Models\PaymentIntent::STATUS_PROCESSING,
+            'description' => 'Test',
+            'meta' => ['plan_name' => 'Growth'],
+        ]);
+
+        $payload = json_encode([
+            'request_ref' => 'PAYTESTREF001',
+            'status' => 'completed',
+        ], JSON_THROW_ON_ERROR);
+        $timestamp = (string) time();
+        $badSig = 'deadbeef';
+
+        $this->call(
+            'POST',
+            route('payments.webhook.payin'),
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_PAYIN_SIGNATURE' => $badSig,
+                'HTTP_X_PAYIN_TIMESTAMP' => $timestamp,
+            ],
+            $payload
+        )->assertStatus(401);
+
+        $this->assertSame(\App\Models\PaymentIntent::STATUS_PROCESSING, $intent->fresh()->status);
+
+        $goodSig = hash_hmac('sha256', $timestamp.'.'.$payload, 'whsec_test');
+        $this->call(
+            'POST',
+            route('payments.webhook.payin'),
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_PAYIN_SIGNATURE' => $goodSig,
+                'HTTP_X_PAYIN_TIMESTAMP' => $timestamp,
+            ],
+            $payload
+        )->assertOk();
+
+        $this->assertTrue($intent->fresh()->isPaid());
+        $this->assertSame('growth', $business->fresh()->plan_key);
+    }
+
     private function seedBusiness(): array
     {
         $owner = User::factory()->owner()->create(['phone' => '712888001']);

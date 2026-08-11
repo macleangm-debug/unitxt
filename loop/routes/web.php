@@ -137,6 +137,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/countries', [AdminSettingsHubController::class, 'updateCountries'])->name('settings.countries');
         Route::put('/settings/notifications', [AdminSettingsHubController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/marketing', [AdminSettingsHubController::class, 'updateMarketing'])->name('settings.marketing');
+        Route::put('/settings/plans/{plan}', [AdminSettingsHubController::class, 'updatePlan'])->name('settings.plans.update');
     });
 
     Route::get('/payments/{payment}/wait', [PaymentController::class, 'wait'])->name('payments.wait');

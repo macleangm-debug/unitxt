@@ -52,8 +52,16 @@ class PaymentController extends Controller
         ]));
     }
 
-    public function payinWebhook(Request $request, PaymentService $payments): JsonResponse
+    public function payinWebhook(Request $request, PaymentService $payments, \App\Services\Payments\PayinClient $payin): JsonResponse
     {
+        $rawBody = $request->getContent();
+        $signature = $request->header('X-Payin-Signature');
+        $timestamp = $request->header('X-Payin-Timestamp');
+
+        if (! $payin->verifyWebhookSignature($rawBody, $signature, $timestamp)) {
+            return response()->json(['ok' => false, 'error' => 'invalid_signature'], 401);
+        }
+
         $ref = (string) ($request->input('request_ref') ?? $request->input('data.request_ref') ?? '');
         $status = strtolower((string) ($request->input('status') ?? $request->input('data.status') ?? ''));
 

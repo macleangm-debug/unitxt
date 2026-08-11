@@ -1545,6 +1545,7 @@ return [
     'pay_with_phone' => 'Mobile money phone',
     'pay_with_phone_help' => 'We send a USSD push to this number. Enter your PIN with your operator.',
     'payin_docs_hint' => 'API docs: docs.payin.co.tz — prepare credentials before going live.',
+    'payin_balance' => 'PayIn wallet balance',
     'payin_mode' => 'PayIn mode',
     'payment_amount_line' => 'Amount: :amount :currency',
     'payment_console' => 'Payment test console',
