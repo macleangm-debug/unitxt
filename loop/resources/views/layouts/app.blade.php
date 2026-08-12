@@ -24,7 +24,11 @@
         {{ $slot }}
     </main>
 </div>
-<div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
+<div
+    class="loop-page-veil"
+    :class="{ 'is-on': transitioning, 'is-morph': morphing }"
+    aria-hidden="true"
+></div>
 
 @php
     $confirm = session('confirm');

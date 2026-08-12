@@ -7,6 +7,7 @@ const prefersReducedMotion = () =>
 
 Alpine.store('loopNav', {
     transitioning: false,
+    morphing: false,
     go(url, event, options = {}) {
         if (
             event &&
@@ -20,6 +21,7 @@ Alpine.store('loopNav', {
         event?.preventDefault();
 
         const morphEl = options.morph;
+        let usedMorph = false;
         if (morphEl) {
             try {
                 const rect = morphEl.getBoundingClientRect();
@@ -39,15 +41,30 @@ Alpine.store('loopNav', {
                         radius: getComputedStyle(morphEl).borderRadius || '1.05rem',
                     })
                 );
+                usedMorph = true;
+
+                // Lift a live clone immediately so the handoff feels continuous.
+                const lift = morphEl.cloneNode(true);
+                lift.classList.add('loop-morph-flyer');
+                lift.style.top = `${rect.top}px`;
+                lift.style.left = `${rect.left}px`;
+                lift.style.width = `${rect.width}px`;
+                lift.style.height = `${rect.height}px`;
+                lift.style.borderRadius = getComputedStyle(morphEl).borderRadius || '1.05rem';
+                lift.style.zIndex = '92';
+                document.body.appendChild(lift);
+                morphEl.style.opacity = '0';
+                sessionStorage.setItem('loopMorphLift', '1');
             } catch (_) {
                 /* ignore */
             }
         }
 
+        this.morphing = usedMorph;
         this.transitioning = true;
         setTimeout(() => {
             window.location.href = url;
-        }, 280);
+        }, usedMorph ? 160 : 280);
     },
 });
 
@@ -57,6 +74,7 @@ Alpine.store('loopNav', {
 function loopSettleMorph() {
     if (prefersReducedMotion()) {
         sessionStorage.removeItem('loopMorph');
+        sessionStorage.removeItem('loopMorphLift');
         return;
     }
 
@@ -67,6 +85,9 @@ function loopSettleMorph() {
         payload = null;
     }
     sessionStorage.removeItem('loopMorph');
+    const hadLift = sessionStorage.getItem('loopMorphLift') === '1';
+    sessionStorage.removeItem('loopMorphLift');
+
     if (! payload?.id) {
         return;
     }
@@ -76,10 +97,17 @@ function loopSettleMorph() {
         return;
     }
 
+    // Soft page entrance while the logo lands.
+    const shell = document.querySelector('main.loop-shell') || document.querySelector('main');
+    shell?.classList.add('loop-morph-page-enter');
+
     const to = target.getBoundingClientRect();
     if (to.width < 8 || to.height < 8) {
         return;
     }
+
+    // Remove any leftover lift clones from the previous document (full reload clears DOM).
+    document.querySelectorAll('.loop-morph-flyer').forEach((el) => el.remove());
 
     const flyer = document.createElement('div');
     flyer.className = 'loop-morph-flyer';
@@ -102,24 +130,26 @@ function loopSettleMorph() {
     document.body.appendChild(flyer);
     target.classList.add('loop-morph-target--waiting');
 
-    requestAnimationFrame(() => {
+    // Start slightly earlier if we already previewed the lift on the prior page.
+    const delay = hadLift ? 16 : 32;
+    setTimeout(() => {
         flyer.style.top = `${to.top}px`;
         flyer.style.left = `${to.left}px`;
         flyer.style.width = `${to.width}px`;
         flyer.style.height = `${to.height}px`;
         flyer.style.borderRadius = getComputedStyle(target).borderRadius || payload.radius;
         flyer.classList.add('is-settling');
-    });
+    }, delay);
 
     const finish = () => {
         flyer.remove();
         target.classList.remove('loop-morph-target--waiting');
         target.classList.add('loop-morph-target--landed');
-        setTimeout(() => target.classList.remove('loop-morph-target--landed'), 400);
+        setTimeout(() => target.classList.remove('loop-morph-target--landed'), 420);
     };
 
     flyer.addEventListener('transitionend', finish, { once: true });
-    setTimeout(finish, 700);
+    setTimeout(finish, 720);
 }
 
 if (document.readyState === 'loading') {
@@ -468,6 +498,9 @@ Alpine.data('loopReveal', (delay = 0) => ({
 Alpine.data('loopPageMotion', () => ({
     get transitioning() {
         return this.$store.loopNav.transitioning;
+    },
+    get morphing() {
+        return this.$store.loopNav.morphing;
     },
     go(url, event) {
         this.$store.loopNav.go(url, event);

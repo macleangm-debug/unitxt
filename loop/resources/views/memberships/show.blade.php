@@ -3,56 +3,76 @@
         $shop = $business->shops->first();
         $logoUrl = $business->logoUrl();
         $morphId = 'business-'.$business->id;
+        $points = (int) $membership->points_balance;
+        $readyCount = $rewards->filter(fn ($r) => ($membership->progressTo($r)['ready'] ?? false))->count();
     @endphp
 
-    <section class="loop-wallet relative mb-6 overflow-hidden px-5 py-6 sm:px-7 sm:py-8">
+    {{-- Business wallet hero — same language as customer home --}}
+    <section class="loop-wallet relative mb-8 overflow-hidden px-5 py-7 sm:px-8 sm:py-9">
         <div class="loop-orb loop-orb--a"></div>
         <div class="loop-orb loop-orb--b"></div>
-        <div class="relative flex flex-wrap items-end justify-between gap-5">
-            <div class="flex min-w-0 items-end gap-4">
-                <div
-                    data-loop-morph-target="{{ $morphId }}"
-                    class="loop-morph-logo flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-white/10 ring-2 ring-white/20 sm:h-24 sm:w-24"
-                >
-                    @if ($logoUrl)
-                        <img src="{{ $logoUrl }}" alt="{{ $business->name }}" class="h-full w-full object-cover" draggable="false">
-                    @elseif ($shop)
-                        <x-shop-logo :shop="$shop" class="h-full w-full rounded-[1.35rem]" />
-                    @else
-                        <span class="font-display text-3xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
-                    @endif
+        <div class="loop-orb loop-orb--c"></div>
+
+        <div class="relative">
+            <div class="flex items-end justify-between gap-4">
+                <div class="flex min-w-0 flex-1 flex-col justify-between self-stretch">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-3">
+                            <div
+                                data-loop-morph-target="{{ $morphId }}"
+                                class="loop-morph-logo flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] bg-white/10 ring-2 ring-white/20 sm:h-16 sm:w-16"
+                            >
+                                @if ($logoUrl)
+                                    <img src="{{ $logoUrl }}" alt="{{ $business->name }}" class="h-full w-full object-cover" draggable="false">
+                                @elseif ($shop)
+                                    <x-shop-logo :shop="$shop" class="h-full w-full rounded-[1.1rem]" />
+                                @else
+                                    <span class="font-display text-2xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
+                                @endif
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-lime/85">Loop</p>
+                                <h1 class="mt-1 truncate font-display text-xl font-semibold leading-tight tracking-tight text-white sm:text-2xl">
+                                    {{ $business->name }}
+                                </h1>
+                                <p class="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                                    {{ $business->sectorLabel() }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-7">
+                        <div x-data="loopCountUp({{ $points }})">
+                            <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">
+                                {{ number_format($points) }}
+                            </p>
+                        </div>
+                        <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                        <p class="mt-2 text-sm text-white/70">{{ __('loop.at_this_shop_balance') }}</p>
+                    </div>
                 </div>
-                <div class="min-w-0 pb-0.5">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime/80">{{ $business->sectorLabel() }}</p>
-                    <h1 class="mt-1 font-display text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">{{ $business->name }}</h1>
-                    <p class="mt-1.5 text-sm text-white/55">{{ __('loop.wallet_show_blurb') }}</p>
-                </div>
+
+                <x-wallet-qr :size="112" class="shrink-0" />
             </div>
-            <div class="text-left sm:text-right" x-data="loopCountUp({{ (int) $membership->points_balance }})">
-                <p class="font-display text-4xl font-semibold leading-none tracking-tight text-lime sm:text-5xl">
-                    <span x-text="formatted()">{{ number_format($membership->points_balance) }}</span>
-                </p>
-                <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/50">{{ __('loop.pts') }}</p>
+
+            <div class="mt-6 flex flex-wrap gap-3">
+                <a href="#offers" class="loop-btn-lime">{{ __('loop.see_rewards') }}</a>
+                @if ($business->hotline)
+                    <a
+                        href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}"
+                        class="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                    >
+                        {{ __('loop.call_hotline_cta') }}
+                    </a>
+                @endif
             </div>
         </div>
     </section>
 
     <div x-data="loopRedeem()">
-        @if ($business->hotline)
-            <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mb-4 flex items-center justify-between gap-3 rounded-[1.5rem] bg-ink px-5 py-4 text-white">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.ready_to_redeem') }}</p>
-                    <p class="mt-1 font-display text-lg font-semibold">{{ __('loop.call_hotline_cta') }}</p>
-                </div>
-                <span class="inline-flex items-center gap-2 rounded-xl bg-lime px-3 py-2 text-sm font-semibold text-ink">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.4 21 3 13.6 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.02l-2.2 2.19z"/></svg>
-                    {{ $business->hotline }}
-                </span>
-            </a>
-        @endif
-
         @if ($raffleWins->isNotEmpty())
-            <section class="mb-4 overflow-hidden rounded-[1.75rem] border border-violet/20 bg-violet-soft/40">
+            <section class="mb-8 overflow-hidden rounded-[1.75rem] border border-violet/20 bg-violet-soft/40">
                 <div class="px-5 py-4 sm:px-6">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.raffle') }}</p>
                     <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.your_raffle_wins') }}</h2>
@@ -94,13 +114,31 @@
             </section>
         @endif
 
-        <section class="overflow-hidden rounded-[1.75rem] border border-ink/8 bg-white">
-            <div class="px-5 pt-5 sm:px-6">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.offers_at_this_shop') }}</h2>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offers_at_this_shop_body') }}</p>
+        {{-- Offers --}}
+        <section id="offers" class="mb-10 scroll-mt-24">
+            <x-section-heading
+                :eyebrow="__('loop.offers')"
+                :title="__('loop.offers_at_this_shop')"
+                :blurb="__('loop.offers_at_this_shop_body')"
+                class="mb-5"
+            />
+
+            <div class="mb-5 flex items-center justify-between gap-3 rounded-[1.35rem] border border-ink/8 bg-white/70 px-4 py-3.5 shadow-[0_10px_30px_rgba(17,17,20,0.04)] backdrop-blur-xl">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">{{ __('loop.your_balance_here') }}</p>
+                    <p class="mt-0.5 font-display text-2xl font-semibold tracking-tight text-ink">
+                        {{ number_format($points) }}
+                        <span class="text-sm font-medium text-ink-muted">{{ __('loop.pts') }}</span>
+                    </p>
+                </div>
+                @if ($readyCount > 0)
+                    <span class="rounded-xl bg-violet px-3 py-1.5 text-xs font-semibold text-white">
+                        {{ __('loop.offers_ready_count', ['count' => $readyCount]) }}
+                    </span>
+                @endif
             </div>
 
-            <div class="loop-carousel mt-4 px-4 pb-4 sm:px-5" x-data="loopParallaxCarousel()">
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
                 @forelse ($rewards as $reward)
                     @php
                         $progress = $membership->progressTo($reward);
@@ -109,23 +147,28 @@
                     @endphp
                     <div
                         data-loop-card
-                        class="loop-shop-card loop-unlock-card w-[16.5rem] shrink-0 rounded-[1.35rem] border border-ink/10 bg-chalk p-4 {{ $canRedeem ? 'is-ready border-violet/30 bg-violet-soft/40' : '' }}"
+                        class="loop-shop-card loop-offer-card w-[16.75rem] shrink-0 {{ $canRedeem ? 'loop-offer-card--ready' : '' }}"
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 @if ($canRedeem)
-                                    <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.reward_unlocked') }}</p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.reward_unlocked') }}</p>
                                 @endif
-                                <p class="font-semibold leading-snug">{{ $reward->name }}</p>
-                                <p class="mt-0.5 text-sm text-ink-muted">{{ $reward->label() }}</p>
+                                <p class="font-display text-lg font-semibold leading-snug {{ $canRedeem ? 'text-white' : 'text-ink' }}">{{ $reward->name }}</p>
+                                <p class="mt-0.5 text-sm {{ $canRedeem ? 'text-white/65' : 'text-ink-muted' }}">{{ $reward->label() }}</p>
                             </div>
-                            <p class="shrink-0 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold {{ $canRedeem ? 'text-violet' : 'text-ink-muted' }}">{{ $reward->points_cost }} {{ __('loop.pts') }}</p>
+                            <p class="shrink-0 rounded-xl px-2.5 py-1 text-xs font-semibold {{ $canRedeem ? 'bg-lime text-ink' : 'bg-ink/5 text-ink-muted' }}">
+                                {{ $reward->points_cost }} {{ __('loop.pts') }}
+                            </p>
                         </div>
-                        <div class="mt-3">
-                            <div class="h-1.5 overflow-hidden rounded-full bg-ink/10">
-                                <div class="h-full rounded-full transition-all duration-700 ease-out {{ $canRedeem ? 'bg-lime-deep' : 'bg-violet' }}" style="width: {{ $progress['percent'] }}%"></div>
+                        <div class="mt-4">
+                            <div class="h-1.5 overflow-hidden rounded-full {{ $canRedeem ? 'bg-white/20' : 'bg-ink/10' }}">
+                                <div
+                                    class="h-full rounded-full transition-all duration-700 ease-out {{ $canRedeem ? 'bg-lime' : 'bg-violet' }}"
+                                    style="width: {{ $progress['percent'] }}%"
+                                ></div>
                             </div>
-                            <p class="mt-1.5 text-xs {{ $canRedeem ? 'font-semibold text-violet' : 'text-ink-muted' }}">
+                            <p class="mt-2 text-xs {{ $canRedeem ? 'font-semibold text-lime' : 'text-ink-muted' }}">
                                 @if ($canRedeem)
                                     {{ __('loop.offer_ready_hint') }}
                                 @else
@@ -136,7 +179,7 @@
                         @if ($canRedeem)
                             <button
                                 type="button"
-                                class="loop-btn mt-4 w-full !py-2.5 text-sm"
+                                class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-lime px-3 py-2.5 text-sm font-semibold text-ink"
                                 @click="show({
                                     name: @js($reward->name),
                                     pts: @js(number_format($reward->points_cost).' '.__('loop.pts')),
@@ -147,31 +190,39 @@
                         @endif
                     </div>
                 @empty
-                    <p class="px-1 py-5 text-sm text-ink-muted">{{ __('loop.no_offers_yet') }}</p>
+                    <p class="py-6 text-sm text-ink-muted">{{ __('loop.no_offers_yet') }}</p>
                 @endforelse
             </div>
+        </section>
 
-            <div class="border-t border-ink/8 px-5 pt-5 sm:px-6">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.points_activity') }}</h2>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.points_activity_blurb') }}</p>
-            </div>
-            <div class="mt-2 divide-y divide-ink/5 px-2 pb-3 sm:px-3">
+        {{-- Activity --}}
+        <section class="mb-4">
+            <x-section-heading
+                :eyebrow="__('loop.pts')"
+                :title="__('loop.points_activity')"
+                :blurb="__('loop.points_activity_blurb')"
+                class="mb-5"
+            />
+
+            <div class="overflow-hidden rounded-[1.6rem] border border-ink/8 bg-white/75 shadow-[0_12px_36px_rgba(17,17,20,0.04)] backdrop-blur-xl">
                 @forelse ($transactions as $tx)
-                    <div class="flex items-center justify-between gap-3 px-3 py-3">
+                    <div class="flex items-center justify-between gap-3 border-b border-ink/5 px-5 py-4 last:border-b-0">
                         <div class="min-w-0">
-                            <p class="truncate text-sm font-medium">
+                            <p class="truncate text-sm font-semibold text-ink">
                                 @if ($customersSeeSales)
                                     {{ $tx->description }}
                                 @else
                                     {{ $tx->points >= 0 ? __('loop.points_earned_private') : __('loop.points_spent_private') }}
                                 @endif
                             </p>
-                            <p class="text-xs text-ink-muted">{{ $tx->created_at->diffForHumans() }}</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">{{ $tx->created_at->diffForHumans() }}</p>
                         </div>
-                        <span class="shrink-0 font-semibold {{ $tx->points >= 0 ? 'text-violet' : 'text-coral' }}">{{ $tx->points >= 0 ? '+' : '' }}{{ $tx->points }}</span>
+                        <span class="shrink-0 font-display text-xl font-semibold {{ $tx->points >= 0 ? 'text-violet' : 'text-coral' }}">
+                            {{ $tx->points >= 0 ? '+' : '' }}{{ $tx->points }}
+                        </span>
                     </div>
                 @empty
-                    <p class="px-3 py-5 text-sm text-ink-muted">{{ __('loop.no_history_yet') }}</p>
+                    <p class="px-5 py-8 text-sm text-ink-muted">{{ __('loop.no_history_yet') }}</p>
                 @endforelse
             </div>
         </section>

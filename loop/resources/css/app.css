@@ -413,6 +413,35 @@
         cursor: zoom-in;
     }
 
+    .loop-offer-card {
+        @apply rounded-[1.4rem] border border-ink/10 bg-white/80 p-4 shadow-[0_12px_36px_rgba(17,17,20,0.05)] backdrop-blur-xl;
+        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease-out;
+    }
+
+    .loop-offer-card--ready {
+        @apply border-transparent text-white;
+        background:
+            radial-gradient(circle at 90% 10%, rgba(200, 255, 61, 0.22), transparent 40%),
+            linear-gradient(145deg, #5b2eff, #3f18d9 70%);
+        box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.28), 0 18px 50px rgba(91, 46, 255, 0.22);
+    }
+
+    .loop-page-veil.is-morph {
+        background:
+            radial-gradient(circle at 50% 42%, rgba(91, 46, 255, 0.22), transparent 48%),
+            rgba(17, 17, 20, 0.28);
+        transform: scale(1);
+        transition: opacity 0.22s ease-out;
+    }
+
+    .loop-morph-page-enter {
+        animation: loop-page-soft-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    .loop-morph-flyer.is-settling {
+        box-shadow: 0 22px 60px rgba(17, 17, 20, 0.4);
+    }
+
     .loop-wallet--liquid::before {
         content: none; /* liquid loop caused continuous flicker on landings */
     }
@@ -785,6 +814,17 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+@keyframes loop-page-soft-in {
+    from {
+        opacity: 0.55;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

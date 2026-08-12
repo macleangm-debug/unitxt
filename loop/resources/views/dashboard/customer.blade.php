@@ -195,7 +195,11 @@
     @if ($otherShops->isNotEmpty())
         <section class="mb-12">
             <x-section-heading
+                :eyebrow="__('loop.more_businesses_eyebrow')"
                 :title="__('loop.more_businesses')"
+                :blurb="__('loop.more_businesses_blurb')"
+                :href="route('discover')"
+                :link="__('loop.explore').' →'"
                 class="mb-5"
             />
             <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
