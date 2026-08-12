@@ -1636,6 +1636,7 @@ return [
     'admin_customers_scouts' => 'Business invites sent',
     'wallet_qr_badge' => 'Till',
     'wallet_qr_hint' => 'Show your Loop QR at the till to earn or redeem — no typing your number.',
+    'wallet_qr_expand' => 'Expand QR code',
     'member' => 'Member',
     'lifetime_spend' => 'Lifetime spend',
 ];

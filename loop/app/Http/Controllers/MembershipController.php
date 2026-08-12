@@ -12,7 +12,9 @@ class MembershipController extends Controller
     {
         $memberships = $request->user()
             ->memberships()
-            ->with('business')
+            ->with([
+                'business.shops' => fn ($q) => $q->where('is_active', true)->orderBy('id'),
+            ])
             ->latest()
             ->get()
             ->groupBy(fn ($m) => $m->business->sector);
@@ -24,6 +26,10 @@ class MembershipController extends Controller
 
     public function show(Request $request, Business $business): View
     {
+        $business->load([
+            'shops' => fn ($q) => $q->where('is_active', true)->orderBy('id'),
+        ]);
+
         $membership = $business->memberships()
             ->where('customer_id', $request->user()->id)
             ->firstOrFail();

@@ -1,24 +1,41 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex min-w-0 items-start gap-4">
-                @php $shop = $business->shops->first(); @endphp
-                @if ($shop)
-                    <x-shop-logo :shop="$shop" class="h-14 w-14 shrink-0 rounded-[1.15rem]" />
-                @endif
-                <div class="min-w-0">
-                    <h1 class="font-display text-3xl font-semibold leading-tight">{{ $business->name }}</h1>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.wallet_show_blurb') }}</p>
+    @php
+        $shop = $business->shops->first();
+        $logoUrl = $business->logoUrl();
+        $morphId = 'business-'.$business->id;
+    @endphp
+
+    <section class="loop-wallet relative mb-6 overflow-hidden px-5 py-6 sm:px-7 sm:py-8">
+        <div class="loop-orb loop-orb--a"></div>
+        <div class="loop-orb loop-orb--b"></div>
+        <div class="relative flex flex-wrap items-end justify-between gap-5">
+            <div class="flex min-w-0 items-end gap-4">
+                <div
+                    data-loop-morph-target="{{ $morphId }}"
+                    class="loop-morph-logo flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] bg-white/10 ring-2 ring-white/20 sm:h-24 sm:w-24"
+                >
+                    @if ($logoUrl)
+                        <img src="{{ $logoUrl }}" alt="{{ $business->name }}" class="h-full w-full object-cover" draggable="false">
+                    @elseif ($shop)
+                        <x-shop-logo :shop="$shop" class="h-full w-full rounded-[1.35rem]" />
+                    @else
+                        <span class="font-display text-3xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
+                    @endif
+                </div>
+                <div class="min-w-0 pb-0.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime/80">{{ $business->sectorLabel() }}</p>
+                    <h1 class="mt-1 font-display text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl">{{ $business->name }}</h1>
+                    <p class="mt-1.5 text-sm text-white/55">{{ __('loop.wallet_show_blurb') }}</p>
                 </div>
             </div>
-            <div x-data="loopCountUp({{ (int) $membership->points_balance }})">
-                <p class="font-display text-3xl font-semibold sm:text-4xl">
+            <div class="text-left sm:text-right" x-data="loopCountUp({{ (int) $membership->points_balance }})">
+                <p class="font-display text-4xl font-semibold leading-none tracking-tight text-lime sm:text-5xl">
                     <span x-text="formatted()">{{ number_format($membership->points_balance) }}</span>
-                    <span class="text-base text-ink-muted">{{ __('loop.pts') }}</span>
                 </p>
+                <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/50">{{ __('loop.pts') }}</p>
             </div>
         </div>
-    </x-slot>
+    </section>
 
     <div x-data="loopRedeem()">
         @if ($business->hotline)

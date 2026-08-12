@@ -1,27 +1,55 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.my_wallets') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.my_wallets_blurb') }}</p>
-    </x-slot>
+    @php
+        $totalPoints = $grouped->flatten()->sum('points_balance');
+        $walletCount = $grouped->flatten()->count();
+    @endphp
+
+    <section class="loop-wallet mb-8 px-5 py-7 sm:px-8 sm:py-9">
+        <div class="loop-orb loop-orb--a"></div>
+        <div class="loop-orb loop-orb--b"></div>
+        <div class="loop-orb loop-orb--c"></div>
+        <div class="relative flex items-stretch justify-between gap-4">
+            <div class="flex min-w-0 flex-1 flex-col justify-between">
+                <div class="min-w-0">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-lime/80">Loop</p>
+                    <h1 class="mt-2 font-display text-[clamp(1.85rem,7vw,2.65rem)] font-semibold leading-tight tracking-tight text-white">
+                        {{ __('loop.my_wallets') }}
+                    </h1>
+                    <p class="mt-2 max-w-xs text-sm leading-relaxed text-white/55">{{ __('loop.my_wallets_blurb') }}</p>
+                </div>
+                <div class="mt-6">
+                    <div x-data="loopCountUp({{ (int) $totalPoints }})">
+                        <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
+                    </div>
+                    <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                    <p class="mt-2 text-sm text-white/65">{{ __('loop.across_shops', ['count' => $walletCount]) }}</p>
+                </div>
+            </div>
+            <x-wallet-qr :size="120" class="self-end shrink-0" />
+        </div>
+    </section>
+
     @forelse ($grouped as $sector => $items)
-        <section class="mb-8">
-            <h2 class="font-display text-lg font-semibold">{{ \App\Support\Sectors::label($sector) }}</h2>
-            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <section class="mb-10">
+            <x-section-heading
+                :eyebrow="__('loop.sector')"
+                :title="\App\Support\Sectors::label($sector)"
+                class="mb-5"
+            />
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
                 @foreach ($items as $membership)
-                    <a href="{{ route('memberships.show', $membership->business) }}" class="loop-panel block p-5 transition hover:-translate-y-0.5 hover:bg-white">
-                        <p class="font-semibold">{{ $membership->business->name }}</p>
-                        <p class="mt-2 font-display text-3xl">{{ $membership->points_balance }} <span class="text-base text-ink-muted">pts</span></p>
-                        @php
-                            $ready = $membership->availableRewards()->count();
-                        @endphp
-                        @if ($ready > 0)
-                            <p class="mt-2 text-xs font-semibold text-mint-deep">{{ __('loop.offers_ready_count', ['count' => $ready]) }}</p>
-                        @endif
-                    </a>
+                    <x-wallet-membership-card
+                        :membership="$membership"
+                        :carousel="true"
+                        data-loop-card
+                    />
                 @endforeach
             </div>
         </section>
     @empty
-        <p class="text-ink-muted">{{ __('loop.no_wallets_yet') }}</p>
+        <div class="rounded-[1.5rem] border border-dashed border-ink/15 bg-white/60 px-6 py-12 text-center">
+            <p class="font-display text-xl font-semibold">{{ __('loop.no_wallets_yet') }}</p>
+            <a href="{{ route('discover') }}" class="loop-btn mt-5 inline-flex">{{ __('loop.explore') }}</a>
+        </div>
     @endforelse
 </x-app-layout>

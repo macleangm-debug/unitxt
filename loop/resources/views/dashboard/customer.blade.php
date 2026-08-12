@@ -6,7 +6,7 @@
         $pointsEarned = (int) ($pointsEarned ?? 0);
     @endphp
 
-    {{-- Living Wallet — name + premium Loop QR --}}
+    {{-- Living Wallet — name + points aligned to QR bottom --}}
     <section
         class="loop-wallet mb-8 px-5 py-7 sm:px-8 sm:py-9"
         :class="{ 'loop-wallet--pulse': pulsing }"
@@ -15,39 +15,35 @@
         <div class="loop-orb loop-orb--a"></div>
         <div class="loop-orb loop-orb--b"></div>
         <div class="loop-orb loop-orb--c"></div>
-        <div class="relative">
-            <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0 flex-1 pt-1">
+        <div class="relative flex items-stretch justify-between gap-4">
+            <div class="flex min-w-0 flex-1 flex-col justify-between">
+                <div class="min-w-0 pt-0.5">
                     <h1 class="font-display text-[clamp(1.75rem,7vw,2.5rem)] font-semibold leading-tight tracking-tight text-white">
                         {{ $customerName }}
                     </h1>
                     <p class="mt-1.5 text-sm text-white/55">{{ $phoneLabel }}</p>
                 </div>
-                <x-wallet-qr
-                    :name="$customerName"
-                    :phone="$phoneLabel"
-                    :size="112"
-                    class="shrink-0"
-                />
+
+                <div class="mt-6">
+                    <div class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
+                        <template x-if="earned">
+                            <span class="loop-points-float" x-text="'+' + earned"></span>
+                        </template>
+                        <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
+                    </div>
+                    <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                    <p class="mt-2 text-sm text-white/70">
+                        {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
+                    </p>
+                    @if ($redeemables->isNotEmpty())
+                        <div class="mt-5">
+                            <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            <div class="mt-7">
-                <div class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
-                    <template x-if="earned">
-                        <span class="loop-points-float" x-text="'+' + earned"></span>
-                    </template>
-                    <p class="font-display text-[clamp(3.5rem,14vw,5.5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
-                </div>
-                <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
-                <p class="mt-3 text-base text-white/75">
-                    {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
-                </p>
-                @if ($redeemables->isNotEmpty())
-                    <div class="mt-6">
-                        <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
-                    </div>
-                @endif
-            </div>
+            <x-wallet-qr :size="120" class="self-end shrink-0" />
         </div>
     </section>
 
@@ -77,7 +73,12 @@
             id="ready"
             class="mb-10 scroll-mt-24"
         >
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.ready_to_redeem') }}</h2>
+            <x-section-heading
+                :eyebrow="__('loop.offers')"
+                :title="__('loop.ready_to_redeem')"
+                :blurb="__('loop.ready_to_redeem_home_blurb')"
+                class="mb-5"
+            />
 
             @if ($featuredRedeem)
                 <div class="loop-unlock-card is-ready mt-4 overflow-hidden rounded-[1.5rem] bg-violet text-white">
@@ -114,11 +115,15 @@
     @endif
 
     {{-- Your Loop — same tile language as browse / discover --}}
-    <section class=" mb-10">
-        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.your_loop') }}</h2>
-            <a href="{{ route('discover') }}" class="text-sm font-semibold text-violet">{{ __('loop.browse_campaigns') }} →</a>
-        </div>
+    <section class="mb-10">
+        <x-section-heading
+            :eyebrow="__('loop.member')"
+            :title="__('loop.your_loop')"
+            :blurb="__('loop.my_wallets_blurb')"
+            :href="route('discover')"
+            :link="__('loop.browse_campaigns').' →'"
+            class="mb-5"
+        />
         <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
             @forelse ($memberships as $membership)
                 @php
@@ -153,11 +158,14 @@
 
     {{-- Where offers work — browse-tile carousel --}}
     <section class="mb-10">
-        <div class="mb-1 flex flex-wrap items-end justify-between gap-2">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.where_points_work') }}</h2>
-            <a href="{{ route('discover') }}" class="text-sm font-semibold text-violet">{{ __('loop.browse_campaigns') }}</a>
-        </div>
-        <p class="mb-4 text-sm text-ink-muted">{{ __('loop.where_points_work_blurb') }}</p>
+        <x-section-heading
+            :eyebrow="__('loop.discover')"
+            :title="__('loop.where_points_work')"
+            :blurb="__('loop.where_points_work_blurb')"
+            :href="route('discover')"
+            :link="__('loop.explore').' →'"
+            class="mb-5"
+        />
         <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
             @forelse ($topShops as $business)
                 @php
@@ -183,7 +191,10 @@
 
     @if ($otherShops->isNotEmpty())
         <section class="mb-12">
-            <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.more_businesses') }}</h2>
+            <x-section-heading
+                :title="__('loop.more_businesses')"
+                class="mb-5"
+            />
             <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
                 @foreach ($otherShops as $business)
                     <x-discover-tile

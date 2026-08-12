@@ -1636,6 +1636,7 @@ return [
     'admin_customers_scouts' => 'Mialiko ya biashara',
     'wallet_qr_badge' => 'Till',
     'wallet_qr_hint' => 'Onyesha QR yako ya Loop kwenye till kupata pointi au kukomboa — bila kuandika nambari.',
+    'wallet_qr_expand' => 'Panua msimbo wa QR',
     'member' => 'Mwanachama',
     'lifetime_spend' => 'Matumizi ya maisha',
 ];

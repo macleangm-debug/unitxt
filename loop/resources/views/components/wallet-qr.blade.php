@@ -1,45 +1,90 @@
 @props([
-    'name',
-    'phone',
     'size' => 132,
+    'expandable' => true,
 ])
 
 @php
     $qrUrl = route('customer.wallet-qr');
+    $frame = (int) $size + 20;
 @endphp
 
-<div {{ $attributes->merge(['class' => 'loop-wallet-qr relative shrink-0']) }}>
-    <div class="relative rounded-[1.35rem] p-[2px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]" style="background: linear-gradient(135deg, #C8FF3D 0%, #5B2EFF 55%, #C8FF3D 100%);">
-        <div class="rounded-[1.25rem] bg-white px-3 pb-3 pt-2.5">
-            <div class="mb-1.5 flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5">
-                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" aria-hidden="true">
-                        <defs>
-                            <linearGradient id="walletQrGrad" x1="8" y1="12" x2="56" y2="52" gradientUnits="userSpaceOnUse">
-                                <stop stop-color="#5B2EFF"/>
-                                <stop offset="1" stop-color="#C8FF3D"/>
-                            </linearGradient>
-                        </defs>
-                        <path d="M20 32c0-7.732 6.268-14 14-14h2c7.732 0 14 6.268 14 14s-6.268 14-14 14h-2c-7.732 0-14-6.268-14-14Z" stroke="url(#walletQrGrad)" stroke-width="5.5" stroke-linecap="round"/>
-                        <circle cx="22" cy="32" r="3.2" fill="#5B2EFF"/>
-                        <circle cx="42" cy="32" r="3.2" fill="#C8FF3D"/>
-                    </svg>
-                    <span class="font-display text-[11px] font-semibold tracking-tight text-ink">Loop</span>
-                </div>
-                <span class="rounded-md bg-violet-soft px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-violet">{{ __('loop.wallet_qr_badge') }}</span>
-            </div>
-            <div class="overflow-hidden rounded-xl bg-chalk/80 p-1.5 ring-1 ring-ink/5">
-                <img
-                    src="{{ $qrUrl }}"
-                    alt="{{ __('loop.wallet_qr_title') }}"
-                    class="mx-auto block"
-                    style="width: {{ (int) $size }}px; height: {{ (int) $size }}px;"
-                    width="{{ (int) $size }}"
-                    height="{{ (int) $size }}"
+<div
+    {{ $attributes->merge(['class' => 'loop-wallet-qr relative shrink-0']) }}
+    @if ($expandable)
+        x-data="loopQrExpand()"
+    @endif
+>
+    <button
+        type="button"
+        @if ($expandable)
+            @click="open($refs.thumb)"
+            x-ref="thumb"
+        @endif
+        class="group relative block rounded-[1.35rem] p-[2px] shadow-[0_12px_40px_rgba(0,0,0,0.35)] outline-none transition focus-visible:ring-2 focus-visible:ring-lime/80"
+        style="background: linear-gradient(135deg, #C8FF3D 0%, #5B2EFF 55%, #C8FF3D 100%); width: {{ $frame }}px;"
+        @if ($expandable)
+            aria-label="{{ __('loop.wallet_qr_expand') }}"
+        @endif
+    >
+        <span class="block overflow-hidden rounded-[1.25rem] bg-white p-2.5">
+            <img
+                src="{{ $qrUrl }}"
+                alt="{{ __('loop.wallet_qr_title') }}"
+                class="mx-auto block"
+                style="width: {{ (int) $size }}px; height: {{ (int) $size }}px;"
+                width="{{ (int) $size }}"
+                height="{{ (int) $size }}"
+                draggable="false"
+            >
+        </span>
+    </button>
+
+    @if ($expandable)
+        <template x-teleport="body">
+            <div
+                x-show="visible"
+                x-cloak
+                class="fixed inset-0 z-[95] flex items-center justify-center p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label="{{ __('loop.wallet_qr_title') }}"
+            >
+                <div
+                    class="absolute inset-0 bg-ink/75 backdrop-blur-md transition-opacity duration-300"
+                    :class="expanded ? 'opacity-100' : 'opacity-0'"
+                    @click="close()"
+                ></div>
+                <div
+                    class="relative z-10 will-change-transform"
+                    :style="frameStyle"
+                    @click.stop
                 >
+                    <div
+                        class="rounded-[1.75rem] p-[3px] shadow-[0_28px_80px_rgba(0,0,0,0.45)]"
+                        style="background: linear-gradient(135deg, #C8FF3D 0%, #5B2EFF 55%, #C8FF3D 100%);"
+                    >
+                        <div class="rounded-[1.6rem] bg-white p-4 sm:p-5">
+                            <img
+                                src="{{ $qrUrl }}"
+                                alt="{{ __('loop.wallet_qr_title') }}"
+                                class="mx-auto block h-auto w-full"
+                                width="280"
+                                height="280"
+                                draggable="false"
+                            >
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        class="mt-5 w-full text-center text-sm font-semibold text-white/80 transition hover:text-white"
+                        @click="close()"
+                        x-show="expanded"
+                        x-transition.opacity
+                    >
+                        {{ __('loop.close') }}
+                    </button>
+                </div>
             </div>
-            <p class="mt-2 truncate text-center text-[11px] font-semibold text-ink">{{ $name }}</p>
-            <p class="truncate text-center font-mono text-[10px] text-ink-muted">{{ $phone }}</p>
-        </div>
-    </div>
+        </template>
+    @endif
 </div>
