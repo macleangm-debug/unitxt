@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use BaconQrCode\Renderer\Color\Rgb;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\Fill;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\Request;
@@ -26,8 +28,10 @@ class CustomerWalletQrController extends Controller
         $phone = preg_replace('/\D+/', '', (string) $user->phone);
         $payload = URL::route('till.index', ['scan' => $dial.'|'.$phone], absolute: true);
 
+        // Loop ink on white — reads premium when framed with violet/lime chrome.
+        $fill = Fill::uniformColor(new Rgb(255, 255, 255), new Rgb(17, 17, 20));
         $renderer = new ImageRenderer(
-            new RendererStyle(320, 1),
+            new RendererStyle(320, 1, null, null, $fill),
             new SvgImageBackEnd
         );
         $svg = (new Writer($renderer))->writeString($payload);

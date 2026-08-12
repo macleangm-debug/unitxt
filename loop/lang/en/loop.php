@@ -1634,5 +1634,8 @@ return [
     'admin_customers_month_gmv' => 'Till GMV this month',
     'admin_customers_memberships' => 'Shop memberships',
     'admin_customers_scouts' => 'Business invites sent',
+    'wallet_qr_badge' => 'Till',
+    'wallet_qr_hint' => 'Show your Loop QR at the till to earn or redeem — no typing your number.',
+    'member' => 'Member',
     'lifetime_spend' => 'Lifetime spend',
 ];

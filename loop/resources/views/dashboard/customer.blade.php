@@ -2,44 +2,57 @@
     @php
         $shareLink = \App\Support\PlatformUrl::route('business.register', ['scout' => auth()->id()]);
         $phoneLabel = auth()->user()->full_phone ?? auth()->user()->phone;
+        $customerName = auth()->user()->name ?: __('loop.member');
         $pointsEarned = (int) ($pointsEarned ?? 0);
     @endphp
 
-    {{-- Living Wallet --}}
+    {{-- Living Wallet — name + premium Loop QR --}}
     <section
-        class="loop-wallet  mb-8 px-5 py-7 sm:px-8 sm:py-9"
+        class="loop-wallet mb-8 px-5 py-7 sm:px-8 sm:py-9"
         :class="{ 'loop-wallet--pulse': pulsing }"
         x-data="loopLivingWallet({{ $pointsEarned }})"
     >
-        <div class="loop-orb loop-orb--a "></div>
-        <div class="loop-orb loop-orb--b "></div>
-        <div class="loop-orb loop-orb--c "></div>
+        <div class="loop-orb loop-orb--a"></div>
+        <div class="loop-orb loop-orb--b"></div>
+        <div class="loop-orb loop-orb--c"></div>
         <div class="relative">
             <div class="flex items-start justify-between gap-3">
-                <div>
+                <div class="min-w-0">
                     <p class="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">Loop</p>
-                    <p class="mt-1 text-sm text-white/55">{{ $phoneLabel }}</p>
+                    <p class="mt-1 truncate font-display text-lg font-semibold text-white/95 sm:text-xl">{{ $customerName }}</p>
+                    <p class="mt-0.5 text-sm text-white/55">{{ $phoneLabel }}</p>
                 </div>
                 <a
                     href="{{ route('discover') }}"
-                    class="rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:bg-white/10"
+                    class="shrink-0 rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:bg-white/10"
                     @click="$store.loopNav.go(@js(route('discover')), $event)"
                 >{{ __('loop.browse_campaigns') }}</a>
             </div>
 
-            <div class="relative mt-8" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
-                <template x-if="earned">
-                    <span class="loop-points-float" x-text="'+' + earned"></span>
-                </template>
-                <p class="font-display text-[clamp(3.5rem,14vw,5.5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
-            </div>
-            <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
-            <p class="mt-3 text-base text-white/75">
-                {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
-            </p>
+            <div class="mt-6 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                <div class="min-w-0 flex-1">
+                    <div class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
+                        <template x-if="earned">
+                            <span class="loop-points-float" x-text="'+' + earned"></span>
+                        </template>
+                        <p class="font-display text-[clamp(3.5rem,14vw,5.5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
+                    </div>
+                    <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                    <p class="mt-3 text-base text-white/75">
+                        {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
+                    </p>
+                    <div class="mt-6">
+                        <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
+                    </div>
+                    <p class="mt-4 max-w-xs text-[11px] leading-relaxed text-white/45">{{ __('loop.wallet_qr_hint') }}</p>
+                </div>
 
-            <div class="mt-8">
-                <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
+                <x-wallet-qr
+                    :name="$customerName"
+                    :phone="$phoneLabel"
+                    :size="128"
+                    class="mx-auto sm:mx-0"
+                />
             </div>
         </div>
     </section>
@@ -145,87 +158,46 @@
         </div>
     </section>
 
-    {{-- Wallet QR — till scan for sale / redeem --}}
-    <section class="mb-10 overflow-hidden rounded-[1.5rem] border border-ink/10 bg-white p-5 sm:p-6">
-        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0 flex-1">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet">{{ __('loop.wallet_qr_label') }}</p>
-                <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.wallet_qr_title') }}</h2>
-                <p class="mt-2 max-w-md text-sm text-ink-muted">{{ __('loop.wallet_qr_blurb') }}</p>
-                <ol class="mt-3 list-decimal space-y-1 pl-4 text-sm text-ink-muted">
-                    <li>{{ __('loop.wallet_qr_step_1') }}</li>
-                    <li>{{ __('loop.wallet_qr_step_2') }}</li>
-                    <li>{{ __('loop.wallet_qr_step_3') }}</li>
-                </ol>
-            </div>
-            <div class="mx-auto shrink-0 rounded-2xl border border-ink/10 bg-white p-3 shadow-sm">
-                <img
-                    src="{{ route('customer.wallet-qr') }}"
-                    alt="{{ __('loop.wallet_qr_title') }}"
-                    class="h-40 w-40"
-                    width="160"
-                    height="160"
-                >
-                <p class="mt-2 text-center font-mono text-[11px] text-ink-muted">{{ $phoneLabel }}</p>
-            </div>
-        </div>
-    </section>
-
-    {{-- Where rewards work --}}
-    <section class=" mb-10">
+    {{-- Where offers work — browse-tile carousel --}}
+    <section class="mb-10">
         <div class="mb-1 flex flex-wrap items-end justify-between gap-2">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.where_points_work') }}</h2>
             <a href="{{ route('discover') }}" class="text-sm font-semibold text-violet">{{ __('loop.browse_campaigns') }}</a>
         </div>
         <p class="mb-4 text-sm text-ink-muted">{{ __('loop.where_points_work_blurb') }}</p>
-        <div class="divide-y divide-ink/8 rounded-[1.35rem] border border-ink/10 bg-white px-1">
+        <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
             @forelse ($topShops as $business)
                 @php
                     $cheapest = $business->rewards->first();
-                    $shop = $business->shops->first();
-                    $sector = $sectors[$business->sector] ?? '';
+                    $footnote = $cheapest
+                        ? __('loop.from_points', ['points' => $cheapest->points_cost])
+                        : null;
+                    $memberPoints = $memberships->firstWhere('business_id', $business->id)?->points_balance;
                 @endphp
-                <a href="{{ route('discover.show', $business) }}" class="flex items-center gap-3 px-3 py-3.5 transition hover:bg-violet-soft/40 first:rounded-t-[1.25rem] last:rounded-b-[1.25rem]">
-                    @if ($shop)
-                        <x-shop-logo :shop="$shop" class="h-12 w-12 shrink-0 rounded-xl" />
-                    @elseif ($business->logoUrl())
-                        <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="h-12 w-12 shrink-0 rounded-xl object-cover">
-                    @else
-                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ink font-display font-semibold text-lime">{{ mb_substr($business->name,0,2) }}</div>
-                    @endif
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate font-semibold">{{ $business->name }}</p>
-                        <p class="truncate text-sm text-ink-muted">{{ $sector }} · {{ $business->city }}</p>
-                    </div>
-                    @if ($cheapest)
-                        <p class="shrink-0 text-xs font-semibold text-violet">{{ __('loop.from_points', ['points' => $cheapest->points_cost]) }}</p>
-                    @endif
-                </a>
+                <x-discover-tile
+                    :business="$business"
+                    :points="$memberPoints"
+                    :show-points="$memberPoints !== null"
+                    :carousel="true"
+                    :footnote="$footnote"
+                    data-loop-card
+                />
             @empty
-                <p class="px-3 py-3 text-sm text-ink-muted">{{ __('loop.explore_nearby') }}</p>
+                <p class="text-sm text-ink-muted">{{ __('loop.explore_nearby') }}</p>
             @endforelse
         </div>
     </section>
 
     @if ($otherShops->isNotEmpty())
-        <section class=" mb-12">
+        <section class="mb-12">
             <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.more_businesses') }}</h2>
-            <div class="loop-carousel" x-data="loopParallaxCarousel()">
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
                 @foreach ($otherShops as $business)
-                    @php $shop = $business->shops->first(); @endphp
-                    <a href="{{ route('discover.show', $business) }}" data-loop-card class="loop-shop-card w-36">
-                        <div class="overflow-hidden rounded-2xl">
-                            @if ($shop)
-                                <x-shop-logo :shop="$shop" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax />
-                            @elseif ($business->logoUrl())
-                                <img src="{{ $business->logoUrl() }}" alt="{{ $business->name }}" class="h-16 w-full rounded-2xl object-cover" data-loop-parallax>
-                            @else
-                                <div class="flex h-16 items-center justify-center rounded-2xl bg-ink font-display text-lg text-lime" data-loop-parallax>{{ mb_substr($business->name,0,2) }}</div>
-                            @endif
-                        </div>
-                        <p class="mt-2 truncate text-sm font-semibold">{{ $business->name }}</p>
-                        <p class="truncate text-[11px] text-ink-muted">{{ $sectors[$business->sector] ?? '' }} · {{ $business->city }}</p>
-                    </a>
+                    <x-discover-tile
+                        :business="$business"
+                        :carousel="true"
+                        data-loop-card
+                    />
                 @endforeach
             </div>
         </section>

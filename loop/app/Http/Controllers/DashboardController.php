@@ -132,6 +132,7 @@ class DashboardController extends Controller
             ->with([
                 'shops' => fn ($q) => $q->where('is_active', true),
                 'rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+                'campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
             ])
             ->withCount(['memberships', 'shops'])
             ->get()
@@ -154,7 +155,10 @@ class DashboardController extends Controller
             ->where('is_active', true)
             ->where('country', $country)
             ->whereNotIn('id', $topShops->pluck('id')->merge($memberBusinessIds))
-            ->with(['shops' => fn ($q) => $q->where('is_active', true)])
+            ->with([
+                'shops' => fn ($q) => $q->where('is_active', true),
+                'campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
+            ])
             ->withCount('shops')
             ->latest()
             ->take(8)
