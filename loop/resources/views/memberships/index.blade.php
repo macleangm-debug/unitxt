@@ -8,24 +8,26 @@
         <div class="loop-orb loop-orb--a"></div>
         <div class="loop-orb loop-orb--b"></div>
         <div class="loop-orb loop-orb--c"></div>
-        <div class="relative flex items-stretch justify-between gap-4">
-            <div class="flex min-w-0 flex-1 flex-col justify-between">
-                <div class="min-w-0">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-lime/80">Loop</p>
-                    <h1 class="mt-2 font-display text-[clamp(1.85rem,7vw,2.65rem)] font-semibold leading-tight tracking-tight text-white">
-                        {{ __('loop.my_wallets') }}
-                    </h1>
-                    <p class="mt-2 max-w-xs text-sm leading-relaxed text-white/55">{{ __('loop.my_wallets_blurb') }}</p>
-                </div>
-                <div class="mt-6">
-                    <div x-data="loopCountUp({{ (int) $totalPoints }})">
-                        <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
+        <div class="relative">
+            <div class="flex items-end justify-between gap-4">
+                <div class="flex min-w-0 flex-1 flex-col justify-between self-stretch">
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-lime/80">Loop</p>
+                        <h1 class="mt-2 font-display text-[clamp(1.85rem,7vw,2.65rem)] font-semibold leading-tight tracking-tight text-white">
+                            {{ __('loop.my_wallets') }}
+                        </h1>
+                        <p class="mt-2 max-w-xs text-sm leading-relaxed text-white/55">{{ __('loop.my_wallets_blurb') }}</p>
                     </div>
-                    <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
-                    <p class="mt-2 text-sm text-white/65">{{ __('loop.across_shops', ['count' => $walletCount]) }}</p>
+                    <div class="mt-6">
+                        <div x-data="loopCountUp({{ (int) $totalPoints }})">
+                            <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
+                        </div>
+                        <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                        <p class="mt-2 text-sm text-white/65">{{ __('loop.across_shops', ['count' => $walletCount]) }}</p>
+                    </div>
                 </div>
+                <x-wallet-qr :size="120" class="shrink-0" />
             </div>
-            <x-wallet-qr :size="120" class="self-end shrink-0" />
         </div>
     </section>
 

@@ -15,35 +15,38 @@
         <div class="loop-orb loop-orb--a"></div>
         <div class="loop-orb loop-orb--b"></div>
         <div class="loop-orb loop-orb--c"></div>
-        <div class="relative flex items-stretch justify-between gap-4">
-            <div class="flex min-w-0 flex-1 flex-col justify-between">
-                <div class="min-w-0 pt-0.5">
-                    <h1 class="font-display text-[clamp(1.75rem,7vw,2.5rem)] font-semibold leading-tight tracking-tight text-white">
-                        {{ $customerName }}
-                    </h1>
-                    <p class="mt-1.5 text-sm text-white/55">{{ $phoneLabel }}</p>
+        <div class="relative">
+            <div class="flex items-end justify-between gap-4">
+                <div class="flex min-w-0 flex-1 flex-col justify-between self-stretch">
+                    <div class="min-w-0 pt-0.5">
+                        <h1 class="font-display text-[clamp(1.75rem,7vw,2.5rem)] font-semibold leading-tight tracking-tight text-white">
+                            {{ $customerName }}
+                        </h1>
+                        <p class="mt-1.5 text-sm text-white/55">{{ $phoneLabel }}</p>
+                    </div>
+
+                    <div class="mt-6">
+                        <div class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
+                            <template x-if="earned">
+                                <span class="loop-points-float" x-text="'+' + earned"></span>
+                            </template>
+                            <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
+                        </div>
+                        <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                        <p class="mt-2 text-sm text-white/70">
+                            {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
+                        </p>
+                    </div>
                 </div>
 
-                <div class="mt-6">
-                    <div class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
-                        <template x-if="earned">
-                            <span class="loop-points-float" x-text="'+' + earned"></span>
-                        </template>
-                        <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">{{ number_format($totalPoints) }}</p>
-                    </div>
-                    <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
-                    <p class="mt-2 text-sm text-white/70">
-                        {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
-                    </p>
-                    @if ($redeemables->isNotEmpty())
-                        <div class="mt-5">
-                            <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
-                        </div>
-                    @endif
-                </div>
+                <x-wallet-qr :size="120" class="shrink-0" />
             </div>
 
-            <x-wallet-qr :size="120" class="self-end shrink-0" />
+            @if ($redeemables->isNotEmpty())
+                <div class="mt-6">
+                    <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
+                </div>
+            @endif
         </div>
     </section>
 
