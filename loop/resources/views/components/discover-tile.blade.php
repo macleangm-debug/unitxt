@@ -3,6 +3,7 @@
     'points' => null,
     'showPoints' => false,
     'carousel' => false,
+    'footnote' => null,
 ])
 
 @php
@@ -40,7 +41,9 @@
         <div class="p-3">
             <p class="truncate text-sm font-semibold">{{ $business->name }}</p>
             <p class="truncate text-[11px] text-ink-muted">{{ $sectorLabel }}@if($city) · {{ $city }}@endif</p>
-            @if ($campaign)
+            @if ($footnote)
+                <p class="mt-1 truncate text-[11px] font-medium text-violet">{{ $footnote }}</p>
+            @elseif ($campaign)
                 <p class="mt-1 truncate text-[11px] font-medium text-violet">{{ $campaign->ruleSummary($business->currency) }}</p>
             @endif
         </div>

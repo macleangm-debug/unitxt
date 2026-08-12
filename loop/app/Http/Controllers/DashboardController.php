@@ -87,12 +87,23 @@ class DashboardController extends Controller
         }
 
         $memberships = Membership::query()
-            ->with(['business.shops', 'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost')])
+            ->with([
+                'business.shops',
+                'business.campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
+                'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            ])
             ->withCount(['visits'])
             ->where('customer_id', $user->id)
             ->get()
             ->sortByDesc('visits_count')
             ->values();
+
+        $memberships->each(function (Membership $membership) {
+            $membership->business->setAttribute(
+                'shops_count',
+                $membership->business->shops?->count() ?? 0
+            );
+        });
 
         $redeemables = $memberships
             ->flatMap(function (Membership $membership) {

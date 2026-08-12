@@ -22,6 +22,7 @@ use App\Http\Controllers\BusinessInviteController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ContentStudioController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerWalletQrController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
 use App\Http\Controllers\MembershipController;
@@ -121,6 +122,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/insights/packages', [AdminInsightController::class, 'packages'])->name('insights.packages');
         Route::get('/insights/till-businesses', [AdminInsightController::class, 'tillBusinesses'])->name('insights.till-businesses');
         Route::get('/insights/affiliate-performance', [AdminInsightController::class, 'affiliatePerformance'])->name('insights.affiliate-performance');
+        Route::get('/insights/customers', [AdminInsightController::class, 'customers'])->name('insights.customers');
         Route::get('/integrations', [AdminIntegrationController::class, 'index'])->name('integrations.index');
         Route::put('/integrations', [AdminIntegrationController::class, 'update'])->name('integrations.update');
         Route::post('/integrations/test-pay', [AdminIntegrationController::class, 'testPay'])->name('integrations.test-pay');
@@ -206,6 +208,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:customer')->group(function () {
         Route::get('/wallets', [MembershipController::class, 'index'])->name('memberships.index');
         Route::get('/wallets/{business:slug}', [MembershipController::class, 'show'])->name('memberships.show');
+        Route::get('/wallet/qr.svg', CustomerWalletQrController::class)->name('customer.wallet-qr');
         Route::post('/invite-business', [BusinessInviteController::class, 'store'])->name('business-invites.store');
     });
 });

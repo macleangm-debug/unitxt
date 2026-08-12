@@ -1,5 +1,6 @@
 <div class="mb-6 flex flex-wrap gap-2">
     <a href="{{ route('admin.dashboard') }}" class="rounded-xl px-3 py-2 text-sm font-semibold {{ request()->routeIs('admin.dashboard') ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">{{ __('loop.admin_overview') }}</a>
+    <a href="{{ route('admin.insights.customers') }}" class="rounded-xl px-3 py-2 text-sm font-semibold {{ request()->routeIs('admin.insights.customers') ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">{{ __('loop.admin_customers_nav') }}</a>
     <a href="{{ route('admin.reports.index') }}" class="rounded-xl px-3 py-2 text-sm font-semibold {{ request()->routeIs('admin.reports.*') ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">{{ __('loop.admin_reports') }}</a>
     <a href="{{ route('admin.businesses.index') }}" class="rounded-xl px-3 py-2 text-sm font-semibold {{ request()->routeIs('admin.businesses.*') ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">{{ __('loop.admin_businesses') }}</a>
     <a href="{{ route('admin.affiliates.index') }}" class="rounded-xl px-3 py-2 text-sm font-semibold {{ request()->routeIs('admin.affiliates.*') ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">{{ __('loop.admin_affiliates') }}</a>

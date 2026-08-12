@@ -23,6 +23,15 @@ class TillController extends Controller
         $tillLocked = $business ? ! $limits->canUseTill($business) : false;
         $isOwner = $request->user()->isOwner();
 
+        $scanDial = null;
+        $scanPhone = null;
+        $scan = (string) $request->query('scan', '');
+        if ($scan !== '' && str_contains($scan, '|')) {
+            [$scanDial, $scanPhone] = array_pad(explode('|', $scan, 2), 2, null);
+            $scanDial = $scanDial ? '+'.ltrim(preg_replace('/\D+/', '', $scanDial), '+') : null;
+            $scanPhone = $scanPhone ? preg_replace('/\D+/', '', $scanPhone) : null;
+        }
+
         return view('till.index', [
             'business' => $business,
             'shops' => $business?->shops()->where('is_active', true)->orderBy('name')->get() ?? collect(),
@@ -33,6 +42,8 @@ class TillController extends Controller
             'showRecent' => $isOwner,
             'tillLocked' => $tillLocked,
             'isOwner' => $isOwner,
+            'scanDial' => $scanDial,
+            'scanPhone' => $scanPhone,
         ]);
     }
 

@@ -1,6 +1,6 @@
 @php
     $shopCount = $shops->count();
-    $defaultDial = \App\Support\Countries::dial($business->country ?? session('preferred_country', 'TZ'));
+    $defaultDial = $scanDial ?: \App\Support\Countries::dial($business->country ?? session('preferred_country', 'TZ'));
     $hasRecent = ! empty($showRecent) && isset($recent) && $recent->count() > 0;
 @endphp
 <x-app-layout>
@@ -12,6 +12,9 @@
                 <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
                 <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.sale') }}</h1>
                 <p class="mt-1 text-sm text-white/60">{{ __('loop.sale_blurb_short') }}</p>
+                @if (! empty($scanPhone))
+                    <p class="mt-2 text-sm font-semibold text-lime">{{ __('loop.wallet_qr_scanned') }}</p>
+                @endif
             </div>
         </div>
     </x-slot>
@@ -58,8 +61,9 @@
                 name="phone"
                 :dial="$defaultDial"
                 hidden-dial-name="country_code"
+                :value="$scanPhone ?? old('phone')"
                 :required="true"
-                :autofocus="true"
+                :autofocus="empty($scanPhone)"
             />
         </div>
         <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>

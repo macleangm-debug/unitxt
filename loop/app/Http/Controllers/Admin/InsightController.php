@@ -107,4 +107,41 @@ class InsightController extends Controller
             'settings' => $settings,
         ]);
     }
+
+    public function customers(): View
+    {
+        $monthStart = now()->copy()->startOfMonth();
+
+        $customers = \App\Models\User::query()
+            ->where('role', 'customer')
+            ->withCount([
+                'memberships',
+                'visits',
+                'visits as month_visits_count' => fn ($q) => $q->where('created_at', '>=', $monthStart),
+            ])
+            ->withSum('visits as lifetime_spend', 'amount_spent')
+            ->withSum(['visits as month_spend' => fn ($q) => $q->where('created_at', '>=', $monthStart)], 'amount_spent')
+            ->latest()
+            ->paginate(40);
+
+        $totals = [
+            'customers' => \App\Models\User::query()->where('role', 'customer')->count(),
+            'active_month' => \App\Models\User::query()
+                ->where('role', 'customer')
+                ->whereHas('visits', fn ($q) => $q->where('created_at', '>=', $monthStart))
+                ->count(),
+            'memberships' => \App\Models\Membership::query()->count(),
+            'avg_shops' => round((float) \App\Models\Membership::query()
+                ->selectRaw('COUNT(*) * 1.0 / NULLIF(COUNT(DISTINCT customer_id), 0) as avg_shops')
+                ->value('avg_shops') ?? 0, 1),
+            'month_gmv' => (float) \App\Models\Visit::query()->where('created_at', '>=', $monthStart)->sum('amount_spent'),
+            'scouts' => \App\Models\BusinessInvite::query()->count(),
+        ];
+
+        return view('admin.insights.customers', [
+            'customers' => $customers,
+            'totals' => $totals,
+            'bySector' => app(AdminReportService::class)->customersBySector(),
+        ]);
+    }
 }
