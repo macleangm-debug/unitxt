@@ -21,16 +21,28 @@ Alpine.store('loopNav', {
         event?.preventDefault();
 
         const morphEl = options.morph;
+        const supportsVT = 'startViewTransition' in document;
         let usedMorph = false;
+
         if (morphEl) {
             try {
                 const rect = morphEl.getBoundingClientRect();
                 const img = morphEl.querySelector('img');
                 const initial = morphEl.querySelector('.font-display, [data-initial]');
+                const morphId = morphEl.getAttribute('data-loop-morph') || '';
+
+                // Activate a single shared VT name on the clicked logo only.
+                document.querySelectorAll('.loop-vt-logo-active').forEach((el) => {
+                    el.classList.remove('loop-vt-logo-active');
+                    el.style.viewTransitionName = 'none';
+                });
+                morphEl.classList.add('loop-vt-logo-active', 'loop-vt-logo');
+                morphEl.style.viewTransitionName = 'loop-biz-logo';
+
                 sessionStorage.setItem(
                     'loopMorph',
                     JSON.stringify({
-                        id: morphEl.getAttribute('data-loop-morph') || '',
+                        id: morphId,
                         href: url,
                         src: img?.currentSrc || img?.src || '',
                         initial: initial?.textContent?.trim()?.charAt(0) || '',
@@ -39,28 +51,42 @@ Alpine.store('loopNav', {
                         width: rect.width,
                         height: rect.height,
                         radius: getComputedStyle(morphEl).borderRadius || '1.05rem',
+                        vt: supportsVT,
                     })
                 );
                 usedMorph = true;
 
-                // Lift a live clone immediately so the handoff feels continuous.
-                const lift = morphEl.cloneNode(true);
-                lift.classList.add('loop-morph-flyer');
-                lift.style.top = `${rect.top}px`;
-                lift.style.left = `${rect.left}px`;
-                lift.style.width = `${rect.width}px`;
-                lift.style.height = `${rect.height}px`;
-                lift.style.borderRadius = getComputedStyle(morphEl).borderRadius || '1.05rem';
-                lift.style.zIndex = '92';
-                document.body.appendChild(lift);
-                morphEl.style.opacity = '0';
-                sessionStorage.setItem('loopMorphLift', '1');
+                if (supportsVT) {
+                    sessionStorage.setItem('loopVt', '1');
+                } else {
+                    // FLIP fallback: lift a live clone when VT is unavailable.
+                    const lift = morphEl.cloneNode(true);
+                    lift.classList.add('loop-morph-flyer');
+                    lift.style.viewTransitionName = 'none';
+                    lift.style.top = `${rect.top}px`;
+                    lift.style.left = `${rect.left}px`;
+                    lift.style.width = `${rect.width}px`;
+                    lift.style.height = `${rect.height}px`;
+                    lift.style.borderRadius = getComputedStyle(morphEl).borderRadius || '1.05rem';
+                    lift.style.zIndex = '92';
+                    document.body.appendChild(lift);
+                    morphEl.style.opacity = '0';
+                    sessionStorage.setItem('loopMorphLift', '1');
+                }
             } catch (_) {
                 /* ignore */
             }
         }
 
         this.morphing = usedMorph;
+        // Let View Transitions carry the handoff — no heavy wipe.
+        if (supportsVT && usedMorph) {
+            this.transitioning = false;
+            this.morphing = true;
+            window.location.href = url;
+            return;
+        }
+
         this.transitioning = true;
         setTimeout(() => {
             window.location.href = url;
@@ -70,13 +96,18 @@ Alpine.store('loopNav', {
 
 /**
  * Shared-element settle: flying logo into business profile hero.
+ * Skipped when the browser already handled a View Transition.
  */
 function loopSettleMorph() {
     if (prefersReducedMotion()) {
         sessionStorage.removeItem('loopMorph');
         sessionStorage.removeItem('loopMorphLift');
+        sessionStorage.removeItem('loopVt');
         return;
     }
+
+    const usedVt = sessionStorage.getItem('loopVt') === '1';
+    sessionStorage.removeItem('loopVt');
 
     let payload;
     try {
@@ -97,20 +128,38 @@ function loopSettleMorph() {
         return;
     }
 
-    // Soft page entrance while the logo lands.
+    // Ensure destination participates in VT / morph naming.
+    target.classList.add('loop-vt-logo');
+    target.style.viewTransitionName = 'loop-biz-logo';
+
     const shell = document.querySelector('main.loop-shell') || document.querySelector('main');
     shell?.classList.add('loop-morph-page-enter');
+
+    // Native View Transition already morphs the logo — only polish landing.
+    if (usedVt || payload.vt) {
+        target.classList.add('loop-morph-target--landed');
+        setTimeout(() => {
+            target.classList.remove('loop-morph-target--landed');
+            // Keep name briefly, then clear so future navigations stay unique.
+            setTimeout(() => {
+                if (target.isConnected) {
+                    target.style.viewTransitionName = 'loop-biz-logo';
+                }
+            }, 80);
+        }, 420);
+        return;
+    }
 
     const to = target.getBoundingClientRect();
     if (to.width < 8 || to.height < 8) {
         return;
     }
 
-    // Remove any leftover lift clones from the previous document (full reload clears DOM).
     document.querySelectorAll('.loop-morph-flyer').forEach((el) => el.remove());
 
     const flyer = document.createElement('div');
     flyer.className = 'loop-morph-flyer';
+    flyer.style.viewTransitionName = 'none';
     flyer.style.top = `${payload.top}px`;
     flyer.style.left = `${payload.left}px`;
     flyer.style.width = `${payload.width}px`;
@@ -130,7 +179,6 @@ function loopSettleMorph() {
     document.body.appendChild(flyer);
     target.classList.add('loop-morph-target--waiting');
 
-    // Start slightly earlier if we already previewed the lift on the prior page.
     const delay = hadLift ? 16 : 32;
     setTimeout(() => {
         flyer.style.top = `${to.top}px`;
@@ -156,6 +204,31 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loopSettleMorph);
 } else {
     loopSettleMorph();
+}
+
+// Cross-document View Transition hooks (Chromium): keep logo name stable across swap.
+if ('onpageswap' in window) {
+    window.addEventListener('pageswap', (event) => {
+        if (! event.viewTransition || prefersReducedMotion()) {
+            return;
+        }
+        const active = document.querySelector('.loop-vt-logo-active, [style*="loop-biz-logo"]');
+        if (active) {
+            active.style.viewTransitionName = 'loop-biz-logo';
+        }
+    });
+}
+
+if ('onpagereveal' in window) {
+    window.addEventListener('pagereveal', (event) => {
+        if (! event.viewTransition || prefersReducedMotion()) {
+            return;
+        }
+        const target = document.querySelector('[data-loop-morph-target]');
+        if (target) {
+            target.style.viewTransitionName = 'loop-biz-logo';
+        }
+    });
 }
 
 /**

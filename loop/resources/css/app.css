@@ -442,6 +442,15 @@
         box-shadow: 0 22px 60px rgba(17, 17, 20, 0.4);
     }
 
+    .loop-page-veil.is-morph.is-on {
+        opacity: 0.35;
+        transform: scale(1);
+    }
+
+    .loop-vt-logo {
+        contain: paint;
+    }
+
     .loop-wallet--liquid::before {
         content: none; /* liquid loop caused continuous flicker on landings */
     }
@@ -828,6 +837,46 @@
     }
 }
 
+@keyframes loop-vt-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0.35; }
+}
+
+@keyframes loop-vt-fade-in {
+    from { opacity: 0.45; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cross-document View Transitions — logo morph + soft root fade */
+@supports (view-transition-name: none) {
+    ::view-transition-old(root) {
+        animation: 0.3s ease-out both loop-vt-fade-out;
+    }
+
+    ::view-transition-new(root) {
+        animation: 0.38s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-fade-in;
+    }
+
+    ::view-transition-group(loop-biz-logo) {
+        animation-duration: 0.48s;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    ::view-transition-old(loop-biz-logo),
+    ::view-transition-new(loop-biz-logo) {
+        height: 100%;
+        overflow: clip;
+        object-fit: cover;
+        border-radius: 1.1rem;
+        animation-duration: 0.48s;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    ::view-transition-image-pair(loop-biz-logo) {
+        isolation: auto;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .loop-orb,
     .loop-orb--enter,
@@ -846,5 +895,11 @@
         transition: none !important;
         opacity: 1 !important;
         transform: none !important;
+    }
+
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
     }
 }

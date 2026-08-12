@@ -20,7 +20,8 @@
                         <div class="flex items-center gap-3">
                             <div
                                 data-loop-morph-target="{{ $morphId }}"
-                                class="loop-morph-logo flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] bg-white/10 ring-2 ring-white/20 sm:h-16 sm:w-16"
+                                class="loop-morph-logo loop-vt-logo flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] bg-white/10 ring-2 ring-white/20 sm:h-16 sm:w-16"
+                                style="view-transition-name: loop-biz-logo"
                             >
                                 @if ($logoUrl)
                                     <img src="{{ $logoUrl }}" alt="{{ $business->name }}" class="h-full w-full object-cover" draggable="false">
