@@ -30,12 +30,40 @@
             points: {{ (int) old('points_cost', $reward->points_cost) }},
             valueDisplay: @js($valueSeed),
             product: @js(old('product_name', $reward->product_name)),
+            stock: @js(old('stock', $reward->stock)),
+            maxPerMember: @js(old('max_redemptions_per_member', $reward->max_redemptions_per_member)),
+            limitsCopy: {
+                none: @js(__('loop.limits_summary_none')),
+                stock: @js(__('loop.limits_summary_stock')),
+                maxOnce: @js(__('loop.limits_summary_max_once')),
+                maxMany: @js(__('loop.limits_summary_max_many')),
+                bothOnce: @js(__('loop.limits_summary_both_once')),
+                bothMany: @js(__('loop.limits_summary_both_many')),
+            },
             formatValue() {
                 if (this.type !== 'fixed_off') return;
                 let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
                 this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
             },
             valueNumber() { return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0; },
+            limitsSummary() {
+                const stockRaw = String(this.stock ?? '').trim();
+                const maxRaw = String(this.maxPerMember ?? '').trim();
+                const stock = parseInt(stockRaw, 10);
+                const max = parseInt(maxRaw, 10);
+                const hasStock = stockRaw !== '' && Number.isFinite(stock) && stock > 0;
+                const hasMax = maxRaw !== '' && Number.isFinite(max) && max > 0;
+                const n = (v) => Number(v).toLocaleString();
+                if (! hasStock && ! hasMax) return this.limitsCopy.none;
+                if (hasStock && hasMax) {
+                    return (max === 1 ? this.limitsCopy.bothOnce : this.limitsCopy.bothMany)
+                        .replaceAll(':stock', n(stock))
+                        .replaceAll(':max', n(max));
+                }
+                if (hasStock) return this.limitsCopy.stock.replaceAll(':stock', n(stock));
+                return (max === 1 ? this.limitsCopy.maxOnce : this.limitsCopy.maxMany)
+                    .replaceAll(':max', n(max));
+            },
         })"
     >
         <x-form-stepper :steps="$editSteps" />
@@ -94,16 +122,21 @@
 
             <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.section_limits') }}</h2>
+                <p class="text-sm text-ink-muted">{{ __('loop.limits_optional_hint') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>
                         <label class="loop-label">{{ __('loop.stock_optional') }}</label>
-                        <input type="number" name="stock" class="loop-input" value="{{ old('stock', $reward->stock) }}" placeholder="∞">
+                        <input type="number" name="stock" class="loop-input" x-model="stock" min="1" placeholder="∞">
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.stock_help') }}</p>
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.max_per_member') }}</label>
-                        <input type="number" name="max_redemptions_per_member" class="loop-input" min="1" value="{{ old('max_redemptions_per_member', $reward->max_redemptions_per_member) }}">
+                        <input type="number" name="max_redemptions_per_member" class="loop-input" x-model="maxPerMember" min="1" placeholder="∞">
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.max_per_member_help') }}</p>
                     </div>
                 </div>
+                <p class="rounded-2xl border border-mint/25 bg-mint-soft/40 px-4 py-3 text-center font-display text-base font-semibold text-ink" x-text="limitsSummary()"></p>
                 <label class="flex items-center gap-2 text-sm font-semibold">
                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $reward->is_active)) class="rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
                     {{ __('loop.live') }}

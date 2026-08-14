@@ -83,6 +83,16 @@
                 spendPerPoint: {{ (float) $spendPerPoint }},
                 currency: @js($business->currency),
                 businessName: @js($biz),
+                stock: @js(old('stock')),
+                maxPerMember: @js(old('max_redemptions_per_member')),
+                limitsCopy: {
+                    none: @js(__('loop.limits_summary_none')),
+                    stock: @js(__('loop.limits_summary_stock')),
+                    maxOnce: @js(__('loop.limits_summary_max_once')),
+                    maxMany: @js(__('loop.limits_summary_max_many')),
+                    bothOnce: @js(__('loop.limits_summary_both_once')),
+                    bothMany: @js(__('loop.limits_summary_both_many')),
+                },
                 formatValue() {
                     if (this.type !== 'fixed_off') return;
                     let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
@@ -90,11 +100,29 @@
                 },
                 valueNumber() { return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0; },
                 unlockSpend() {
-                    if (!this.spendPerPoint) return 0;
+                    if (! this.spendPerPoint) return 0;
                     return Math.round(this.points * this.spendPerPoint);
                 },
                 applyIdea(label) {
                     this.name = this.businessName ? (this.businessName + ' ' + label) : label;
+                },
+                limitsSummary() {
+                    const stockRaw = String(this.stock ?? '').trim();
+                    const maxRaw = String(this.maxPerMember ?? '').trim();
+                    const stock = parseInt(stockRaw, 10);
+                    const max = parseInt(maxRaw, 10);
+                    const hasStock = stockRaw !== '' && Number.isFinite(stock) && stock > 0;
+                    const hasMax = maxRaw !== '' && Number.isFinite(max) && max > 0;
+                    const n = (v) => Number(v).toLocaleString();
+                    if (! hasStock && ! hasMax) return this.limitsCopy.none;
+                    if (hasStock && hasMax) {
+                        return (max === 1 ? this.limitsCopy.bothOnce : this.limitsCopy.bothMany)
+                            .replaceAll(':stock', n(stock))
+                            .replaceAll(':max', n(max));
+                    }
+                    if (hasStock) return this.limitsCopy.stock.replaceAll(':stock', n(stock));
+                    return (max === 1 ? this.limitsCopy.maxOnce : this.limitsCopy.maxMany)
+                        .replaceAll(':max', n(max));
                 },
             })"
         >
@@ -204,15 +232,16 @@
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
                             <label class="loop-label">{{ __('loop.stock_optional') }}</label>
-                            <input type="number" name="stock" class="loop-input" value="{{ old('stock') }}" placeholder="∞">
+                            <input type="number" name="stock" class="loop-input" x-model="stock" min="1" placeholder="∞">
                             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.stock_help') }}</p>
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.max_per_member') }}</label>
-                            <input type="number" name="max_redemptions_per_member" class="loop-input" min="1" value="{{ old('max_redemptions_per_member') }}">
+                            <input type="number" name="max_redemptions_per_member" class="loop-input" x-model="maxPerMember" min="1" placeholder="∞">
                             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.max_per_member_help') }}</p>
                         </div>
                     </div>
+                    <p class="rounded-2xl border border-mint/25 bg-mint-soft/40 px-4 py-3 text-center font-display text-base font-semibold text-ink" x-text="limitsSummary()"></p>
                     <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
                         {{ __('loop.campaign_offers_untied_hint') }}
                         <a href="{{ route('campaigns.index') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('campaigns.index')), $event, { kind: 'back' })">{{ __('loop.campaigns') }} →</a>

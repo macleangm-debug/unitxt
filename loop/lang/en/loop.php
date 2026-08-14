@@ -1788,5 +1788,17 @@ Join free: :url',
     'offer_details_blurb' => 'What members unlock when they redeem this offer.',
 
     'offer_stats_blurb' => 'How often members redeem this at the till.',
+
+    'limits_summary_none' => 'No limits — members can redeem this as often as they like.',
+
+    'limits_summary_stock' => 'Up to :stock redemptions in total across all members.',
+
+    'limits_summary_max_once' => 'Each member can redeem this once.',
+
+    'limits_summary_max_many' => 'Each member can redeem this up to :max times.',
+
+    'limits_summary_both_once' => 'Up to :stock members can redeem this once each.',
+
+    'limits_summary_both_many' => 'Up to :stock redemptions in total. Each member can redeem up to :max times.',
 );
 

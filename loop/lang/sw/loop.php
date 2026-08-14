@@ -1778,4 +1778,16 @@ return [
     'offer_details_blurb' => 'Wanachama wanachopata wanapokomboa toleo hili.',
 
     'offer_stats_blurb' => 'Mara ngapi wanachama wanakomboa toleo hili kwenye dawati.',
+
+    'limits_summary_none' => 'Hakuna kikomo — wanachama wanaweza kukomboa mara nyingi wanavyotaka.',
+
+    'limits_summary_stock' => 'Hadi ukombozi :stock kwa jumla kwa wanachama wote.',
+
+    'limits_summary_max_once' => 'Kila mwanachama anaweza kukomboa mara moja.',
+
+    'limits_summary_max_many' => 'Kila mwanachama anaweza kukomboa hadi mara :max.',
+
+    'limits_summary_both_once' => 'Hadi wanachama :stock wanaweza kukomboa mara moja kila mmoja.',
+
+    'limits_summary_both_many' => 'Hadi ukombozi :stock kwa jumla. Kila mwanachama anaweza kukomboa hadi mara :max.',
 ];
