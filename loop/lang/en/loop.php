@@ -1800,5 +1800,19 @@ Join free: :url',
     'limits_summary_both_once' => 'Up to :stock members can redeem this once each.',
 
     'limits_summary_both_many' => 'Up to :stock redemptions in total. Each member can redeem up to :max times.',
+
+    'offer_finished' => 'Finished',
+
+    'offer_finished_title' => 'No redemptions left',
+
+    'offer_finished_body' => 'This offer hit its total redemptions limit. It will not show at the till until you raise the limit in Edit.',
+
+    'offer_finished_till' => 'This offer has no redemptions left.',
+
+    'offer_not_available' => 'This offer is not available.',
+
+    'offer_none_left' => 'None left',
+
+    'offer_remaining_count' => ':count remaining',
 );
 

@@ -1790,4 +1790,18 @@ return [
     'limits_summary_both_once' => 'Hadi wanachama :stock wanaweza kukomboa mara moja kila mmoja.',
 
     'limits_summary_both_many' => 'Hadi ukombozi :stock kwa jumla. Kila mwanachama anaweza kukomboa hadi mara :max.',
+
+    'offer_finished' => 'Imeisha',
+
+    'offer_finished_title' => 'Hakuna ukombozi uliobaki',
+
+    'offer_finished_body' => 'Toleo hili limefikia kikomo cha ukombozi. Halionekani kwenye dawati hadi uongeze kikomo kwenye Hariri.',
+
+    'offer_finished_till' => 'Toleo hili halina ukombozi uliobaki.',
+
+    'offer_not_available' => 'Toleo hili halipatikani.',
+
+    'offer_none_left' => 'Hakuna',
+
+    'offer_remaining_count' => ':count zimebaki',
 ];

@@ -263,7 +263,11 @@ class TillService
                 ->firstOrFail();
 
             if (! $reward->isAvailable()) {
-                throw ValidationException::withMessages(['reward_id' => 'This offer is not available.']);
+                throw ValidationException::withMessages([
+                    'reward_id' => $reward->stock === 0
+                        ? __('loop.offer_finished_till')
+                        : __('loop.offer_not_available'),
+                ]);
             }
 
             $membershipFresh = Membership::query()->lockForUpdate()->findOrFail($membership->id);

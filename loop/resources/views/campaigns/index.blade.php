@@ -62,6 +62,11 @@
                             @if ($reward->product_name)
                                 <p class="mt-2 text-sm">{{ __('loop.product') }}: <span class="font-semibold">{{ $reward->product_name }}</span></p>
                             @endif
+                            @if ($reward->stock === 0)
+                                <p class="mt-2 text-xs font-semibold text-coral">{{ __('loop.offer_finished') }}</p>
+                            @elseif ($reward->stock !== null)
+                                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.offer_remaining_count', ['count' => $reward->stock]) }}</p>
+                            @endif
                         </div>
                         <span class="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold text-white">{{ $reward->points_cost }} pts</span>
                     </div>

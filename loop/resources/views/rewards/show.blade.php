@@ -5,8 +5,12 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
                 <div class="mt-1 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold">{{ $reward->name }}</h1>
-                    @if ($reward->is_active)
+                    @if ($reward->stock === 0)
+                        <span class="rounded-lg bg-coral/20 px-2.5 py-1 text-xs font-semibold text-coral">{{ __('loop.offer_finished') }}</span>
+                    @elseif ($reward->is_active)
                         <span class="rounded-lg bg-mint px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
+                    @else
+                        <span class="rounded-lg bg-chalk px-2.5 py-1 text-xs font-semibold text-ink-muted">{{ __('loop.paused') }}</span>
                     @endif
                 </div>
                 <p class="mt-1 text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} pts</p>
@@ -17,6 +21,13 @@
             </div>
         </div>
     </x-slot>
+
+    @if ($reward->stock === 0)
+        <div class="mb-6 rounded-[1.5rem] border border-coral/25 bg-coral/10 px-5 py-4">
+            <p class="font-display text-lg font-semibold text-ink">{{ __('loop.offer_finished_title') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_finished_body') }}</p>
+        </div>
+    @endif
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-2xl bg-gradient-to-br from-mint/30 to-mint/5 p-5 ring-1 ring-mint/20">
@@ -33,7 +44,15 @@
         </div>
         <div class="rounded-2xl bg-gradient-to-br from-mint to-mint-deep p-5 text-white">
             <p class="text-sm text-white/75">{{ __('loop.offer_stat_stock') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold text-white">{{ $stats['stock'] ?? __('loop.unlimited') }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold text-white">
+                @if ($reward->stock === null)
+                    {{ __('loop.unlimited') }}
+                @elseif ($reward->stock === 0)
+                    {{ __('loop.offer_none_left') }}
+                @else
+                    {{ $reward->stock }}
+                @endif
+            </p>
         </div>
     </div>
 
