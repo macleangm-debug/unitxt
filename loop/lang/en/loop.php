@@ -173,7 +173,7 @@ return array (
   'description' => 'Description',
   'product' => 'Product',
   'product_placeholder' => 'e.g. Cappuccino',
-  'sku' => 'SKU / code',
+  'sku' => 'Code',
   'points_cost' => 'Points cost',
   'type' => 'Type',
   'percent_off' => 'Percent off',
@@ -181,9 +181,9 @@ return array (
   'free_item' => 'Free item',
   'custom' => 'Custom',
   'value_hint' => 'Value (optional)',
-  'stock' => 'Stock',
-  'stock_optional' => 'Stock (optional)',
-  'max_per_member' => 'Max per member (optional)',
+  'stock' => 'Total redemptions',
+  'stock_optional' => 'Total redemptions (optional)',
+  'max_per_member' => 'Per member (optional)',
   'save_offer' => 'Save offer',
   'offer_created' => 'Offer created. Staff can apply it at the till.',
   'spend' => 'Spend',
@@ -296,7 +296,7 @@ return array (
   'go_to_home' => 'Go to home',
   'featured_product_name' => 'Featured product name',
   'featured_product_placeholder' => 'e.g. New iced latte',
-  'featured_product_till_hint' => 'At the till, staff tick whether the sale includes this product — Loop does not need SKUs.',
+  'featured_product_till_hint' => 'At the till, staff tick whether the sale includes this product.',
   'featured_bonus_points' => 'Bonus points when included',
   'featured_in_sale_q' => 'Does this sale include :product?',
   'featured_in_sale_hint' => 'Tick yes to add +:points bonus points on top of the spend earn.',
@@ -633,7 +633,7 @@ return array (
     'product_push' => 
     array (
       'name' => 'Featured product push',
-      'description' => 'Name a product. At the till, staff confirm it was in the sale — then bonus points apply. No SKUs needed.',
+      'description' => 'Name a product. At the till, staff confirm it was in the sale — then bonus points apply.',
     ),
     'visit_streak' => 
     array (
@@ -681,7 +681,7 @@ return array (
     'free_item' => 
     array (
       'name' => 'Free item',
-      'description' => 'Name the free item and set points. No SKUs needed.',
+      'description' => 'Name the free item and set points.',
     ),
     'fixed_off' => 
     array (
@@ -863,7 +863,7 @@ return array (
   'product_boost_hint' => 'Name the product you want to push.',
   'points_and_value' => 'Points and value',
   'limits_optional_hint' => 'Optional caps only. Leave blank for unlimited.',
-  'stock_help' => 'Total times this offer can be redeemed across all members.',
+  'stock_help' => 'How many times this offer can be redeemed in total (everyone combined).',
   'max_per_member_help' => 'How many times one member can redeem this offer.',
   'review_offer' => 'Review offer',
   'review_before_launch' => 'Before you launch',
@@ -1783,7 +1783,7 @@ Join free: :url',
 
     'offer_stat_points' => 'Points used',
 
-    'offer_stat_stock' => 'Stock left',
+    'offer_stat_stock' => 'Remaining',
 
     'offer_details_blurb' => 'What members unlock when they redeem this offer.',
 

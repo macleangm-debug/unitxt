@@ -173,7 +173,7 @@ return [
     'description' => 'Maelezo',
     'product' => 'Bidhaa',
     'product_placeholder' => 'mf. Cappuccino',
-    'sku' => 'SKU / msimbo',
+    'sku' => 'Msimbo',
     'points_cost' => 'Gharama ya pointi',
     'type' => 'Aina',
     'percent_off' => 'Asilimia punguzo',
@@ -181,9 +181,9 @@ return [
     'free_item' => 'Bidhaa bure',
     'custom' => 'Maalum',
     'value_hint' => 'Thamani (si lazima)',
-    'stock' => 'Hifadhi',
-    'stock_optional' => 'Hifadhi (si lazima)',
-    'max_per_member' => 'Kiwango kwa mwanachama (si lazima)',
+    'stock' => 'Ukombozi kwa jumla',
+    'stock_optional' => 'Ukombozi kwa jumla (si lazima)',
+    'max_per_member' => 'Kwa mwanachama (si lazima)',
     'save_offer' => 'Hifadhi ofa',
     'offer_created' => 'Ofa imeundwa. Wafanyakazi wanaweza kuitumia kwenye kaunta.',
     'spend' => 'Matumizi',
@@ -296,7 +296,7 @@ return [
     'go_to_home' => 'Nenda nyumbani',
     'featured_product_name' => 'Jina la bidhaa maalum',
     'featured_product_placeholder' => 'mf. Iced latte mpya',
-    'featured_product_till_hint' => 'Kwenye till, mfanyakazi anathibitisha kama mauzo yanajumuisha bidhaa hii — Loop haihitaji SKU.',
+    'featured_product_till_hint' => 'Kwenye till, mfanyakazi anathibitisha kama mauzo yanajumuisha bidhaa hii.',
     'featured_bonus_points' => 'Pointi za ziada zinapojumuishwa',
     'featured_in_sale_q' => 'Je, mauzo haya yanajumuisha :product?',
     'featured_in_sale_hint' => 'Weka alama ndiyo kuongeza +:points pointi juu ya pointi za matumizi.',
@@ -632,7 +632,7 @@ return [
   'product_push' => 
   array (
     'name' => 'Sukuma bidhaa maalum',
-    'description' => 'Taja bidhaa. Kwenye till, mfanyakazi anathibitisha ilikuwa katika mauzo — kisha pointi za ziada. Hakuna SKU zinazohitajika.',
+    'description' => 'Taja bidhaa. Kwenye till, mfanyakazi anathibitisha ilikuwa katika mauzo — kisha pointi za ziada.',
   ),
   'visit_streak' => 
   array (
@@ -679,7 +679,7 @@ return [
   'free_item' => 
   array (
     'name' => 'Bidhaa bure',
-    'description' => 'Taja bidhaa bure na weka pointi. Hakuna SKU zinazohitajika.',
+    'description' => 'Taja bidhaa bure na weka pointi.',
   ),
   'fixed_off' => 
   array (
@@ -861,7 +861,7 @@ return [
     'product_boost_hint' => 'Taja bidhaa unayotaka kukuza.',
     'points_and_value' => 'Pointi na thamani',
     'limits_optional_hint' => 'Vikomo si lazima. Acha tupu bila kikomo.',
-    'stock_help' => 'Idadi ya mara toleo hili linaweza kukombolewa kwa wanachama wote.',
+    'stock_help' => 'Mara ngapi toleo hili linaweza kukombolewa kwa jumla (wanachama wote pamoja).',
     'max_per_member_help' => 'Mara ngapi mwanachama mmoja anaweza kukomboa toleo hili.',
     'review_offer' => 'Kagua ofa',
     'review_before_launch' => 'Kabla ya kuzindua',
@@ -1773,7 +1773,7 @@ return [
 
     'offer_stat_points' => 'Pointi zilizotumika',
 
-    'offer_stat_stock' => 'Hifadhi iliyobaki',
+    'offer_stat_stock' => 'Zilizobaki',
 
     'offer_details_blurb' => 'Wanachama wanachopata wanapokomboa toleo hili.',
 
