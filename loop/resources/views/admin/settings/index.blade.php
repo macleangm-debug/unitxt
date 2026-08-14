@@ -492,32 +492,54 @@
                 <p class="mt-1 text-ink-muted">{{ __('loop.admin_referral_both_sides_body') }}</p>
             </div>
             <x-admin.settings-lock>
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-5" x-data="{
+                    model: @js(old('incentive_model', $referral['incentive_model'] ?? 'standard')),
+                    models: @js(\App\Support\ReferralProgram::models()),
+                    apply() {
+                        if (this.model === 'custom') return;
+                        const m = this.models[this.model];
+                        if (!m) return;
+                        this.$refs.goal.value = m.goal_count;
+                        this.$refs.you.value = m.referrer_extra_days_per_referral;
+                        this.$refs.they.value = m.referred_extra_trial_days;
+                    }
+                }">
                     <div>
-                        <label class="loop-label">{{ __('loop.goal_count') }}</label>
-                        <input type="number" min="1" name="goal_count" value="{{ old('goal_count', $referral['goal_count']) }}" class="loop-input" required>
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.goal_count_help') }}</p>
+                        <label class="loop-label">{{ __('loop.incentive_model') }}</label>
+                        <select name="incentive_model" class="loop-input" x-model="model" @change="apply()">
+                            @foreach (\App\Support\ReferralProgram::models() as $key => $model)
+                                <option value="{{ $key }}">{{ $model['label'] }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.incentive_model_help') }}</p>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.referrer_extra_days') }}</label>
-                        <input type="number" min="0" name="referrer_extra_days_per_referral" value="{{ old('referrer_extra_days_per_referral', $referral['referrer_extra_days_per_referral']) }}" class="loop-input" required>
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referrer_extra_days_help') }}</p>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="loop-label">{{ __('loop.goal_count') }}</label>
+                            <input type="number" min="1" name="goal_count" x-ref="goal" value="{{ old('goal_count', $referral['goal_count']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.goal_count_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.referrer_extra_days') }}</label>
+                            <input type="number" min="0" name="referrer_extra_days_per_referral" x-ref="you" value="{{ old('referrer_extra_days_per_referral', $referral['referrer_extra_days_per_referral']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referrer_extra_days_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.referred_extra_trial_days') }}</label>
+                            <input type="number" min="0" name="referred_extra_trial_days" x-ref="they" value="{{ old('referred_extra_trial_days', $referral['referred_extra_trial_days']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referred_extra_trial_days_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.referrer_discount_percent') }}</label>
+                            <input type="number" min="0" max="100" name="referrer_discount_percent" value="{{ old('referrer_discount_percent', $referral['referrer_discount_percent']) }}" class="loop-input" required>
+                        </div>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.referred_extra_trial_days') }}</label>
-                        <input type="number" min="0" name="referred_extra_trial_days" value="{{ old('referred_extra_trial_days', $referral['referred_extra_trial_days']) }}" class="loop-input" required>
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referred_extra_trial_days_help') }}</p>
+                    <input type="hidden" name="referrer_months_per_referral" value="0">
+                    <input type="hidden" name="referred_bonus_months" value="0">
+                    <div class="flex flex-wrap gap-3">
+                        <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                        <a href="{{ route('admin.referrals.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.referrer_discount_percent') }}</label>
-                        <input type="number" min="0" max="100" name="referrer_discount_percent" value="{{ old('referrer_discount_percent', $referral['referrer_discount_percent']) }}" class="loop-input" required>
-                    </div>
-                </div>
-                <input type="hidden" name="referrer_months_per_referral" value="0">
-                <input type="hidden" name="referred_bonus_months" value="0">
-                <div class="flex flex-wrap gap-3">
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
-                    <a href="{{ route('admin.referrals.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
                 </div>
             </x-admin.settings-lock>
         </form>

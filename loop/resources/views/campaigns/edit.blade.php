@@ -14,8 +14,13 @@
 @endphp
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit') }} · {{ $campaign->displayName() }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.edit_campaign_simple_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit') }} · {{ $campaign->displayName() }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.edit_campaign_simple_blurb') }}</p>
+            </div>
+            <x-settings-back :href="route('campaigns.index')" :label="__('loop.back')" />
+        </div>
     </x-slot>
 
     <div
@@ -72,7 +77,7 @@
             <input type="hidden" name="starts_at" value="{{ old('starts_at', $campaign->starts_at?->format('Y-m-d') ?? now()->toDateString()) }}">
             <input type="hidden" name="description" value="{{ old('description', $campaign->description) }}">
 
-            <div data-step="1" x-show="step === 1" class="space-y-4">
+            <div data-step="1" class="space-y-4" :class="step === 1 ? '' : 'hidden'">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.campaign_name') }}</label>
@@ -85,7 +90,7 @@
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
             </div>
 
-            <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
+            <div data-step="2" class="space-y-4" :class="step === 2 ? '' : 'hidden'">
                 @if ($isEarn)
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <input type="hidden" name="spend_step" :value="spendValue()">
@@ -133,7 +138,7 @@
                 </div>
             </div>
 
-            <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
+            <div data-step="3" class="space-y-4" :class="step === 3 ? '' : 'hidden'">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                 <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
                     {{ __('loop.campaign_offers_untied_hint') }}
@@ -147,7 +152,7 @@
                     <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
                     <button class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">
                         <span x-show="!saving">{{ __('loop.save') }}</span>
-                        <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                        <span x-show="saving" :class="saving ? '' : 'hidden'">{{ __('loop.saving') }}</span>
                     </button>
                 </div>
             </div>

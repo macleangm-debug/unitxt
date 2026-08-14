@@ -16,11 +16,20 @@ class ReferralHubController extends Controller
 
         $code = $referrals->ensureReferralCode($business);
 
+        $connected = $business->referralsMade()
+            ->with('referred')
+            ->whereIn('status', [
+                \App\Models\BusinessReferral::STATUS_QUALIFIED,
+                \App\Models\BusinessReferral::STATUS_REWARDED,
+            ])
+            ->latest()
+            ->get();
+
         return view('settings.referrals', [
             'business' => $business,
             'shareUrl' => $referrals->shareUrl($business),
             'code' => $code,
-            'referrals' => $business->referralsMade()->with('referred')->latest()->get(),
+            'referrals' => $connected,
             'plan' => Plan::query()->where('key', $business->plan_key)->first(),
             'program' => $referrals->progress($business)['program'],
             'progress' => $referrals->progress($business),

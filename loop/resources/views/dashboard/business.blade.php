@@ -98,9 +98,7 @@
                 <div class="max-w-xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.referrals') }}</p>
                     <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.referral_dash_title', ['goal' => $referralProgress['goal']]) }}</h2>
-                    <p class="mt-2 text-sm text-white/70">{{ __('loop.referral_dash_body', [
-                        'days' => $referralProgress['program']['referrer_extra_days_per_referral'] ?? 3,
-                    ]) }}</p>
+                    <p class="mt-2 text-sm text-white/70">{{ __('loop.referral_dash_short', ['days' => $referralProgress['program']['referrer_extra_days_per_referral'] ?? 3]) }}</p>
                 </div>
                 <a href="{{ route('settings.referrals') }}" class="loop-btn-lime !py-2">{{ __('loop.invite_businesses') }}</a>
             </div>

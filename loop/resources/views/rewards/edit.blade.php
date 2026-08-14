@@ -76,7 +76,7 @@
             <input type="hidden" name="reward_type" value="{{ $defaultType }}">
             <input type="hidden" name="reward_value" :value="type === 'free_item' || type === 'custom' ? 0 : valueNumber()">
 
-            <div data-step="1" x-show="step === 1" class="space-y-4">
+            <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.offer_name') }}</label>
@@ -93,7 +93,7 @@
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
             </div>
 
-            <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
+            <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_offer_reward') }}</p>
                 @if ($defaultType === 'percent_off')
                     <label class="loop-label">{{ __('loop.percent_off_value') }}</label>
@@ -111,7 +111,7 @@
                 </div>
             </div>
 
-            <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
+            <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_offer_cost') }}</p>
                 <label class="loop-label">{{ __('loop.points_to_unlock') }}</label>
                 <input type="number" name="points_cost" x-model.number="points" class="loop-input" min="1" :required="step === 3">
@@ -121,7 +121,7 @@
                 </div>
             </div>
 
-            <div data-step="4" x-show="step === 4" x-cloak class="space-y-4">
+            <div data-step="4" :class="step === 4 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_limits') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>

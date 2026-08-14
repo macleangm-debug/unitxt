@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.add_offer') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.add_offer_owner_hint') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.add_offer') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.add_offer_owner_hint') }}</p>
+            </div>
+            <x-settings-back :href="route('campaigns.index').'#offers'" :label="__('loop.back')" />
         </div>
     </x-slot>
 
@@ -27,7 +30,7 @@
                    class="flex min-h-[11rem] flex-col rounded-3xl border border-ink/10 bg-white p-5 transition hover:border-mint">
                     <div class="flex items-start justify-between gap-3">
                         <p class="font-display text-lg font-semibold">{{ $starter['name'] }}</p>
-                        <span class="shrink-0 rounded-lg bg-ink px-2 py-1 text-xs font-semibold text-mint">{{ $starter['points_cost'] }} {{ __('loop.pts') }}</span>
+                        <span class="shrink-0 rounded-lg bg-lime px-2.5 py-1 text-xs font-semibold text-ink">{{ $starter['points_cost'] }} {{ __('loop.pts') }}</span>
                     </div>
                     <p class="mt-2 flex-1 text-sm text-ink-muted">{{ $starter['description'] }}</p>
                     <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.continue') }} →</p>
@@ -129,7 +132,7 @@
                 </div>
 
                 {{-- 1 · Basics --}}
-                <div data-step="1" x-show="step === 1" class="space-y-4">
+                <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.name_your_offer') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.offer_name_hint', ['business' => $biz]) }}</p>
@@ -151,7 +154,7 @@
                 </div>
 
                 {{-- 2 · Reward --}}
-                <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
+                <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_offer_reward') }}</p>
 
                     @if ($defaultType === 'percent_off')
@@ -181,7 +184,7 @@
                 </div>
 
                 {{-- 3 · Points --}}
-                <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
+                <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_offer_cost') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.points_to_unlock') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.points_to_unlock_help') }}</p>
@@ -198,7 +201,7 @@
                 </div>
 
                 {{-- 4 · Limits (optional) --}}
-                <div data-step="4" x-show="step === 4" x-cloak class="space-y-4">
+                <div data-step="4" :class="step === 4 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_limits') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.section_limits') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.limits_optional_hint') }}</p>

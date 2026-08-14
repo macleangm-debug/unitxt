@@ -107,7 +107,7 @@
                 @endif
 
                 {{-- 1 · Basics --}}
-                <div data-step="1" x-show="step === 1" class="space-y-4">
+                <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.campaign_name') }}</h2>
                     <div>
@@ -139,7 +139,7 @@
                 </div>
 
                 {{-- 2 · Customer gets --}}
-                <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
+                <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
@@ -166,7 +166,7 @@
                 </div>
 
                 {{-- 3 · Bonuses (optional) --}}
-                <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
+                <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_bonuses') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.bonuses_title') }}</h2>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.bonuses_body') }}</p>
@@ -213,7 +213,7 @@
                 </div>
 
                 {{-- 4 · Schedule --}}
-                <div data-step="4" x-show="step === 4" x-cloak class="space-y-4">
+                <div data-step="4" :class="step === 4 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_schedule') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.section_schedule') }}</h2>
                     <div class="grid gap-3 sm:grid-cols-2">

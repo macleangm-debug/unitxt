@@ -20,6 +20,6 @@
 </div>
 
 <p class="mb-4 text-sm text-ink-muted">
-    {{ __('loop.step') }} <span class="font-semibold text-ink" x-text="step"></span>
+    {{ __('loop.step') }} <span class="font-semibold text-ink" x-text="typeof step === 'undefined' ? 1 : step">1</span>
     {{ __('loop.of') }} {{ count($steps) }}
 </p>

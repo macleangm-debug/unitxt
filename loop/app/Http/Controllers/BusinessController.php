@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Confirm;
+use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,6 +17,7 @@ class BusinessController extends Controller
 
         return view('business.edit', [
             'business' => $business,
+            'editing' => $request->boolean('edit') || $request->session()->getOldInput(),
         ]);
     }
 
@@ -28,6 +30,8 @@ class BusinessController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
             'city' => ['nullable', 'string', 'max:80'],
+            'hotline_country_code' => ['nullable', 'string', 'max:8'],
+            'hotline_local' => ['nullable', 'string', 'max:32'],
             'hotline' => ['nullable', 'string', 'max:40'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
@@ -44,11 +48,20 @@ class BusinessController extends Controller
         $allowPay = $request->boolean('allow_pay_with_points')
             && \App\Support\FeatureFlags::enabled('pay_with_points');
 
+        $hotline = $data['hotline'] ?? null;
+        if ($request->filled('hotline_local')) {
+            $dial = $data['hotline_country_code'] ?? Countries::dial($business->country);
+            $local = preg_replace('/\D+/', '', (string) $data['hotline_local']);
+            $hotline = trim($dial.' '.$local);
+        } elseif ($request->exists('hotline_local')) {
+            $hotline = null;
+        }
+
         $business->update([
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'city' => $data['city'] ?? $business->city,
-            'hotline' => $data['hotline'] ?? null,
+            'hotline' => $hotline,
             'logo_path' => $business->logo_path,
             'is_active' => $request->boolean('is_active', $business->is_active),
             'allow_pay_with_points' => $allowPay,

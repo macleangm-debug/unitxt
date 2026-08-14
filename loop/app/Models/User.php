@@ -33,6 +33,7 @@ use Illuminate\Notifications\Notifiable;
     'profile_completed',
     'phone_verified_at',
     'email_verified_at',
+    'locale',
 ])]
 #[Hidden(['password', 'pin_hash', 'remember_token'])]
 class User extends Authenticatable

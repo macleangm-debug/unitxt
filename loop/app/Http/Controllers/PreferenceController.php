@@ -24,6 +24,10 @@ class PreferenceController extends Controller
 
         $request->session()->put('locale', $locale);
 
+        if ($request->user()) {
+            $request->user()->forceFill(['locale' => $locale])->save();
+        }
+
         $target = $this->safeReturnUrl($request);
 
         return redirect()->to($target);

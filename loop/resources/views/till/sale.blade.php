@@ -176,8 +176,16 @@
                     <button class="loop-btn-mint w-full" name="continue_to_sale" value="1">{{ __('loop.redeem_and_sale') }}</button>
                     <button class="loop-btn-ghost w-full" type="submit">{{ __('loop.redeem_only') }}</button>
                 @else
-                    <p class="rounded-2xl border border-dashed border-ink/15 px-4 py-6 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
-                    <a href="{{ route('till.ticket', ['mode' => 'sale']) }}" class="loop-btn w-full text-center">{{ __('loop.mode_sale') }}</a>
+                    <div class="rounded-[1.35rem] border border-dashed border-violet/25 bg-violet-soft/30 px-4 py-6 text-center">
+                        <p class="font-display text-lg font-semibold text-ink">{{ __('loop.none_unlocked') }}</p>
+                        <p class="mt-2 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
+                        @if ($nextOffer)
+                            <p class="mt-3 text-sm font-semibold text-violet">
+                                {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                            </p>
+                        @endif
+                    </div>
+                    <a href="{{ route('till.ticket', ['mode' => 'sale']) }}" class="loop-btn-mint w-full text-center">{{ __('loop.keep_earning') }}</a>
                 @endif
                 <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
             </form>
