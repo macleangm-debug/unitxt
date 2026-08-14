@@ -4,7 +4,7 @@
 
         <div>
             <h1 class="font-display text-2xl font-semibold text-ink">Join Loop</h1>
-            <p class="mt-1 text-sm text-ink-muted">Create an account as a business or a customer.</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.register_role_blurb') }}</p>
         </div>
 
         <div>
@@ -29,7 +29,7 @@
                 </label>
                 <label class="cursor-pointer rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft">
                     <input type="radio" name="role" value="customer" class="sr-only" @checked(old('role') === 'customer')>
-                    <span class="font-semibold text-ink">Customer</span>
+                    <span class="font-semibold text-ink">{{ __('loop.customer') }}</span>
                     <span class="mt-1 block text-xs text-ink-muted">Earn points on visits</span>
                 </label>
             </div>

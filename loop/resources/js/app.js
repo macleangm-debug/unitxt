@@ -5,9 +5,42 @@ window.Alpine = Alpine;
 const prefersReducedMotion = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const supportsViewTransitions = () => 'startViewTransition' in document;
+
+const sameOriginUrl = (url) => {
+    try {
+        const next = new URL(url, window.location.href);
+        return next.origin === window.location.origin ? next : null;
+    } catch (_) {
+        return null;
+    }
+};
+
+const isHashOnlyNav = (url) => {
+    const next = sameOriginUrl(url);
+    if (! next) {
+        return false;
+    }
+    return (
+        next.pathname === window.location.pathname &&
+        next.search === window.location.search &&
+        next.hash !== '' &&
+        next.hash !== window.location.hash
+    );
+};
+
+/**
+ * Navigation kinds (Instagram / Netflix pattern):
+ * - tab: peer shell destinations (bottom tabs, top nav) → soft crossfade
+ * - push: drill into detail → slide forward
+ * - back: return up the stack → slide back
+ * - fade: generic soft dissolve
+ * - morph: shared-element (logo) handoff
+ */
 Alpine.store('loopNav', {
     transitioning: false,
     morphing: false,
+    kind: 'fade',
     go(url, event, options = {}) {
         if (
             event &&
@@ -15,23 +48,46 @@ Alpine.store('loopNav', {
         ) {
             return;
         }
+
+        // Same-page hash links (affiliate Share / Referrals) — native smooth scroll.
+        if (isHashOnlyNav(url)) {
+            return;
+        }
+
         if (prefersReducedMotion()) {
             return;
         }
+
+        const next = sameOriginUrl(url);
+        if (! next) {
+            return;
+        }
+
+        // Already here — no transition.
+        if (
+            next.pathname === window.location.pathname &&
+            next.search === window.location.search &&
+            next.hash === window.location.hash
+        ) {
+            event?.preventDefault();
+            return;
+        }
+
         event?.preventDefault();
 
         const morphEl = options.morph;
-        const supportsVT = 'startViewTransition' in document;
+        const supportsVT = supportsViewTransitions();
         let usedMorph = false;
+        let kind = options.kind || (morphEl ? 'morph' : 'fade');
 
         if (morphEl) {
+            kind = 'morph';
             try {
                 const rect = morphEl.getBoundingClientRect();
                 const img = morphEl.querySelector('img');
                 const initial = morphEl.querySelector('.font-display, [data-initial]');
                 const morphId = morphEl.getAttribute('data-loop-morph') || '';
 
-                // Activate a single shared VT name on the clicked logo only.
                 document.querySelectorAll('.loop-vt-logo-active').forEach((el) => {
                     el.classList.remove('loop-vt-logo-active');
                     el.style.viewTransitionName = 'none';
@@ -43,7 +99,7 @@ Alpine.store('loopNav', {
                     'loopMorph',
                     JSON.stringify({
                         id: morphId,
-                        href: url,
+                        href: next.href,
                         src: img?.currentSrc || img?.src || '',
                         initial: initial?.textContent?.trim()?.charAt(0) || '',
                         top: rect.top,
@@ -59,7 +115,6 @@ Alpine.store('loopNav', {
                 if (supportsVT) {
                     sessionStorage.setItem('loopVt', '1');
                 } else {
-                    // FLIP fallback: lift a live clone when VT is unavailable.
                     const lift = morphEl.cloneNode(true);
                     lift.classList.add('loop-morph-flyer');
                     lift.style.viewTransitionName = 'none';
@@ -78,19 +133,26 @@ Alpine.store('loopNav', {
             }
         }
 
-        this.morphing = usedMorph;
-        // Let View Transitions carry the handoff — no heavy wipe.
-        if (supportsVT && usedMorph) {
-            this.transitioning = false;
-            this.morphing = true;
-            window.location.href = url;
+        this.kind = kind;
+        this.morphing = usedMorph || kind === 'morph';
+        document.documentElement.dataset.loopNav = kind;
+        sessionStorage.setItem('loopNavKind', kind);
+
+        // View Transitions carry tab/push/morph without a heavy veil wipe.
+        if (supportsVT) {
+            this.transitioning = kind === 'fade' && ! usedMorph;
+            if (usedMorph || kind === 'tab' || kind === 'push' || kind === 'back') {
+                this.transitioning = false;
+            }
+            window.location.href = next.href;
             return;
         }
 
+        // Fallback veil for browsers without VT.
         this.transitioning = true;
         setTimeout(() => {
-            window.location.href = url;
-        }, usedMorph ? 160 : 280);
+            window.location.href = next.href;
+        }, usedMorph ? 160 : kind === 'tab' ? 180 : 260);
     },
 });
 
@@ -99,11 +161,23 @@ Alpine.store('loopNav', {
  * Skipped when the browser already handled a View Transition.
  */
 function loopSettleMorph() {
+    const navKind = sessionStorage.getItem('loopNavKind');
+    sessionStorage.removeItem('loopNavKind');
+    if (navKind) {
+        document.documentElement.dataset.loopNav = navKind;
+    }
+
     if (prefersReducedMotion()) {
         sessionStorage.removeItem('loopMorph');
         sessionStorage.removeItem('loopMorphLift');
         sessionStorage.removeItem('loopVt');
         return;
+    }
+
+    // Soft content entrance only after an in-app navigation (not cold loads).
+    if (navKind === 'tab' || navKind === 'push' || navKind === 'back' || navKind === 'fade') {
+        const shell = document.querySelector('main.loop-shell') || document.querySelector('main');
+        shell?.classList.add(navKind === 'tab' ? 'loop-nav-enter-tab' : 'loop-nav-enter-push');
     }
 
     const usedVt = sessionStorage.getItem('loopVt') === '1';
@@ -206,11 +280,15 @@ if (document.readyState === 'loading') {
     loopSettleMorph();
 }
 
-// Cross-document View Transition hooks (Chromium): keep logo name stable across swap.
+// Cross-document View Transition hooks (Chromium): keep logo name + nav kind stable.
 if ('onpageswap' in window) {
     window.addEventListener('pageswap', (event) => {
         if (! event.viewTransition || prefersReducedMotion()) {
             return;
+        }
+        const kind = sessionStorage.getItem('loopNavKind');
+        if (kind) {
+            document.documentElement.dataset.loopNav = kind;
         }
         const active = document.querySelector('.loop-vt-logo-active, [style*="loop-biz-logo"]');
         if (active) {
@@ -221,6 +299,10 @@ if ('onpageswap' in window) {
 
 if ('onpagereveal' in window) {
     window.addEventListener('pagereveal', (event) => {
+        const kind = sessionStorage.getItem('loopNavKind');
+        if (kind) {
+            document.documentElement.dataset.loopNav = kind;
+        }
         if (! event.viewTransition || prefersReducedMotion()) {
             return;
         }

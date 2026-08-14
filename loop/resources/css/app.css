@@ -847,6 +847,26 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes loop-vt-slide-out-left {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0.4; transform: translateX(-18%); }
+}
+
+@keyframes loop-vt-slide-in-right {
+    from { opacity: 0.45; transform: translateX(18%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes loop-vt-slide-out-right {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0.4; transform: translateX(18%); }
+}
+
+@keyframes loop-vt-slide-in-left {
+    from { opacity: 0.45; transform: translateX(-14%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
 /* Cross-document View Transitions — logo morph + soft root fade */
 @supports (view-transition-name: none) {
     ::view-transition-old(root) {
@@ -855,6 +875,37 @@
 
     ::view-transition-new(root) {
         animation: 0.38s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-fade-in;
+    }
+
+    /* Instagram-style tab crossfade */
+    html[data-loop-nav="tab"]::view-transition-old(root) {
+        animation: 0.22s ease-out both loop-vt-fade-out;
+    }
+    html[data-loop-nav="tab"]::view-transition-new(root) {
+        animation: 0.28s ease-out both loop-vt-fade-in;
+    }
+
+    /* Netflix / iOS push: outgoing slides left, incoming from right */
+    html[data-loop-nav="push"]::view-transition-old(root) {
+        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-out-left;
+    }
+    html[data-loop-nav="push"]::view-transition-new(root) {
+        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-in-right;
+    }
+
+    html[data-loop-nav="back"]::view-transition-old(root) {
+        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-out-right;
+    }
+    html[data-loop-nav="back"]::view-transition-new(root) {
+        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-in-left;
+    }
+
+    /* Morph keeps logo shared-element; root softens underneath */
+    html[data-loop-nav="morph"]::view-transition-old(root) {
+        animation: 0.28s ease-out both loop-vt-fade-out;
+    }
+    html[data-loop-nav="morph"]::view-transition-new(root) {
+        animation: 0.36s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-fade-in;
     }
 
     ::view-transition-group(loop-biz-logo) {
@@ -875,6 +926,14 @@
     ::view-transition-image-pair(loop-biz-logo) {
         isolation: auto;
     }
+}
+
+.loop-nav-enter-tab {
+    animation: loop-vt-fade-in 0.32s ease-out both;
+}
+
+.loop-nav-enter-push {
+    animation: loop-page-soft-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

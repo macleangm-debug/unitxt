@@ -15,6 +15,6 @@
             <x-input-error :messages="$errors->get('phone')" class="mt-1" />
         </div>
         <button class="loop-btn-mint w-full">Open my Loop</button>
-        <p class="text-center text-sm"><a href="{{ route('customer.login') }}" class="underline text-ink-muted">Use a different number</a></p>
+        <p class="text-center text-sm"><a href="{{ route('customer.login') }}" class="underline text-ink-muted">{{ __('loop.use_different_phone') }}</a></p>
     </form>
 </x-guest-layout>
