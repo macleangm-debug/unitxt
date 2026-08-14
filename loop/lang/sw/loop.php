@@ -412,7 +412,7 @@ return [
     'keep_earning_body' => 'Hakuna matumizi ya ofa — pointi za mauzo haya bado zitaongezwa.',
     'want_to_redeem' => 'Tumia ofa',
     'want_to_redeem_body' => 'Chagua ofa moja iliyofunguliwa. Pointi zitakatwa kwenye mauzo haya.',
-    'ready_to_redeem' => 'Tayari kutumia',
+    'ready_to_redeem' => 'Tayari kukomboa',
     'ready' => 'Tayari',
     'reward_unlocked' => 'Zawadi imefunguliwa',
     'need_more_points' => 'Inahitaji pointi :points zaidi',
@@ -1686,7 +1686,7 @@ return [
     'studio_choose_size' => 'Chagua ukubwa',
     'studio_choose_copy' => 'Chagua maneno',
     'studio_share_download' => 'Shiriki au pakua',
-    'studio_upload_photo' => 'Pakia picha',
+    'studio_upload_photo' => 'Pakia au piga picha',
     'studio_text_color' => 'Rangi ya maandishi',
     'studio_auto' => 'Otomatiki',
     'studio_white' => 'Nyeupe',
@@ -1706,11 +1706,25 @@ return [
     'this_week' => 'Wiki hii',
     'new_this_month' => 'Wapya mwezi huu',
     'tab_new_members' => 'Wapya',
-    'tab_ready_redeem' => 'Tayari',
+    'tab_ready_redeem' => 'Tayari kukomboa',
     'sort_by_recent' => 'Wapya zaidi',
     'no_sales_blurb' => 'Rekodi mauzo kwenye kaunta ili yaonekane hapa.',
     'no_customers_blurb' => 'Wanachama wanaonekana baada ya ziara ya kwanza kwenye Mauzo.',
     'scan_member_qr' => 'Changanua QR ya mwanachama',
     'scan_or_type_phone' => 'Andika namba au changanua QR ya pochi.',
     'scan_member_qr_hint' => 'Weka QR ya pochi ya Loop ndani ya fremu.',
+
+    'online' => 'Mtandaoni',
+
+    'period' => 'Kipindi',
+
+    'sort' => 'Panga',
+
+    'filter' => 'Chuja',
+
+    'studio_upload_or_capture' => 'Pakia au piga picha',
+
+    'studio_font_size' => 'Ukubwa wa maandishi',
+
+    'studio_font_size_hint' => 'Weka kwa utulivu — si kubwa mno.',
 ];

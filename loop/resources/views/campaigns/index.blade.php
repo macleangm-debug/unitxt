@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4 sm:space-y-0">
             <div>
                 <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
                 <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
@@ -27,7 +27,7 @@
                     </div>
                     <div class="flex shrink-0 items-center gap-3">
                         @if ($campaign->isCurrentlyActive())
-                            <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
+                            <span class="rounded-lg bg-mint-deep px-2.5 py-1 text-xs font-semibold text-white">{{ __('loop.live') }}</span>
                         @endif
                         <span class="text-ink-muted">→</span>
                     </div>

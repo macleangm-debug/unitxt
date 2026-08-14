@@ -24,6 +24,7 @@ class ContentStudioController extends Controller
             'copies' => ContentStudio::copies($business),
             'sizes' => ContentStudio::sizes(),
             'modes' => ContentStudio::modes(),
+            'textColors' => ContentStudio::textColors(),
             'locale' => app()->getLocale(),
         ]);
     }

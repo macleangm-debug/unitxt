@@ -25,7 +25,7 @@
             go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
             next() {
                 const form = this.$refs.form;
-                const fields = form.querySelectorAll('[data-step=\"'+this.step+'\'] [name]');
+                const fields = form.querySelectorAll('[data-step='+this.step+'] [name]');
                 for (const el of fields) {
                     if (el.disabled) continue;
                     if (el.hasAttribute('required') && !String(el.value || '').trim()) {
@@ -47,7 +47,7 @@
             @csrf
             <input type="hidden" name="_step" :value="step">
 
-            <div data-step="1" x-show="step === 1" x-bind:hidden="step !== 1" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.raffle_name') }}</label>
@@ -60,7 +60,7 @@
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
             </div>
 
-            <div data-step="2" hidden x-show="step === 2" x-bind:hidden="step !== 2" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_prize') }}</p>
                 <p class="text-sm text-ink-muted">{{ __('loop.prize_like_offer') }}</p>
                 <div>
@@ -87,7 +87,7 @@
                 </div>
             </div>
 
-            <div data-step="3" hidden x-show="step === 3" x-bind:hidden="step !== 3" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_draw_rules') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>

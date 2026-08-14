@@ -33,18 +33,28 @@
 
     <div class="mx-auto max-w-2xl">
         @if (! empty($insightBanners))
-            <section class="mb-8 space-y-3">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.performance') }}</p>
-                @foreach ($insightBanners as $banner)
-                    <div class="flex flex-wrap items-start justify-between gap-4 rounded-[1.5rem] border border-violet/20 bg-violet-soft/40 px-5 py-5">
-                        <div class="min-w-0 max-w-xl">
-                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.performance') }}</p>
-                            <p class="mt-2 font-display text-2xl font-semibold text-ink">{{ $banner['title'] }}</p>
-                            <p class="mt-1 text-sm text-ink-muted">{{ $banner['body'] }}</p>
-                        </div>
-                        <a href="{{ $banner['url'] }}" class="shrink-0 rounded-2xl bg-violet px-5 py-2.5 text-sm font-semibold text-white" @click="$store.loopNav.go(@js($banner['url']), $event, { kind: 'push' })">{{ $banner['cta'] }}</a>
-                    </div>
-                @endforeach
+            <section class="mb-8">
+                <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.performance') }}</p>
+                <div class="overflow-hidden rounded-[1.5rem] border border-ink/8 bg-white/80 shadow-[0_10px_30px_rgba(17,17,20,0.04)] backdrop-blur-xl">
+                    @foreach ($insightBanners as $banner)
+                        <a
+                            href="{{ $banner['url'] }}"
+                            class="group flex w-full items-start gap-4 border-b border-ink/5 px-5 py-4 text-left last:border-b-0 transition hover:bg-chalk/80"
+                            @click="$store.loopNav.go(@js($banner['url']), $event, { kind: 'push' })"
+                        >
+                            <span class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-violet" aria-hidden="true"></span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="font-display text-base font-semibold leading-snug text-ink sm:text-lg">{{ $banner['title'] }}</p>
+                                </div>
+                                <p class="mt-1 text-sm leading-relaxed text-ink-muted">{{ $banner['body'] }}</p>
+                                @if (! empty($banner['cta']))
+                                    <p class="mt-2 text-sm font-semibold text-violet group-hover:text-ink">{{ $banner['cta'] }} →</p>
+                                @endif
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
             </section>
         @endif
 

@@ -66,20 +66,69 @@
                         ->where('user_id', $user->id)
                         ->whereNull('read_at')
                         ->count();
+                    $navNotifications = \App\Models\InAppNotification::query()
+                        ->where('user_id', $user->id)
+                        ->latest()
+                        ->limit(5)
+                        ->get();
                 @endphp
-                <a
-                    href="{{ route('notifications.index') }}"
-                    class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink/10 bg-white text-ink hover:border-ink/20"
-                    title="{{ __('loop.notifications') }}"
-                    @click="$store.loopNav.go(@js(route('notifications.index')), $event, { kind: 'push' })"
+                <div
+                    class="relative"
+                    x-data="{ open: false }"
+                    @keydown.escape.window="open = false"
                 >
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
-                    </svg>
-                    @if ($unreadNotifications > 0)
-                        <span class="absolute -right-1 -top-1 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">{{ min(9, $unreadNotifications) }}{{ $unreadNotifications > 9 ? '+' : '' }}</span>
-                    @endif
-                </a>
+                    <button
+                        type="button"
+                        class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink/10 bg-white text-ink hover:border-ink/20"
+                        title="{{ __('loop.notifications') }}"
+                        @click="open = ! open"
+                        :aria-expanded="open.toString()"
+                    >
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                        </svg>
+                        @if ($unreadNotifications > 0)
+                            <span class="absolute -right-1 -top-1 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">{{ min(9, $unreadNotifications) }}{{ $unreadNotifications > 9 ? '+' : '' }}</span>
+                        @endif
+                    </button>
+
+                    <template x-teleport="body">
+                        <div x-show="open" x-cloak class="fixed inset-0 z-[85]" @click="open = false">
+                            <div class="absolute inset-0 bg-ink/30 sm:bg-transparent"></div>
+                            <div
+                                class="absolute inset-x-0 bottom-0 max-h-[75vh] overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-16 sm:w-[22rem] sm:rounded-[1.5rem] sm:border sm:border-ink/10"
+                                @click.stop
+                                x-transition:enter="transition ease-out duration-200"
+                                x-transition:enter-start="translate-y-full sm:translate-y-0 sm:opacity-0 sm:scale-95"
+                                x-transition:enter-end="translate-y-0 sm:opacity-100 sm:scale-100"
+                            >
+                                <div class="mx-auto mt-3 h-1.5 w-12 rounded-full bg-ink/15 sm:hidden"></div>
+                                <div class="flex items-center justify-between border-b border-ink/5 px-4 py-3">
+                                    <p class="font-display text-base font-semibold">{{ __('loop.notifications') }}</p>
+                                    <a href="{{ route('notifications.index') }}" class="text-xs font-semibold text-violet" @click="$store.loopNav.go(@js(route('notifications.index')), $event, { kind: 'push' })">{{ __('loop.view_all') }}</a>
+                                </div>
+                                <div class="max-h-[60vh] overflow-y-auto">
+                                    @forelse ($navNotifications as $n)
+                                        <a href="{{ route('notifications.index') }}" class="block border-b border-ink/5 px-4 py-3 last:border-b-0 hover:bg-chalk/70" @click="$store.loopNav.go(@js(route('notifications.index')), $event, { kind: 'push' })">
+                                            <div class="flex items-start gap-3">
+                                                <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ $n->isUnread() ? 'bg-violet' : 'bg-ink/15' }}"></span>
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex items-start justify-between gap-2">
+                                                        <p class="truncate text-sm font-semibold text-ink">{{ $n->title() }}</p>
+                                                        <time class="shrink-0 text-[10px] text-ink-muted">{{ $n->created_at?->format('H:i') }}</time>
+                                                    </div>
+                                                    <p class="mt-0.5 line-clamp-2 text-xs text-ink-muted">{{ $n->body() }}</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    @empty
+                                        <p class="px-4 py-8 text-center text-sm text-ink-muted">{{ __('loop.no_notifications') }}</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
 
                 <div class="flex rounded-xl border border-ink/10 bg-white p-0.5 text-xs font-semibold shadow-sm">
                     <a href="{{ route('locale', ['locale' => 'en', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}">EN</a>

@@ -12,7 +12,7 @@
 
 @layer base {
     body {
-        @apply bg-chalk text-ink antialiased;
+        @apply overflow-x-hidden bg-chalk text-ink antialiased;
         background-image: none;
         background-color: #F7F7F4;
     }

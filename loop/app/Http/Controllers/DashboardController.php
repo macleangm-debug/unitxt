@@ -41,10 +41,15 @@ class DashboardController extends Controller
 
             $todayVisits = $business->visits()->whereDate('created_at', today())->count();
             $todaySpend = (float) $business->visits()->whereDate('created_at', today())->sum('amount_spent');
+            $weekVisits = $business->visits()->where('created_at', '>=', now()->startOfWeek())->count();
+            $weekSpend = (float) $business->visits()->where('created_at', '>=', now()->startOfWeek())->sum('amount_spent');
+            $monthVisits = $business->visits()->where('created_at', '>=', now()->startOfMonth())->count();
+            $monthSpend = (float) $business->visits()->where('created_at', '>=', now()->startOfMonth())->sum('amount_spent');
 
             $activeCampaigns = $business->campaigns()->active()->withCount([
                 'visits as today_visits_count' => fn ($q) => $q->whereDate('created_at', today()),
-            ])->latest()->take(5)->get();
+            ])->latest()->take(3)->get();
+
 
             $limits = app(PlanLimitService::class);
             if ($user->isOwner()) {
@@ -64,7 +69,11 @@ class DashboardController extends Controller
                 'visitCount' => $business->visits()->count(),
                 'todayVisits' => $todayVisits,
                 'todaySpend' => $todaySpend,
-                'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get(),
+                'weekVisits' => $weekVisits,
+                'weekSpend' => $weekSpend,
+                'monthVisits' => $monthVisits,
+                'monthSpend' => $monthSpend,
+                'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(3)->get(),
                 'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
                 'heroBanners' => $insights,

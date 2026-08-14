@@ -1695,7 +1695,7 @@ Join free: :url',
   'studio_choose_size' => 'Choose a size',
   'studio_choose_copy' => 'Choose your words',
   'studio_share_download' => 'Share or download',
-  'studio_upload_photo' => 'Upload a photo',
+  'studio_upload_photo' => 'Upload or take a picture',
   'studio_text_color' => 'Text color',
   'studio_auto' => 'Auto',
   'studio_white' => 'White',
@@ -1714,11 +1714,25 @@ Join free: :url',
     'this_week' => 'This week',
     'new_this_month' => 'New this month',
     'tab_new_members' => 'New',
-    'tab_ready_redeem' => 'Ready',
+    'tab_ready_redeem' => 'Ready to redeem',
     'sort_by_recent' => 'Newest',
     'no_sales_blurb' => 'Record a sale at the till to see it here.',
     'no_customers_blurb' => 'Members appear after their first visit on Sale.',
     'scan_member_qr' => 'Scan member QR',
     'scan_or_type_phone' => 'Type a number or scan the member wallet QR.',
     'scan_member_qr_hint' => 'Align the Loop wallet QR inside the frame.',
+
+    'online' => 'Online',
+
+    'period' => 'Period',
+
+    'sort' => 'Sort',
+
+    'filter' => 'Filter',
+
+    'studio_upload_or_capture' => 'Upload or take a picture',
+
+    'studio_font_size' => 'Text size',
+
+    'studio_font_size_hint' => 'Keep it calm — not too loud.',
 );

@@ -1,32 +1,32 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="min-w-0 max-w-2xl">
+        <div class="space-y-4">
+            <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.campaigns') }}</p>
-                <div class="mt-3 flex flex-wrap items-center gap-3">
+                <div class="mt-3 flex flex-wrap items-center gap-2">
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $campaign->displayName() }}</h1>
                     @if ($campaign->isCurrentlyActive())
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-mint px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-[0_0_0_4px_rgba(46,125,50,0.18)]">
-                            <span class="h-2 w-2 animate-pulse rounded-full bg-ink"></span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-mint-deep px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-white"></span>
                             {{ __('loop.live') }}
                         </span>
                     @else
-                        <span class="inline-flex items-center rounded-full bg-ink/10 px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink-muted">
+                        <span class="inline-flex items-center rounded-full bg-ink/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink-muted">
                             {{ __('loop.paused') }}
                         </span>
                     @endif
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">{{ $campaign->scheduleLabel() }}</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <x-settings-back :href="route('campaigns.index')" :label="__('loop.back')" />
-                <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
+            <div class="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-2">
+                <x-settings-back :href="route('campaigns.index')" :label="__('loop.back')" class="!w-full sm:!w-auto" />
+                <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}" class="contents sm:block">
                     @csrf
-                    <button class="loop-btn-ghost !py-2.5">
+                    <button class="loop-btn-ghost w-full !py-2.5 sm:w-auto">
                         {{ $campaign->is_active ? __('loop.pause_campaign') : __('loop.resume_campaign') }}
                     </button>
                 </form>
-                <a href="{{ route('campaigns.edit', $campaign) }}" class="loop-btn-mint !py-2.5">{{ __('loop.edit') }}</a>
+                <a href="{{ route('campaigns.edit', $campaign) }}" class="loop-btn-mint w-full !py-2.5 text-center sm:w-auto">{{ __('loop.edit') }}</a>
             </div>
         </div>
     </x-slot>
@@ -50,7 +50,7 @@
         <p class="mt-6 text-base font-medium text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
     @endif
 
-    <div class="mt-6 grid grid-cols-3 gap-3">
+    <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
             <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.today') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold sm:text-3xl">{{ $stats['today_visits'] }}</p>

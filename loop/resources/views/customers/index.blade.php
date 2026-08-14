@@ -21,28 +21,50 @@
         </div>
     </div>
 
-    <form method="GET" action="{{ route('customers.index') }}" class="mb-5 space-y-3 rounded-[1.5rem] border border-ink/8 bg-white/90 p-4">
-        <div class="flex flex-wrap gap-2">
-            @foreach (['all' => __('loop.all'), 'new' => __('loop.tab_new_members'), 'ready' => __('loop.tab_ready_redeem')] as $key => $label)
-                <a href="{{ route('customers.index', array_merge(request()->except('page'), ['tab' => $key])) }}"
-                   class="rounded-xl px-3 py-1.5 text-xs font-semibold {{ ($tab ?? 'all') === $key ? 'bg-ink text-white' : 'bg-chalk text-ink-muted' }}">{{ $label }}</a>
-            @endforeach
-        </div>
-        <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input type="search" name="q" value="{{ $q }}" class="loop-input" placeholder="{{ __('loop.search_name_or_phone') }}">
+    <div class="mb-5 flex flex-wrap items-center gap-2">
+        <form method="GET" action="{{ route('customers.index') }}" class="flex min-w-0 flex-1 gap-2">
+            <input type="search" name="q" value="{{ $q }}" class="loop-input !py-2.5" placeholder="{{ __('loop.search_name_or_phone') }}">
             <input type="hidden" name="tab" value="{{ $tab }}">
             <input type="hidden" name="sort" value="{{ $sort }}">
-            <button class="loop-btn-mint !py-2.5">{{ __('loop.search') }}</button>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            @foreach (['spend' => __('loop.sort_by_spend'), 'visits' => __('loop.sort_by_visits'), 'points' => __('loop.sort_by_points'), 'recent' => __('loop.sort_by_recent')] as $key => $label)
-                <a href="{{ route('customers.index', array_merge(request()->except('page'), ['sort' => $key])) }}"
-                   class="rounded-full px-3 py-1.5 text-xs font-semibold {{ $sort === $key ? 'bg-violet text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">
-                    {{ $label }}
-                </a>
-            @endforeach
-        </div>
-    </form>
+            <button class="loop-btn-mint shrink-0 !py-2.5">{{ __('loop.search') }}</button>
+        </form>
+
+        <x-filter-sheet :title="__('loop.filters')">
+            <form method="GET" action="{{ route('customers.index') }}" class="space-y-4">
+                <input type="hidden" name="q" value="{{ $q }}">
+                <div>
+                    <p class="loop-label">{{ __('loop.filter') }}</p>
+                    <div class="mt-2 space-y-2">
+                        @foreach (['all' => __('loop.all'), 'new' => __('loop.tab_new_members'), 'ready' => __('loop.tab_ready_redeem')] as $key => $label)
+                            <label class="flex cursor-pointer items-center gap-2 rounded-2xl border border-ink/10 px-3 py-3 text-sm has-[:checked]:border-violet has-[:checked]:bg-violet-soft/40">
+                                <input type="radio" name="tab" value="{{ $key }}" class="text-violet" @checked(($tab ?? 'all') === $key)>
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div>
+                    <p class="loop-label">{{ __('loop.sort') }}</p>
+                    <div class="mt-2 space-y-2">
+                        @foreach (['spend' => __('loop.sort_by_spend'), 'visits' => __('loop.sort_by_visits'), 'points' => __('loop.sort_by_points'), 'recent' => __('loop.sort_by_recent')] as $key => $label)
+                            <label class="flex cursor-pointer items-center gap-2 rounded-2xl border border-ink/10 px-3 py-3 text-sm has-[:checked]:border-violet has-[:checked]:bg-violet-soft/40">
+                                <input type="radio" name="sort" value="{{ $key }}" class="text-violet" @checked($sort === $key)>
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <button class="loop-btn-mint w-full">{{ __('loop.apply') }}</button>
+            </form>
+        </x-filter-sheet>
+    </div>
+
+    <div class="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-1">
+        @foreach (['all' => __('loop.all'), 'new' => __('loop.tab_new_members'), 'ready' => __('loop.tab_ready_redeem')] as $key => $label)
+            <a href="{{ route('customers.index', array_merge(request()->except('page'), ['tab' => $key])) }}"
+               class="shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold {{ ($tab ?? 'all') === $key ? 'bg-ink text-white' : 'bg-chalk text-ink-muted' }}">{{ $label }}</a>
+        @endforeach
+    </div>
 
     @if ($topSpenders->isNotEmpty() && ($tab ?? 'all') === 'all' && $q === '')
         <section class="mb-6 rounded-[1.75rem] border border-ink/8 bg-gradient-to-br from-ink to-[#1a1430] p-5 text-white sm:p-6">

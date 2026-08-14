@@ -34,7 +34,7 @@
             go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
             next() {
                 const form = this.$refs.form;
-                const fields = form.querySelectorAll('[data-step=\"'+this.step+'\'] [name]');
+                const fields = form.querySelectorAll('[data-step='+this.step+'] [name]');
                 for (const el of fields) {
                     if (el.disabled) continue;
                     if (el.hasAttribute('required') && !String(el.value || '').trim()) {
@@ -78,7 +78,7 @@
             <input type="hidden" name="reward_type" value="{{ $defaultType }}">
             <input type="hidden" name="reward_value" :value="type === 'free_item' || type === 'custom' ? 0 : valueNumber()">
 
-            <div data-step="1" x-show="step === 1" x-bind:hidden="step !== 1" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.offer_name') }}</label>
@@ -95,7 +95,7 @@
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
             </div>
 
-            <div data-step="2" hidden x-show="step === 2" x-bind:hidden="step !== 2" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_offer_reward') }}</p>
                 @if ($defaultType === 'percent_off')
                     <label class="loop-label">{{ __('loop.percent_off_value') }}</label>
@@ -117,7 +117,7 @@
                 </div>
             </div>
 
-            <div data-step="3" hidden x-show="step === 3" x-bind:hidden="step !== 3" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>

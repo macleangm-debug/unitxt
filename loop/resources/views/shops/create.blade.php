@@ -16,13 +16,13 @@
             <input name="name" value="{{ old('name') }}" class="loop-input" required>
         </div>
         <div>
-            <label class="loop-label">{{ __('loop.city') }}</label>
-            <input name="city" list="cities" value="{{ old('city', $business->city) }}" class="loop-input" required>
-            <datalist id="cities">
-                @foreach ($cities as $city)
-                    <option value="{{ $city }}"></option>
-                @endforeach
-            </datalist>
+            <x-city-sheet-select
+                name="city"
+                :label="__('loop.city')"
+                :value="old('city', $business->city)"
+                :country="$business->country"
+                :required="true"
+            />
         </div>
         <div>
             <label class="loop-label">{{ __('loop.address') }}</label>

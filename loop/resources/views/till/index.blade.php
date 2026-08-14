@@ -76,15 +76,13 @@
                     class="fixed inset-0 z-[90] flex flex-col bg-ink"
                     @keydown.escape.window="close()"
                 >
-                    <div class="flex items-center justify-between px-4 py-4">
-                        <div class="flex items-center gap-2">
-                            <x-loop-logo class="h-8 w-8" />
-                            <span class="font-display text-lg font-semibold text-white">Loop</span>
-                        </div>
+                    <div class="flex items-center justify-end px-4 py-4">
                         <button type="button" class="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-white" @click="close()">{{ __('loop.close') }}</button>
                     </div>
                     <div class="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 pb-10">
-                        <p class="mb-4 text-center text-sm text-white/70">{{ __('loop.scan_member_qr_hint') }}</p>
+                        <div class="mb-5 flex flex-col items-center gap-2">
+                            <x-loop-logo class="h-12 w-12" />
+                        </div>
                         <div class="relative aspect-square w-full max-w-sm overflow-hidden rounded-[1.75rem] ring-2 ring-lime/60">
                             <video x-ref="video" class="h-full w-full object-cover" playsinline muted></video>
                             <div class="pointer-events-none absolute inset-8 rounded-2xl border-2 border-lime/80"></div>

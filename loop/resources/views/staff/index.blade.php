@@ -10,13 +10,14 @@
         </div>
     </x-slot>
 
-    <div class="mx-auto max-w-3xl space-y-8">
+    <div class="mx-auto max-w-3xl space-y-8" x-data="{ addOpen: {{ old('first_name') || old('phone') ? 'true' : 'false' }} }">
         <section class="rounded-[1.75rem] border border-ink/8 bg-white/90 p-5 sm:p-6">
-            <div class="flex items-end justify-between gap-3">
+            <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.your_team') }}</h2>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.front_desk_list_blurb') }}</p>
                 </div>
+                <button type="button" class="loop-btn-mint !py-2.5" @click="addOpen = true">{{ __('loop.add_staff') }}</button>
             </div>
             <div class="mt-5 divide-y divide-ink/8 overflow-hidden rounded-[1.25rem] border border-ink/8">
                 @forelse ($staff as $member)
@@ -73,43 +74,57 @@
             </div>
         </section>
 
-        <section class="rounded-[1.75rem] border border-ink/8 bg-gradient-to-br from-white via-white to-mint/10 p-5 shadow-[0_16px_48px_rgba(11,31,42,0.05)] sm:p-7">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.add_staff') }}</p>
-            <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.add_front_desk') }}</h2>
-            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.add_front_desk_body') }}</p>
+        <template x-teleport="body">
+            <div
+                x-show="addOpen"
+                x-cloak
+                class="fixed inset-0 z-[80] flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4"
+                @keydown.escape.window="addOpen = false"
+            >
+                <div class="absolute inset-0" @click="addOpen = false"></div>
+                <div class="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] bg-white p-5 shadow-2xl sm:rounded-[1.75rem] sm:p-7" @click.stop>
+                    <div class="mx-auto mb-3 h-1.5 w-12 rounded-full bg-ink/15 sm:hidden"></div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.add_staff') }}</p>
+                    <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.add_front_desk') }}</h2>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.add_front_desk_body') }}</p>
 
-            <form method="POST" action="{{ route('staff.store') }}" class="mt-6 space-y-4" autocomplete="off">
-                @csrf
-                <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
-                        <label class="loop-label">{{ __('loop.first_name') }}</label>
-                        <input name="first_name" value="{{ old('first_name') }}" class="loop-input" required autocomplete="off">
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.last_name') }}</label>
-                        <input name="last_name" value="{{ old('last_name') }}" class="loop-input" required autocomplete="off">
-                    </div>
+                    <form method="POST" action="{{ route('staff.store') }}" class="mt-6 space-y-4" autocomplete="off">
+                        @csrf
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label class="loop-label">{{ __('loop.first_name') }}</label>
+                                <input name="first_name" value="{{ old('first_name') }}" class="loop-input" required autocomplete="off">
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.last_name') }}</label>
+                                <input name="last_name" value="{{ old('last_name') }}" class="loop-input" required autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                            <div>
+                                <label class="loop-label">{{ __('loop.country_prefix') }}</label>
+                                <select name="country_code" class="loop-input">
+                                    @foreach ($countries as $meta)
+                                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($business->country)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.phone') }}</label>
+                                <input name="phone" value="{{ old('phone') }}" class="loop-input" required autocomplete="off" inputmode="tel">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.temp_password') }}</label>
+                            <input type="password" name="password" class="loop-input" required autocomplete="new-password">
+                        </div>
+                        <div class="flex gap-3 pt-1">
+                            <button type="button" class="loop-btn-ghost flex-1" @click="addOpen = false">{{ __('loop.cancel') }}</button>
+                            <button class="loop-btn-mint flex-1">{{ __('loop.add_front_desk') }}</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-                    <div>
-                        <label class="loop-label">{{ __('loop.country_prefix') }}</label>
-                        <select name="country_code" class="loop-input">
-                            @foreach ($countries as $meta)
-                                <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($business->country)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.phone') }}</label>
-                        <input name="phone" value="{{ old('phone') }}" class="loop-input" required autocomplete="off" inputmode="tel">
-                    </div>
-                </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.temp_password') }}</label>
-                    <input type="password" name="password" class="loop-input" required autocomplete="new-password">
-                </div>
-                <button class="loop-btn-mint w-full">{{ __('loop.add_front_desk') }}</button>
-            </form>
-        </section>
+            </div>
+        </template>
     </div>
 </x-app-layout>

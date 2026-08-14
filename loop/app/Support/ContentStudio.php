@@ -46,6 +46,21 @@ class ContentStudio
     }
 
     /**
+     * @return list<array{key: string, hex: string, name: string}>
+     */
+    public static function textColors(): array
+    {
+        return [
+            ['key' => 'white', 'hex' => '#FFFFFF', 'name' => __('loop.studio_white')],
+            ['key' => 'ink', 'hex' => '#111114', 'name' => __('loop.studio_ink')],
+            ['key' => 'lime', 'hex' => '#C8FF3D', 'name' => 'Lime'],
+            ['key' => 'violet', 'hex' => '#5B2EFF', 'name' => 'Violet'],
+            ['key' => 'coral', 'hex' => '#FF6B4A', 'name' => 'Coral'],
+            ['key' => 'cream', 'hex' => '#F7F3EA', 'name' => 'Cream'],
+        ];
+    }
+
+    /**
      * @return list<array{key: string, category: string, en: string, sw: string}>
      */
     public static function copies(?Business $business = null): array
@@ -60,8 +75,8 @@ class ContentStudio
             [
                 'key' => 'phone_is_id',
                 'category' => 'general',
-                'en' => 'Your phone is your ID card — not a loyalty card.',
-                'sw' => 'Simu yako ndiyo kitambulisho chako — si kadi ya uaminifu.',
+                'en' => 'Your phone is your identity.',
+                'sw' => 'Simu yako ndiyo utambulisho wako.',
             ],
             [
                 'key' => 'ask_at_till',
@@ -78,8 +93,8 @@ class ContentStudio
             [
                 'key' => 'rewards_waiting',
                 'category' => 'offers',
-                'en' => 'Points that unlock real rewards at our shop.',
-                'sw' => 'Pointi zinazofungua zawadi halisi kwenye duka letu.',
+                'en' => 'Points that unlock rewards at our shop.',
+                'sw' => 'Pointi zinazofungua zawadi kwenye duka letu.',
             ],
         ];
 
@@ -89,22 +104,86 @@ class ContentStudio
                 $copies[] = [
                     'key' => 'offer_'.$reward->id,
                     'category' => 'offers',
-                    'en' => 'Get '.$reward->name.' after '.$reward->points_cost.' pts.',
-                    'sw' => 'Pata '.$reward->name.' baada ya pointi '.$reward->points_cost.'.',
+                    'en' => self::offerCopyEn($reward),
+                    'sw' => self::offerCopySw($reward),
                 ];
             }
 
-            foreach ($business->campaigns()->where('is_active', true)->latest()->limit(3)->get() as $campaign) {
+            foreach ($business->campaigns()->where('is_active', true)->latest()->limit(4)->get() as $campaign) {
                 /** @var Campaign $campaign */
                 $copies[] = [
                     'key' => 'campaign_'.$campaign->id,
                     'category' => 'campaigns',
-                    'en' => $campaign->displayName().' — '.$campaign->ruleSummary($business->currency),
-                    'sw' => $campaign->displayName().' — '.$campaign->ruleSummary($business->currency),
+                    'en' => self::campaignCopyEn($campaign, $business->currency),
+                    'sw' => self::campaignCopySw($campaign, $business->currency),
                 ];
             }
         }
 
         return $copies;
+    }
+
+    private static function offerCopyEn(Reward $reward): string
+    {
+        return 'Unlock '.$reward->name.' with '.$reward->points_cost.' points.';
+    }
+
+    private static function offerCopySw(Reward $reward): string
+    {
+        return 'Fungua '.$reward->name.' kwa pointi '.$reward->points_cost.'.';
+    }
+
+    private static function campaignCopyEn(Campaign $campaign, string $currency): string
+    {
+        return match ($campaign->type) {
+            Campaign::TYPE_EARN, 'product_push' => sprintf(
+                'Get %s points for every %s %s spent.',
+                number_format((int) $campaign->points_per_step),
+                $currency,
+                number_format((int) $campaign->spend_step)
+            ),
+            Campaign::TYPE_BIRTHDAY => sprintf(
+                'Get %s bonus points when you purchase on your birthday.',
+                number_format((int) $campaign->bonus_points)
+            ),
+            Campaign::TYPE_WELCOME => sprintf(
+                'Get %s welcome points when you join.',
+                number_format((int) $campaign->bonus_points)
+            ),
+            Campaign::TYPE_STREAK => sprintf(
+                'Get %s points after %s visits in a %s.',
+                number_format((int) $campaign->bonus_points),
+                (int) ($campaign->streak_target ?: 3),
+                $campaign->streak_period ?: 'week'
+            ),
+            default => $campaign->displayName(),
+        };
+    }
+
+    private static function campaignCopySw(Campaign $campaign, string $currency): string
+    {
+        return match ($campaign->type) {
+            Campaign::TYPE_EARN, 'product_push' => sprintf(
+                'Pata pointi %s kwa kila %s %s unazotumia.',
+                number_format((int) $campaign->points_per_step),
+                $currency,
+                number_format((int) $campaign->spend_step)
+            ),
+            Campaign::TYPE_BIRTHDAY => sprintf(
+                'Pata pointi za ziada %s unaponunua siku ya kuzaliwa.',
+                number_format((int) $campaign->bonus_points)
+            ),
+            Campaign::TYPE_WELCOME => sprintf(
+                'Pata pointi %s za karibu unapojiunga.',
+                number_format((int) $campaign->bonus_points)
+            ),
+            Campaign::TYPE_STREAK => sprintf(
+                'Pata pointi %s baada ya ziara %s kwa %s.',
+                number_format((int) $campaign->bonus_points),
+                (int) ($campaign->streak_target ?: 3),
+                $campaign->streak_period === 'month' ? 'mwezi' : 'wiki'
+            ),
+            default => $campaign->displayName(),
+        };
     }
 }

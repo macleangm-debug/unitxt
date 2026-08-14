@@ -17,23 +17,21 @@
         </div>
     </x-slot>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.shops') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $shopCount }}</p>
-        </div>
+    <div class="grid gap-4 sm:grid-cols-3">
         <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.today') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ $todayVisits }}</p>
-            <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($todaySpend, 0) }}</p>
+            <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($todaySpend, 0) }} · {{ __('loop.visits') }}</p>
         </div>
         <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.members') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $memberCount }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.this_week') }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold">{{ $business->currency }} {{ number_format($weekSpend ?? 0, 0) }}</p>
+            <p class="text-xs text-ink-muted">{{ $weekVisits ?? 0 }} {{ __('loop.visits') }}</p>
         </div>
         <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $visitCount }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.this_month') }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold">{{ $business->currency }} {{ number_format($monthSpend ?? 0, 0) }}</p>
+            <p class="text-xs text-ink-muted">{{ $monthVisits ?? 0 }} {{ __('loop.sales') }}</p>
         </div>
     </div>
 
@@ -129,23 +127,26 @@
             </div>
         </section>
         <section>
-            @if ($recentVisits->isNotEmpty())
-                <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
-                <div class="divide-y divide-ink/10">
-                    @foreach ($recentVisits as $visit)
-                        <div class="flex items-center justify-between gap-4 py-3.5">
-                            <div class="min-w-0">
-                                <p class="font-semibold">{{ $visit->customer->name }}</p>
-                                <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
-                                <p class="mt-0.5 text-xs font-medium text-violet">+{{ $visit->points_earned }} pts</p>
-                            </div>
-                            <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
-                                {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                            </p>
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
+                <a href="{{ route('transactions.index') }}" class="text-sm font-semibold text-violet">{{ __('loop.view_all') }}</a>
+            </div>
+            <div class="divide-y divide-ink/10">
+                @forelse ($recentVisits as $visit)
+                    <div class="flex items-center justify-between gap-4 py-3.5">
+                        <div class="min-w-0">
+                            <p class="font-semibold">{{ $visit->customer->name }}</p>
+                            <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
+                            <p class="mt-0.5 text-xs font-medium text-violet">+{{ $visit->points_earned }} pts</p>
                         </div>
-                    @endforeach
-                </div>
-            @endif
+                        <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
+                            {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
+                        </p>
+                    </div>
+                @empty
+                    <p class="py-3 text-sm text-ink-muted">{{ __('loop.no_sales') }}</p>
+                @endforelse
+            </div>
         </section>
     </div>
 </x-app-layout>

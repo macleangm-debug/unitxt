@@ -12,7 +12,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none!important}</style>
 </head>
-<body class="font-sans" x-data="loopPageMotion()" autocomplete="off">
+<body class="font-sans overflow-x-hidden" x-data="loopPageMotion()" autocomplete="off">
 @php $isCustomer = auth()->user()?->isCustomer(); @endphp
 <div @class(['min-h-screen', 'pb-nav md:pb-0' => $isCustomer])>
     @include('layouts.navigation')

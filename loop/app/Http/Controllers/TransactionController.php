@@ -34,7 +34,7 @@ class TransactionController extends Controller
                 });
             })
             ->when($shopId, fn ($query) => $query->where('shop_id', $shopId))
-            ->when(in_array($channel, ['in_store', 'phone_order'], true), fn ($query) => $query->where('channel', $channel))
+            ->when(in_array($channel, ['in_store', 'phone_order', 'online'], true), fn ($query) => $query->where('channel', $channel))
             ->when($period === 'today', fn ($query) => $query->whereDate('created_at', today()))
             ->when($period === 'week', fn ($query) => $query->where('created_at', '>=', now()->startOfWeek()))
             ->when($period === 'month', fn ($query) => $query->where('created_at', '>=', now()->startOfMonth()));

@@ -67,7 +67,7 @@
                 go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
                 next() {
                     const form = this.$refs.form;
-                    const fields = form.querySelectorAll('[data-step=\"'+this.step+'\'] [name]');
+                    const fields = form.querySelectorAll('[data-step='+this.step+'] [name]');
                     for (const el of fields) {
                         if (el.disabled) continue;
                         if (el.hasAttribute('required') && !String(el.value || '').trim()) {
@@ -111,7 +111,7 @@
                 @endif
 
                 {{-- 1 · Basics --}}
-                <div data-step="1" x-show="step === 1" x-bind:hidden="step !== 1" x-transition.opacity.duration.200ms class="space-y-4">
+                <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.campaign_name') }}</h2>
                     <div>
@@ -143,7 +143,7 @@
                 </div>
 
                 {{-- 2 · Member gets (min spend + points + optional bonuses) --}}
-                <div data-step="2" hidden x-show="step === 2" x-bind:hidden="step !== 2" x-transition.opacity.duration.200ms class="space-y-4">
+                <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
@@ -210,7 +210,7 @@
                 </div>
 
                 {{-- 3 · Save / launch --}}
-                <div data-step="3" hidden x-show="step === 3" x-bind:hidden="step !== 3" x-transition.opacity.duration.200ms class="space-y-4">
+                <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.section_schedule') }}</h2>
                     <div class="grid gap-3 sm:grid-cols-2">

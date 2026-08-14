@@ -35,7 +35,7 @@
             go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
             next() {
                 const form = this.$refs.form;
-                const fields = form.querySelectorAll('[data-step=\"'+this.step+'\'] [name]');
+                const fields = form.querySelectorAll('[data-step='+this.step+'] [name]');
                 for (const el of fields) {
                     if (el.disabled) continue;
                     if (el.hasAttribute('required') && !String(el.value || '').trim()) {
@@ -77,7 +77,7 @@
             <input type="hidden" name="starts_at" value="{{ old('starts_at', $campaign->starts_at?->format('Y-m-d') ?? now()->toDateString()) }}">
             <input type="hidden" name="description" value="{{ old('description', $campaign->description) }}">
 
-            <div data-step="1" x-show="step === 1" x-bind:hidden="step !== 1" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.campaign_name') }}</label>
@@ -90,7 +90,7 @@
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
             </div>
 
-            <div data-step="2" hidden x-show="step === 2" x-bind:hidden="step !== 2" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
                 @if ($isEarn)
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <input type="hidden" name="spend_step" :value="spendValue()">
@@ -138,7 +138,7 @@
                 </div>
             </div>
 
-            <div data-step="3" hidden x-show="step === 3" x-bind:hidden="step !== 3" x-transition.opacity.duration.200ms class="space-y-4">
+            <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                 <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
                     {{ __('loop.campaign_offers_untied_hint') }}

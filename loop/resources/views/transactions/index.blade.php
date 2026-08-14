@@ -35,30 +35,58 @@
         </div>
     </div>
 
-    <form method="GET" action="{{ route('transactions.index') }}" class="mb-5 space-y-3 rounded-[1.5rem] border border-ink/8 bg-white/90 p-4">
-        <div class="flex flex-wrap gap-2">
-            @foreach (['all' => __('loop.all'), 'today' => __('loop.today'), 'week' => __('loop.this_week'), 'month' => __('loop.this_month')] as $key => $label)
-                <a href="{{ route('transactions.index', array_merge(request()->except('page'), ['period' => $key])) }}"
-                   class="rounded-xl px-3 py-1.5 text-xs font-semibold {{ ($filters['period'] ?? 'all') === $key ? 'bg-ink text-white' : 'bg-chalk text-ink-muted' }}">{{ $label }}</a>
-            @endforeach
-        </div>
-        <div class="grid gap-3 sm:grid-cols-[1fr_10rem_10rem_auto]">
-            <input type="search" name="q" value="{{ $filters['q'] }}" class="loop-input" placeholder="{{ __('loop.search_name_or_phone') }}">
-            <select name="shop" class="loop-input">
-                <option value="">{{ __('loop.all_shops') }}</option>
-                @foreach ($shops as $shop)
-                    <option value="{{ $shop->id }}" @selected((string) $filters['shop'] === (string) $shop->id)>{{ $shop->name }}</option>
-                @endforeach
-            </select>
-            <select name="channel" class="loop-input">
-                <option value="">{{ __('loop.all_channels') }}</option>
-                <option value="in_store" @selected($filters['channel'] === 'in_store')>{{ __('loop.in_store') }}</option>
-                <option value="phone_order" @selected($filters['channel'] === 'phone_order')>{{ __('loop.phone_order') }}</option>
-            </select>
+    <div class="mb-5 flex flex-wrap items-center gap-2">
+        <form method="GET" action="{{ route('transactions.index') }}" class="flex min-w-0 flex-1 gap-2">
+            <input type="search" name="q" value="{{ $filters['q'] }}" class="loop-input !py-2.5" placeholder="{{ __('loop.search_name_or_phone') }}">
             <input type="hidden" name="period" value="{{ $filters['period'] }}">
-            <button class="loop-btn-mint !py-2.5">{{ __('loop.apply') }}</button>
-        </div>
-    </form>
+            <input type="hidden" name="shop" value="{{ $filters['shop'] }}">
+            <input type="hidden" name="channel" value="{{ $filters['channel'] }}">
+            <button class="loop-btn-mint shrink-0 !py-2.5">{{ __('loop.search') }}</button>
+        </form>
+
+        <x-filter-sheet :title="__('loop.filters')">
+            <form method="GET" action="{{ route('transactions.index') }}" class="space-y-4">
+                <input type="hidden" name="q" value="{{ $filters['q'] }}">
+                <div>
+                    <p class="loop-label">{{ __('loop.period') }}</p>
+                    <div class="mt-2 grid grid-cols-2 gap-2">
+                        @foreach (['all' => __('loop.all'), 'today' => __('loop.today'), 'week' => __('loop.this_week'), 'month' => __('loop.this_month')] as $key => $label)
+                            <label class="flex cursor-pointer items-center gap-2 rounded-2xl border border-ink/10 px-3 py-3 text-sm has-[:checked]:border-violet has-[:checked]:bg-violet-soft/40">
+                                <input type="radio" name="period" value="{{ $key }}" class="text-violet" @checked(($filters['period'] ?? 'all') === $key)>
+                                {{ $label }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.shops') }}</label>
+                    <select name="shop" class="loop-input mt-1">
+                        <option value="">{{ __('loop.all_shops') }}</option>
+                        @foreach ($shops as $shop)
+                            <option value="{{ $shop->id }}" @selected((string) $filters['shop'] === (string) $shop->id)>{{ $shop->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.channel') }}</label>
+                    <select name="channel" class="loop-input mt-1">
+                        <option value="">{{ __('loop.all_channels') }}</option>
+                        <option value="in_store" @selected($filters['channel'] === 'in_store')>{{ __('loop.in_store') }}</option>
+                        <option value="phone_order" @selected($filters['channel'] === 'phone_order')>{{ __('loop.phone_order') }}</option>
+                        <option value="online" @selected($filters['channel'] === 'online')>{{ __('loop.online') }}</option>
+                    </select>
+                </div>
+                <button class="loop-btn-mint w-full">{{ __('loop.apply') }}</button>
+            </form>
+        </x-filter-sheet>
+    </div>
+
+    <div class="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-1">
+        @foreach (['all' => __('loop.all'), 'today' => __('loop.today'), 'week' => __('loop.this_week'), 'month' => __('loop.this_month')] as $key => $label)
+            <a href="{{ route('transactions.index', array_merge(request()->except('page'), ['period' => $key])) }}"
+               class="shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold {{ ($filters['period'] ?? 'all') === $key ? 'bg-ink text-white' : 'bg-chalk text-ink-muted' }}">{{ $label }}</a>
+        @endforeach
+    </div>
 
     <div class="space-y-3">
         @forelse ($visits as $visit)
@@ -69,6 +97,8 @@
                         {{ $visit->shop?->name }} · {{ $visit->created_at->format('d M Y · H:i') }}
                         @if ($visit->channel === 'phone_order')
                             · {{ __('loop.phone_order') }}
+                        @elseif ($visit->channel === 'online')
+                            · {{ __('loop.online') }}
                         @elseif ($visit->channel)
                             · {{ __('loop.in_store') }}
                         @endif
