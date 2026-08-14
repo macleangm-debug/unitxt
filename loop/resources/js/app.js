@@ -650,6 +650,118 @@ Alpine.data('loopReveal', (delay = 0) => ({
 }));
 
 /**
+ * Loop-branded camera scanner for member wallet QR on Sale.
+ */
+Alpine.data('loopQrScanner', () => ({
+    scanning: false,
+    status: '',
+    error: '',
+    stream: null,
+    raf: null,
+    detector: null,
+    async open() {
+        this.error = '';
+        this.status = '';
+        this.scanning = true;
+        await this.$nextTick();
+        try {
+            if (! window.isSecureContext && location.hostname !== 'localhost') {
+                throw new Error('secure');
+            }
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false,
+            });
+            const video = this.$refs.video;
+            video.srcObject = this.stream;
+            await video.play();
+            this.status = 'Scanning…';
+            if ('BarcodeDetector' in window) {
+                this.detector = new BarcodeDetector({ formats: ['qr_code'] });
+                this.tick();
+            } else {
+                this.status = 'Point the QR at the camera, then paste if needed.';
+            }
+        } catch (err) {
+            this.error = err?.message === 'secure'
+                ? 'Camera needs HTTPS. Type the phone number instead.'
+                : 'Camera unavailable. Type the phone number instead.';
+        }
+    },
+    async tick() {
+        if (! this.scanning || ! this.detector) {
+            return;
+        }
+        try {
+            const codes = await this.detector.detect(this.$refs.video);
+            if (codes?.length) {
+                this.handlePayload(codes[0].rawValue || '');
+                return;
+            }
+        } catch (_) {
+            /* keep scanning */
+        }
+        this.raf = requestAnimationFrame(() => this.tick());
+    },
+    handlePayload(raw) {
+        const text = String(raw || '').trim();
+        if (! text) {
+            return;
+        }
+        let dial = '';
+        let phone = '';
+        try {
+            const url = new URL(text, window.location.origin);
+            const scan = url.searchParams.get('scan') || '';
+            if (scan.includes('|')) {
+                [dial, phone] = scan.split('|');
+            }
+        } catch (_) {
+            /* not a URL */
+        }
+        if (! phone && text.includes('|')) {
+            [dial, phone] = text.split('|');
+        }
+        if (! phone && /^\+?\d{8,15}$/.test(text.replace(/\s+/g, ''))) {
+            phone = text.replace(/\D+/g, '').slice(-9);
+        }
+        phone = String(phone || '').replace(/\D+/g, '');
+        if (! phone) {
+            this.error = 'QR not recognized. Try again.';
+            this.raf = requestAnimationFrame(() => this.tick());
+            return;
+        }
+        const form = this.$el.closest('form') || this.$root?.closest?.('form');
+        const phoneInput = form?.querySelector('input[name="phone"]');
+        const dialInput = form?.querySelector('input[name="country_code"]');
+        if (phoneInput) {
+            phoneInput.value = phone;
+            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (dial && dialInput) {
+            dialInput.value = dial.startsWith('+') ? dial : `+${dial}`;
+        }
+        this.close();
+        form?.requestSubmit?.();
+    },
+    close() {
+        this.scanning = false;
+        if (this.raf) {
+            cancelAnimationFrame(this.raf);
+            this.raf = null;
+        }
+        if (this.stream) {
+            this.stream.getTracks().forEach((t) => t.stop());
+            this.stream = null;
+        }
+        const video = this.$refs.video;
+        if (video) {
+            video.srcObject = null;
+        }
+    },
+}));
+
+/**
  * Branded page veil — orb expands, then navigate (uses $store.loopNav).
  */
 Alpine.data('loopPageMotion', () => ({

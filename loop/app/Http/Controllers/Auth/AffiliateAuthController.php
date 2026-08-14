@@ -55,12 +55,11 @@ class AffiliateAuthController extends Controller
         }
 
         if (! $ok) {
-            return back()->withInput()->with('confirm', Confirm::make(
+            return back()->withInput()->with('confirm', Confirm::error(
                 __('loop.login_failed_title'),
                 __('loop.affiliate_login_failed'),
                 __('loop.try_again'),
                 route('affiliate.login'),
-                false,
             ));
         }
 

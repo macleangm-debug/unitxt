@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.upgrade_title') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.upgrade_title') }}</h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+            </div>
+            <x-settings-back />
         </div>
     </x-slot>
 

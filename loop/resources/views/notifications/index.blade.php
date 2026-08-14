@@ -32,6 +32,22 @@
     </x-slot>
 
     <div class="mx-auto max-w-2xl">
+        @if (! empty($insightBanners))
+            <section class="mb-8 space-y-3">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.performance') }}</p>
+                @foreach ($insightBanners as $banner)
+                    <div class="flex flex-wrap items-start justify-between gap-4 rounded-[1.5rem] border border-violet/20 bg-violet-soft/40 px-5 py-5">
+                        <div class="min-w-0 max-w-xl">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.performance') }}</p>
+                            <p class="mt-2 font-display text-2xl font-semibold text-ink">{{ $banner['title'] }}</p>
+                            <p class="mt-1 text-sm text-ink-muted">{{ $banner['body'] }}</p>
+                        </div>
+                        <a href="{{ $banner['url'] }}" class="shrink-0 rounded-2xl bg-violet px-5 py-2.5 text-sm font-semibold text-white" @click="$store.loopNav.go(@js($banner['url']), $event, { kind: 'push' })">{{ $banner['cta'] }}</a>
+                    </div>
+                @endforeach
+            </section>
+        @endif
+
         @forelse ($grouped as $date => $dayItems)
             <section class="mb-8">
                 <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">

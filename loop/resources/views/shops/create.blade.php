@@ -1,7 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.add_shop') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.add_shop_blurb', ['country' => $business->country]) }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.add_shop') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.add_shop_blurb', ['country' => $business->country]) }}</p>
+            </div>
+            <x-settings-back />
+        </div>
     </x-slot>
 
     <form method="POST" action="{{ route('shops.store') }}" class="loop-panel mx-auto max-w-xl space-y-5 p-6 sm:p-8">

@@ -5,7 +5,10 @@
                 <h1 class="font-display text-3xl font-semibold">{{ __('loop.shops') }}</h1>
                 <p class="mt-1 text-ink-muted">{{ __('loop.shops_blurb') }}</p>
             </div>
-            <a href="{{ route('shops.create') }}" class="loop-btn-mint">{{ __('loop.add_shop') }}</a>
+            <div class="flex flex-wrap gap-2">
+                <x-settings-back />
+                <a href="{{ route('shops.create') }}" class="loop-btn-mint">{{ __('loop.add_shop') }}</a>
+            </div>
         </div>
     </x-slot>
 
@@ -34,11 +37,12 @@
                 </div>
             </a>
         @empty
-            <div class="loop-panel p-8 text-center">
-                <p class="font-display text-lg font-semibold">{{ __('loop.no_shops_yet') }}</p>
-                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.shops_blurb') }}</p>
-                <a href="{{ route('shops.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.add_shop') }}</a>
-            </div>
+            <x-empty-state
+                :title="__('loop.no_shops_yet')"
+                :blurb="__('loop.shops_blurb')"
+                :cta="__('loop.add_shop')"
+                :url="route('shops.create')"
+            />
         @endforelse
     </div>
 </x-app-layout>

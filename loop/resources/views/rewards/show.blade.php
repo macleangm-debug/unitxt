@@ -12,7 +12,7 @@
                 <p class="mt-1 text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} pts</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index') }}#offers" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+                <x-settings-back :href="route('campaigns.index').'#offers'" :label="__('loop.back')" />
                 <a href="{{ route('rewards.edit', $reward) }}" class="loop-btn-mint !py-2">{{ __('loop.edit') }}</a>
             </div>
         </div>

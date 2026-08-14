@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\InAppNotification;
+use App\Services\BusinessInsightService;
 use App\Services\DailyNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -10,13 +11,18 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request, DailyNotificationService $daily): View
+    public function index(Request $request, DailyNotificationService $daily, BusinessInsightService $insights): View
     {
         $user = $request->user();
         abort_unless($user->isOwner() || $user->isAdmin() || $user->isAffiliate() || $user->isCustomer(), 403);
 
+        $insightBanners = [];
+
         if ($user->isOwner()) {
             $daily->ensureTodayForOwner($user);
+            if ($user->ownedBusiness) {
+                $insightBanners = $insights->heroBanners($user->ownedBusiness);
+            }
         }
 
         $notifications = InAppNotification::query()
@@ -41,6 +47,7 @@ class NotificationController extends Controller
             'notifications' => $notifications,
             'unreadCount' => $unreadCount,
             'audience' => $audience,
+            'insightBanners' => $insightBanners,
         ]);
     }
 

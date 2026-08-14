@@ -9,14 +9,18 @@
     $createSteps = [
         1 => __('loop.section_basics'),
         2 => __('loop.customer_gets'),
-        3 => __('loop.section_bonuses'),
-        4 => __('loop.section_schedule'),
+        3 => __('loop.save'),
     ];
 @endphp
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.new_campaign') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.campaign_create_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.new_campaign') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.campaign_create_blurb') }}</p>
+            </div>
+            <x-settings-back :href="route('campaigns.index')" :label="__('loop.back')" />
+        </div>
     </x-slot>
 
     @if ($picking)
@@ -53,7 +57,7 @@
             class="mx-auto max-w-2xl"
             x-data="{
                 step: {{ (int) old('_step', 1) }},
-                total: 4,
+                total: 3,
                 enableWelcome: {{ old('enable_welcome') ? 'true' : 'false' }},
                 enableBirthday: {{ old('enable_birthday') ? 'true' : 'false' }},
                 enableStreak: {{ old('enable_streak') ? 'true' : 'false' }},
@@ -107,7 +111,7 @@
                 @endif
 
                 {{-- 1 · Basics --}}
-                <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
+                <div data-step="1" x-show="step === 1" x-bind:hidden="step !== 1" x-transition.opacity.duration.200ms class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.campaign_name') }}</h2>
                     <div>
@@ -138,8 +142,8 @@
                     <a href="{{ route('campaigns.create') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
                 </div>
 
-                {{-- 2 · Customer gets --}}
-                <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
+                {{-- 2 · Member gets (min spend + points + optional bonuses) --}}
+                <div data-step="2" hidden x-show="step === 2" x-bind:hidden="step !== 2" x-transition.opacity.duration.200ms class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
@@ -159,62 +163,55 @@
                         <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
                         <span x-text="spendDisplay || '0'"></span> <span x-text="currency"></span>
                     </p>
+
+                    <div class="rounded-2xl border border-dashed border-ink/10 bg-chalk/40 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.section_bonuses') }} · {{ __('loop.optional') }}</p>
+                        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.bonuses_body') }}</p>
+
+                        <label class="mt-3 flex items-start gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-ink/5">
+                            <input type="checkbox" name="enable_welcome" value="1" class="mt-1" x-model="enableWelcome">
+                            <span class="flex-1">
+                                <span class="block text-sm font-semibold">{{ __('loop.type_welcome') }}</span>
+                                <span class="text-xs text-ink-muted">{{ __('loop.welcome_bonus_hint') }}</span>
+                                <input type="number" name="welcome_points" class="loop-input mt-2" value="{{ old('welcome_points', 20) }}" x-show="enableWelcome" x-cloak>
+                            </span>
+                        </label>
+
+                        <label class="mt-2 flex items-start gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-ink/5">
+                            <input type="checkbox" name="enable_birthday" value="1" class="mt-1" x-model="enableBirthday">
+                            <span class="flex-1">
+                                <span class="block text-sm font-semibold">{{ __('loop.type_birthday') }}</span>
+                                <span class="text-xs text-ink-muted">{{ __('loop.birthday_bonus_hint') }}</span>
+                                <input type="number" name="birthday_points" class="loop-input mt-2" value="{{ old('birthday_points', 50) }}" x-show="enableBirthday" x-cloak>
+                            </span>
+                        </label>
+
+                        <label class="mt-2 flex items-start gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-ink/5">
+                            <input type="checkbox" name="enable_streak" value="1" class="mt-1" x-model="enableStreak">
+                            <span class="flex-1">
+                                <span class="block text-sm font-semibold">{{ __('loop.type_streak') }}</span>
+                                <span class="text-xs text-ink-muted">{{ __('loop.streak_advice') }}</span>
+                                <div class="mt-2 grid gap-2 sm:grid-cols-3" x-show="enableStreak" x-cloak>
+                                    <input type="number" name="streak_target" class="loop-input" placeholder="{{ __('loop.streak_target') }}" value="{{ old('streak_target', 3) }}">
+                                    <select name="streak_period" class="loop-input">
+                                        <option value="week">{{ __('loop.streak_period_week') }}</option>
+                                        <option value="month">{{ __('loop.streak_period_month') }}</option>
+                                    </select>
+                                    <input type="number" name="streak_points" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" value="{{ old('streak_points', 30) }}">
+                                </div>
+                            </span>
+                        </label>
+                    </div>
+
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
                         <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
                     </div>
                 </div>
 
-                {{-- 3 · Bonuses (optional) --}}
-                <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_bonuses') }}</p>
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.bonuses_title') }}</h2>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.bonuses_body') }}</p>
-
-                    <label class="flex items-start gap-3 rounded-2xl bg-chalk/50 px-4 py-3 ring-1 ring-ink/5">
-                        <input type="checkbox" name="enable_welcome" value="1" class="mt-1" x-model="enableWelcome">
-                        <span class="flex-1">
-                            <span class="block text-sm font-semibold">{{ __('loop.type_welcome') }}</span>
-                            <span class="text-xs text-ink-muted">{{ __('loop.welcome_bonus_hint') }}</span>
-                            <input type="number" name="welcome_points" class="loop-input mt-2" value="{{ old('welcome_points', 20) }}" x-show="enableWelcome" x-cloak>
-                        </span>
-                    </label>
-
-                    <label class="flex items-start gap-3 rounded-2xl bg-chalk/50 px-4 py-3 ring-1 ring-ink/5">
-                        <input type="checkbox" name="enable_birthday" value="1" class="mt-1" x-model="enableBirthday">
-                        <span class="flex-1">
-                            <span class="block text-sm font-semibold">{{ __('loop.type_birthday') }}</span>
-                            <span class="text-xs text-ink-muted">{{ __('loop.birthday_bonus_hint') }}</span>
-                            <input type="number" name="birthday_points" class="loop-input mt-2" value="{{ old('birthday_points', 50) }}" x-show="enableBirthday" x-cloak>
-                        </span>
-                    </label>
-
-                    <label class="flex items-start gap-3 rounded-2xl bg-chalk/50 px-4 py-3 ring-1 ring-ink/5">
-                        <input type="checkbox" name="enable_streak" value="1" class="mt-1" x-model="enableStreak">
-                        <span class="flex-1">
-                            <span class="block text-sm font-semibold">{{ __('loop.type_streak') }}</span>
-                            <span class="text-xs text-ink-muted">{{ __('loop.streak_advice') }}</span>
-                            <div class="mt-2 grid gap-2 sm:grid-cols-3" x-show="enableStreak" x-cloak>
-                                <input type="number" name="streak_target" class="loop-input" placeholder="{{ __('loop.streak_target') }}" value="{{ old('streak_target', 3) }}">
-                                <select name="streak_period" class="loop-input">
-                                    <option value="week">{{ __('loop.streak_period_week') }}</option>
-                                    <option value="month">{{ __('loop.streak_period_month') }}</option>
-                                </select>
-                                <input type="number" name="streak_points" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" value="{{ old('streak_points', 30) }}">
-                            </div>
-                        </span>
-                    </label>
-
-                    <div class="flex gap-3">
-                        <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
-                        <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
-                    </div>
-                    <button type="button" class="w-full text-sm font-semibold text-ink-muted underline" @click="go(4)">{{ __('loop.skip_for_now') }}</button>
-                </div>
-
-                {{-- 4 · Schedule --}}
-                <div data-step="4" :class="step === 4 ? '' : 'hidden'" class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_schedule') }}</p>
+                {{-- 3 · Save / launch --}}
+                <div data-step="3" hidden x-show="step === 3" x-bind:hidden="step !== 3" x-transition.opacity.duration.200ms class="space-y-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.section_schedule') }}</h2>
                     <div class="grid gap-3 sm:grid-cols-2">
                         <x-date-field name="starts_at" :label="__('loop.starts')" :value="old('starts_at', now()->format('Y-m-d'))" required />
@@ -231,8 +228,12 @@
                             @endforeach
                         </div>
                     </div>
+                    <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
+                        {{ __('loop.campaign_offers_untied_hint') }}
+                        <a href="{{ route('rewards.create') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('rewards.create')), $event, { kind: 'push' })">{{ __('loop.offers') }} →</a>
+                    </p>
                     <div class="flex gap-3">
-                        <button type="button" class="loop-btn-ghost flex-1" @click="go(3)">{{ __('loop.back') }}</button>
+                        <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
                         <button class="loop-btn-mint flex-1">{{ __('loop.launch_campaign') }}</button>
                     </div>
                 </div>

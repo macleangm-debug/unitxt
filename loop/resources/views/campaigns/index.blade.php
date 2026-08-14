@@ -1,8 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+            </div>
+            <x-settings-back />
         </div>
     </x-slot>
 
@@ -30,11 +33,12 @@
                     </div>
                 </a>
             @empty
-                <div class="loop-panel p-8 text-center">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.no_campaigns_yet') }}</p>
-                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.how_they_earn_body') }}</p>
-                    <a href="{{ route('campaigns.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.new_campaign') }}</a>
-                </div>
+                <x-empty-state
+                    :title="__('loop.no_campaigns_yet')"
+                    :blurb="__('loop.how_they_earn_body')"
+                    :cta="__('loop.new_campaign')"
+                    :url="route('campaigns.create')"
+                />
             @endforelse
         </div>
     </section>

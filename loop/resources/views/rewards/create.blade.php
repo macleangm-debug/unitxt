@@ -60,8 +60,7 @@
             $offerSteps = [
                 1 => __('loop.section_basics'),
                 2 => __('loop.section_offer_reward'),
-                3 => __('loop.section_offer_cost'),
-                4 => __('loop.section_limits'),
+                3 => __('loop.save'),
             ];
         @endphp
 
@@ -69,7 +68,7 @@
             class="mx-auto max-w-2xl"
             x-data="{
                 step: {{ (int) old('_step', 1) }},
-                total: 4,
+                total: 3,
                 type: @js($defaultType),
                 name: @js($defaultName),
                 points: {{ (int) $defaultPoints }},
@@ -132,7 +131,7 @@
                 </div>
 
                 {{-- 1 · Basics --}}
-                <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
+                <div data-step="1" x-show="step === 1" x-bind:hidden="step !== 1" x-transition.opacity.duration.200ms class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.name_your_offer') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.offer_name_hint', ['business' => $biz]) }}</p>
@@ -153,8 +152,8 @@
                     <a href="{{ route('rewards.create') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
                 </div>
 
-                {{-- 2 · Reward --}}
-                <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
+                {{-- 2 · Reward + points cost --}}
+                <div data-step="2" hidden x-show="step === 2" x-bind:hidden="step !== 2" x-transition.opacity.duration.200ms class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_offer_reward') }}</p>
 
                     @if ($defaultType === 'percent_off')
@@ -177,32 +176,26 @@
                         <input name="product_name" class="loop-input" x-model="product" placeholder="{{ __('loop.tie_to_product_placeholder') }}">
                     @endif
 
+                    <div class="rounded-2xl border border-ink/8 bg-chalk/40 p-4">
+                        <label class="loop-label">{{ __('loop.points_to_unlock') }}</label>
+                        <p class="mb-2 text-sm text-ink-muted">{{ __('loop.points_to_unlock_help') }}</p>
+                        <input type="number" name="points_cost" x-model.number="points" class="loop-input" :required="step === 2" min="1">
+                        <p class="mt-3 text-center font-display text-lg font-bold" x-show="unlockSpend() > 0" style="{{ $spendPerPoint > 0 ? '' : 'display:none' }}">
+                            {{ __('loop.customer_spend_to_unlock_prefix') }}
+                            <span x-text="currency + ' ' + unlockSpend().toLocaleString()"></span>
+                            {{ __('loop.customer_spend_to_unlock_suffix') }}
+                        </p>
+                    </div>
+
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
                         <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
                     </div>
                 </div>
 
-                {{-- 3 · Points --}}
-                <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_offer_cost') }}</p>
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.points_to_unlock') }}</h2>
-                    <p class="text-sm text-ink-muted">{{ __('loop.points_to_unlock_help') }}</p>
-                    <input type="number" name="points_cost" x-model.number="points" class="loop-input" :required="step === 3" min="1">
-                    <p class="text-center font-display text-xl font-bold" x-show="unlockSpend() > 0" style="{{ $spendPerPoint > 0 ? '' : 'display:none' }}">
-                        {{ __('loop.customer_spend_to_unlock_prefix') }}
-                        <span x-text="currency + ' ' + unlockSpend().toLocaleString()"></span>
-                        {{ __('loop.customer_spend_to_unlock_suffix') }}
-                    </p>
-                    <div class="flex gap-3">
-                        <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
-                        <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
-                    </div>
-                </div>
-
-                {{-- 4 · Limits (optional) --}}
-                <div data-step="4" :class="step === 4 ? '' : 'hidden'" class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_limits') }}</p>
+                {{-- 3 · Limits + launch --}}
+                <div data-step="3" hidden x-show="step === 3" x-bind:hidden="step !== 3" x-transition.opacity.duration.200ms class="space-y-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.section_limits') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.limits_optional_hint') }}</p>
                     <div class="grid gap-3 sm:grid-cols-2">
@@ -215,11 +208,14 @@
                             <input type="number" name="max_redemptions_per_member" class="loop-input" min="1" value="{{ old('max_redemptions_per_member') }}">
                         </div>
                     </div>
+                    <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
+                        {{ __('loop.campaign_offers_untied_hint') }}
+                        <a href="{{ route('campaigns.index') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('campaigns.index')), $event, { kind: 'back' })">{{ __('loop.campaigns') }} →</a>
+                    </p>
                     <div class="flex gap-3">
-                        <button type="button" class="loop-btn-ghost flex-1" @click="go(3)">{{ __('loop.back') }}</button>
+                        <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
                         <button class="loop-btn-mint flex-1">{{ __('loop.confirm_launch_offer') }}</button>
                     </div>
-                    <button type="submit" class="w-full text-sm font-semibold text-ink-muted underline">{{ __('loop.skip_for_now') }} — {{ __('loop.confirm_launch_offer') }}</button>
                 </div>
             </form>
         </div>

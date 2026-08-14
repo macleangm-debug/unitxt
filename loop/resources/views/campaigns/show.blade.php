@@ -19,7 +19,7 @@
                 <p class="mt-2 text-sm text-ink-muted">{{ $campaign->scheduleLabel() }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
+                <x-settings-back :href="route('campaigns.index')" :label="__('loop.back')" />
                 <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
                     @csrf
                     <button class="loop-btn-ghost !py-2.5">

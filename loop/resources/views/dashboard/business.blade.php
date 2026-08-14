@@ -37,36 +37,6 @@
         </div>
     </div>
 
-    @if ($isOwner && !empty($heroBanners))
-        <div class="mt-6 space-y-4">
-            @foreach ($heroBanners as $banner)
-                <section @class([
-                    'overflow-hidden rounded-[1.5rem] p-6',
-                    'border border-violet/20 bg-violet-soft/50' => ($banner['tone'] ?? '') === 'mint',
-                    'border border-coral/25 bg-coral/10' => ($banner['tone'] ?? '') === 'coral',
-                    'loop-wallet' => ($banner['tone'] ?? '') === 'ink',
-                ])>
-                    <div class="relative flex flex-wrap items-start justify-between gap-4">
-                        <div class="max-w-xl">
-                            <p @class([
-                                'text-xs font-semibold uppercase tracking-[0.14em]',
-                                'text-violet' => ($banner['tone'] ?? '') !== 'ink',
-                                'text-lime' => ($banner['tone'] ?? '') === 'ink',
-                            ])>{{ __('loop.performance') }}</p>
-                            <h2 class="mt-2 font-display text-2xl font-semibold {{ ($banner['tone'] ?? '') === 'ink' ? 'text-white' : '' }}">{{ $banner['title'] }}</h2>
-                            <p @class(['mt-2 text-sm', 'text-ink-muted' => ($banner['tone'] ?? '') !== 'ink', 'text-white/70' => ($banner['tone'] ?? '') === 'ink'])>{{ $banner['body'] }}</p>
-                        </div>
-                        <a href="{{ $banner['url'] }}" @class([
-                            'rounded-2xl px-5 py-2.5 text-sm font-semibold',
-                            'bg-violet text-white' => ($banner['tone'] ?? '') !== 'ink',
-                            'bg-lime text-ink' => ($banner['tone'] ?? '') === 'ink',
-                        ])>{{ $banner['cta'] }}</a>
-                    </div>
-                </section>
-            @endforeach
-        </div>
-    @endif
-
     @if ($isOwner && !empty($needsUpgrade))
         <section class="mt-6 overflow-hidden rounded-[1.5rem] border border-coral/25 bg-white p-6">
             <div class="flex flex-wrap items-start justify-between gap-4">

@@ -1100,7 +1100,20 @@ class LoopCoreFlowTest extends TestCase
             ->get(route('shops.show', $shop))
             ->assertOk()
             ->assertSee(__('loop.edit'))
-            ->assertSee(__('loop.shared_logo_hint'));
+            ->assertSee(__('loop.branch_details'))
+            ->assertDontSee(__('loop.shared_logo_hint'))
+            ->assertSee(__('loop.settings'));
+
+        $this->actingAs($owner)
+            ->get(route('transactions.index', ['q' => 'Asha', 'period' => 'all']))
+            ->assertOk()
+            ->assertSee(__('loop.search_name_or_phone'));
+
+        $this->actingAs($owner)
+            ->get(route('customers.index', ['q' => 'Asha', 'tab' => 'all']))
+            ->assertOk()
+            ->assertSee(__('loop.search_name_or_phone'))
+            ->assertSee('Asha');
 
         $this->actingAs($owner)
             ->put(route('shops.update', $shop), [
