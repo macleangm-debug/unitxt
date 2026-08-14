@@ -56,6 +56,7 @@ class BillingController extends Controller
                 'plan_key' => $plan->key,
                 'billing_status' => 'active',
                 'trial_ends_at' => null,
+                'past_due_at' => null,
             ]);
 
             return redirect()->route('billing.show')->with('status', __('loop.plan_activated', ['plan' => $plan->name]));

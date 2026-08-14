@@ -61,6 +61,10 @@ class DashboardController extends Controller
                 ? app(\App\Services\BusinessInsightService::class)->heroBanners($business)
                 : [];
 
+            $inGrace = $user->isOwner() && $limits->inGracePeriod($business);
+            $pastGrace = $user->isOwner() && $limits->pastGrace($business);
+            $earnPausedNoOffer = $user->isOwner() && ! $business->hasRedeemableOffer();
+
             return view('dashboard.business', [
                 'business' => $business,
                 'shopCount' => $business->shops()->count(),
@@ -77,7 +81,9 @@ class DashboardController extends Controller
                 'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
                 'heroBanners' => $insights,
-                'showWelcome' => $request->session()->pull('show_welcome', false) || $request->boolean('welcome'),
+                'showWelcome' => $request->session()->pull('show_welcome', false)
+                    || $request->session()->pull('show_business_intro', false)
+                    || $request->boolean('welcome'),
                 'referralProgress' => $user->isOwner()
                     ? app(ReferralService::class)->progress($business)
                     : null,
@@ -85,10 +91,14 @@ class DashboardController extends Controller
                     ? app(ReferralService::class)->shareUrl($business)
                     : null,
                 'needsUpgrade' => $user->isOwner() && (
-                    $limits->trialExpired($business) || $business->billing_status === 'past_due'
+                    $limits->isUnpaid($business)
                     || ($business->billing_status === 'trialing' && ! Plans::isPaidPlan($business->plan_key))
                 ),
                 'trialExpired' => $user->isOwner() && $limits->trialExpired($business),
+                'inGrace' => $inGrace,
+                'pastGrace' => $pastGrace,
+                'graceDaysLeft' => $user->isOwner() ? $limits->graceDaysLeft($business) : 0,
+                'earnPausedNoOffer' => $earnPausedNoOffer,
                 'trialDaysLeft' => ($user->isOwner() && $business->trial_ends_at && $business->trial_ends_at->isFuture())
                     ? (int) now()->diffInDays($business->trial_ends_at)
                     : 0,

@@ -43,7 +43,7 @@ class DailyNotificationService
             'cta_key' => 'loop.add_offer',
             'url' => route('rewards.create'),
             'tone' => 'ink',
-            'when' => $business->rewards()->where('is_active', true)->doesntExist(),
+            'when' => ! $business->hasRedeemableOffer(),
         ]);
 
         $created += $this->push($owner, $business, 'setup_campaign', 'need_earn', $day, [

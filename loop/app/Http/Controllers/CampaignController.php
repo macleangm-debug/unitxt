@@ -28,7 +28,15 @@ class CampaignController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->canManageCampaigns(), 403);
 
-        $offers = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+        $offers = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get()
+            ->filter(fn ($r) => $r->isAvailable())
+            ->values();
+        if ($offers->isEmpty()) {
+            \App\Support\DefaultOffer::ensure($business);
+            $offers = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get()
+                ->filter(fn ($r) => $r->isAvailable())
+                ->values();
+        }
         if ($offers->isEmpty()) {
             return redirect()
                 ->route('rewards.create')
@@ -71,7 +79,10 @@ class CampaignController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->canManageCampaigns(), 403);
 
-        if ($business->rewards()->where('is_active', true)->doesntExist()) {
+        if (! $business->hasRedeemableOffer()) {
+            \App\Support\DefaultOffer::ensure($business);
+        }
+        if (! $business->fresh()->hasRedeemableOffer()) {
             return redirect()->route('rewards.create')->withErrors([
                 'offer' => __('loop.need_offer_first_body'),
             ]);

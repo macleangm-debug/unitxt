@@ -331,12 +331,15 @@ class OnboardingController extends Controller
                 ));
         }
 
+        \App\Support\DefaultOffer::ensure($business);
+
         $campaign = $business->campaigns()->latest()->first();
         if ($campaign) {
             $campaign->shops()->sync($business->shops()->pluck('id'));
         }
 
         $business->update(['onboarding_completed_at' => now()]);
+        $request->session()->put('show_business_intro', true);
 
         app(\App\Services\ReferralService::class)->qualifyForBusiness($business->fresh());
         app(\App\Services\AffiliateService::class)->qualifyForBusiness($business->fresh());

@@ -17,6 +17,54 @@
         </div>
     </x-slot>
 
+    @if ($isOwner && (($showWelcome ?? false) || session('show_business_intro') || ! auth()->user()->intro_seen_at))
+        <x-intro-carousel audience="business" />
+    @endif
+
+    @if ($isOwner && !empty($needsUpgrade))
+        <section class="mb-6 overflow-hidden rounded-[1.5rem] border border-coral/25 bg-white p-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="max-w-xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-coral">{{ __('loop.billing') }}</p>
+                    <h2 class="mt-2 font-display text-2xl font-semibold">
+                        @if (!empty($inGrace))
+                            {{ __('loop.grace_banner_title') }}
+                        @elseif (!empty($trialExpired) || !empty($pastGrace))
+                            {{ __('loop.trial_ended_title') }}
+                        @else
+                            {{ __('loop.upgrade_nudge_title') }}
+                        @endif
+                    </h2>
+                    <p class="mt-2 text-sm text-ink-muted">
+                        @if (!empty($inGrace))
+                            {{ __('loop.grace_banner_body', ['days' => $graceDaysLeft ?? 0]) }}
+                        @elseif (!empty($pastGrace) || !empty($trialExpired))
+                            {{ __('loop.unpaid_locked_body') }}
+                        @elseif (($trialDaysLeft ?? 0) > 0)
+                            {{ __('loop.trial_days_left', ['days' => $trialDaysLeft]) }} — {{ __('loop.upgrade_nudge_body') }}
+                        @else
+                            {{ __('loop.upgrade_nudge_body') }}
+                        @endif
+                    </p>
+                </div>
+                <a href="{{ route('billing.show') }}" class="loop-btn">{{ __('loop.upgrade_now') }}</a>
+            </div>
+        </section>
+    @endif
+
+    @if ($isOwner && !empty($earnPausedNoOffer))
+        <section class="mb-6 overflow-hidden rounded-[1.5rem] border border-violet/20 bg-violet-soft/40 p-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="max-w-xl">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.offers') }}</p>
+                    <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.earn_paused_no_offer_title') }}</h2>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.earn_paused_no_offer_body') }}</p>
+                </div>
+                <a href="{{ route('rewards.create') }}" class="loop-btn-mint">{{ __('loop.add_offer') }}</a>
+            </div>
+        </section>
+    @endif
+
     <div class="grid gap-4 sm:grid-cols-3">
         <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.today') }}</p>
@@ -34,29 +82,6 @@
             <p class="text-xs text-ink-muted">{{ $monthVisits ?? 0 }} {{ __('loop.sales') }}</p>
         </div>
     </div>
-
-    @if ($isOwner && !empty($needsUpgrade))
-        <section class="mt-6 overflow-hidden rounded-[1.5rem] border border-coral/25 bg-white p-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="max-w-xl">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-coral">{{ __('loop.billing') }}</p>
-                    <h2 class="mt-2 font-display text-2xl font-semibold">
-                        {{ !empty($trialExpired) ? __('loop.trial_ended_title') : __('loop.upgrade_nudge_title') }}
-                    </h2>
-                    <p class="mt-2 text-sm text-ink-muted">
-                        @if (!empty($trialExpired))
-                            {{ __('loop.trial_ended_body') }}
-                        @elseif (($trialDaysLeft ?? 0) > 0)
-                            {{ __('loop.trial_days_left', ['days' => $trialDaysLeft]) }} — {{ __('loop.upgrade_nudge_body') }}
-                        @else
-                            {{ __('loop.upgrade_nudge_body') }}
-                        @endif
-                    </p>
-                </div>
-                <a href="{{ route('billing.show') }}" class="loop-btn">{{ __('loop.upgrade_now') }}</a>
-            </div>
-        </section>
-    @endif
 
     @if ($isOwner && $referralProgress)
         <section class="loop-wallet loop-wallet--liquid mt-6 p-6">

@@ -242,6 +242,35 @@
                         </div>
                     </div>
                     <p class="rounded-2xl border border-mint/25 bg-mint-soft/40 px-4 py-3 text-center font-display text-base font-semibold text-ink" x-text="limitsSummary()"></p>
+
+                    <div class="rounded-2xl border border-ink/8 bg-chalk/40 p-4" x-data="{ scheduleMode: 'evergreen' }">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.offer_schedule') }}</p>
+                        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_schedule_help') }}</p>
+                        <div class="mt-3 grid grid-cols-2 gap-2">
+                            <label class="rounded-xl border border-ink/10 bg-white px-3 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" name="schedule_mode" value="evergreen" class="sr-only" x-model="scheduleMode" checked>
+                                <span class="font-semibold">{{ __('loop.offer_evergreen') }}</span>
+                            </label>
+                            <label class="rounded-xl border border-ink/10 bg-white px-3 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" name="schedule_mode" value="scheduled" class="sr-only" x-model="scheduleMode">
+                                <span class="font-semibold">{{ __('loop.offer_scheduled') }}</span>
+                            </label>
+                        </div>
+                        <div class="mt-3 grid gap-3 sm:grid-cols-2" x-show="scheduleMode === 'scheduled'" x-cloak>
+                            <div>
+                                <label class="loop-label">{{ __('loop.starts_at') }}</label>
+                                <input type="date" name="starts_at" class="loop-input" value="{{ old('starts_at') }}">
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.ends_at') }}</label>
+                                <input type="date" name="ends_at" class="loop-input" value="{{ old('ends_at') }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
+                        {{ __('loop.default_offer_owner_hint') }}
+                    </p>
                     <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
                         {{ __('loop.campaign_offers_untied_hint') }}
                         <a href="{{ route('campaigns.index') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('campaigns.index')), $event, { kind: 'back' })">{{ __('loop.campaigns') }} →</a>

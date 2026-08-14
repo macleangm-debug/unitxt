@@ -137,10 +137,47 @@
                     </div>
                 </div>
                 <p class="rounded-2xl border border-mint/25 bg-mint-soft/40 px-4 py-3 text-center font-display text-base font-semibold text-ink" x-text="limitsSummary()"></p>
+
+                <div class="rounded-2xl border border-ink/8 bg-chalk/40 p-4" x-data="{ scheduleMode: @js(old('schedule_mode', ($reward->starts_at || $reward->ends_at) ? 'scheduled' : 'evergreen')) }">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.offer_schedule') }}</p>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <label class="rounded-xl border border-ink/10 bg-white px-3 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                            <input type="radio" name="schedule_mode" value="evergreen" class="sr-only" x-model="scheduleMode">
+                            <span class="font-semibold">{{ __('loop.offer_evergreen') }}</span>
+                        </label>
+                        <label class="rounded-xl border border-ink/10 bg-white px-3 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                            <input type="radio" name="schedule_mode" value="scheduled" class="sr-only" x-model="scheduleMode">
+                            <span class="font-semibold">{{ __('loop.offer_scheduled') }}</span>
+                        </label>
+                    </div>
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2" x-show="scheduleMode === 'scheduled'" x-cloak>
+                        <div>
+                            <label class="loop-label">{{ __('loop.starts_at') }}</label>
+                            <input type="date" name="starts_at" class="loop-input" value="{{ old('starts_at', $reward->starts_at?->toDateString()) }}">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.ends_at') }}</label>
+                            <input type="date" name="ends_at" class="loop-input" value="{{ old('ends_at', $reward->ends_at?->toDateString()) }}">
+                        </div>
+                    </div>
+                </div>
+
                 <label class="flex items-center gap-2 text-sm font-semibold">
                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $reward->is_active)) class="rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
                     {{ __('loop.live') }}
                 </label>
+
+                <div class="rounded-2xl border border-coral/20 bg-coral/5 px-4 py-3">
+                    <label class="flex items-start gap-3 text-sm">
+                        <input type="checkbox" name="confirm_worsen" value="1" class="mt-1 rounded border-ink/20 text-coral focus:ring-coral" @checked(old('confirm_worsen'))>
+                        <span>
+                            <span class="font-semibold text-ink">{{ __('loop.offer_worsen_confirm_title') }}</span>
+                            <span class="mt-1 block text-ink-muted">{{ __('loop.offer_worsen_confirm_body') }}</span>
+                        </span>
+                    </label>
+                    <x-input-error :messages="$errors->get('confirm_worsen')" class="mt-2" />
+                </div>
+
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click.prevent="go(2)">{{ __('loop.back') }}</button>
                     <button class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">

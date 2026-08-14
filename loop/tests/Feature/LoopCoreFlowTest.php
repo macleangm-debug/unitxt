@@ -651,7 +651,13 @@ class LoopCoreFlowTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('campaigns.create'))
-            ->assertRedirect(route('rewards.create'));
+            ->assertOk();
+
+        $this->assertTrue($business->fresh()->hasRedeemableOffer());
+        $this->assertDatabaseHas('rewards', [
+            'business_id' => $business->id,
+            'is_default' => true,
+        ]);
     }
 
     public function test_raffle_unlocks_after_member_threshold(): void
@@ -898,13 +904,18 @@ class LoopCoreFlowTest extends TestCase
                 'features' => $plan['features'],
             ]);
         }
-        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, \App\Support\BillingSettings::defaults());
+        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, [
+            ...\App\Support\BillingSettings::defaults(),
+            'grace_days' => 0,
+            'block_till_when_trial_ends' => true,
+        ]);
 
         [$owner, $business, $shop] = $this->seedBusiness();
         $business->update([
             'plan_key' => 'free',
-            'billing_status' => 'trialing',
+            'billing_status' => 'past_due',
             'trial_ends_at' => now()->subDay(),
+            'past_due_at' => now()->subDay(),
         ]);
 
         $staff = User::factory()->frontDesk()->create([

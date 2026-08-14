@@ -129,6 +129,7 @@ class PaymentService
                 'plan_key' => $intent->plan_key,
                 'billing_status' => 'active',
                 'trial_ends_at' => null,
+                'past_due_at' => null,
             ]);
         }
     }

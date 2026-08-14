@@ -155,6 +155,7 @@ class CustomerAuthController extends Controller
             'birth_day' => $data['birth_day'] ?? null,
             'email' => $data['email'] ?? null,
             'interests' => $data['interests'] ?? [],
+            'interests_prompt_seen_at' => ! empty($data['interests'] ?? []) ? now() : null,
             'password' => Hash::make($data['pin']),
             'phone_verified_at' => now(),
             'profile_completed' => true,

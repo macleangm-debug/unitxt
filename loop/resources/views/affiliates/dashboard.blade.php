@@ -44,6 +44,10 @@
         </div>
     </x-slot>
 
+    @if (! auth()->user()->intro_seen_at)
+        <x-intro-carousel audience="affiliate" />
+    @endif
+
     <section class="loop-panel loop-panel--energy p-6 sm:p-8">
         <h2 class="relative font-display text-xl font-semibold">{{ __('loop.customize_promo') }}</h2>
         <p class="relative mt-1 text-sm text-ink-muted">{{ __('loop.customize_promo_body') }}</p>

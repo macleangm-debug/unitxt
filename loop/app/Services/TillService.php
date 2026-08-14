@@ -102,17 +102,27 @@ class TillService
             }
 
             $membership = $this->memberships->join($business, $customer, $shop);
+            if (! $business->hasRedeemableOffer()) {
+                \App\Support\DefaultOffer::ensure($business);
+                $business = $business->fresh();
+            }
             $campaign = $this->findEarnCampaign($shop);
-            $basePoints = $campaign ? $campaign->pointsForSpend($amountSpent) : 0;
+            $canEarn = $business->hasRedeemableOffer();
+            $basePoints = ($campaign && $canEarn) ? $campaign->pointsForSpend($amountSpent) : 0;
             $pointsEarned = $basePoints;
             $bonuses = [];
+
+            if (! $canEarn && $campaign) {
+                $bonuses[] = __('loop.earn_paused_no_offer_note');
+            }
 
             if ($basePoints > 0) {
                 $bonuses[] = __('loop.bonus_from_purchase', ['points' => $basePoints]);
             }
 
             if (
-                $includesFeaturedProduct
+                $canEarn
+                && $includesFeaturedProduct
                 && $campaign
                 && $campaign->type === 'product_push'
                 && filled($campaign->featured_product_name)
@@ -125,7 +135,7 @@ class TillService
                 ]);
             }
 
-            $birthdayCampaign = $this->findBirthdayCampaign($business);
+            $birthdayCampaign = $canEarn ? $this->findBirthdayCampaign($business) : null;
             if ($birthdayCampaign && $customer->birth_month && $customer->birth_day
                 && (int) $customer->birth_month === (int) now()->month
                 && (int) $customer->birth_day === (int) now()->day) {
@@ -133,7 +143,7 @@ class TillService
                 $bonuses[] = __('loop.bonus_from_birthday', ['points' => $birthdayCampaign->bonus_points]);
             }
 
-            $welcomeCampaign = $this->findWelcomeCampaign($business);
+            $welcomeCampaign = $canEarn ? $this->findWelcomeCampaign($business) : null;
             $isFirstVisit = ! Visit::query()
                 ->where('membership_id', $membership->id)
                 ->exists();
@@ -142,7 +152,9 @@ class TillService
                 $bonuses[] = __('loop.bonus_from_welcome', ['points' => $welcomeCampaign->bonus_points]);
             }
 
-            $streakBonus = $this->applyStreakBonuses($business, $membership, $shop);
+            $streakBonus = $canEarn
+                ? $this->applyStreakBonuses($business, $membership, $shop)
+                : ['points' => 0, 'labels' => []];
             if ($streakBonus['points'] > 0) {
                 $pointsEarned += $streakBonus['points'];
                 $bonuses = array_merge($bonuses, $streakBonus['labels']);

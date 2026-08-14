@@ -35,6 +35,8 @@ use Illuminate\Notifications\Notifiable;
     'phone_verified_at',
     'email_verified_at',
     'locale',
+    'intro_seen_at',
+    'interests_prompt_seen_at',
 ])]
 #[Hidden(['password', 'pin_hash', 'remember_token'])]
 class User extends Authenticatable
@@ -65,6 +67,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'profile_completed' => 'boolean',
             'interests' => 'array',
+            'intro_seen_at' => 'datetime',
+            'interests_prompt_seen_at' => 'datetime',
         ];
     }
 

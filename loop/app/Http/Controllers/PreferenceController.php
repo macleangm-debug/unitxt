@@ -44,6 +44,43 @@ class PreferenceController extends Controller
         return back();
     }
 
+    public function dismissIntro(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 403);
+        $user->forceFill(['intro_seen_at' => now()])->save();
+        $request->session()->forget(['show_welcome', 'show_business_intro', 'show_affiliate_intro']);
+
+        return back();
+    }
+
+    public function saveInterests(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user && $user->isCustomer(), 403);
+
+        if ($request->boolean('skip')) {
+            $user->forceFill([
+                'interests' => $user->interests ?? [],
+                'interests_prompt_seen_at' => now(),
+            ])->save();
+
+            return back();
+        }
+
+        $data = $request->validate([
+            'interests' => ['nullable', 'array'],
+            'interests.*' => ['in:'.implode(',', array_keys(\App\Support\Sectors::all()))],
+        ]);
+
+        $user->forceFill([
+            'interests' => array_values($data['interests'] ?? []),
+            'interests_prompt_seen_at' => now(),
+        ])->save();
+
+        return back()->with('status', __('loop.interests_saved'));
+    }
+
     private function safeReturnUrl(Request $request): string
     {
         $return = $request->query('return');

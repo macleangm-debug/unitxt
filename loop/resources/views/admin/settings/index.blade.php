@@ -160,6 +160,11 @@
                             <input type="number" min="1" max="90" name="trial_days" value="{{ old('trial_days', $billing['trial_days']) }}" class="loop-input" required>
                         </div>
                         <div>
+                            <label class="loop-label">{{ __('loop.grace_days') }}</label>
+                            <input type="number" min="0" max="30" name="grace_days" value="{{ old('grace_days', $billing['grace_days']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.grace_days_help') }}</p>
+                        </div>
+                        <div>
                             <label class="loop-label">{{ __('loop.free_max_shops') }}</label>
                             <input type="number" min="1" max="5" name="free_max_shops" value="{{ old('free_max_shops', $billing['free_max_shops']) }}" class="loop-input" required>
                         </div>
@@ -177,6 +182,13 @@
                         <span>
                             <span class="font-semibold">{{ __('loop.block_till_when_trial_ends') }}</span>
                             <span class="mt-1 block text-ink-muted">{{ __('loop.block_till_when_trial_ends_help') }}</span>
+                        </span>
+                    </label>
+                    <label class="mt-3 flex items-start gap-3 text-sm">
+                        <input type="checkbox" name="hide_from_discover_when_unpaid" value="1" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint" @checked(old('hide_from_discover_when_unpaid', $billing['hide_from_discover_when_unpaid'] ?? true))>
+                        <span>
+                            <span class="font-semibold">{{ __('loop.hide_from_discover_when_unpaid') }}</span>
+                            <span class="mt-1 block text-ink-muted">{{ __('loop.hide_from_discover_when_unpaid_help') }}</span>
                         </span>
                     </label>
                     <button class="loop-btn-mint">{{ __('loop.save') }}</button>

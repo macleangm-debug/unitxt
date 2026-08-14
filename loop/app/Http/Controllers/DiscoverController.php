@@ -81,6 +81,7 @@ class DiscoverController extends Controller
     public function show(Business $business): View
     {
         abort_unless($business->is_active, 404);
+        abort_unless(app(\App\Services\PlanLimitService::class)->visibleOnDiscover($business), 404);
 
         $user = request()->user();
         $isCustomer = $user?->isCustomer() ?? false;
@@ -128,10 +129,27 @@ class DiscoverController extends Controller
      */
     private function businessQuery(string $country, ?string $city, ?string $sector = null)
     {
+        $billing = \App\Support\BillingSettings::settings();
+        $graceDays = (int) $billing['grace_days'];
+        $hideUnpaid = (bool) $billing['hide_from_discover_when_unpaid'];
+
         return Business::query()
             ->where('is_active', true)
             ->where('country', $country)
             ->when($sector, fn ($q) => $q->where('sector', $sector))
+            ->where('billing_status', '!=', 'suspended')
+            ->when($hideUnpaid, function ($q) use ($graceDays) {
+                $q->where(function ($inner) use ($graceDays) {
+                    $inner->whereIn('billing_status', ['active', 'trialing', 'free'])
+                        ->orWhere(function ($past) use ($graceDays) {
+                            $past->where('billing_status', 'past_due')
+                                ->where(function ($grace) use ($graceDays) {
+                                    $grace->whereNull('past_due_at')
+                                        ->orWhere('past_due_at', '>', now()->subDays($graceDays));
+                                });
+                        });
+                });
+            })
             ->whereHas('shops', function ($q) use ($city) {
                 $q->where('is_active', true)
                     ->when($city, fn ($qq) => $qq->where('city', $city));

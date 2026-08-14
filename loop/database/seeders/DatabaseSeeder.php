@@ -138,6 +138,7 @@ class DatabaseSeeder extends Seeder
             'reward_type' => 'percent_off',
             'reward_value' => 5,
             'is_active' => true,
+            'is_default' => true,
         ]);
 
         $customer = User::factory()->customer()->create([
