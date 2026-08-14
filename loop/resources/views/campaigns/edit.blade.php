@@ -26,7 +26,7 @@
     <div
         class="mx-auto max-w-lg"
         x-data="loopWizard({
-            step: {{ (int) old('_step', 1) }},
+            step: {{ (int) request('_step', old('_step', 1)) }},
             total: 3,
             spendDisplay: @js(number_format((int) old('spend_step', $campaign->spend_step ?: 1000))),
             pointsPerStep: {{ (int) old('points_per_step', $campaign->points_per_step ?: 2) }},
@@ -72,6 +72,7 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <input type="hidden" name="spend_step" :value="spendValue()">
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
+                    <p class="rounded-xl bg-chalk/60 px-3 py-2 text-xs text-ink-muted">{{ __('loop.min_spend_example') }}</p>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>

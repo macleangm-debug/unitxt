@@ -103,6 +103,8 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
+        $frontDesk->update(['shop_id' => $downtown->id]);
+
         $campaign = Campaign::create([
             'business_id' => $business->id,
             'name' => 'Everyday earn',

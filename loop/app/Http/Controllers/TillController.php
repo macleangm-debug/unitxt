@@ -22,6 +22,15 @@ class TillController extends Controller
 
         $tillLocked = $business ? ! $limits->canUseTill($business) : false;
         $isOwner = $request->user()->isOwner();
+        $isFrontDesk = $request->user()->isFrontDesk();
+        $shops = $business?->shops()->where('is_active', true)->orderBy('name')->get() ?? collect();
+
+        $lockedShop = null;
+        if ($isFrontDesk && $request->user()->shop_id) {
+            $lockedShop = $shops->firstWhere('id', $request->user()->shop_id);
+        } elseif ($shops->count() === 1) {
+            $lockedShop = $shops->first();
+        }
 
         $scanDial = null;
         $scanPhone = null;
@@ -34,14 +43,12 @@ class TillController extends Controller
 
         return view('till.index', [
             'business' => $business,
-            'shops' => $business?->shops()->where('is_active', true)->orderBy('name')->get() ?? collect(),
+            'shops' => $shops,
             'countries' => Countries::OPTIONS,
-            'recent' => ($isOwner && $business)
-                ? $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get()
-                : collect(),
-            'showRecent' => $isOwner,
+            'lockedShop' => $lockedShop,
             'tillLocked' => $tillLocked,
             'isOwner' => $isOwner,
+            'isFrontDesk' => $isFrontDesk,
             'scanDial' => $scanDial,
             'scanPhone' => $scanPhone,
         ]);
@@ -58,6 +65,13 @@ class TillController extends Controller
 
         $business = $request->user()->workplace();
         abort_unless($business, 403);
+
+        $user = $request->user();
+        if ($user->isFrontDesk() && $user->shop_id && (int) $data['shop_id'] !== (int) $user->shop_id) {
+            return back()->withInput()->withErrors([
+                'shop_id' => __('loop.staff_shop_mismatch'),
+            ]);
+        }
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
@@ -212,6 +226,10 @@ class TillController extends Controller
         $payWithPoints = $request->boolean('pay_with_points');
         $includesFeatured = $request->boolean('includes_featured_product');
 
+        if ($request->user()->isFrontDesk() && $request->user()->shop_id && (int) $shop->id !== (int) $request->user()->shop_id) {
+            return back()->withErrors(['shop_id' => __('loop.staff_shop_mismatch')])->withInput();
+        }
+
         if (! $customer) {
             return redirect()->route('till.index')->withErrors([
                 'phone' => __('loop.customer_must_register_first'),
@@ -279,6 +297,10 @@ class TillController extends Controller
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
+
+        if ($request->user()->isFrontDesk() && $request->user()->shop_id && (int) $shop->id !== (int) $request->user()->shop_id) {
+            return back()->withErrors(['shop_id' => __('loop.staff_shop_mismatch')])->withInput();
+        }
 
         if (! $customer) {
             return redirect()->route('till.index')->withErrors([

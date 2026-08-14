@@ -20,20 +20,20 @@
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-2xl bg-gradient-to-br from-mint/30 to-mint/5 p-5 ring-1 ring-mint/20">
-            <p class="text-sm text-ink-muted">{{ __('loop.redemptions') }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.offer_stat_total') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['total_redemptions'] }}</p>
         </div>
         <div class="rounded-2xl bg-gradient-to-br from-coral/25 to-coral/5 p-5 ring-1 ring-coral/20">
-            <p class="text-sm text-ink-muted">{{ __('loop.this_month') }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.offer_stat_month') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['this_month'] }}</p>
         </div>
         <div class="rounded-2xl bg-gradient-to-br from-ink/90 to-ink p-5 text-white">
-            <p class="text-sm text-white/70">{{ __('loop.points_spent') }}</p>
+            <p class="text-sm text-white/70">{{ __('loop.offer_stat_points') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ number_format($stats['points_spent']) }}</p>
         </div>
-        <div class="rounded-2xl bg-gradient-to-br from-mint to-mint-deep p-5 text-ink">
-            <p class="text-sm text-ink/70">{{ __('loop.stock') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['stock'] ?? __('loop.unlimited') }}</p>
+        <div class="rounded-2xl bg-gradient-to-br from-mint to-mint-deep p-5 text-white">
+            <p class="text-sm text-white/75">{{ __('loop.offer_stat_stock') }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold text-white">{{ $stats['stock'] ?? __('loop.unlimited') }}</p>
         </div>
     </div>
 
@@ -41,6 +41,7 @@
         <section class="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/90">
             <div class="bg-gradient-to-r from-mint/25 via-mint/5 to-transparent px-6 py-4">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.offer_details') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_details_blurb') }}</p>
             </div>
             <dl class="space-y-3 px-6 py-5 text-sm">
                 <div class="flex justify-between gap-4">

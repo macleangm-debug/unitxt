@@ -262,7 +262,8 @@ return array (
   'spend_amount' => 'Spend amount',
   'points_earned' => 'Points earned',
   'min_spend_to_earn' => 'Minimum spend to earn',
-  'min_spend_section_help' => 'Members earn points only when a sale reaches this amount (and every multiple after).',
+  'min_spend_section_help' => 'Members earn points for each full block of this amount. Partial amounts do not earn yet.',
+  'min_spend_example' => 'Example: min spend 1,000 and 2 pts → a 1,600 sale earns 2 pts (one full block). A 2,000 sale earns 4 pts.',
   'min_spend_to_earn_hint' => 'Minimum :currency :amount per earn step.',
   'campaign_needs_one_offer' => 'You need at least one active offer before launching. Offers are shared across campaigns — one points balance.',
   'customer_choices' => 'Member choices',
@@ -284,9 +285,9 @@ return array (
   'points_to_unlock' => 'Points to unlock',
   'percent_off_value' => 'Percent off',
   'fixed_off_value' => 'Amount off',
-  'tie_to_product_optional' => 'Tie to a product (optional)',
-  'tie_to_product_placeholder' => 'e.g. New iced latte',
-  'tie_to_product_hint' => 'No SKUs needed — name the product you want to move, or leave blank for any purchase.',
+  'tie_to_product_optional' => 'Which product is free? (optional)',
+  'tie_to_product_placeholder' => 'e.g. Harbor Beans burger',
+  'tie_to_product_hint' => 'Optional product name for the till — leave blank if staff will note it when redeeming.',
   'choose_another_offer' => 'Add another offer',
   'pick_offer_template' => 'Choose a template',
   'more_offers_anytime' => 'You can create more offers anytime after you finish.',
@@ -861,9 +862,9 @@ return array (
   'offer_desc_placeholder_short' => 'Optional — keep it short.',
   'product_boost_hint' => 'Name the product you want to push.',
   'points_and_value' => 'Points and value',
-  'limits_optional_hint' => 'Optional. Leave blank for no limit.',
-  'stock_help' => 'How many times this offer can be redeemed in total.',
-  'max_per_member_help' => 'How many times one member can use it.',
+  'limits_optional_hint' => 'Optional caps only. Leave blank for unlimited.',
+  'stock_help' => 'Total times this offer can be redeemed across all members.',
+  'max_per_member_help' => 'How many times one member can redeem this offer.',
   'review_offer' => 'Review offer',
   'review_before_launch' => 'Before you launch',
   'customer_spend_to_unlock_prefix' => 'A member needs about',
@@ -1743,5 +1744,49 @@ Join free: :url',
     'resume_campaign_confirm_title' => 'Resume this campaign?',
 
     'resume_campaign_confirm_body' => 'Members will start earning from this campaign again.',
+
+    'pick_shop_first' => 'Choose a branch',
+
+    'assign_branch' => 'Assigned branch',
+
+    'assign_branch_help' => 'Front desk only sees this branch on Sale — they will not pick a shop.',
+
+    'staff_shop_mismatch' => 'You can only record sales for your assigned branch.',
+
+    'min_spend_example' => 'Example: min spend 1,000 and 2 pts → a 1,600 sale earns 2 pts (one full block). A 2,000 sale earns 4 pts.',
+
+    'offer_name_hint_free' => 'Name what members unlock — e.g. Free :business burger.',
+
+    'offer_name_hint_fixed' => 'Personalize it — e.g. :business TZS 2,000 off.',
+
+    'offer_chip_free_drink' => 'Free drink',
+
+    'offer_chip_free_item' => 'Free item',
+
+    'offer_chip_free_dessert' => 'Free dessert',
+
+    'offer_chip_fixed_small' => '2,000 off',
+
+    'offer_chip_fixed_large' => '5,000 off',
+
+    'offer_desc_free_item_placeholder' => 'Optional note for staff — e.g. any size latte.',
+
+    'free_item_product_title' => 'Which product is free? (optional)',
+
+    'free_item_product_hint' => 'This is still the same free-item offer. Naming the product helps staff at the till. Leave blank if they will choose when redeeming.',
+
+    'free_item_product_placeholder' => 'e.g. Harbor Beans burger',
+
+    'offer_stat_total' => 'Times redeemed',
+
+    'offer_stat_month' => 'This month',
+
+    'offer_stat_points' => 'Points used',
+
+    'offer_stat_stock' => 'Stock left',
+
+    'offer_details_blurb' => 'What members unlock when they redeem this offer.',
+
+    'offer_stats_blurb' => 'How often members redeem this at the till.',
 );
 

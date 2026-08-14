@@ -56,7 +56,7 @@
         <div
             class="mx-auto max-w-2xl"
             x-data="loopWizard({
-                step: {{ (int) old('_step', 1) }},
+                step: {{ (int) request('_step', old('_step', 1)) }},
                 total: 3,
                 enableWelcome: {{ old('enable_welcome') ? 'true' : 'false' }},
                 enableBirthday: {{ old('enable_birthday') ? 'true' : 'false' }},
@@ -130,6 +130,7 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
+                    <p class="rounded-xl bg-chalk/60 px-3 py-2 text-xs text-ink-muted">{{ __('loop.min_spend_example') }}</p>
                     <input type="hidden" name="spend_step" :value="spendValue()">
                     <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $t['bonus_points'] ?? 0) }}">
                     <div class="grid gap-3 sm:grid-cols-2">

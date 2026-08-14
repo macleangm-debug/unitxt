@@ -28,6 +28,9 @@
                         <div class="min-w-0">
                             <p class="font-display text-lg font-semibold">{{ $member->name }}</p>
                             <p class="mt-0.5 text-sm text-ink-muted">{{ $member->full_phone }}</p>
+                            @if ($member->shop)
+                                <p class="mt-1 text-xs font-semibold text-mint-deep">{{ $member->shop->name }}</p>
+                            @endif
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="rounded-lg px-2.5 py-1 text-xs font-semibold {{ $member->is_active ? 'bg-lime/35 text-ink' : 'bg-chalk text-ink-muted' }}">
@@ -118,6 +121,19 @@
                             <label class="loop-label">{{ __('loop.temp_password') }}</label>
                             <input type="password" name="password" class="loop-input" required autocomplete="new-password">
                         </div>
+                        @if ($shops->count() > 1)
+                            <x-sheet-select
+                                name="shop_id"
+                                :label="__('loop.assign_branch')"
+                                :options="$shops->mapWithKeys(fn ($s) => [$s->id => $s->name])->all()"
+                                :value="old('shop_id', '')"
+                                :required="true"
+                                :placeholder="__('loop.pick_shop_first')"
+                            />
+                            <p class="text-xs text-ink-muted">{{ __('loop.assign_branch_help') }}</p>
+                        @elseif ($shops->count() === 1)
+                            <input type="hidden" name="shop_id" value="{{ $shops->first()->id }}">
+                        @endif
                         <div class="flex gap-3 pt-1">
                             <button type="button" class="loop-btn-ghost flex-1" @click="addOpen = false">{{ __('loop.cancel') }}</button>
                             <button class="loop-btn-mint flex-1">{{ __('loop.add_front_desk') }}</button>

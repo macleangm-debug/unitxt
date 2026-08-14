@@ -262,7 +262,8 @@ return [
     'spend_amount' => 'Kiasi cha matumizi',
     'points_earned' => 'Pointi zinazopatikana',
     'min_spend_to_earn' => 'Kiasi cha chini cha kupata pointi',
-    'min_spend_section_help' => 'Wanachama hupata pointi tu mauzo yanapofikia kiasi hiki (na kila wingi baada yake).',
+    'min_spend_section_help' => 'Wanachama hupata pointi kwa kila kiasi kamili. Sehemu isiyokamilika haipati pointi bado.',
+    'min_spend_example' => 'Mfano: kiasi 1,000 na pointi 2 → mauzo ya 1,600 hutoa pointi 2 (hatua moja). Mauzo ya 2,000 hutoa pointi 4.',
     'min_spend_to_earn_hint' => 'Kiasi cha chini :currency :amount kwa kila hatua ya pointi.',
     'campaign_needs_one_offer' => 'Unahitaji angalau ofa moja hai kabla ya kuzindua. Ofa zinashirikiwa katika kampeni zote — salio moja la pointi.',
     'customer_choices' => 'Chaguo za mwanachama',
@@ -284,9 +285,9 @@ return [
     'points_to_unlock' => 'Pointi za kufungua',
     'percent_off_value' => 'Asilimia ya punguzo',
     'fixed_off_value' => 'Kiasi cha punguzo',
-    'tie_to_product_optional' => 'Unganisha na bidhaa (si lazima)',
-    'tie_to_product_placeholder' => 'mf. Iced latte mpya',
-    'tie_to_product_hint' => 'Hakuna SKU — taja bidhaa unayotaka kusukuma, au acha tupu kwa ununuzi wowote.',
+    'tie_to_product_optional' => 'Bidhaa gani ni bure? (si lazima)',
+    'tie_to_product_placeholder' => 'mf. Harbor Beans burger',
+    'tie_to_product_hint' => 'Jina la bidhaa kwa dawati — acha tupu ikiwa wafanyakazi wataandika wakati wa kukomboa.',
     'choose_another_offer' => 'Ongeza ofa nyingine',
     'pick_offer_template' => 'Chagua kiolezo',
     'more_offers_anytime' => 'Unaweza kuunda ofa nyingine wakati wowote baada ya kumaliza.',
@@ -859,9 +860,9 @@ return [
     'offer_desc_placeholder_short' => 'Si lazima — fupi.',
     'product_boost_hint' => 'Taja bidhaa unayotaka kukuza.',
     'points_and_value' => 'Pointi na thamani',
-    'limits_optional_hint' => 'Si lazima. Acha tupu bila kikomo.',
-    'stock_help' => 'Mara ngapi ofa hii inaweza kukombolewa kwa jumla.',
-    'max_per_member_help' => 'Mara ngapi mwanachama mmoja anaweza kuitumia.',
+    'limits_optional_hint' => 'Vikomo si lazima. Acha tupu bila kikomo.',
+    'stock_help' => 'Idadi ya mara toleo hili linaweza kukombolewa kwa wanachama wote.',
+    'max_per_member_help' => 'Mara ngapi mwanachama mmoja anaweza kukomboa toleo hili.',
     'review_offer' => 'Kagua ofa',
     'review_before_launch' => 'Kabla ya kuzindua',
     'customer_spend_to_unlock_prefix' => 'Mwanachama anahitaji kama',
@@ -1735,4 +1736,46 @@ return [
     'resume_campaign_confirm_title' => 'Endeleza kampeni hii?',
 
     'resume_campaign_confirm_body' => 'Wanachama wataanza tena kupata pointi kutoka kampeni hii.',
+
+    'pick_shop_first' => 'Chagua duka',
+
+    'assign_branch' => 'Duka lililopangiwa',
+
+    'assign_branch_help' => 'Dawati la mbele litaona duka hili pekee kwenye Mauzo — halitachagua duka.',
+
+    'staff_shop_mismatch' => 'Unaweza kurekodi mauzo kwa duka lako lililopangiwa tu.',
+
+    'offer_name_hint_free' => 'Taja wanachama watakachopata — mf. :business burger bure.',
+
+    'offer_name_hint_fixed' => 'Ibinafsishe — mf. :business punguzo la TZS 2,000.',
+
+    'offer_chip_free_drink' => 'Kinywaji bure',
+
+    'offer_chip_free_item' => 'Bidhaa bure',
+
+    'offer_chip_free_dessert' => 'Dessert bure',
+
+    'offer_chip_fixed_small' => 'Punguzo 2,000',
+
+    'offer_chip_fixed_large' => 'Punguzo 5,000',
+
+    'offer_desc_free_item_placeholder' => 'Maelezo kwa dawati — mf. latte ya ukubwa wowote.',
+
+    'free_item_product_title' => 'Bidhaa gani ni bure? (si lazima)',
+
+    'free_item_product_hint' => 'Bado ni toleo la bidhaa bure. Kutaja bidhaa kunasaidia dawati. Acha tupu ikiwa watachagua wakati wa kukomboa.',
+
+    'free_item_product_placeholder' => 'mf. Harbor Beans burger',
+
+    'offer_stat_total' => 'Mara zilizokombolewa',
+
+    'offer_stat_month' => 'Mwezi huu',
+
+    'offer_stat_points' => 'Pointi zilizotumika',
+
+    'offer_stat_stock' => 'Hifadhi iliyobaki',
+
+    'offer_details_blurb' => 'Wanachama wanachopata wanapokomboa toleo hili.',
+
+    'offer_stats_blurb' => 'Mara ngapi wanachama wanakomboa toleo hili kwenye dawati.',
 ];

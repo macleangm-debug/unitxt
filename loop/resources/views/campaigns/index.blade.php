@@ -63,7 +63,7 @@
                                 <p class="mt-2 text-sm">{{ __('loop.product') }}: <span class="font-semibold">{{ $reward->product_name }}</span></p>
                             @endif
                         </div>
-                        <span class="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold text-mint">{{ $reward->points_cost }} pts</span>
+                        <span class="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold text-white">{{ $reward->points_cost }} pts</span>
                     </div>
                     <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.view_stats') }} →</p>
                 </a>

@@ -653,56 +653,88 @@ Alpine.data('loopReveal', (delay = 0) => ({
  * Shared multi-step wizard (campaigns, offers, raffles).
  * Avoids fragile inline x-data attribute parsing.
  */
-Alpine.data('loopWizard', (config = {}) => ({
-    step: Number(config.step || 1),
-    total: Number(config.total || 3),
-    saving: false,
-    ...config,
-    go(n) {
-        const next = Math.min(this.total, Math.max(1, Number(n) || 1));
-        this.step = next;
-    },
-    next() {
-        const form = this.$refs.form;
-        if (! form) {
-            if (this.step < this.total) this.step += 1;
-            return;
-        }
-        const pane = form.querySelector('[data-step="' + this.step + '"]');
-        if (pane) {
-            const fields = pane.querySelectorAll('input, select, textarea');
-            for (const el of fields) {
-                if (el.disabled || el.type === 'hidden') continue;
-                const needs = el.hasAttribute('required') || el.dataset.required === '1';
-                if (needs && ! String(el.value || '').trim()) {
-                    el.focus();
-                    if (typeof el.reportValidity === 'function') {
-                        el.reportValidity();
-                    }
-                    return;
+Alpine.data('loopWizard', (config = {}) => {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = Number(params.get('_step') || 0);
+    const initialStep = fromUrl >= 1 ? fromUrl : Number(config.step || 1);
+    const { step: _ignoredStep, init: userInit, ...rest } = config;
+
+    return {
+        ...rest,
+        step: initialStep,
+        total: Number(config.total || 3),
+        saving: false,
+        init() {
+            if (typeof userInit === 'function') {
+                userInit.call(this);
+            }
+            this.syncStepUrl();
+        },
+        syncStepUrl() {
+            try {
+                const url = new URL(window.location.href);
+                if (this.step <= 1) {
+                    url.searchParams.delete('_step');
+                } else {
+                    url.searchParams.set('_step', String(this.step));
                 }
-                if (typeof el.checkValidity === 'function' && ! el.checkValidity()) {
-                    el.focus();
-                    el.reportValidity();
-                    return;
+                window.history.replaceState({}, '', url.toString());
+            } catch (_) {
+                // ignore
+            }
+        },
+        go(n) {
+            const next = Math.min(this.total, Math.max(1, Number(n) || 1));
+            this.step = next;
+            this.syncStepUrl();
+        },
+        next() {
+            const form = this.$refs.form;
+            if (! form) {
+                if (this.step < this.total) {
+                    this.step += 1;
+                    this.syncStepUrl();
+                }
+                return;
+            }
+            const pane = form.querySelector('[data-step="' + this.step + '"]');
+            if (pane) {
+                const fields = pane.querySelectorAll('input, select, textarea');
+                for (const el of fields) {
+                    if (el.disabled || el.type === 'hidden') continue;
+                    const needs = el.hasAttribute('required') || el.dataset.required === '1';
+                    if (needs && ! String(el.value || '').trim()) {
+                        el.focus();
+                        if (typeof el.reportValidity === 'function') {
+                            el.reportValidity();
+                        }
+                        return;
+                    }
+                    if (typeof el.checkValidity === 'function' && ! el.checkValidity()) {
+                        el.focus();
+                        el.reportValidity();
+                        return;
+                    }
                 }
             }
-        }
-        if (this.step < this.total) {
-            this.step += 1;
-        }
-    },
-    prev() {
-        if (this.step > 1) {
-            this.step -= 1;
-        }
-    },
-    startSave() {
-        if (this.saving) return false;
-        this.saving = true;
-        return true;
-    },
-}));
+            if (this.step < this.total) {
+                this.step += 1;
+                this.syncStepUrl();
+            }
+        },
+        prev() {
+            if (this.step > 1) {
+                this.step -= 1;
+                this.syncStepUrl();
+            }
+        },
+        startSave() {
+            if (this.saving) return false;
+            this.saving = true;
+            return true;
+        },
+    };
+});
 
 /**
  * Loop-branded camera scanner for member wallet QR on Sale.

@@ -52,11 +52,38 @@
         <span class="text-violet">▾</span>
     </button>
 
+    {{-- Desktop popover --}}
+    <div
+        x-show="open"
+        x-cloak
+        @keydown.escape.window="open = false"
+        class="absolute z-30 mt-2 hidden max-h-72 w-full flex-col overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-[0_24px_60px_rgba(11,31,42,0.16)] sm:flex"
+    >
+        <div class="border-b border-ink/5 p-3">
+            <input type="search" x-model="q" placeholder="{{ __('loop.search') }}" class="loop-input !py-2 text-sm" autocomplete="off" @click.stop>
+        </div>
+        <div class="overflow-y-auto p-2">
+            <template x-for="opt in filtered" :key="opt.key">
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition hover:bg-violet-soft/60"
+                    :class="opt.key === value ? 'bg-violet-soft font-semibold text-violet' : 'text-ink'"
+                    @click="pick(opt.key)"
+                >
+                    <span x-text="opt.label"></span>
+                    <span x-show="opt.key === value" class="text-violet">✓</span>
+                </button>
+            </template>
+            <p x-show="filtered.length === 0" class="px-3 py-4 text-sm text-ink-muted">{{ __('loop.no_results') }}</p>
+        </div>
+    </div>
+
+    {{-- Mobile bottom sheet --}}
     <template x-teleport="body">
         <div
             x-show="open"
             x-cloak
-            class="fixed inset-0 z-[100]"
+            class="fixed inset-0 z-[100] sm:hidden"
             @keydown.escape.window="open = false"
         >
             <div

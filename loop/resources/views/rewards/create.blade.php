@@ -48,7 +48,13 @@
             $defaultPoints = old('points_cost', $t['points_cost'] ?? $typeMeta['points_cost'] ?? 100);
             $defaultValue = old('reward_value', $t['reward_value'] ?? $typeMeta['reward_value'] ?? 0);
             $defaultProduct = old('product_name', $t['product_name'] ?? $typeMeta['product_name'] ?? '');
-            $defaultDesc = old('description', $t['description'] ?? $typeMeta['description'] ?? '');
+            $defaultDesc = old('description', '');
+            $descPlaceholder = match ($defaultType) {
+                'percent_off' => __('loop.offer_type_percent_off_body'),
+                'fixed_off' => __('loop.offer_type_fixed_off_body'),
+                'free_item' => __('loop.offer_desc_free_item_placeholder'),
+                default => __('loop.offer_desc_placeholder_short'),
+            };
             $spendPerPoint = $earnCampaign && $earnCampaign->points_per_step
                 ? ($earnCampaign->spend_step / $earnCampaign->points_per_step)
                 : 0;
@@ -67,7 +73,7 @@
         <div
             class="mx-auto max-w-2xl"
             x-data="loopWizard({
-                step: {{ (int) old('_step', 1) }},
+                step: {{ (int) request('_step', old('_step', 1)) }},
                 total: 3,
                 type: @js($defaultType),
                 name: @js($defaultName),
@@ -115,19 +121,35 @@
                 <div data-step="1" x-show="step === 1" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.name_your_offer') }}</h2>
-                    <p class="text-sm text-ink-muted">{{ __('loop.offer_name_hint', ['business' => $biz]) }}</p>
+                    <p class="text-sm text-ink-muted">
+                        @if ($defaultType === 'free_item')
+                            {{ __('loop.offer_name_hint_free', ['business' => $biz]) }}
+                        @elseif ($defaultType === 'fixed_off')
+                            {{ __('loop.offer_name_hint_fixed', ['business' => $biz]) }}
+                        @else
+                            {{ __('loop.offer_name_hint', ['business' => $biz]) }}
+                        @endif
+                    </p>
                     <div>
                         <label class="loop-label">{{ __('loop.offer_name') }}</label>
                         <input name="name" class="loop-input font-display text-lg font-semibold" x-model="name" :required="step === 1">
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea('5% off')">{{ $biz }} 5% off</button>
-                        <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea('10% off')">{{ $biz }} 10% off</button>
-                        <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea(@js(__('loop.free_item')))">{{ $biz }} {{ __('loop.free_item') }}</button>
+                        @if ($defaultType === 'percent_off')
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea('5% off')">{{ $biz }} 5% off</button>
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea('10% off')">{{ $biz }} 10% off</button>
+                        @elseif ($defaultType === 'fixed_off')
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea(@js(__('loop.offer_chip_fixed_small')))">{{ $biz }} {{ __('loop.offer_chip_fixed_small') }}</button>
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea(@js(__('loop.offer_chip_fixed_large')))">{{ $biz }} {{ __('loop.offer_chip_fixed_large') }}</button>
+                        @else
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea(@js(__('loop.offer_chip_free_drink')))">{{ $biz }} {{ __('loop.offer_chip_free_drink') }}</button>
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea(@js(__('loop.offer_chip_free_item')))">{{ $biz }} {{ __('loop.offer_chip_free_item') }}</button>
+                            <button type="button" class="rounded-full border border-ink/10 px-3 py-1.5 text-xs font-semibold" @click="applyIdea(@js(__('loop.offer_chip_free_dessert')))">{{ $biz }} {{ __('loop.offer_chip_free_dessert') }}</button>
+                        @endif
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.description') }}</label>
-                        <textarea name="description" class="loop-input" rows="2">{{ $defaultDesc }}</textarea>
+                        <textarea name="description" class="loop-input" rows="2" placeholder="{{ $descPlaceholder }}">{{ $defaultDesc }}</textarea>
                     </div>
                     <button type="button" class="loop-btn-mint w-full" @click.prevent="next()">{{ __('loop.continue') }}</button>
                     <a href="{{ route('rewards.create') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
@@ -152,9 +174,9 @@
                             {{ $business->currency }} <span x-text="valueDisplay || 0"></span> {{ __('loop.off_every_eligible_sale') }}
                         </p>
                     @else
-                        <h2 class="font-display text-xl font-semibold">{{ __('loop.tie_to_product_optional') }}</h2>
-                        <p class="text-sm text-ink-muted">{{ __('loop.tie_to_product_hint') }}</p>
-                        <input name="product_name" class="loop-input" x-model="product" placeholder="{{ __('loop.tie_to_product_placeholder') }}">
+                        <h2 class="font-display text-xl font-semibold">{{ __('loop.free_item_product_title') }}</h2>
+                        <p class="text-sm text-ink-muted">{{ __('loop.free_item_product_hint') }}</p>
+                        <input name="product_name" class="loop-input" x-model="product" placeholder="{{ __('loop.free_item_product_placeholder') }}">
                     @endif
 
                     <div class="rounded-2xl border border-ink/8 bg-chalk/40 p-4">
@@ -183,10 +205,12 @@
                         <div>
                             <label class="loop-label">{{ __('loop.stock_optional') }}</label>
                             <input type="number" name="stock" class="loop-input" value="{{ old('stock') }}" placeholder="∞">
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.stock_help') }}</p>
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.max_per_member') }}</label>
                             <input type="number" name="max_redemptions_per_member" class="loop-input" min="1" value="{{ old('max_redemptions_per_member') }}">
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.max_per_member_help') }}</p>
                         </div>
                     </div>
                     <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">

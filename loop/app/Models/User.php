@@ -28,6 +28,7 @@ use Illuminate\Notifications\Notifiable;
     'birth_day',
     'role',
     'business_id',
+    'shop_id',
     'must_change_password',
     'is_active',
     'profile_completed',
@@ -130,6 +131,11 @@ class User extends Authenticatable
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function shop(): BelongsTo
+    {
+        return $this->belongsTo(Shop::class);
     }
 
     public function workplace(): ?Business

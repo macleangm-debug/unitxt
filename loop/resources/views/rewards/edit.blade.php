@@ -24,7 +24,7 @@
     <div
         class="mx-auto max-w-lg"
         x-data="loopWizard({
-            step: {{ (int) old('_step', 1) }},
+            step: {{ (int) request('_step', old('_step', 1)) }},
             total: 3,
             type: @js($defaultType),
             points: {{ (int) old('points_cost', $reward->points_cost) }},

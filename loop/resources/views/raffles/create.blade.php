@@ -19,7 +19,7 @@
 
     <div
         class="mx-auto max-w-xl"
-        x-data="loopWizard({ step: {{ (int) old('_step', 1) }}, total: 3 })"
+        x-data="loopWizard({ step: {{ (int) request('_step', old('_step', 1)) }}, total: 3 })"
     >
         <x-form-stepper :steps="$raffleSteps" />
 
