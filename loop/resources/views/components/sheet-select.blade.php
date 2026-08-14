@@ -56,7 +56,7 @@
         <div
             x-show="open"
             x-cloak
-            class="fixed inset-0 z-[90]"
+            class="fixed inset-0 z-[100]"
             @keydown.escape.window="open = false"
         >
             <div

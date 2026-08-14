@@ -111,11 +111,11 @@ return array (
   'settings_loyalty' => 'How members earn points, and what they can redeem',
   'settings_staff' => 'Front desk access',
   'campaigns_and_offers' => 'Campaigns & offers',
-  'campaigns_and_offers_blurb' => 'Campaigns decide how points are earned. Offers are what members can choose to redeem — free coffee, 5% off, and more.',
+  'campaigns_and_offers_blurb' => 'Earn rules and redeemable offers.',
   'how_they_earn' => 'How they earn',
-  'how_they_earn_body' => 'Rules that award points on sales, birthdays, streaks, and more.',
+  'how_they_earn_body' => 'Points on sales, birthdays, and streaks.',
   'what_they_choose' => 'What they can choose',
-  'what_they_choose_body' => 'Redeemable options at the till. Example: 200 pts → free coffee, or 100 pts → 5% off. The member picks when they have enough points.',
+  'what_they_choose_body' => 'What members redeem at the till.',
   'no_offers_yet_hint' => 'No offers yet. Add choices members can redeem once they’ve earned points.',
   'add_offer_blurb' => 'Create a redeemable choice — free item, percent off, or something custom.',
   'offer_name_placeholder' => 'e.g. Free coffee',
@@ -312,7 +312,7 @@ return array (
   'rule_featured_product' => '+:points pts when sale includes :product',
   'bonus_from_featured' => 'Featured (:product) +:points pts',
   'offer_tied_product_desc' => 'Tied to :product',
-  'edit_campaign_simple_blurb' => 'Update how members earn — keep it simple.',
+  'edit_campaign_simple_blurb' => 'Keep earning rules simple.',
   'campaign_sales_blurb' => 'Sales that earned points on this campaign.',
   'no_campaign_sales_yet' => 'No sales on this campaign yet.',
   'pick_option' => 'Choose…',
@@ -870,7 +870,7 @@ return array (
   'customer_spend_to_unlock_suffix' => 'in purchases to unlock this.',
   'no_earn_campaign_for_unlock' => 'Add an earn campaign to see how much spend unlocks this.',
   'confirm_launch_offer' => 'Launch offer',
-  'campaign_create_blurb' => 'Earn points. Add streaks and birthdays on top.',
+  'campaign_create_blurb' => 'Earn points. Optional bonuses.',
   'campaign_pick_hint' => 'Start from a template — keep copy short.',
   'section_basics' => 'Basics',
   'campaign_basics_title' => 'Name and type',
@@ -1735,4 +1735,13 @@ Join free: :url',
     'studio_font_size' => 'Text size',
 
     'studio_font_size_hint' => 'Keep it calm — not too loud.',
+
+    'pause_campaign_confirm_title' => 'Pause this campaign?',
+
+    'pause_campaign_confirm_body' => 'Members will stop earning from this campaign until you resume it.',
+
+    'resume_campaign_confirm_title' => 'Resume this campaign?',
+
+    'resume_campaign_confirm_body' => 'Members will start earning from this campaign again.',
 );
+

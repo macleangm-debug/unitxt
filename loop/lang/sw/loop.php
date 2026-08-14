@@ -111,11 +111,11 @@ return [
     'settings_loyalty' => 'Jinsi wanachama wanavyopata pointi, na wanachoweza kutumia',
     'settings_staff' => 'Ufikiaji wa kaunta',
     'campaigns_and_offers' => 'Kampeni na ofa',
-    'campaigns_and_offers_blurb' => 'Kampeni huamua jinsi pointi zinavyopatikana. Ofa ni chaguo wanachama wanaweza kutumia — kahawa bure, punguzo la 5%, na zaidi.',
+    'campaigns_and_offers_blurb' => 'Kanuni za pointi na ofa za kukomboa.',
     'how_they_earn' => 'Jinsi wanavyopata',
-    'how_they_earn_body' => 'Sheria zinazotoa pointi kwenye mauzo, siku ya kuzaliwa, mfululizo, na zaidi.',
+    'how_they_earn_body' => 'Pointi kwa mauzo, siku ya kuzaliwa, na mfululizo.',
     'what_they_choose' => 'Wanachoweza kuchagua',
-    'what_they_choose_body' => 'Chaguo za kutumia kwenye kaunta. Mfano: pointi 200 → kahawa bure, au pointi 100 → punguzo 5%. Mwanachama huchagua anapokuwa na pointi za kutosha.',
+    'what_they_choose_body' => 'Wanachama wanachokombolea kwenye kaunta.',
     'no_offers_yet_hint' => 'Bado hakuna ofa. Ongeza chaguo wanachama wanaweza kutumia baada ya kupata pointi.',
     'add_offer_blurb' => 'Unda chaguo la kutumia — bidhaa bure, punguzo, au jambo maalum.',
     'offer_name_placeholder' => 'mf. Kahawa bure',
@@ -312,7 +312,7 @@ return [
     'rule_featured_product' => '+:points pts mauzo yakijumuisha :product',
     'bonus_from_featured' => 'Maalum (:product) +:points pts',
     'offer_tied_product_desc' => 'Imeunganishwa na :product',
-    'edit_campaign_simple_blurb' => 'Sasisha jinsi wanachama wanavyopata — weka rahisi.',
+    'edit_campaign_simple_blurb' => 'Weka kanuni kwa urahisi.',
     'campaign_sales_blurb' => 'Mauzo yaliyopata pointi kwenye kampeni hii.',
     'no_campaign_sales_yet' => 'Bado hakuna mauzo kwenye kampeni hii.',
     'pick_option' => 'Chagua…',
@@ -868,7 +868,7 @@ return [
     'customer_spend_to_unlock_suffix' => 'za manunuzi kufungua hii.',
     'no_earn_campaign_for_unlock' => 'Ongeza kampeni ya pointi kuona matumizi yanayofungua.',
     'confirm_launch_offer' => 'Zindua ofa',
-    'campaign_create_blurb' => 'Toa pointi. Ongeza streaks na birthday juu.',
+    'campaign_create_blurb' => 'Pata pointi. Bonasi hiari.',
     'campaign_pick_hint' => 'Anza na template — maneno mafupi.',
     'section_basics' => 'Msingi',
     'campaign_basics_title' => 'Jina na aina',
@@ -1727,4 +1727,12 @@ return [
     'studio_font_size' => 'Ukubwa wa maandishi',
 
     'studio_font_size_hint' => 'Weka kwa utulivu — si kubwa mno.',
+
+    'pause_campaign_confirm_title' => 'Simamisha kampeni hii?',
+
+    'pause_campaign_confirm_body' => 'Wanachama wataacha kupata pointi kutoka kampeni hii hadi uendeleze.',
+
+    'resume_campaign_confirm_title' => 'Endeleza kampeni hii?',
+
+    'resume_campaign_confirm_body' => 'Wanachama wataanza tena kupata pointi kutoka kampeni hii.',
 ];

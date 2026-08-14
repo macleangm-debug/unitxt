@@ -23,45 +23,20 @@
 
     <div
         class="mx-auto max-w-lg"
-        x-data="{
+        x-data="loopWizard({
             step: {{ (int) old('_step', 1) }},
             total: 3,
             type: @js($defaultType),
             points: {{ (int) old('points_cost', $reward->points_cost) }},
             valueDisplay: @js($valueSeed),
             product: @js(old('product_name', $reward->product_name)),
-            saving: false,
-            go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-            next() {
-                const form = this.$refs.form;
-                const fields = form.querySelectorAll('[data-step='+this.step+'] [name]');
-                for (const el of fields) {
-                    if (el.disabled) continue;
-                    if (el.hasAttribute('required') && !String(el.value || '').trim()) {
-                        el.reportValidity();
-                        return;
-                    }
-                    if (typeof el.checkValidity === 'function' && !el.checkValidity()) {
-                        el.reportValidity();
-                        return;
-                    }
-                }
-                this.go(Math.min(this.total, this.step + 1));
-            },
             formatValue() {
                 if (this.type !== 'fixed_off') return;
                 let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
                 this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
             },
-            valueNumber() {
-                return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0;
-            },
-            startSave() {
-                if (this.saving) return false;
-                this.saving = true;
-                return true;
-            }
-        }"
+            valueNumber() { return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0; },
+        })"
     >
         <x-form-stepper :steps="$editSteps" />
 
@@ -78,7 +53,7 @@
             <input type="hidden" name="reward_type" value="{{ $defaultType }}">
             <input type="hidden" name="reward_value" :value="type === 'free_item' || type === 'custom' ? 0 : valueNumber()">
 
-            <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
+            <div data-step="1" x-show="step === 1" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.offer_name') }}</label>
@@ -92,10 +67,10 @@
                     <label class="loop-label">{{ __('loop.description') }}</label>
                     <textarea name="description" class="loop-input" rows="2">{{ old('description', $reward->description) }}</textarea>
                 </div>
-                <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
+                <button type="button" class="loop-btn-mint w-full" @click.prevent="next()">{{ __('loop.continue') }}</button>
             </div>
 
-            <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
+            <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_offer_reward') }}</p>
                 @if ($defaultType === 'percent_off')
                     <label class="loop-label">{{ __('loop.percent_off_value') }}</label>
@@ -112,12 +87,12 @@
                     <input type="number" name="points_cost" x-model.number="points" class="loop-input" min="1" :required="step === 2">
                 </div>
                 <div class="flex gap-3">
-                    <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
-                    <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="button" class="loop-btn-ghost flex-1" @click.prevent="go(1)">{{ __('loop.back') }}</button>
+                    <button type="button" class="loop-btn-mint flex-1" @click.prevent="next()">{{ __('loop.continue') }}</button>
                 </div>
             </div>
 
-            <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
+            <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>
@@ -134,7 +109,7 @@
                     {{ __('loop.live') }}
                 </label>
                 <div class="flex gap-3">
-                    <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
+                    <button type="button" class="loop-btn-ghost flex-1" @click.prevent="go(2)">{{ __('loop.back') }}</button>
                     <button class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">
                         <span x-show="!saving">{{ __('loop.save') }}</span>
                         <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>

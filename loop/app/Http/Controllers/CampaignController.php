@@ -192,7 +192,12 @@ class CampaignController extends Controller
         $totalVisits = (clone $visits)->count();
         $totalSpend = (float) (clone $visits)->sum('amount_spent');
         $pointsAwarded = (int) (clone $visits)->sum('points_earned');
-        $recentVisits = $campaign->visits()->with(['customer', 'shop'])->latest()->take(10)->get();
+        $recentVisits = $campaign->visits()
+            ->with(['customer', 'shop'])
+            ->latest()
+            ->paginate(15, ['*'], 'sales_page')
+            ->withQueryString();
+
 
         return view('campaigns.show', [
             'campaign' => $campaign->load(['shops']),

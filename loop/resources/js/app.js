@@ -650,6 +650,61 @@ Alpine.data('loopReveal', (delay = 0) => ({
 }));
 
 /**
+ * Shared multi-step wizard (campaigns, offers, raffles).
+ * Avoids fragile inline x-data attribute parsing.
+ */
+Alpine.data('loopWizard', (config = {}) => ({
+    step: Number(config.step || 1),
+    total: Number(config.total || 3),
+    saving: false,
+    ...config,
+    go(n) {
+        const next = Math.min(this.total, Math.max(1, Number(n) || 1));
+        this.step = next;
+    },
+    next() {
+        const form = this.$refs.form;
+        if (! form) {
+            if (this.step < this.total) this.step += 1;
+            return;
+        }
+        const pane = form.querySelector('[data-step="' + this.step + '"]');
+        if (pane) {
+            const fields = pane.querySelectorAll('input, select, textarea');
+            for (const el of fields) {
+                if (el.disabled || el.type === 'hidden') continue;
+                const needs = el.hasAttribute('required') || el.dataset.required === '1';
+                if (needs && ! String(el.value || '').trim()) {
+                    el.focus();
+                    if (typeof el.reportValidity === 'function') {
+                        el.reportValidity();
+                    }
+                    return;
+                }
+                if (typeof el.checkValidity === 'function' && ! el.checkValidity()) {
+                    el.focus();
+                    el.reportValidity();
+                    return;
+                }
+            }
+        }
+        if (this.step < this.total) {
+            this.step += 1;
+        }
+    },
+    prev() {
+        if (this.step > 1) {
+            this.step -= 1;
+        }
+    },
+    startSave() {
+        if (this.saving) return false;
+        this.saving = true;
+        return true;
+    },
+}));
+
+/**
  * Loop-branded camera scanner for member wallet QR on Sale.
  */
 Alpine.data('loopQrScanner', () => ({

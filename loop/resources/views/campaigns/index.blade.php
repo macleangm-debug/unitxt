@@ -1,9 +1,9 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="space-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between sm:gap-4 sm:space-y-0">
-            <div>
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
-                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h1 class="font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.campaigns_and_offers') }}</h1>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
             </div>
             <x-settings-back />
         </div>

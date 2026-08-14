@@ -1,10 +1,10 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
-                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.staff') }}</h1>
-                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.staff_page_blurb') }}</p>
+                <h1 class="mt-1 font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.staff') }}</h1>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.staff_page_blurb') }}</p>
             </div>
             <x-settings-back />
         </div>

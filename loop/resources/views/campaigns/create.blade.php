@@ -14,10 +14,10 @@
 @endphp
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.new_campaign') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.campaign_create_blurb') }}</p>
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h1 class="font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.new_campaign') }}</h1>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.campaign_create_blurb') }}</p>
             </div>
             <x-settings-back :href="route('campaigns.index')" :label="__('loop.back')" />
         </div>
@@ -55,7 +55,7 @@
     @else
         <div
             class="mx-auto max-w-2xl"
-            x-data="{
+            x-data="loopWizard({
                 step: {{ (int) old('_step', 1) }},
                 total: 3,
                 enableWelcome: {{ old('enable_welcome') ? 'true' : 'false' }},
@@ -64,29 +64,12 @@
                 spendDisplay: @js(number_format((int) old('spend_step', $t['spend_step'] ?? 1000))),
                 pointsPerStep: {{ (int) old('points_per_step', $t['points_per_step'] ?? 2) }},
                 currency: @js($business->currency),
-                go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-                next() {
-                    const form = this.$refs.form;
-                    const fields = form.querySelectorAll('[data-step='+this.step+'] [name]');
-                    for (const el of fields) {
-                        if (el.disabled) continue;
-                        if (el.hasAttribute('required') && !String(el.value || '').trim()) {
-                            el.reportValidity();
-                            return;
-                        }
-                        if (typeof el.checkValidity === 'function' && !el.checkValidity()) {
-                            el.reportValidity();
-                            return;
-                        }
-                    }
-                    this.go(Math.min(this.total, this.step + 1));
-                },
                 formatSpend() {
                     let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
                     this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
                 },
-                spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; }
-            }"
+                spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; },
+            })"
         >
             <x-form-stepper :steps="$createSteps" />
 
@@ -111,7 +94,7 @@
                 @endif
 
                 {{-- 1 · Basics --}}
-                <div data-step="1" :class="step === 1 ? '' : 'hidden'" class="space-y-4">
+                <div data-step="1" x-show="step === 1" class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.campaign_name') }}</h2>
                     <div>
@@ -138,12 +121,12 @@
                         <label class="loop-label">{{ __('loop.description') }}</label>
                         <textarea name="description" rows="2" class="loop-input">{{ old('description', $t['description'] ?? '') }}</textarea>
                     </div>
-                    <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="button" class="loop-btn-mint w-full" @click.prevent="next()">{{ __('loop.continue') }}</button>
                     <a href="{{ route('campaigns.create') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
                 </div>
 
                 {{-- 2 · Member gets (min spend + points + optional bonuses) --}}
-                <div data-step="2" :class="step === 2 ? '' : 'hidden'" class="space-y-4">
+                <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
@@ -204,13 +187,13 @@
                     </div>
 
                     <div class="flex gap-3">
-                        <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
-                        <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
+                        <button type="button" class="loop-btn-ghost flex-1" @click.prevent="prev()">{{ __('loop.back') }}</button>
+                        <button type="button" class="loop-btn-mint flex-1" @click.prevent="next()">{{ __('loop.continue') }}</button>
                     </div>
                 </div>
 
                 {{-- 3 · Save / launch --}}
-                <div data-step="3" :class="step === 3 ? '' : 'hidden'" class="space-y-4">
+                <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.section_schedule') }}</h2>
                     <div class="grid gap-3 sm:grid-cols-2">
@@ -233,7 +216,7 @@
                         <a href="{{ route('rewards.create') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('rewards.create')), $event, { kind: 'push' })">{{ __('loop.offers') }} →</a>
                     </p>
                     <div class="flex gap-3">
-                        <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
+                        <button type="button" class="loop-btn-ghost flex-1" @click.prevent="prev()">{{ __('loop.back') }}</button>
                         <button class="loop-btn-mint flex-1">{{ __('loop.launch_campaign') }}</button>
                     </div>
                 </div>

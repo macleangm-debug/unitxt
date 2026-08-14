@@ -58,24 +58,31 @@
                         @endforeach
                     </div>
                 </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.shops') }}</label>
-                    <select name="shop" class="loop-input mt-1">
-                        <option value="">{{ __('loop.all_shops') }}</option>
-                        @foreach ($shops as $shop)
-                            <option value="{{ $shop->id }}" @selected((string) $filters['shop'] === (string) $shop->id)>{{ $shop->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.channel') }}</label>
-                    <select name="channel" class="loop-input mt-1">
-                        <option value="">{{ __('loop.all_channels') }}</option>
-                        <option value="in_store" @selected($filters['channel'] === 'in_store')>{{ __('loop.in_store') }}</option>
-                        <option value="phone_order" @selected($filters['channel'] === 'phone_order')>{{ __('loop.phone_order') }}</option>
-                        <option value="online" @selected($filters['channel'] === 'online')>{{ __('loop.online') }}</option>
-                    </select>
-                </div>
+                @php
+                    $shopOptions = ['' => __('loop.all_shops')];
+                    foreach ($shops as $shop) {
+                        $shopOptions[(string) $shop->id] = $shop->name;
+                    }
+                @endphp
+                <x-sheet-select
+                    name="shop"
+                    :label="__('loop.shops')"
+                    :value="(string) ($filters['shop'] ?? '')"
+                    :placeholder="__('loop.all_shops')"
+                    :options="$shopOptions"
+                />
+                <x-sheet-select
+                    name="channel"
+                    :label="__('loop.channel')"
+                    :value="(string) ($filters['channel'] ?? '')"
+                    :placeholder="__('loop.all_channels')"
+                    :options="[
+                        '' => __('loop.all_channels'),
+                        'in_store' => __('loop.in_store'),
+                        'phone_order' => __('loop.phone_order'),
+                        'online' => __('loop.online'),
+                    ]"
+                />
                 <button class="loop-btn-mint w-full">{{ __('loop.apply') }}</button>
             </form>
         </x-filter-sheet>

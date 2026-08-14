@@ -79,7 +79,7 @@
                 >
                     <button
                         type="button"
-                        class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink/10 bg-white text-ink hover:border-ink/20"
+                        class="relative inline-grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-ink/10 bg-white text-ink hover:border-ink/20"
                         title="{{ __('loop.notifications') }}"
                         @click="open = ! open"
                         :aria-expanded="open.toString()"
