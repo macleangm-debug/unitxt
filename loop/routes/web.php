@@ -48,6 +48,11 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+// Compatibility alias — Laravel auth redirects and legacy views expect route('login').
+Route::get('/login', function () {
+    return redirect()->route('home');
+})->name('login');
+
 Route::get('/for-business', function () {
     return view('landings.business', [
         'plans' => Plans::publicPlans(),

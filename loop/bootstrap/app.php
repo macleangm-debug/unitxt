@@ -21,6 +21,35 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureUserRole::class,
         ]);
+        $middleware->redirectGuestsTo(function (Request $request) {
+            $path = trim($request->path(), '/');
+            if (str_starts_with($path, 'affiliate')) {
+                return route('affiliate.login');
+            }
+            if (
+                str_starts_with($path, 'wallets')
+                || str_starts_with($path, 'wallet')
+                || $path === 'customer'
+                || str_starts_with($path, 'customer/')
+            ) {
+                return route('customer.login');
+            }
+            if (
+                str_starts_with($path, 'sale')
+                || str_starts_with($path, 'transactions')
+                || str_starts_with($path, 'customers')
+                || str_starts_with($path, 'settings')
+                || str_starts_with($path, 'admin')
+                || str_starts_with($path, 'staff')
+                || str_starts_with($path, 'campaigns')
+                || str_starts_with($path, 'shops')
+                || str_starts_with($path, 'billing')
+            ) {
+                return route('staff.login');
+            }
+
+            return route('home');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

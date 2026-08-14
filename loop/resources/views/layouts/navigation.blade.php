@@ -57,10 +57,6 @@
             @endif
 
             <div class="ml-auto flex shrink-0 items-center gap-2">
-                @if ($user->isCustomer())
-                    <p class="hidden text-sm font-medium text-ink-muted sm:block">{{ $user->full_phone ?? $user->phone }}</p>
-                @endif
-
                 @if ($user->isAffiliate())
                     <span class="hidden rounded-lg bg-violet-soft px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-violet sm:inline-flex">{{ __('loop.affiliate_role_badge') }}</span>
                 @endif

@@ -80,10 +80,20 @@
     @forelse ($rows as $row)
         <section class="loop-shell mt-8 first:mt-6">
             <div class="mb-4 flex items-end justify-between gap-3">
-                <h2 class="font-display text-xl font-semibold sm:text-2xl">{{ $row['title'] }}</h2>
-                @if ($row['key'] === 'frequent')
-                    <span class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.frequent') }}</span>
-                @endif
+                <div class="min-w-0">
+                    <h2 class="font-display text-xl font-semibold sm:text-2xl">{{ $row['title'] }}</h2>
+                    @if (($row['total'] ?? 0) > count($row['businesses']))
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.showing_of_total', ['shown' => count($row['businesses']), 'total' => $row['total']]) }}</p>
+                    @endif
+                </div>
+                <div class="flex shrink-0 items-center gap-3">
+                    @if ($row['key'] === 'frequent')
+                        <span class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.frequent') }}</span>
+                    @endif
+                    @if (! empty($row['see_all_url']))
+                        <a href="{{ $row['see_all_url'] }}" class="text-sm font-semibold text-violet hover:text-ink">{{ __('loop.view_all') }}</a>
+                    @endif
+                </div>
             </div>
             <div class="loop-shop-grid">
                 @foreach ($row['businesses'] as $business)
@@ -104,6 +114,12 @@
             <div class="loop-panel mt-10 p-8 text-center text-ink-muted">{{ __('loop.no_shops_filter') }}</div>
         </div>
     @endforelse
+
+    @if (! empty($paginator) && $paginator->hasPages())
+        <div class="loop-shell mt-8">
+            {{ $paginator->links() }}
+        </div>
+    @endif
 </main>
 
 <div x-show="filtersOpen" x-cloak class="fixed inset-0 z-40 sm:hidden" @keydown.escape.window="filtersOpen=false">

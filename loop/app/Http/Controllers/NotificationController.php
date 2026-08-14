@@ -22,11 +22,25 @@ class NotificationController extends Controller
         $notifications = InAppNotification::query()
             ->where('user_id', $user->id)
             ->latest()
-            ->limit(40)
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
+
+        $unreadCount = InAppNotification::query()
+            ->where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
+
+        $audience = match (true) {
+            $user->isCustomer() => 'member',
+            $user->isAffiliate() => 'affiliate',
+            $user->isOwner() || $user->isStaff() => 'business',
+            default => 'admin',
+        };
 
         return view('notifications.index', [
             'notifications' => $notifications,
+            'unreadCount' => $unreadCount,
+            'audience' => $audience,
         ]);
     }
 

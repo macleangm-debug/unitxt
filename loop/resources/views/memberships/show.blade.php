@@ -226,6 +226,9 @@
                     <p class="px-5 py-8 text-sm text-ink-muted">{{ __('loop.no_history_yet') }}</p>
                 @endforelse
             </div>
+            @if ($transactions->hasPages())
+                <div class="mt-4">{{ $transactions->links() }}</div>
+            @endif
         </section>
 
         <div
