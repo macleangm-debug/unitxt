@@ -111,11 +111,11 @@ return [
     'settings_loyalty' => 'Jinsi wanachama wanavyopata pointi, na wanachoweza kutumia',
     'settings_staff' => 'Ufikiaji wa kaunta',
     'campaigns_and_offers' => 'Kampeni na ofa',
-    'campaigns_and_offers_blurb' => 'Kanuni za pointi na ofa za kukomboa.',
-    'how_they_earn' => 'Jinsi wanavyopata',
-    'how_they_earn_body' => 'Pointi kwa mauzo, siku ya kuzaliwa, na mfululizo.',
-    'what_they_choose' => 'Wanachoweza kuchagua',
-    'what_they_choose_body' => 'Wanachama wanachokombolea kwenye kaunta.',
+    'campaigns_and_offers_blurb' => 'Kampeni zinatoa pointi. Ofa zinatumia — zinashirikiwa katika kampeni zote.',
+    'how_they_earn' => 'Kampeni',
+    'how_they_earn_body' => 'Sheria zinazotoa pointi: earn, bidhaa maalum, karibu, birthday, streak.',
+    'what_they_choose' => 'Ofa',
+    'what_they_choose_body' => 'Wanachama wanachocomboa kwa pointi. Pochi moja — ofa hazifungamani na kampeni moja.',
     'no_offers_yet_hint' => 'Bado hakuna ofa. Ongeza chaguo wanachama wanaweza kutumia baada ya kupata pointi.',
     'add_offer_blurb' => 'Unda chaguo la kutumia — bidhaa bure, punguzo, au jambo maalum.',
     'offer_name_placeholder' => 'mf. Kahawa bure',
@@ -400,7 +400,13 @@ return [
     'type_welcome' => 'Karibu',
     'intention_earn' => 'Toa pointi kila mauzo',
     'intention_product' => 'Sukuma bidhaa maalum',
-    'intention_retention' => 'Rudisha wanachama',
+    'intention_retention' => 'Kampeni za bonasi',
+    'campaigns_vs_offers_bridge' => 'Kidokezo: weka earn moja live, ongeza kampeni za bonasi unapohitaji, na simamia ukombozi chini ya Ofa.',
+    'campaign_name_placeholder' => 'mf. Harbor Beans earn',
+    'featured_product_section' => 'Bidhaa maalum',
+    'featured_product_how_it_works' => 'Kwenye till, mfanyakazi anabofya kuwa bidhaa hii ilikuwa katika mauzo. Pointi za ziada zinaongezeka juu ya earn ya kawaida.',
+    'bonus_campaign_step_help' => 'Hizi zinaongeza juu ya earn ya kila siku — hazibadilishi.',
+    'bonus_campaigns_use_templates' => 'Karibu, birthday, na streak ni templeti tofauti — zichague kwenye orodha.',
     'rule_earn' => 'Kila :currency :step = :points pointi',
     'rule_birthday' => 'Zawadi ya siku ya kuzaliwa: +:points pointi',
     'rule_welcome' => 'Zawadi ya karibu: +:points pointi',
@@ -622,37 +628,37 @@ return [
   'everyday_earn' => 
   array (
     'name' => 'Pointi kila siku',
-    'description' => 'Pointi thabiti kila ununuzi — chaguo zuri kwa maduka mengi.',
+    'description' => 'Pointi kila ununuzi.',
   ),
   'faster_earn' => 
   array (
     'name' => 'Pointi haraka',
-    'description' => 'Pointi nyingi kwa matumizi — vizuri unapotaka wanachama wafungue ofa haraka.',
+    'description' => 'Pointi nyingi kwa matumizi.',
   ),
   'product_push' => 
   array (
-    'name' => 'Sukuma bidhaa maalum',
-    'description' => 'Taja bidhaa. Kwenye till, mfanyakazi anathibitisha ilikuwa katika mauzo — kisha pointi za ziada.',
+    'name' => 'Bidhaa maalum',
+    'description' => 'Pointi za ziada mfanyakazi anapothibitisha bidhaa kwenye till.',
   ),
   'visit_streak' => 
   array (
     'name' => 'Mfululizo wa ziara',
-    'description' => 'Zawadi baada ya ziara kadhaa kwa muda mfupi — huhifadhi wanachama.',
+    'description' => 'Zawadi baada ya ziara kadhaa wiki hii.',
   ),
   'birthday_treat' => 
   array (
-    'name' => 'Zawadi ya siku ya kuzaliwa',
-    'description' => 'Pointi za ziada siku ya kuzaliwa ya mwanachama.',
+    'name' => 'Siku ya kuzaliwa',
+    'description' => 'Pointi za ziada siku ya kuzaliwa.',
   ),
   'monthly_streak' => 
   array (
     'name' => 'Streak ya mwezi',
-    'description' => 'Ziara 3 mwezi huu → pointi za ziada. Unaweza kuongeza na ya wiki.',
+    'description' => 'Zawadi baada ya ziara kadhaa mwezi huu.',
   ),
   'welcome_bonus' => 
   array (
-    'name' => 'Zawadi ya karibu',
-    'description' => 'Ongezeko la mauzo ya kwanza kwa wanachama wapya wa Loop.',
+    'name' => 'Karibu',
+    'description' => 'Pointi za ziada kwenye mauzo ya kwanza.',
   ),
 ),
     'offer_templates' => array (

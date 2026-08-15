@@ -398,11 +398,16 @@ class TillService
             ->active()
             ->where('business_id', $shop->business_id)
             ->whereIn('type', [Campaign::TYPE_EARN, 'product_push'])
+            ->whereNotNull('spend_step')
+            ->where('spend_step', '>', 0)
+            ->whereNotNull('points_per_step')
+            ->where('points_per_step', '>', 0)
             ->where(function ($query) use ($shop) {
                 $query->whereDoesntHave('shops')
                     ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
             })
             ->orderByDesc('points_per_step')
+            ->orderByDesc('id')
             ->first();
     }
 

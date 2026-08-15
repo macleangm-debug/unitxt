@@ -111,11 +111,11 @@ return array (
   'settings_loyalty' => 'How members earn points, and what they can redeem',
   'settings_staff' => 'Front desk access',
   'campaigns_and_offers' => 'Campaigns & offers',
-  'campaigns_and_offers_blurb' => 'Earn rules and redeemable offers.',
-  'how_they_earn' => 'How they earn',
-  'how_they_earn_body' => 'Points on sales, birthdays, and streaks.',
-  'what_they_choose' => 'What they can choose',
-  'what_they_choose_body' => 'What members redeem at the till.',
+  'campaigns_and_offers_blurb' => 'Campaigns earn points. Offers spend them — shared across every campaign.',
+  'how_they_earn' => 'Campaigns',
+  'how_they_earn_body' => 'Rules that award points: everyday earn, featured product, welcome, birthday, streak.',
+  'what_they_choose' => 'Offers',
+  'what_they_choose_body' => 'What members redeem with points. One wallet — offers are not tied to a single campaign.',
   'no_offers_yet_hint' => 'No offers yet. Add choices members can redeem once they’ve earned points.',
   'add_offer_blurb' => 'Create a redeemable choice — free item, percent off, or something custom.',
   'offer_name_placeholder' => 'e.g. Free coffee',
@@ -400,7 +400,13 @@ return array (
   'type_welcome' => 'Welcome',
   'intention_earn' => 'Earn points on every sale',
   'intention_product' => 'Push a featured product',
-  'intention_retention' => 'Bring members back',
+  'intention_retention' => 'Bonus campaigns',
+  'campaigns_vs_offers_bridge' => 'Tip: keep one everyday earn live, add bonus campaigns when you need them, and manage what members redeem under Offers.',
+  'campaign_name_placeholder' => 'e.g. Harbor Beans earn',
+  'featured_product_section' => 'Featured product',
+  'featured_product_how_it_works' => 'At the till, staff tick that this product was in the sale. Then the extra points apply on top of normal earn.',
+  'bonus_campaign_step_help' => 'These stack on top of everyday earn — they do not replace it.',
+  'bonus_campaigns_use_templates' => 'Welcome, birthday, and streak are separate campaign templates — pick them from the list.',
   'rule_earn' => 'Every :currency :step = :points pts',
   'rule_birthday' => 'Birthday bonus: +:points pts',
   'rule_welcome' => 'Welcome bonus: +:points pts',
@@ -623,37 +629,37 @@ return array (
     'everyday_earn' => 
     array (
       'name' => 'Everyday earn',
-      'description' => 'Steady points on every purchase — a strong default for most shops.',
+      'description' => 'Points on every purchase.',
     ),
     'faster_earn' => 
     array (
       'name' => 'Faster earn',
-      'description' => 'More points per spend — good when you want members to unlock offers sooner.',
+      'description' => 'More points per spend.',
     ),
     'product_push' => 
     array (
-      'name' => 'Featured product push',
-      'description' => 'Name a product. At the till, staff confirm it was in the sale — then bonus points apply.',
+      'name' => 'Featured product',
+      'description' => 'Extra points when staff tick the product at the till.',
     ),
     'visit_streak' => 
     array (
       'name' => 'Visit streak',
-      'description' => 'Bonus after several visits in a short window — classic retention.',
+      'description' => 'Bonus after several visits this week.',
     ),
     'birthday_treat' => 
     array (
-      'name' => 'Birthday treat',
-      'description' => 'Bonus points on the member’s birthday.',
+      'name' => 'Birthday',
+      'description' => 'Bonus points on their birthday purchase.',
     ),
     'monthly_streak' => 
     array (
       'name' => 'Monthly streak',
-      'description' => '3 visits this month → bonus points. Stack with weekly.',
+      'description' => 'Bonus after several visits this month.',
     ),
     'welcome_bonus' => 
     array (
-      'name' => 'Welcome bonus',
-      'description' => 'First-sale boost for new Loop members.',
+      'name' => 'Welcome',
+      'description' => 'Extra points on a member’s first sale.',
     ),
   ),
   'offer_templates' => 

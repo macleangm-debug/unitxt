@@ -90,31 +90,49 @@ class CampaignController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'type' => ['required', 'in:earn,product_push'],
+            'type' => ['required', 'in:earn,product_push,birthday,welcome,streak'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'spend_step' => ['required', 'integer', 'min:1'],
-            'points_per_step' => ['required', 'integer', 'min:1'],
+            'spend_step' => ['nullable', 'integer', 'min:1'],
+            'points_per_step' => ['nullable', 'integer', 'min:1'],
             'bonus_points' => ['nullable', 'integer', 'min:0'],
+            'featured_product_name' => ['nullable', 'string', 'max:120'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
             'template_key' => ['nullable', 'string'],
-            'enable_welcome' => ['nullable', 'boolean'],
-            'welcome_points' => ['nullable', 'integer', 'min:1'],
-            'enable_birthday' => ['nullable', 'boolean'],
-            'birthday_points' => ['nullable', 'integer', 'min:1'],
-            'enable_streak' => ['nullable', 'boolean'],
             'streak_target' => ['nullable', 'integer', 'min:2', 'max:30'],
             'streak_period' => ['nullable', 'in:week,month'],
-            'streak_points' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        if ($request->boolean('enable_streak')) {
+        $isEarnLike = in_array($data['type'], ['earn', 'product_push'], true);
+        if ($isEarnLike) {
+            $request->validate([
+                'spend_step' => ['required', 'integer', 'min:1'],
+                'points_per_step' => ['required', 'integer', 'min:1'],
+            ]);
+            $data['spend_step'] = (int) $request->input('spend_step');
+            $data['points_per_step'] = (int) $request->input('points_per_step');
+        } else {
+            $request->validate([
+                'bonus_points' => ['required', 'integer', 'min:1'],
+            ]);
+            $data['bonus_points'] = (int) $request->input('bonus_points');
+            $data['spend_step'] = null;
+            $data['points_per_step'] = null;
+        }
+
+        if ($data['type'] === 'product_push') {
+            $request->validate([
+                'featured_product_name' => ['required', 'string', 'max:120'],
+            ]);
+            $data['featured_product_name'] = $request->input('featured_product_name');
+        }
+
+        if ($data['type'] === 'streak') {
             $request->validate([
                 'streak_target' => ['required', 'integer', 'min:2'],
                 'streak_period' => ['required', 'in:week,month'],
-                'streak_points' => ['required', 'integer', 'min:1'],
             ]);
         }
 
@@ -128,9 +146,12 @@ class CampaignController extends Controller
             'name' => $data['name'],
             'type' => $data['type'],
             'description' => $data['description'] ?? ($localized['description'] ?? null),
-            'spend_step' => $data['spend_step'],
-            'points_per_step' => $data['points_per_step'],
+            'spend_step' => $data['spend_step'] ?? null,
+            'points_per_step' => $data['points_per_step'] ?? null,
             'bonus_points' => $data['bonus_points'] ?? 0,
+            'featured_product_name' => $data['featured_product_name'] ?? null,
+            'streak_target' => $data['type'] === 'streak' ? ($data['streak_target'] ?? 3) : null,
+            'streak_period' => $data['type'] === 'streak' ? ($data['streak_period'] ?? 'week') : null,
             'starts_at' => $data['starts_at'],
             'ends_at' => $data['ends_at'] ?? null,
             'is_active' => true,
@@ -142,44 +163,6 @@ class CampaignController extends Controller
             ->values()
             ->all();
         $campaign->shops()->sync($shopIds);
-
-        if ($request->boolean('enable_welcome')) {
-            $business->campaigns()->create([
-                'name' => __('loop.type_welcome'),
-                'type' => 'welcome',
-                'bonus_points' => $data['welcome_points'] ?? 20,
-                'starts_at' => $data['starts_at'],
-                'ends_at' => $data['ends_at'] ?? null,
-                'is_active' => true,
-                'template_key' => 'welcome_bonus',
-            ]);
-        }
-
-        if ($request->boolean('enable_birthday')) {
-            $business->campaigns()->create([
-                'name' => __('loop.type_birthday'),
-                'type' => 'birthday',
-                'bonus_points' => $data['birthday_points'] ?? 50,
-                'starts_at' => $data['starts_at'],
-                'ends_at' => $data['ends_at'] ?? null,
-                'is_active' => true,
-                'template_key' => 'birthday_treat',
-            ]);
-        }
-
-        if ($request->boolean('enable_streak')) {
-            $business->campaigns()->create([
-                'name' => __('loop.type_streak'),
-                'type' => 'streak',
-                'bonus_points' => $data['streak_points'] ?? 30,
-                'streak_target' => $data['streak_target'] ?? 3,
-                'streak_period' => $data['streak_period'] ?? 'week',
-                'starts_at' => $data['starts_at'],
-                'ends_at' => $data['ends_at'] ?? null,
-                'is_active' => true,
-                'template_key' => ($data['streak_period'] ?? 'week') === 'month' ? 'monthly_streak' : 'visit_streak',
-            ]);
-        }
 
         return redirect()->route('campaigns.show', $campaign)->with(
             'confirm',
@@ -264,6 +247,26 @@ class CampaignController extends Controller
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
         ]);
+
+        if (in_array($data['type'], ['earn', 'product_push'], true)) {
+            if (empty($data['spend_step'])) {
+                $data['spend_step'] = $campaign->spend_step;
+            }
+            if (empty($data['points_per_step'])) {
+                $data['points_per_step'] = $campaign->points_per_step;
+            }
+            if (empty($data['spend_step']) || empty($data['points_per_step'])) {
+                return back()->withInput()->withErrors([
+                    'spend_step' => __('loop.min_spend_to_earn').' / '.__('loop.points_earned'),
+                ]);
+            }
+        }
+
+        if ($data['type'] === 'product_push' && blank($data['featured_product_name'] ?? null) && blank($campaign->featured_product_name)) {
+            return back()->withInput()->withErrors([
+                'featured_product_name' => __('loop.featured_product_name'),
+            ]);
+        }
 
         $campaign->update([
             'name' => $data['name'],

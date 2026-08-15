@@ -17,6 +17,7 @@
             </div>
             <a href="{{ route('campaigns.create') }}" class="loop-btn-mint shrink-0 !py-2.5">{{ __('loop.new_campaign') }}</a>
         </div>
+        <p class="mb-4 rounded-2xl border border-ink/8 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">{{ __('loop.campaigns_vs_offers_bridge') }}</p>
 
         <div class="space-y-3">
             @forelse ($campaigns as $campaign)
