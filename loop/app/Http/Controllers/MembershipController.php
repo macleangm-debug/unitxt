@@ -37,7 +37,7 @@ class MembershipController extends Controller
         return view('memberships.show', [
             'business' => $business,
             'membership' => $membership,
-            'transactions' => $membership->pointTransactions()->latest()->take(20)->get(),
+            'transactions' => $membership->pointTransactions()->latest()->paginate(20)->withQueryString(),
             'visits' => $membership->visits()->with(['shop', 'campaign'])->latest()->take(10)->get(),
             'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
             'raffleWins' => \App\Models\RaffleWinner::query()

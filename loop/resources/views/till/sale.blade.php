@@ -27,22 +27,18 @@
 
     @if ($needsRegister)
         <div
-            x-data="{ open: true, step: 1 }"
-            class="mx-auto max-w-xl"
+            x-data="{ step: {{ old('first_name') || old('last_name') || $errors->any() ? 2 : 1 }}, regStep: {{ old('birth_month') || old('birth_day') || old('email') ? 2 : 1 }} }"
+            class="mx-auto max-w-xl space-y-4"
         >
             <div
-                x-show="open && step === 1"
-                x-cloak
-                class="fixed inset-0 z-[80] flex items-center justify-center px-4"
+                x-show="step === 1"
+                class="rounded-[2rem] border border-ink/10 bg-white p-6 text-center shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
             >
-                <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm"></div>
-                <div class="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
-                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
-                    <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
-                    <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
-                    <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.register_this_customer') }}</button>
-                    <a href="{{ route('till.index') }}" class="mt-3 block text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
-                </div>
+                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
+                <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
+                <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
+                <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.register_this_customer') }}</button>
+                <a href="{{ route('till.index') }}" class="mt-3 block text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
             </div>
 
             <form
@@ -51,18 +47,23 @@
                 x-show="step >= 2"
                 x-cloak
                 class="overflow-hidden rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
-                x-data="{ regStep: 1 }"
+                autocomplete="off"
             >
                 @csrf
+                @if ($errors->any())
+                    <div class="border-b border-coral/20 bg-coral/10 px-6 py-3 text-sm text-coral">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
                 <div class="space-y-4 p-6" x-show="regStep === 1">
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.register_customer_heading') }}</h2>
                     <div>
                         <label class="loop-label">{{ __('loop.first_name') }}</label>
-                        <input name="first_name" value="{{ old('first_name') }}" class="loop-input text-lg" required>
+                        <input name="first_name" value="{{ old('first_name') }}" class="loop-input text-lg" required autocomplete="off">
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.last_name') }}</label>
-                        <input name="last_name" value="{{ old('last_name') }}" class="loop-input text-lg" required>
+                        <input name="last_name" value="{{ old('last_name') }}" class="loop-input text-lg" required autocomplete="off">
                     </div>
                     <button type="button" class="loop-btn w-full" @click="regStep = 2">{{ __('loop.next') }}</button>
                 </div>
@@ -76,19 +77,19 @@
                             :label="__('loop.month')"
                             :options="collect(range(1,12))->mapWithKeys(fn ($m) => [$m => $m])->all()"
                             :value="old('birth_month', '')"
-                            :placeholder="__('loop.month')"
+                            :placeholder="__('loop.pick_option')"
                         />
                         <x-sheet-select
                             name="birth_day"
                             :label="__('loop.day')"
                             :options="collect(range(1,31))->mapWithKeys(fn ($d) => [$d => $d])->all()"
                             :value="old('birth_day', '')"
-                            :placeholder="__('loop.day')"
+                            :placeholder="__('loop.pick_option')"
                         />
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.email_optional') }}</label>
-                        <input type="email" name="email" value="{{ old('email') }}" class="loop-input">
+                        <input type="email" name="email" value="{{ old('email') }}" class="loop-input" autocomplete="off">
                     </div>
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="regStep = 1">{{ __('loop.back') }}</button>
@@ -176,8 +177,16 @@
                     <button class="loop-btn-mint w-full" name="continue_to_sale" value="1">{{ __('loop.redeem_and_sale') }}</button>
                     <button class="loop-btn-ghost w-full" type="submit">{{ __('loop.redeem_only') }}</button>
                 @else
-                    <p class="rounded-2xl border border-dashed border-ink/15 px-4 py-6 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
-                    <a href="{{ route('till.ticket', ['mode' => 'sale']) }}" class="loop-btn w-full text-center">{{ __('loop.mode_sale') }}</a>
+                    <div class="rounded-[1.35rem] border border-dashed border-violet/25 bg-violet-soft/30 px-4 py-6 text-center">
+                        <p class="font-display text-lg font-semibold text-ink">{{ __('loop.none_unlocked') }}</p>
+                        <p class="mt-2 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
+                        @if ($nextOffer)
+                            <p class="mt-3 text-sm font-semibold text-violet">
+                                {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                            </p>
+                        @endif
+                    </div>
+                    <a href="{{ route('till.ticket', ['mode' => 'sale']) }}" class="loop-btn-mint w-full text-center">{{ __('loop.keep_earning') }}</a>
                 @endif
                 <a href="{{ route('till.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.cancel') }}</a>
             </form>

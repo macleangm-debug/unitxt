@@ -2,8 +2,7 @@
     $editSteps = [
         1 => __('loop.section_basics'),
         2 => __('loop.section_offer_reward'),
-        3 => __('loop.section_offer_cost'),
-        4 => __('loop.section_limits'),
+        3 => __('loop.save'),
     ];
     $defaultType = old('reward_type', $reward->reward_type);
     $valueSeed = $defaultType === 'fixed_off'
@@ -12,54 +11,60 @@
 @endphp
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.edit') }} · {{ $reward->name }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.edit_offer_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.edit') }} · {{ $reward->name }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.edit_offer_blurb') }}</p>
+            </div>
+            <x-settings-back :href="route('campaigns.index').'#offers'" :label="__('loop.back')" />
         </div>
     </x-slot>
 
     <div
         class="mx-auto max-w-lg"
-        x-data="{
-            step: {{ (int) old('_step', 1) }},
-            total: 4,
+        x-data="loopWizard({
+            step: {{ (int) request('_step', old('_step', 1)) }},
+            total: 3,
             type: @js($defaultType),
             points: {{ (int) old('points_cost', $reward->points_cost) }},
             valueDisplay: @js($valueSeed),
             product: @js(old('product_name', $reward->product_name)),
-            saving: false,
-            go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-            next() {
-                const form = this.$refs.form;
-                const fields = form.querySelectorAll('[data-step=\"'+this.step+'\'] [name]');
-                for (const el of fields) {
-                    if (el.disabled) continue;
-                    if (el.hasAttribute('required') && !String(el.value || '').trim()) {
-                        el.reportValidity();
-                        return;
-                    }
-                    if (typeof el.checkValidity === 'function' && !el.checkValidity()) {
-                        el.reportValidity();
-                        return;
-                    }
-                }
-                this.go(Math.min(this.total, this.step + 1));
+            stock: @js(old('stock', $reward->stock)),
+            maxPerMember: @js(old('max_redemptions_per_member', $reward->max_redemptions_per_member)),
+            limitsCopy: {
+                none: @js(__('loop.limits_summary_none')),
+                stock: @js(__('loop.limits_summary_stock')),
+                maxOnce: @js(__('loop.limits_summary_max_once')),
+                maxMany: @js(__('loop.limits_summary_max_many')),
+                bothOnce: @js(__('loop.limits_summary_both_once')),
+                bothMany: @js(__('loop.limits_summary_both_many')),
             },
             formatValue() {
                 if (this.type !== 'fixed_off') return;
                 let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
                 this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
             },
-            valueNumber() {
-                return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0;
+            valueNumber() { return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0; },
+            limitsSummary() {
+                const stockRaw = String(this.stock ?? '').trim();
+                const maxRaw = String(this.maxPerMember ?? '').trim();
+                const stock = parseInt(stockRaw, 10);
+                const max = parseInt(maxRaw, 10);
+                const hasStock = stockRaw !== '' && Number.isFinite(stock) && stock > 0;
+                const hasMax = maxRaw !== '' && Number.isFinite(max) && max > 0;
+                const n = (v) => Number(v).toLocaleString();
+                if (! hasStock && ! hasMax) return this.limitsCopy.none;
+                if (hasStock && hasMax) {
+                    return (max === 1 ? this.limitsCopy.bothOnce : this.limitsCopy.bothMany)
+                        .replaceAll(':stock', n(stock))
+                        .replaceAll(':max', n(max));
+                }
+                if (hasStock) return this.limitsCopy.stock.replaceAll(':stock', n(stock));
+                return (max === 1 ? this.limitsCopy.maxOnce : this.limitsCopy.maxMany)
+                    .replaceAll(':max', n(max));
             },
-            startSave() {
-                if (this.saving) return false;
-                this.saving = true;
-                return true;
-            }
-        }"
+        })"
     >
         <x-form-stepper :steps="$editSteps" />
 
@@ -90,7 +95,7 @@
                     <label class="loop-label">{{ __('loop.description') }}</label>
                     <textarea name="description" class="loop-input" rows="2">{{ old('description', $reward->description) }}</textarea>
                 </div>
-                <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
+                <button type="button" class="loop-btn-mint w-full" @click.prevent="next()">{{ __('loop.continue') }}</button>
             </div>
 
             <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
@@ -105,40 +110,76 @@
                     <label class="loop-label">{{ __('loop.tie_to_product_optional') }}</label>
                     <input name="product_name" class="loop-input" x-model="product" placeholder="{{ __('loop.tie_to_product_placeholder') }}">
                 @endif
+                <div class="rounded-2xl border border-ink/8 bg-chalk/40 p-4">
+                    <label class="loop-label">{{ __('loop.points_to_unlock') }}</label>
+                    <input type="number" name="points_cost" x-model.number="points" class="loop-input" min="1" :required="step === 2">
+                </div>
                 <div class="flex gap-3">
-                    <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
-                    <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="button" class="loop-btn-ghost flex-1" @click.prevent="go(1)">{{ __('loop.back') }}</button>
+                    <button type="button" class="loop-btn-mint flex-1" @click.prevent="next()">{{ __('loop.continue') }}</button>
                 </div>
             </div>
 
             <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.section_offer_cost') }}</p>
-                <label class="loop-label">{{ __('loop.points_to_unlock') }}</label>
-                <input type="number" name="points_cost" x-model.number="points" class="loop-input" min="1" :required="step === 3">
-                <div class="flex gap-3">
-                    <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
-                    <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
-                </div>
-            </div>
-
-            <div data-step="4" x-show="step === 4" x-cloak class="space-y-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_limits') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.section_limits') }}</h2>
+                <p class="text-sm text-ink-muted">{{ __('loop.limits_optional_hint') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>
                         <label class="loop-label">{{ __('loop.stock_optional') }}</label>
-                        <input type="number" name="stock" class="loop-input" value="{{ old('stock', $reward->stock) }}" placeholder="∞">
+                        <input type="number" name="stock" class="loop-input" x-model="stock" min="1" placeholder="∞">
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.stock_help') }}</p>
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.max_per_member') }}</label>
-                        <input type="number" name="max_redemptions_per_member" class="loop-input" min="1" value="{{ old('max_redemptions_per_member', $reward->max_redemptions_per_member) }}">
+                        <input type="number" name="max_redemptions_per_member" class="loop-input" x-model="maxPerMember" min="1" placeholder="∞">
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.max_per_member_help') }}</p>
                     </div>
                 </div>
+                <p class="rounded-2xl border border-mint/25 bg-mint-soft/40 px-4 py-3 text-center font-display text-base font-semibold text-ink" x-text="limitsSummary()"></p>
+
+                <div class="rounded-2xl border border-ink/8 bg-chalk/40 p-4" x-data="{ scheduleMode: @js(old('schedule_mode', ($reward->starts_at || $reward->ends_at) ? 'scheduled' : 'evergreen')) }">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.offer_schedule') }}</p>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <label class="rounded-xl border border-ink/10 bg-white px-3 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                            <input type="radio" name="schedule_mode" value="evergreen" class="sr-only" x-model="scheduleMode">
+                            <span class="font-semibold">{{ __('loop.offer_evergreen') }}</span>
+                        </label>
+                        <label class="rounded-xl border border-ink/10 bg-white px-3 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft/40">
+                            <input type="radio" name="schedule_mode" value="scheduled" class="sr-only" x-model="scheduleMode">
+                            <span class="font-semibold">{{ __('loop.offer_scheduled') }}</span>
+                        </label>
+                    </div>
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2" x-show="scheduleMode === 'scheduled'" x-cloak>
+                        <div>
+                            <label class="loop-label">{{ __('loop.starts_at') }}</label>
+                            <input type="date" name="starts_at" class="loop-input" value="{{ old('starts_at', $reward->starts_at?->toDateString()) }}">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.ends_at') }}</label>
+                            <input type="date" name="ends_at" class="loop-input" value="{{ old('ends_at', $reward->ends_at?->toDateString()) }}">
+                        </div>
+                    </div>
+                </div>
+
                 <label class="flex items-center gap-2 text-sm font-semibold">
                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $reward->is_active)) class="rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
                     {{ __('loop.live') }}
                 </label>
+
+                <div class="rounded-2xl border border-coral/20 bg-coral/5 px-4 py-3">
+                    <label class="flex items-start gap-3 text-sm">
+                        <input type="checkbox" name="confirm_worsen" value="1" class="mt-1 rounded border-ink/20 text-coral focus:ring-coral" @checked(old('confirm_worsen'))>
+                        <span>
+                            <span class="font-semibold text-ink">{{ __('loop.offer_worsen_confirm_title') }}</span>
+                            <span class="mt-1 block text-ink-muted">{{ __('loop.offer_worsen_confirm_body') }}</span>
+                        </span>
+                    </label>
+                    <x-input-error :messages="$errors->get('confirm_worsen')" class="mt-2" />
+                </div>
+
                 <div class="flex gap-3">
-                    <button type="button" class="loop-btn-ghost flex-1" @click="go(3)">{{ __('loop.back') }}</button>
+                    <button type="button" class="loop-btn-ghost flex-1" @click.prevent="go(2)">{{ __('loop.back') }}</button>
                     <button class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">
                         <span x-show="!saving">{{ __('loop.save') }}</span>
                         <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>

@@ -5,16 +5,19 @@ namespace App\Support;
 class Confirm
 {
     /**
-     * @return array{title: string, body: string, cta: string, url: string, celebrate: bool, body_html?: string}
+     * @return array{title: string, body: string, cta: string, url: string, celebrate: bool, tone: string, body_html?: string, dismiss?: bool}
      */
     public static function make(string $title, string $body, string $cta, string $url, bool $celebrate = true, array $extra = []): array
     {
+        $tone = $extra['tone'] ?? ($celebrate ? 'success' : 'error');
+
         return array_merge([
             'title' => $title,
             'body' => $body,
             'cta' => $cta,
             'url' => $url,
             'celebrate' => $celebrate,
+            'tone' => $tone,
         ], $extra);
     }
 
@@ -34,5 +37,13 @@ class Confirm
                 ]),
             ]
         );
+    }
+
+    public static function error(string $title, string $body, string $cta, string $url): array
+    {
+        return self::make($title, $body, $cta, $url, false, [
+            'tone' => 'error',
+            'dismiss' => true,
+        ]);
     }
 }

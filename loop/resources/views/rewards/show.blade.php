@@ -5,35 +5,54 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
                 <div class="mt-1 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold">{{ $reward->name }}</h1>
-                    @if ($reward->is_active)
+                    @if ($reward->stock === 0)
+                        <span class="rounded-lg bg-coral/20 px-2.5 py-1 text-xs font-semibold text-coral">{{ __('loop.offer_finished') }}</span>
+                    @elseif ($reward->is_active)
                         <span class="rounded-lg bg-mint px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
+                    @else
+                        <span class="rounded-lg bg-chalk px-2.5 py-1 text-xs font-semibold text-ink-muted">{{ __('loop.paused') }}</span>
                     @endif
                 </div>
                 <p class="mt-1 text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} pts</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index') }}#offers" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+                <x-settings-back :href="route('campaigns.index').'#offers'" :label="__('loop.back')" />
                 <a href="{{ route('rewards.edit', $reward) }}" class="loop-btn-mint !py-2">{{ __('loop.edit') }}</a>
             </div>
         </div>
     </x-slot>
 
+    @if ($reward->stock === 0)
+        <div class="mb-6 rounded-[1.5rem] border border-coral/25 bg-coral/10 px-5 py-4">
+            <p class="font-display text-lg font-semibold text-ink">{{ __('loop.offer_finished_title') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_finished_body') }}</p>
+        </div>
+    @endif
+
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-2xl bg-gradient-to-br from-mint/30 to-mint/5 p-5 ring-1 ring-mint/20">
-            <p class="text-sm text-ink-muted">{{ __('loop.redemptions') }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.offer_stat_total') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['total_redemptions'] }}</p>
         </div>
         <div class="rounded-2xl bg-gradient-to-br from-coral/25 to-coral/5 p-5 ring-1 ring-coral/20">
-            <p class="text-sm text-ink-muted">{{ __('loop.this_month') }}</p>
+            <p class="text-sm text-ink-muted">{{ __('loop.offer_stat_month') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['this_month'] }}</p>
         </div>
         <div class="rounded-2xl bg-gradient-to-br from-ink/90 to-ink p-5 text-white">
-            <p class="text-sm text-white/70">{{ __('loop.points_spent') }}</p>
+            <p class="text-sm text-white/70">{{ __('loop.offer_stat_points') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ number_format($stats['points_spent']) }}</p>
         </div>
-        <div class="rounded-2xl bg-gradient-to-br from-mint to-mint-deep p-5 text-ink">
-            <p class="text-sm text-ink/70">{{ __('loop.stock') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['stock'] ?? __('loop.unlimited') }}</p>
+        <div class="rounded-2xl bg-gradient-to-br from-mint to-mint-deep p-5 text-white">
+            <p class="text-sm text-white/75">{{ __('loop.offer_stat_stock') }}</p>
+            <p class="mt-2 font-display text-3xl font-semibold text-white">
+                @if ($reward->stock === null)
+                    {{ __('loop.unlimited') }}
+                @elseif ($reward->stock === 0)
+                    {{ __('loop.offer_none_left') }}
+                @else
+                    {{ $reward->stock }}
+                @endif
+            </p>
         </div>
     </div>
 
@@ -41,6 +60,7 @@
         <section class="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/90">
             <div class="bg-gradient-to-r from-mint/25 via-mint/5 to-transparent px-6 py-4">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.offer_details') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_details_blurb') }}</p>
             </div>
             <dl class="space-y-3 px-6 py-5 text-sm">
                 <div class="flex justify-between gap-4">

@@ -81,12 +81,11 @@ class CustomerAuthController extends Controller
             ->first();
 
         if (! $user || ! $user->password || ! Hash::check($data['pin'], $user->password)) {
-            return back()->with('confirm', Confirm::make(
+            return back()->with('confirm', Confirm::error(
                 __('loop.login_failed_title'),
                 __('loop.pin_incorrect'),
                 __('loop.try_again'),
                 route('customer.pin'),
-                false,
             ));
         }
 
@@ -156,6 +155,7 @@ class CustomerAuthController extends Controller
             'birth_day' => $data['birth_day'] ?? null,
             'email' => $data['email'] ?? null,
             'interests' => $data['interests'] ?? [],
+            'interests_prompt_seen_at' => ! empty($data['interests'] ?? []) ? now() : null,
             'password' => Hash::make($data['pin']),
             'phone_verified_at' => now(),
             'profile_completed' => true,

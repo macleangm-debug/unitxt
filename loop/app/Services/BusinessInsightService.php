@@ -18,7 +18,7 @@ class BusinessInsightService
         $banners = [];
 
         $memberCount = $business->uniqueMemberCount();
-        $offerCount = $business->rewards()->where('is_active', true)->count();
+        $offerCount = $business->hasRedeemableOffer() ? 1 : 0;
         $campaignThreshold = (float) $settings['campaign_delta_threshold_pct'];
         $retentionThreshold = (float) $settings['retention_delta_threshold_pct'];
 

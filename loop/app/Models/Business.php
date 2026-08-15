@@ -35,6 +35,7 @@ use Illuminate\Support\Str;
     'referred_by_affiliate_id',
     'billing_status',
     'trial_ends_at',
+    'past_due_at',
     'referral_discount_percent',
     'referral_credit_months',
     'referral_credit_days',
@@ -53,6 +54,7 @@ class Business extends Model
             'onboarding_completed_at' => 'datetime',
             'branch_count' => 'integer',
             'trial_ends_at' => 'datetime',
+            'past_due_at' => 'datetime',
             'referral_discount_percent' => 'integer',
             'referral_credit_months' => 'integer',
             'referral_credit_days' => 'integer',
@@ -139,6 +141,24 @@ class Business extends Model
     public function rewards(): HasMany
     {
         return $this->hasMany(Reward::class);
+    }
+
+    public function hasRedeemableOffer(): bool
+    {
+        return $this->rewards()
+            ->where('is_active', true)
+            ->get()
+            ->contains(fn (Reward $reward) => $reward->isAvailable());
+    }
+
+    public function redeemableOffers()
+    {
+        return $this->rewards()
+            ->where('is_active', true)
+            ->orderBy('points_cost')
+            ->get()
+            ->filter(fn (Reward $reward) => $reward->isAvailable())
+            ->values();
     }
 
     public function raffles(): HasMany

@@ -8,6 +8,7 @@ use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -20,7 +21,8 @@ class StaffController extends Controller
 
         return view('staff.index', [
             'business' => $business,
-            'staff' => $business->frontDeskStaff()->latest()->get(),
+            'staff' => $business->frontDeskStaff()->with('shop')->latest()->get(),
+            'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
             'countries' => Countries::OPTIONS,
         ]);
     }
@@ -30,12 +32,16 @@ class StaffController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
 
+        $shops = $business->shops()->where('is_active', true)->pluck('id');
+        $shopRequired = $shops->count() > 1;
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
             'country_code' => ['required', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
             'password' => ['required', 'string', Password::defaults()],
+            'shop_id' => [$shopRequired ? 'required' : 'nullable', 'integer', Rule::in($shops->all())],
         ]);
 
         $phone = Countries::normalizePhone($data['phone']);
@@ -43,6 +49,8 @@ class StaffController extends Controller
         if (User::query()->where('country_code', $data['country_code'])->where('phone', $phone)->exists()) {
             return back()->withInput()->withErrors(['phone' => 'That phone is already registered on Loop.']);
         }
+
+        $shopId = $data['shop_id'] ?? ($shops->count() === 1 ? $shops->first() : null);
 
         User::create([
             'first_name' => $data['first_name'],
@@ -52,6 +60,7 @@ class StaffController extends Controller
             'password' => Hash::make($data['password']),
             'role' => User::ROLE_FRONT_DESK,
             'business_id' => $business->id,
+            'shop_id' => $shopId,
             'must_change_password' => true,
             'phone_verified_at' => now(),
             'is_active' => true,

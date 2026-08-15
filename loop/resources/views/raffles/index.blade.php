@@ -6,9 +6,12 @@
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.raffles') }}</h1>
                 <p class="mt-1 text-ink-muted">{{ __('loop.raffles_blurb') }}</p>
             </div>
-            @if ($unlocked)
-                <a href="{{ route('raffles.create') }}" class="loop-btn-mint">{{ __('loop.create_raffle') }}</a>
-            @endif
+            <div class="flex flex-wrap gap-2">
+                <x-settings-back />
+                @if ($unlocked)
+                    <a href="{{ route('raffles.create') }}" class="loop-btn-mint">{{ __('loop.create_raffle') }}</a>
+                @endif
+            </div>
         </div>
     </x-slot>
 
@@ -49,10 +52,12 @@
                     </div>
                 </a>
             @empty
-                <div class="loop-panel p-8 text-center">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.no_raffles_yet') }}</p>
-                    <a href="{{ route('raffles.create') }}" class="loop-btn-mint mt-4 inline-flex">{{ __('loop.create_raffle') }}</a>
-                </div>
+                <x-empty-state
+                    :title="__('loop.no_raffles_yet')"
+                    :blurb="__('loop.raffles_blurb')"
+                    :cta="__('loop.create_raffle')"
+                    :url="route('raffles.create')"
+                />
             @endforelse
         </div>
     @endif

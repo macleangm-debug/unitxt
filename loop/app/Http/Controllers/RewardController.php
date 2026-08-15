@@ -80,13 +80,30 @@ class RewardController extends Controller
             'reward_value' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
             'max_redemptions_per_member' => ['nullable', 'integer', 'min:1'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'schedule_mode' => ['nullable', 'in:evergreen,scheduled'],
         ]);
 
+        $evergreen = ($data['schedule_mode'] ?? 'evergreen') === 'evergreen';
+
         $reward = $business->rewards()->create([
-            ...$data,
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'product_name' => $data['product_name'] ?? null,
             'product_sku' => null,
+            'points_cost' => $data['points_cost'],
+            'reward_type' => $data['reward_type'],
+            'reward_value' => $data['reward_value'] ?? 0,
+            'stock' => $data['stock'] ?? null,
+            'max_redemptions_per_member' => $data['max_redemptions_per_member'] ?? null,
+            'starts_at' => $evergreen ? null : ($data['starts_at'] ?? null),
+            'ends_at' => $evergreen ? null : ($data['ends_at'] ?? null),
+            'is_default' => false,
             'is_active' => true,
         ]);
+
+        \App\Support\DefaultOffer::ensure($business);
 
         return redirect()->route('rewards.show', $reward)->with('confirm', Confirm::make(
             __('loop.offer_created_title'),
@@ -145,13 +162,39 @@ class RewardController extends Controller
             'reward_value' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
             'max_redemptions_per_member' => ['nullable', 'integer', 'min:1'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'schedule_mode' => ['nullable', 'in:evergreen,scheduled'],
             'is_active' => ['sometimes', 'boolean'],
+            'confirm_worsen' => ['sometimes', 'boolean'],
         ]);
 
-        $reward->update([
-            ...$data,
+        $evergreen = ($data['schedule_mode'] ?? (($reward->starts_at || $reward->ends_at) ? 'scheduled' : 'evergreen')) === 'evergreen';
+        $payload = [
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'product_name' => $data['product_name'] ?? null,
+            'points_cost' => $data['points_cost'],
+            'reward_type' => $data['reward_type'],
+            'reward_value' => $data['reward_value'] ?? 0,
+            'stock' => $data['stock'] ?? null,
+            'max_redemptions_per_member' => $data['max_redemptions_per_member'] ?? null,
+            'starts_at' => $evergreen ? null : ($data['starts_at'] ?? null),
+            'ends_at' => $evergreen ? null : ($data['ends_at'] ?? null),
             'is_active' => $request->boolean('is_active', $reward->is_active),
-        ]);
+        ];
+
+        if ($reward->wouldWorsen($payload) && ! $request->boolean('confirm_worsen')) {
+            return back()->withInput()->withErrors([
+                'confirm_worsen' => __('loop.offer_worsen_confirm_required'),
+            ]);
+        }
+
+        $reward->update($payload);
+
+        if (! $business->hasRedeemableOffer()) {
+            \App\Support\DefaultOffer::ensure($business->fresh());
+        }
 
         return redirect()->route('rewards.show', $reward)->with('confirm', Confirm::make(
             __('loop.offer_updated_title'),

@@ -1,8 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <h1 class="font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.campaigns_and_offers') }}</h1>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+            </div>
+            <x-settings-back />
         </div>
     </x-slot>
 
@@ -14,6 +17,7 @@
             </div>
             <a href="{{ route('campaigns.create') }}" class="loop-btn-mint shrink-0 !py-2.5">{{ __('loop.new_campaign') }}</a>
         </div>
+        <p class="mb-4 rounded-2xl border border-ink/8 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">{{ __('loop.campaigns_vs_offers_bridge') }}</p>
 
         <div class="space-y-3">
             @forelse ($campaigns as $campaign)
@@ -24,17 +28,18 @@
                     </div>
                     <div class="flex shrink-0 items-center gap-3">
                         @if ($campaign->isCurrentlyActive())
-                            <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
+                            <span class="rounded-lg bg-mint-deep px-2.5 py-1 text-xs font-semibold text-white">{{ __('loop.live') }}</span>
                         @endif
                         <span class="text-ink-muted">→</span>
                     </div>
                 </a>
             @empty
-                <div class="loop-panel p-8 text-center">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.no_campaigns_yet') }}</p>
-                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.how_they_earn_body') }}</p>
-                    <a href="{{ route('campaigns.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.new_campaign') }}</a>
-                </div>
+                <x-empty-state
+                    :title="__('loop.no_campaigns_yet')"
+                    :blurb="__('loop.how_they_earn_body')"
+                    :cta="__('loop.new_campaign')"
+                    :url="route('campaigns.create')"
+                />
             @endforelse
         </div>
     </section>
@@ -58,8 +63,13 @@
                             @if ($reward->product_name)
                                 <p class="mt-2 text-sm">{{ __('loop.product') }}: <span class="font-semibold">{{ $reward->product_name }}</span></p>
                             @endif
+                            @if ($reward->stock === 0)
+                                <p class="mt-2 text-xs font-semibold text-coral">{{ __('loop.offer_finished') }}</p>
+                            @elseif ($reward->stock !== null)
+                                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.offer_remaining_count', ['count' => $reward->stock]) }}</p>
+                            @endif
                         </div>
-                        <span class="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold text-mint">{{ $reward->points_cost }} pts</span>
+                        <span class="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold text-white">{{ $reward->points_cost }} pts</span>
                     </div>
                     <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.view_stats') }} →</p>
                 </a>

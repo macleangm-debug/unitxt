@@ -103,6 +103,8 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
+        $frontDesk->update(['shop_id' => $downtown->id]);
+
         $campaign = Campaign::create([
             'business_id' => $business->id,
             'name' => 'Everyday earn',
@@ -136,6 +138,7 @@ class DatabaseSeeder extends Seeder
             'reward_type' => 'percent_off',
             'reward_value' => 5,
             'is_active' => true,
+            'is_default' => true,
         ]);
 
         $customer = User::factory()->customer()->create([

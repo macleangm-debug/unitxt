@@ -38,12 +38,11 @@ class StaffSessionController extends Controller
             ->first();
 
         if (! $user || ! $user->is_active || ! $user->password || ! Hash::check($data['password'], $user->password)) {
-            return back()->withInput($request->only('country_code', 'phone'))->with('confirm', Confirm::make(
+            return back()->withInput($request->only('country_code', 'phone'))->with('confirm', Confirm::error(
                 __('loop.login_failed_title'),
                 __('loop.login_failed_body'),
                 __('loop.try_again'),
                 route('staff.login'),
-                false,
             ));
         }
 

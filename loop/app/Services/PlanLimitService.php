@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\Plan;
 use App\Support\BillingSettings;
 use App\Support\Plans;
+use Carbon\CarbonInterface;
 
 class PlanLimitService
 {
@@ -17,8 +18,6 @@ class PlanLimitService
     }
 
     /**
-     * Effective caps — free/trial plan uses admin BillingSettings overrides.
-     *
      * @return array{max_shops: ?int, max_members: ?int, max_monthly_visits: ?int}
      */
     public function effectiveCaps(Business $business): array
@@ -54,27 +53,108 @@ class PlanLimitService
         return $business->trial_ends_at->isPast();
     }
 
+    public function isUnpaid(Business $business): bool
+    {
+        if ($business->billing_status === 'suspended') {
+            return true;
+        }
+
+        if ($business->billing_status === 'past_due') {
+            return true;
+        }
+
+        return $this->trialExpired($business) && ! Plans::isPaidPlan($business->plan_key);
+    }
+
+    public function graceEndsAt(Business $business): ?CarbonInterface
+    {
+        if (! $this->isUnpaid($business)) {
+            return null;
+        }
+
+        $billing = BillingSettings::settings();
+        $graceDays = (int) $billing['grace_days'];
+        $anchor = $business->past_due_at
+            ?? ($business->trial_ends_at && $business->trial_ends_at->isPast() ? $business->trial_ends_at : null)
+            ?? now();
+
+        return $anchor->copy()->addDays($graceDays);
+    }
+
+    public function inGracePeriod(Business $business): bool
+    {
+        if (! $this->isUnpaid($business)) {
+            return false;
+        }
+
+        $ends = $this->graceEndsAt($business);
+
+        return $ends !== null && $ends->isFuture();
+    }
+
+    public function graceDaysLeft(Business $business): int
+    {
+        $ends = $this->graceEndsAt($business);
+        if (! $ends || $ends->isPast()) {
+            return 0;
+        }
+
+        return max(0, (int) now()->diffInDays($ends));
+    }
+
+    public function pastGrace(Business $business): bool
+    {
+        return $this->isUnpaid($business) && ! $this->inGracePeriod($business);
+    }
+
     public function canUseTill(Business $business): bool
     {
         $billing = BillingSettings::settings();
         if (! $billing['block_till_when_trial_ends']) {
-            return true;
+            return $business->billing_status !== 'suspended';
         }
 
-        if ($this->trialExpired($business) && ! Plans::isPaidPlan($business->plan_key)) {
+        if ($business->billing_status === 'suspended') {
             return false;
         }
 
-        if ($this->trialExpired($business) && $business->billing_status === 'past_due') {
+        if ($this->pastGrace($business)) {
             return false;
         }
 
         return true;
     }
 
+    public function visibleOnDiscover(Business $business): bool
+    {
+        if (! $business->is_active) {
+            return false;
+        }
+
+        if ($business->billing_status === 'suspended') {
+            return false;
+        }
+
+        $billing = BillingSettings::settings();
+        if (! $billing['hide_from_discover_when_unpaid']) {
+            return true;
+        }
+
+        return ! $this->pastGrace($business);
+    }
+
     public function trialExpiredMessage(): string
     {
         return __('loop.trial_expired_till');
+    }
+
+    public function unpaidMessage(Business $business): string
+    {
+        if ($this->inGracePeriod($business)) {
+            return __('loop.grace_banner_body', ['days' => $this->graceDaysLeft($business)]);
+        }
+
+        return __('loop.unpaid_locked_body');
     }
 
     public function canAddShop(Business $business): bool
@@ -140,7 +220,7 @@ class PlanLimitService
     public function visitLimitMessage(Business $business): string
     {
         if (! $this->canUseTill($business)) {
-            return $this->trialExpiredMessage();
+            return __('loop.trial_expired_till');
         }
 
         $caps = $this->effectiveCaps($business);
@@ -170,16 +250,30 @@ class PlanLimitService
 
     public function syncTrialStatus(Business $business): void
     {
-        if (! $this->trialExpired($business)) {
-            return;
-        }
-
         if (Plans::isPaidPlan($business->plan_key) && $business->billing_status === 'active') {
+            if ($business->past_due_at) {
+                $business->update(['past_due_at' => null]);
+            }
+
             return;
         }
 
-        if ($business->billing_status !== 'past_due') {
-            $business->update(['billing_status' => 'past_due']);
+        if (! $this->trialExpired($business) && $business->billing_status !== 'past_due' && $business->billing_status !== 'suspended') {
+            return;
+        }
+
+        $updates = [];
+        if ($business->billing_status !== 'past_due' && $business->billing_status !== 'suspended') {
+            $updates['billing_status'] = 'past_due';
+        }
+        if (! $business->past_due_at && ($this->trialExpired($business) || $business->billing_status === 'past_due')) {
+            $updates['past_due_at'] = $business->trial_ends_at && $business->trial_ends_at->isPast()
+                ? $business->trial_ends_at
+                : now();
+        }
+
+        if ($updates !== []) {
+            $business->update($updates);
         }
     }
 }

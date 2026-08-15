@@ -51,23 +51,13 @@
     </section>
 
     @if ($showWelcome ?? false)
-        <div x-data="{ i: 0 }" class="mb-8 loop-divider pb-6">
-            <div x-show="i===0" x-transition.opacity>
-                <p class="font-display text-2xl font-semibold">{{ __('loop.tagline') }}</p>
-                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.customer_welcome_1') }}</p>
-            </div>
-            <div x-show="i===1" x-cloak x-transition.opacity>
-                <p class="font-display text-2xl font-semibold">{{ __('loop.customer_welcome_2_title') }}</p>
-                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.customer_welcome_2') }}</p>
-            </div>
-            <div class="mt-5 flex justify-between">
-                <div class="flex gap-1.5">
-                    <button type="button" class="h-1.5 w-6 rounded-full" :class="i===0 ? 'bg-violet' : 'bg-ink/15'" @click="i=0"></button>
-                    <button type="button" class="h-1.5 w-6 rounded-full" :class="i===1 ? 'bg-violet' : 'bg-ink/15'" @click="i=1"></button>
-                </div>
-                <button type="button" class="text-sm font-semibold text-violet" @click="i = i === 0 ? 1 : 0">{{ __('loop.next') }} →</button>
-            </div>
-        </div>
+        <x-intro-carousel audience="customer" />
+    @elseif (! auth()->user()->intro_seen_at)
+        <x-intro-carousel audience="customer" />
+    @endif
+
+    @if (auth()->user()->isCustomer() && ! auth()->user()->interests_prompt_seen_at)
+        <x-interests-prompt />
     @endif
 
     {{-- Ready to redeem — only when something is unlocked --}}

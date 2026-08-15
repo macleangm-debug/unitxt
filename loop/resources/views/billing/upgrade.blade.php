@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.upgrade_title') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
+                <h1 class="mt-1 font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.upgrade_title') }}</h1>
+                <p class="mt-1 max-w-2xl text-sm text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+            </div>
+            <x-settings-back :href="route('settings')" :label="__('loop.back')" />
         </div>
     </x-slot>
 
@@ -17,25 +20,25 @@
             <p class="font-semibold">{{ __('loop.trial_days_left', ['days' => $daysLeft]) }}</p>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.trial_days_left_body') }}</p>
         </div>
-    @elseif (\App\Support\Plans::isPaidPlan($business->plan_key) && $business->billing_status === 'active')
-        <div class="mb-6 rounded-[1.5rem] border border-mint/30 bg-mint-soft/40 px-5 py-4">
-            <p class="font-semibold">{{ __('loop.current_plan') }}: {{ $currentPlan?->name ?? $business->plan_key }}</p>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.on_paid_plan_body') }}</p>
-        </div>
     @endif
 
-    <div class="mb-8 grid gap-3 sm:grid-cols-3">
-        <div class="loop-panel p-4">
-            <p class="text-xs text-ink-muted">{{ __('loop.free_max_shops') }}</p>
-            <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_shops'] ?? __('loop.unlimited') }}</p>
-        </div>
-        <div class="loop-panel p-4">
-            <p class="text-xs text-ink-muted">{{ __('loop.free_max_members') }}</p>
-            <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_members'] ?? __('loop.unlimited') }}</p>
-        </div>
-        <div class="loop-panel p-4">
-            <p class="text-xs text-ink-muted">{{ __('loop.free_max_monthly_visits') }}</p>
-            <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_monthly_visits'] ?? __('loop.unlimited') }}</p>
+    <div class="mb-6 loop-panel p-5">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.current_plan') }}</p>
+        <p class="mt-2 font-display text-2xl font-semibold">{{ $currentPlan?->name ?? ucfirst((string) $business->plan_key) }}</p>
+        <p class="mt-1 text-sm text-ink-muted">{{ __('loop.on_paid_plan_body') }}</p>
+        <div class="mt-5 grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl bg-chalk/70 px-4 py-3">
+                <p class="text-xs text-ink-muted">{{ __('loop.free_max_shops') }}</p>
+                <p class="mt-1 font-display text-xl font-semibold">{{ $caps['max_shops'] ?? __('loop.unlimited') }}</p>
+            </div>
+            <div class="rounded-2xl bg-chalk/70 px-4 py-3">
+                <p class="text-xs text-ink-muted">{{ __('loop.free_max_members') }}</p>
+                <p class="mt-1 font-display text-xl font-semibold">{{ $caps['max_members'] ?? __('loop.unlimited') }}</p>
+            </div>
+            <div class="rounded-2xl bg-chalk/70 px-4 py-3">
+                <p class="text-xs text-ink-muted">{{ __('loop.free_max_monthly_visits') }}</p>
+                <p class="mt-1 font-display text-xl font-semibold">{{ $caps['max_monthly_visits'] ?? __('loop.unlimited') }}</p>
+            </div>
         </div>
     </div>
 
@@ -43,19 +46,21 @@
         @foreach ($plans->where('key', '!=', 'free') as $plan)
             @php $isCurrent = $business->plan_key === $plan->key && $business->billing_status === 'active'; @endphp
             <div @class([
-                'flex flex-col rounded-[1.75rem] border p-6',
-                'border-mint bg-mint-soft/30 ring-2 ring-mint' => $plan->key === 'growth',
-                'border-ink/10 bg-white' => $plan->key !== 'growth',
+                'loop-panel flex flex-col p-6',
+                'ring-2 ring-mint border-mint/40' => $plan->key === 'growth',
             ])>
                 @if ($plan->key === 'growth')
                     <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.most_popular') }}</p>
                 @endif
                 <p class="font-display text-xl font-semibold">{{ $plan->name }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ $plan->tagline }}</p>
-                <p class="mt-4 font-display text-3xl font-semibold">{{ $plan->priceLabel() }}</p>
-                <ul class="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
+                <p class="mt-4 font-display text-3xl font-semibold tracking-tight">{{ $plan->priceLabel() }}</p>
+                <ul class="mt-4 flex-1 space-y-2.5 text-sm text-ink">
                     @foreach ($plan->features ?? [] as $feature)
-                        <li>✓ {{ $feature }}</li>
+                        <li class="flex gap-2">
+                            <span class="mt-0.5 text-mint-deep">✓</span>
+                            <span>{{ $feature }}</span>
+                        </li>
                     @endforeach
                 </ul>
                 @if ($isCurrent)
@@ -69,7 +74,7 @@
                             <label class="loop-label">{{ __('loop.pay_with_phone') }}</label>
                             <div class="flex gap-2">
                                 <span class="inline-flex items-center rounded-2xl border border-ink/10 bg-chalk px-3 text-sm font-semibold">{{ $dial }}</span>
-                                <input name="phone" value="{{ old('phone') }}" class="loop-input !mt-0" placeholder="7XXXXXXXX" required>
+                                <input name="phone" value="{{ old('phone') }}" class="loop-input !mt-0" placeholder="7XXXXXXXX" required autocomplete="off">
                             </div>
                             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.pay_with_phone_help', ['currency' => $plan->currency ?: $currency]) }}</p>
                         </div>
@@ -81,5 +86,4 @@
     </div>
 
     <p class="mt-8 text-center text-sm text-ink-muted">{{ __('loop.upgrade_payment_note') }}</p>
-    <a href="{{ route('settings') }}" class="mt-4 block text-center text-sm font-semibold text-ink-muted underline">{{ __('loop.back') }}</a>
 </x-app-layout>

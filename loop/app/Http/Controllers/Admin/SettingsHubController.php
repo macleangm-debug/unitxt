@@ -48,15 +48,18 @@ class SettingsHubController extends Controller
     {
         $data = $request->validate([
             'trial_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'grace_days' => ['nullable', 'integer', 'min:0', 'max:30'],
             'free_max_shops' => ['required', 'integer', 'min:1', 'max:5'],
             'free_max_members' => ['required', 'integer', 'min:1', 'max:500'],
             'free_max_monthly_visits' => ['required', 'integer', 'min:1', 'max:500'],
             'block_till_when_trial_ends' => ['sometimes', 'boolean'],
+            'hide_from_discover_when_unpaid' => ['sometimes', 'boolean'],
         ]);
 
         $normalized = BillingSettings::normalizeInput([
             ...$data,
             'block_till_when_trial_ends' => $request->boolean('block_till_when_trial_ends'),
+            'hide_from_discover_when_unpaid' => $request->boolean('hide_from_discover_when_unpaid'),
         ]);
 
         PlatformSetting::putValue(BillingSettings::KEY, $normalized);

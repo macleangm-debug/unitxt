@@ -48,6 +48,11 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+// Compatibility alias — Laravel auth redirects and legacy views expect route('login').
+Route::get('/login', function () {
+    return redirect()->route('home');
+})->name('login');
+
 Route::get('/for-business', function () {
     return view('landings.business', [
         'plans' => Plans::publicPlans(),
@@ -65,8 +70,10 @@ Route::get('/affiliates/status', [AffiliateLandingController::class, 'statusForm
 Route::post('/affiliates/status', [AffiliateLandingController::class, 'statusLookup'])->name('affiliates.status.lookup');
 Route::get('/pricing', PricingController::class)->name('pricing');
 Route::get('/locale/{locale}', [PreferenceController::class, 'locale'])->name('locale');
-Route::post('/preference/country', [PreferenceController::class, 'country'])->name('preference.country');
-Route::post('/webhooks/payin', [PaymentController::class, 'payinWebhook'])->name('payments.webhook.payin');
+    Route::post('/preference/country', [PreferenceController::class, 'country'])->name('preference.country');
+    Route::post('/preference/intro', [PreferenceController::class, 'dismissIntro'])->middleware('auth')->name('preference.intro');
+    Route::post('/preference/interests', [PreferenceController::class, 'saveInterests'])->middleware('auth')->name('preference.interests');
+    Route::post('/webhooks/payin', [PaymentController::class, 'payinWebhook'])->name('payments.webhook.payin');
 
 Route::get('/discover', DiscoverController::class)->name('discover');
 Route::get('/discover/{business:slug}', [DiscoverController::class, 'show'])->name('discover.show');

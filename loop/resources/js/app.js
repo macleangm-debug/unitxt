@@ -1,6 +1,8 @@
 import Alpine from 'alpinejs';
+import html2canvas from 'html2canvas';
 
 window.Alpine = Alpine;
+window.html2canvas = html2canvas;
 
 const prefersReducedMotion = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -644,6 +646,258 @@ Alpine.data('loopReveal', (delay = 0) => ({
             { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
         );
         io.observe(this.$el);
+    },
+}));
+
+/**
+ * Shared multi-step wizard (campaigns, offers, raffles).
+ * Avoids fragile inline x-data attribute parsing.
+ */
+Alpine.data('loopWizard', (config = {}) => {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = Number(params.get('_step') || 0);
+    const initialStep = fromUrl >= 1 ? fromUrl : Number(config.step || 1);
+    const { step: _ignoredStep, init: userInit, ...rest } = config;
+
+    return {
+        ...rest,
+        step: initialStep,
+        total: Number(config.total || 3),
+        saving: false,
+        init() {
+            if (typeof userInit === 'function') {
+                userInit.call(this);
+            }
+            this.syncStepUrl();
+        },
+        syncStepUrl() {
+            try {
+                const url = new URL(window.location.href);
+                if (this.step <= 1) {
+                    url.searchParams.delete('_step');
+                } else {
+                    url.searchParams.set('_step', String(this.step));
+                }
+                window.history.replaceState({}, '', url.toString());
+            } catch (_) {
+                // ignore
+            }
+        },
+        go(n) {
+            const next = Math.min(this.total, Math.max(1, Number(n) || 1));
+            this.step = next;
+            this.syncStepUrl();
+        },
+        earnRulesOk() {
+            const needsEarn = !! this.$refs.form?.querySelector('input[name="spend_step"]');
+            if (! needsEarn) return true;
+            const spend = typeof this.spendValue === 'function' ? this.spendValue() : 0;
+            const pts = parseInt(String(this.pointsPerStep ?? '').replace(/[^\d]/g, ''), 10) || 0;
+            return spend >= 1 && pts >= 1;
+        },
+        focusEarnRules() {
+            const pane = this.$refs.form?.querySelector('[data-step="2"]');
+            const spendEl = pane?.querySelector('input[inputmode="numeric"], input[x-model="spendDisplay"]')
+                || pane?.querySelector('input.loop-input');
+            const ptsEl = pane?.querySelectorAll('input[type="number"]');
+            const target = (spendEl && ! String(this.spendDisplay || '').trim())
+                ? spendEl
+                : (ptsEl && ptsEl[0]) || spendEl;
+            if (target) {
+                target.focus();
+                if (typeof target.setCustomValidity === 'function') {
+                    target.setCustomValidity(this.earnRulesMessage || 'Enter spend and points');
+                    target.reportValidity();
+                    target.setCustomValidity('');
+                }
+            }
+        },
+        next() {
+            const form = this.$refs.form;
+            if (! form) {
+                if (this.step < this.total) {
+                    this.step += 1;
+                    this.syncStepUrl();
+                }
+                return;
+            }
+            const pane = form.querySelector('[data-step="' + this.step + '"]');
+            if (pane) {
+                const fields = pane.querySelectorAll('input, select, textarea');
+                for (const el of fields) {
+                    if (el.disabled || el.type === 'hidden') continue;
+                    if (el.offsetParent === null && el.getClientRects().length === 0) continue;
+                    const needs = el.hasAttribute('required') || el.dataset.required === '1';
+                    if (needs && ! String(el.value || '').trim()) {
+                        el.focus();
+                        if (typeof el.reportValidity === 'function') {
+                            el.reportValidity();
+                        }
+                        return;
+                    }
+                    if (typeof el.checkValidity === 'function' && ! el.checkValidity()) {
+                        el.focus();
+                        el.reportValidity();
+                        return;
+                    }
+                }
+            }
+            // Earn / product-push campaigns must have spend + points before leaving step 2.
+            if (this.step === 2 && ! this.earnRulesOk()) {
+                this.focusEarnRules();
+                return;
+            }
+            if (this.step < this.total) {
+                this.step += 1;
+                this.syncStepUrl();
+            }
+        },
+        prev() {
+            if (this.step > 1) {
+                this.step -= 1;
+                this.syncStepUrl();
+            }
+        },
+        startSave() {
+            if (this.saving) return false;
+            if (! this.earnRulesOk()) {
+                this.go(2);
+                this.$nextTick(() => this.focusEarnRules());
+                return false;
+            }
+            // Ensure Alpine-bound hidden fields are flushed before native submit.
+            try {
+                const form = this.$refs.form;
+                if (form) {
+                    form.querySelectorAll('input[name="spend_step"]').forEach((el) => {
+                        if (typeof this.spendValue === 'function') {
+                            const n = this.spendValue();
+                            el.value = n >= 1 ? String(n) : '';
+                        }
+                    });
+                    form.querySelectorAll('input[name="points_per_step"]').forEach((el) => {
+                        const pts = parseInt(String(this.pointsPerStep ?? '').replace(/[^\d]/g, ''), 10) || 0;
+                        el.value = pts >= 1 ? String(pts) : '';
+                    });
+                }
+            } catch (_) {
+                // ignore
+            }
+            this.saving = true;
+            return true;
+        },
+    };
+});
+
+/**
+ * Loop-branded camera scanner for member wallet QR on Sale.
+ */
+Alpine.data('loopQrScanner', () => ({
+    scanning: false,
+    status: '',
+    error: '',
+    stream: null,
+    raf: null,
+    detector: null,
+    async open() {
+        this.error = '';
+        this.status = '';
+        this.scanning = true;
+        await this.$nextTick();
+        try {
+            if (! window.isSecureContext && location.hostname !== 'localhost') {
+                throw new Error('secure');
+            }
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false,
+            });
+            const video = this.$refs.video;
+            video.srcObject = this.stream;
+            await video.play();
+            this.status = 'Scanning…';
+            if ('BarcodeDetector' in window) {
+                this.detector = new BarcodeDetector({ formats: ['qr_code'] });
+                this.tick();
+            } else {
+                this.status = 'Point the QR at the camera, then paste if needed.';
+            }
+        } catch (err) {
+            this.error = err?.message === 'secure'
+                ? 'Camera needs HTTPS. Type the phone number instead.'
+                : 'Camera unavailable. Type the phone number instead.';
+        }
+    },
+    async tick() {
+        if (! this.scanning || ! this.detector) {
+            return;
+        }
+        try {
+            const codes = await this.detector.detect(this.$refs.video);
+            if (codes?.length) {
+                this.handlePayload(codes[0].rawValue || '');
+                return;
+            }
+        } catch (_) {
+            /* keep scanning */
+        }
+        this.raf = requestAnimationFrame(() => this.tick());
+    },
+    handlePayload(raw) {
+        const text = String(raw || '').trim();
+        if (! text) {
+            return;
+        }
+        let dial = '';
+        let phone = '';
+        try {
+            const url = new URL(text, window.location.origin);
+            const scan = url.searchParams.get('scan') || '';
+            if (scan.includes('|')) {
+                [dial, phone] = scan.split('|');
+            }
+        } catch (_) {
+            /* not a URL */
+        }
+        if (! phone && text.includes('|')) {
+            [dial, phone] = text.split('|');
+        }
+        if (! phone && /^\+?\d{8,15}$/.test(text.replace(/\s+/g, ''))) {
+            phone = text.replace(/\D+/g, '').slice(-9);
+        }
+        phone = String(phone || '').replace(/\D+/g, '');
+        if (! phone) {
+            this.error = 'QR not recognized. Try again.';
+            this.raf = requestAnimationFrame(() => this.tick());
+            return;
+        }
+        const form = this.$el.closest('form') || this.$root?.closest?.('form');
+        const phoneInput = form?.querySelector('input[name="phone"]');
+        const dialInput = form?.querySelector('input[name="country_code"]');
+        if (phoneInput) {
+            phoneInput.value = phone;
+            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (dial && dialInput) {
+            dialInput.value = dial.startsWith('+') ? dial : `+${dial}`;
+        }
+        this.close();
+        form?.requestSubmit?.();
+    },
+    close() {
+        this.scanning = false;
+        if (this.raf) {
+            cancelAnimationFrame(this.raf);
+            this.raf = null;
+        }
+        if (this.stream) {
+            this.stream.getTracks().forEach((t) => t.stop());
+            this.stream = null;
+        }
+        const video = this.$refs.video;
+        if (video) {
+            video.srcObject = null;
+        }
     },
 }));
 

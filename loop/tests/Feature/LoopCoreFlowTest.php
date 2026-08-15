@@ -139,6 +139,120 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
+    public function test_register_customer_rejects_phone_already_used_by_staff(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999077',
+            'country_code' => '+255',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        \App\Support\DefaultOffer::ensure($business);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($staff)
+            ->from(route('till.index'))
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => $owner->phone,
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.index'))
+            ->assertSessionHasErrors('phone');
+
+        $this->actingAs($staff)
+            ->withSession([
+                'till.ticket' => [
+                    'shop_id' => $shop->id,
+                    'channel' => 'in_store',
+                    'country_code' => '+255',
+                    'phone' => $owner->phone,
+                    'customer_id' => null,
+                    'needs_register' => true,
+                ],
+            ])
+            ->post(route('till.register-customer'), [
+                'first_name' => 'Fake',
+                'last_name' => 'Member',
+            ])
+            ->assertRedirect(route('till.ticket'))
+            ->assertSessionHasErrors('phone');
+
+        $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
+    }
+
+    public function test_campaign_update_preserves_earn_rules_when_fields_omitted(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Support\DefaultOffer::ensure($business);
+        $campaign = Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Kitonga',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->put(route('campaigns.update', $campaign), [
+                'name' => 'Kitonga Edited',
+                'type' => 'earn',
+                'starts_at' => now()->toDateString(),
+                'is_active' => 1,
+            ])
+            ->assertRedirect(route('campaigns.show', $campaign));
+
+        $campaign->refresh();
+        $this->assertSame('Kitonga Edited', $campaign->name);
+        $this->assertSame(1000, (int) $campaign->spend_step);
+        $this->assertSame(2, (int) $campaign->points_per_step);
+    }
+
+    public function test_cannot_create_earn_campaign_without_spend_and_points(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Support\DefaultOffer::ensure($business);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create', ['own' => 1]))
+            ->post(route('campaigns.store'), [
+                'name' => 'Broken earn',
+                'type' => 'earn',
+                'starts_at' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('campaigns.create', ['own' => 1]))
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create', ['own' => 1]))
+            ->post(route('campaigns.store'), [
+                'name' => 'Zero earn',
+                'type' => 'earn',
+                'spend_step' => 0,
+                'points_per_step' => 0,
+                'starts_at' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('campaigns.create', ['own' => 1]))
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->assertDatabaseMissing('campaigns', [
+            'business_id' => $business->id,
+            'name' => 'Broken earn',
+        ]);
+    }
+
     public function test_standalone_redeem_does_not_require_a_sale(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();
@@ -651,7 +765,13 @@ class LoopCoreFlowTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('campaigns.create'))
-            ->assertRedirect(route('rewards.create'));
+            ->assertOk();
+
+        $this->assertTrue($business->fresh()->hasRedeemableOffer());
+        $this->assertDatabaseHas('rewards', [
+            'business_id' => $business->id,
+            'is_default' => true,
+        ]);
     }
 
     public function test_raffle_unlocks_after_member_threshold(): void
@@ -898,13 +1018,18 @@ class LoopCoreFlowTest extends TestCase
                 'features' => $plan['features'],
             ]);
         }
-        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, \App\Support\BillingSettings::defaults());
+        \App\Models\PlatformSetting::putValue(\App\Support\BillingSettings::KEY, [
+            ...\App\Support\BillingSettings::defaults(),
+            'grace_days' => 0,
+            'block_till_when_trial_ends' => true,
+        ]);
 
         [$owner, $business, $shop] = $this->seedBusiness();
         $business->update([
             'plan_key' => 'free',
-            'billing_status' => 'trialing',
+            'billing_status' => 'past_due',
             'trial_ends_at' => now()->subDay(),
+            'past_due_at' => now()->subDay(),
         ]);
 
         $staff = User::factory()->frontDesk()->create([
@@ -1100,7 +1225,20 @@ class LoopCoreFlowTest extends TestCase
             ->get(route('shops.show', $shop))
             ->assertOk()
             ->assertSee(__('loop.edit'))
-            ->assertSee(__('loop.shared_logo_hint'));
+            ->assertSee(__('loop.branch_details'))
+            ->assertDontSee(__('loop.shared_logo_hint'))
+            ->assertSee(__('loop.settings'));
+
+        $this->actingAs($owner)
+            ->get(route('transactions.index', ['q' => 'Asha', 'period' => 'all']))
+            ->assertOk()
+            ->assertSee(__('loop.search_name_or_phone'));
+
+        $this->actingAs($owner)
+            ->get(route('customers.index', ['q' => 'Asha', 'tab' => 'all']))
+            ->assertOk()
+            ->assertSee(__('loop.search_name_or_phone'))
+            ->assertSee('Asha');
 
         $this->actingAs($owner)
             ->put(route('shops.update', $shop), [

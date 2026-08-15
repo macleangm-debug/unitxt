@@ -9,6 +9,7 @@ use App\Models\Membership;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\FeatureFlags;
+use App\Support\NotificationSettings;
 use Illuminate\Support\Carbon;
 
 class DailyNotificationService
@@ -21,6 +22,10 @@ class DailyNotificationService
     public function generateForBusiness(Business $business, ?Carbon $day = null): int
     {
         if (! FeatureFlags::enabled('owner_daily_digest')) {
+            return 0;
+        }
+
+        if (! NotificationSettings::enabled('owner', 'in_app')) {
             return 0;
         }
 
@@ -38,7 +43,7 @@ class DailyNotificationService
             'cta_key' => 'loop.add_offer',
             'url' => route('rewards.create'),
             'tone' => 'ink',
-            'when' => $business->rewards()->where('is_active', true)->doesntExist(),
+            'when' => ! $business->hasRedeemableOffer(),
         ]);
 
         $created += $this->push($owner, $business, 'setup_campaign', 'need_earn', $day, [
@@ -143,7 +148,7 @@ class DailyNotificationService
             'body_key' => 'loop.notif_daily_hello_body',
             'params' => [
                 'business' => $business->name,
-                'members' => $business->uniqueMemberCount(),
+                'customers' => $business->uniqueMemberCount(),
             ],
             'cta_key' => 'loop.start_selling',
             'url' => route('till.index'),
@@ -157,7 +162,11 @@ class DailyNotificationService
     public function ensureTodayForOwner(User $owner): void
     {
         $business = $owner->ownedBusiness;
-        if (! $business || ! FeatureFlags::enabled('owner_daily_digest')) {
+        if (
+            ! $business
+            || ! FeatureFlags::enabled('owner_daily_digest')
+            || ! NotificationSettings::enabled('owner', 'in_app')
+        ) {
             return;
         }
 
@@ -178,6 +187,10 @@ class DailyNotificationService
     private function push(User $user, Business $business, string $type, string $dedupe, Carbon $day, array $data): int
     {
         if (empty($data['when'])) {
+            return 0;
+        }
+
+        if (! NotificationSettings::enabled('owner', 'in_app')) {
             return 0;
         }
 

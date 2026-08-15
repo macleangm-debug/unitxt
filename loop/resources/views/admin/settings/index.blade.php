@@ -160,6 +160,11 @@
                             <input type="number" min="1" max="90" name="trial_days" value="{{ old('trial_days', $billing['trial_days']) }}" class="loop-input" required>
                         </div>
                         <div>
+                            <label class="loop-label">{{ __('loop.grace_days') }}</label>
+                            <input type="number" min="0" max="30" name="grace_days" value="{{ old('grace_days', $billing['grace_days']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.grace_days_help') }}</p>
+                        </div>
+                        <div>
                             <label class="loop-label">{{ __('loop.free_max_shops') }}</label>
                             <input type="number" min="1" max="5" name="free_max_shops" value="{{ old('free_max_shops', $billing['free_max_shops']) }}" class="loop-input" required>
                         </div>
@@ -177,6 +182,13 @@
                         <span>
                             <span class="font-semibold">{{ __('loop.block_till_when_trial_ends') }}</span>
                             <span class="mt-1 block text-ink-muted">{{ __('loop.block_till_when_trial_ends_help') }}</span>
+                        </span>
+                    </label>
+                    <label class="mt-3 flex items-start gap-3 text-sm">
+                        <input type="checkbox" name="hide_from_discover_when_unpaid" value="1" class="mt-1 rounded border-ink/20 text-mint focus:ring-mint" @checked(old('hide_from_discover_when_unpaid', $billing['hide_from_discover_when_unpaid'] ?? true))>
+                        <span>
+                            <span class="font-semibold">{{ __('loop.hide_from_discover_when_unpaid') }}</span>
+                            <span class="mt-1 block text-ink-muted">{{ __('loop.hide_from_discover_when_unpaid_help') }}</span>
                         </span>
                     </label>
                     <button class="loop-btn-mint">{{ __('loop.save') }}</button>
@@ -375,28 +387,67 @@
         <div class="loop-glass p-6">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_notifications') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_notifications_blurb') }}</p>
-            <form method="POST" action="{{ route('admin.settings.notifications') }}" class="mt-4">
+            <form method="POST" action="{{ route('admin.settings.notifications') }}" class="mt-6">
                 @csrf
                 @method('PUT')
                 <x-admin.settings-lock>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        @foreach ([
-                            'owner_in_app' => __('loop.notif_owner_in_app'),
-                            'owner_email' => __('loop.notif_owner_email'),
-                            'owner_sms' => __('loop.notif_owner_sms'),
-                            'customer_in_app' => __('loop.notif_customer_in_app'),
-                            'customer_sms' => __('loop.notif_customer_sms'),
-                            'affiliate_in_app' => __('loop.notif_affiliate_in_app'),
-                            'affiliate_sms' => __('loop.notif_affiliate_sms'),
-                            'admin_digest' => __('loop.notif_admin_digest'),
-                            'holiday_messages' => __('loop.holiday_messages'),
-                            'in_app_digest' => __('loop.in_app_digest'),
-                            'trial_reminders' => __('loop.trial_reminders'),
-                        ] as $key => $label)
-                            <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="{{ $key }}" value="1" @checked(old($key, $notifications[$key]))> {{ $label }}</label>
-                        @endforeach
+                    <div class="overflow-x-auto rounded-2xl border border-ink/10">
+                        <table class="min-w-full text-left text-sm">
+                            <thead class="bg-chalk/80 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                                <tr>
+                                    <th class="px-4 py-3">{{ __('loop.notif_matrix_role') }}</th>
+                                    <th class="px-4 py-3">{{ __('loop.notif_channel_in_app') }}</th>
+                                    <th class="px-4 py-3">{{ __('loop.notif_channel_sms') }}</th>
+                                    <th class="px-4 py-3">{{ __('loop.notif_channel_email') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-ink/8 bg-white">
+                                <tr>
+                                    <td class="px-4 py-3.5">
+                                        <p class="font-semibold text-ink">{{ __('loop.notif_audience_member') }}</p>
+                                        <p class="mt-0.5 text-xs text-ink-muted">{{ __('loop.notif_audience_member_help') }}</p>
+                                    </td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="customer_in_app" value="1" @checked(old('customer_in_app', $notifications['customer_in_app']))> <span class="sr-only">{{ __('loop.notif_channel_in_app') }}</span></label></td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="customer_sms" value="1" @checked(old('customer_sms', $notifications['customer_sms']))> <span class="sr-only">{{ __('loop.notif_channel_sms') }}</span></label></td>
+                                    <td class="px-4 py-3.5 text-xs text-ink-muted">—</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3.5">
+                                        <p class="font-semibold text-ink">{{ __('loop.notif_audience_business') }}</p>
+                                        <p class="mt-0.5 text-xs text-ink-muted">{{ __('loop.notif_audience_business_help') }}</p>
+                                    </td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="owner_in_app" value="1" @checked(old('owner_in_app', $notifications['owner_in_app']))> <span class="sr-only">{{ __('loop.notif_channel_in_app') }}</span></label></td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="owner_sms" value="1" @checked(old('owner_sms', $notifications['owner_sms']))> <span class="sr-only">{{ __('loop.notif_channel_sms') }}</span></label></td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="owner_email" value="1" @checked(old('owner_email', $notifications['owner_email']))> <span class="sr-only">{{ __('loop.notif_channel_email') }}</span></label></td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3.5">
+                                        <p class="font-semibold text-ink">{{ __('loop.notif_audience_affiliate') }}</p>
+                                        <p class="mt-0.5 text-xs text-ink-muted">{{ __('loop.notif_audience_affiliate_help') }}</p>
+                                    </td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="affiliate_in_app" value="1" @checked(old('affiliate_in_app', $notifications['affiliate_in_app']))> <span class="sr-only">{{ __('loop.notif_channel_in_app') }}</span></label></td>
+                                    <td class="px-4 py-3.5"><label class="inline-flex items-center gap-2"><input type="checkbox" name="affiliate_sms" value="1" @checked(old('affiliate_sms', $notifications['affiliate_sms']))> <span class="sr-only">{{ __('loop.notif_channel_sms') }}</span></label></td>
+                                    <td class="px-4 py-3.5 text-xs text-ink-muted">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
+
+                    <div class="mt-6">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.notif_platform_rules') }}</p>
+                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                            @foreach ([
+                                'in_app_digest' => __('loop.in_app_digest'),
+                                'holiday_messages' => __('loop.holiday_messages'),
+                                'trial_reminders' => __('loop.trial_reminders'),
+                                'admin_digest' => __('loop.notif_admin_digest'),
+                            ] as $key => $label)
+                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="{{ $key }}" value="1" @checked(old($key, $notifications[$key]))> {{ $label }}</label>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="loop-label">{{ __('loop.quiet_hours_start') }}</label>
                             <input type="number" min="0" max="23" name="quiet_hours_start" value="{{ old('quiet_hours_start', $notifications['quiet_hours_start']) }}" class="loop-input">
@@ -406,7 +457,7 @@
                             <input type="number" min="0" max="23" name="quiet_hours_end" value="{{ old('quiet_hours_end', $notifications['quiet_hours_end']) }}" class="loop-input">
                         </div>
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="loop-btn-mint mt-6">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
@@ -453,32 +504,54 @@
                 <p class="mt-1 text-ink-muted">{{ __('loop.admin_referral_both_sides_body') }}</p>
             </div>
             <x-admin.settings-lock>
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="space-y-5" x-data="{
+                    model: @js(old('incentive_model', $referral['incentive_model'] ?? 'standard')),
+                    models: @js(\App\Support\ReferralProgram::models()),
+                    apply() {
+                        if (this.model === 'custom') return;
+                        const m = this.models[this.model];
+                        if (!m) return;
+                        this.$refs.goal.value = m.goal_count;
+                        this.$refs.you.value = m.referrer_extra_days_per_referral;
+                        this.$refs.they.value = m.referred_extra_trial_days;
+                    }
+                }">
                     <div>
-                        <label class="loop-label">{{ __('loop.goal_count') }}</label>
-                        <input type="number" min="1" name="goal_count" value="{{ old('goal_count', $referral['goal_count']) }}" class="loop-input" required>
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.goal_count_help') }}</p>
+                        <label class="loop-label">{{ __('loop.incentive_model') }}</label>
+                        <select name="incentive_model" class="loop-input" x-model="model" @change="apply()">
+                            @foreach (\App\Support\ReferralProgram::models() as $key => $model)
+                                <option value="{{ $key }}">{{ $model['label'] }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.incentive_model_help') }}</p>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.referrer_extra_days') }}</label>
-                        <input type="number" min="0" name="referrer_extra_days_per_referral" value="{{ old('referrer_extra_days_per_referral', $referral['referrer_extra_days_per_referral']) }}" class="loop-input" required>
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referrer_extra_days_help') }}</p>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="loop-label">{{ __('loop.goal_count') }}</label>
+                            <input type="number" min="1" name="goal_count" x-ref="goal" value="{{ old('goal_count', $referral['goal_count']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.goal_count_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.referrer_extra_days') }}</label>
+                            <input type="number" min="0" name="referrer_extra_days_per_referral" x-ref="you" value="{{ old('referrer_extra_days_per_referral', $referral['referrer_extra_days_per_referral']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referrer_extra_days_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.referred_extra_trial_days') }}</label>
+                            <input type="number" min="0" name="referred_extra_trial_days" x-ref="they" value="{{ old('referred_extra_trial_days', $referral['referred_extra_trial_days']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referred_extra_trial_days_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.referrer_discount_percent') }}</label>
+                            <input type="number" min="0" max="100" name="referrer_discount_percent" value="{{ old('referrer_discount_percent', $referral['referrer_discount_percent']) }}" class="loop-input" required>
+                        </div>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.referred_extra_trial_days') }}</label>
-                        <input type="number" min="0" name="referred_extra_trial_days" value="{{ old('referred_extra_trial_days', $referral['referred_extra_trial_days']) }}" class="loop-input" required>
-                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referred_extra_trial_days_help') }}</p>
+                    <input type="hidden" name="referrer_months_per_referral" value="0">
+                    <input type="hidden" name="referred_bonus_months" value="0">
+                    <div class="flex flex-wrap gap-3">
+                        <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                        <a href="{{ route('admin.referrals.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.referrer_discount_percent') }}</label>
-                        <input type="number" min="0" max="100" name="referrer_discount_percent" value="{{ old('referrer_discount_percent', $referral['referrer_discount_percent']) }}" class="loop-input" required>
-                    </div>
-                </div>
-                <input type="hidden" name="referrer_months_per_referral" value="0">
-                <input type="hidden" name="referred_bonus_months" value="0">
-                <div class="flex flex-wrap gap-3">
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
-                    <a href="{{ route('admin.referrals.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
                 </div>
             </x-admin.settings-lock>
         </form>

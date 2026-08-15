@@ -1,7 +1,8 @@
 @php
     $shopCount = $shops->count();
     $defaultDial = $scanDial ?: \App\Support\Countries::dial($business->country ?? session('preferred_country', 'TZ'));
-    $hasRecent = ! empty($showRecent) && isset($recent) && $recent->count() > 0;
+    $lockedShopId = $lockedShop?->id ?? null;
+    $mustPickShop = empty($lockedShopId) && $shopCount > 1;
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -31,13 +32,22 @@
 
     <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
         @csrf
-        @if ($shopCount > 1)
+        @if ($lockedShopId)
+            <input type="hidden" name="shop_id" value="{{ old('shop_id', $lockedShopId) }}">
+            @if (! empty($isFrontDesk))
+                <div class="rounded-xl border border-ink/10 bg-chalk/50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.shop') }}</p>
+                    <p class="mt-1 font-semibold text-ink">{{ $lockedShop->name }}</p>
+                </div>
+            @endif
+        @elseif ($mustPickShop)
             <x-sheet-select
                 name="shop_id"
                 :label="__('loop.shop')"
                 :options="$shops->mapWithKeys(fn ($s) => [$s->id => $s->name])->all()"
-                :value="old('shop_id', $shops->first()?->id)"
+                :value="old('shop_id', '')"
                 :required="true"
+                :placeholder="__('loop.pick_shop_first')"
             />
         @else
             <input type="hidden" name="shop_id" value="{{ $shops->first()?->id }}">
@@ -57,39 +67,44 @@
 
         <div>
             <label class="loop-label">{{ __('loop.customer_phone') }}</label>
-            <x-phone-field
-                name="phone"
-                :dial="$defaultDial"
-                hidden-dial-name="country_code"
-                :value="$scanPhone ?? old('phone')"
-                :required="true"
-                :autofocus="empty($scanPhone)"
-            />
+            <div x-data="loopQrScanner()" @loop-open-qr-scan.window="open()">
+                <x-phone-field
+                    name="phone"
+                    :dial="$defaultDial"
+                    hidden-dial-name="country_code"
+                    :value="$scanPhone ?? old('phone')"
+                    :required="true"
+                    :autofocus="empty($scanPhone)"
+                    :scanable="true"
+                    x-ref="phoneInput"
+                />
+                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.scan_or_type_phone') }}</p>
+
+                <div
+                    x-show="scanning"
+                    x-cloak
+                    class="fixed inset-0 z-[90] flex flex-col bg-ink"
+                    @keydown.escape.window="close()"
+                >
+                    <div class="absolute inset-0">
+                        <video x-ref="video" class="h-full w-full object-cover" playsinline muted></video>
+                        <div class="absolute inset-0 bg-ink/25"></div>
+                        <div class="pointer-events-none absolute inset-[12%] rounded-[1.5rem] border-2 border-lime/80 sm:inset-[18%]"></div>
+                    </div>
+                    <div class="relative z-10 flex items-center justify-between px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+                        <div class="flex items-center gap-2">
+                            <x-loop-logo class="h-8 w-8" />
+                            <span class="font-display text-lg font-semibold tracking-tight text-white">Loop</span>
+                        </div>
+                        <button type="button" class="rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold text-white backdrop-blur" @click="close()">{{ __('loop.close') }}</button>
+                    </div>
+                    <div class="relative z-10 mt-auto px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center">
+                        <p class="text-sm text-white/80" x-text="status || @js(__('loop.scan_member_qr_hint'))"></p>
+                        <p x-show="error" class="mt-2 text-sm text-coral" x-text="error"></p>
+                    </div>
+                </div>
+            </div>
         </div>
         <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
     </form>
-
-    @if ($hasRecent)
-        <section class="mx-auto mt-10 max-w-xl">
-            <div class="mb-3 flex items-center justify-between">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_till') }}</h2>
-                <a href="{{ route('transactions.index') }}" class="text-sm font-semibold text-mint-deep">{{ __('loop.view_all') }} →</a>
-            </div>
-            <div class="space-y-3">
-                @foreach ($recent as $visit)
-                    <div class="loop-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                        <div>
-                            <p class="font-semibold">{{ $visit->customer->name }} · {{ $visit->shop->name }}</p>
-                            <p class="text-sm text-ink-muted">
-                                {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
-                                · {{ $visit->channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
-                                · {{ $visit->created_at->format('d M Y · H:i') }}
-                            </p>
-                        </div>
-                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }} {{ __('loop.pts') }}</span>
-                    </div>
-                @endforeach
-            </div>
-        </section>
-    @endif
 </x-app-layout>

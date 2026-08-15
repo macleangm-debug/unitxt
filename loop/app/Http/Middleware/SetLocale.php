@@ -25,8 +25,13 @@ class SetLocale
         }
 
         if (! $session->has('locale')) {
-            $country = $session->get('preferred_country', 'TZ');
-            $session->put('locale', GeoLocale::defaultLocaleForCountry($country));
+            $userLocale = $request->user()?->locale;
+            if (in_array($userLocale, ['en', 'sw'], true)) {
+                $session->put('locale', $userLocale);
+            } else {
+                $country = $session->get('preferred_country', 'TZ');
+                $session->put('locale', GeoLocale::defaultLocaleForCountry($country));
+            }
         }
 
         $locale = $session->get('locale', config('app.locale', 'en'));
