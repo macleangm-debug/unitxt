@@ -1156,6 +1156,8 @@ return array (
   'affiliate_program_off' => 'The affiliate program is currently off.',
   'affiliate_phone_exists' => 'An affiliate already applied with this phone.',
   'affiliate_phone_taken' => 'This phone is already used on Loop.',
+  'phone_already_on_loop' => 'That phone is already on Loop with another role. Use a different member phone.',
+  'campaign_saved_add_offer_body' => ':name is saved. Add a live offer so members can redeem points — offers are shared across all campaigns.',
   'affiliate_already_reviewed' => 'Already reviewed.',
   'affiliate_pin_length' => 'PIN must be :length digits.',
   'invalid_decision' => 'Invalid decision.',

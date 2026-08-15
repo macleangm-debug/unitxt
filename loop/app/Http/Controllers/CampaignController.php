@@ -183,14 +183,22 @@ class CampaignController extends Controller
 
         return redirect()->route('campaigns.show', $campaign)->with(
             'confirm',
-            Confirm::withBoldName(
-                __('loop.campaign_launched_title'),
-                'campaign_launched_body',
-                $campaign->displayName(),
-                __('loop.done'),
-                route('campaigns.show', $campaign),
-                true,
-            )
+            ! $business->fresh()->hasRedeemableOffer()
+                ? Confirm::make(
+                    __('loop.campaign_launched_title'),
+                    __('loop.campaign_saved_add_offer_body', ['name' => $campaign->displayName()]),
+                    __('loop.add_offer'),
+                    route('rewards.create'),
+                    true,
+                )
+                : Confirm::withBoldName(
+                    __('loop.campaign_launched_title'),
+                    'campaign_launched_body',
+                    $campaign->displayName(),
+                    __('loop.done'),
+                    route('campaigns.show', $campaign),
+                    true,
+                )
         );
     }
 
@@ -261,9 +269,9 @@ class CampaignController extends Controller
             'name' => $data['name'],
             'type' => $data['type'],
             'description' => $data['description'] ?? null,
-            'spend_step' => $data['spend_step'] ?? null,
-            'points_per_step' => $data['points_per_step'] ?? null,
-            'bonus_points' => $data['bonus_points'] ?? 0,
+            'spend_step' => $data['spend_step'] ?? $campaign->spend_step,
+            'points_per_step' => $data['points_per_step'] ?? $campaign->points_per_step,
+            'bonus_points' => $data['bonus_points'] ?? $campaign->bonus_points ?? 0,
             'featured_product_name' => $data['featured_product_name'] ?? $campaign->featured_product_name,
             'starts_at' => $data['starts_at'],
             'ends_at' => array_key_exists('ends_at', $data) ? ($data['ends_at'] ?? null) : $campaign->ends_at,
@@ -279,6 +287,20 @@ class CampaignController extends Controller
         }
 
         $campaign->refresh();
+
+        // Save first; only then nudge if the business has no live offers (not tied to this campaign).
+        if (! $business->fresh()->hasRedeemableOffer()) {
+            return redirect()->route('campaigns.show', $campaign)->with(
+                'confirm',
+                Confirm::make(
+                    __('loop.campaign_updated_title'),
+                    __('loop.campaign_saved_add_offer_body', ['name' => $campaign->name]),
+                    __('loop.add_offer'),
+                    route('rewards.create'),
+                    false,
+                )
+            );
+        }
 
         return redirect()->route('campaigns.show', $campaign)->with(
             'confirm',

@@ -139,6 +139,87 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
+    public function test_register_customer_rejects_phone_already_used_by_staff(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999077',
+            'country_code' => '+255',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        \App\Support\DefaultOffer::ensure($business);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($staff)
+            ->from(route('till.index'))
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => $owner->phone,
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.index'))
+            ->assertSessionHasErrors('phone');
+
+        $this->actingAs($staff)
+            ->withSession([
+                'till.ticket' => [
+                    'shop_id' => $shop->id,
+                    'channel' => 'in_store',
+                    'country_code' => '+255',
+                    'phone' => $owner->phone,
+                    'customer_id' => null,
+                    'needs_register' => true,
+                ],
+            ])
+            ->post(route('till.register-customer'), [
+                'first_name' => 'Fake',
+                'last_name' => 'Member',
+            ])
+            ->assertRedirect(route('till.ticket'))
+            ->assertSessionHasErrors('phone');
+
+        $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
+    }
+
+    public function test_campaign_update_preserves_earn_rules_when_fields_omitted(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Support\DefaultOffer::ensure($business);
+        $campaign = Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Kitonga',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->put(route('campaigns.update', $campaign), [
+                'name' => 'Kitonga Edited',
+                'type' => 'earn',
+                'starts_at' => now()->toDateString(),
+                'is_active' => 1,
+            ])
+            ->assertRedirect(route('campaigns.show', $campaign));
+
+        $campaign->refresh();
+        $this->assertSame('Kitonga Edited', $campaign->name);
+        $this->assertSame(1000, (int) $campaign->spend_step);
+        $this->assertSame(2, (int) $campaign->points_per_step);
+    }
+
     public function test_standalone_redeem_does_not_require_a_sale(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();

@@ -1154,6 +1154,8 @@ return [
     'affiliate_program_off' => 'Programu ya washirika imezimwa kwa sasa.',
     'affiliate_phone_exists' => 'Mshirika tayari ameomba kwa simu hii.',
     'affiliate_phone_taken' => 'Simu hii tayari inatumika kwenye Loop.',
+    'phone_already_on_loop' => 'Simu hii tayari iko Loop kwa jukumu lingine. Tumia nambari nyingine ya mwanachama.',
+    'campaign_saved_add_offer_body' => ':name imehifadhiwa. Ongeza ofa iliyo live ili wanachama wacomboa pointi — ofa zinashirikiwa katika kampeni zote.',
     'affiliate_already_reviewed' => 'Tayari imekaguliwa.',
     'affiliate_pin_length' => 'PIN lazima iwe tarakimu :length.',
     'invalid_decision' => 'Uamuzi batili.',

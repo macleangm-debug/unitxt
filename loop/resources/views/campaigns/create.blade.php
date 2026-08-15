@@ -78,9 +78,12 @@
                 method="POST"
                 action="{{ route('campaigns.store') }}"
                 class="space-y-6 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
+                @submit="return startSave()"
             >
                 @csrf
                 <input type="hidden" name="_step" :value="step">
+                <input type="hidden" name="spend_step" :value="spendValue()">
+                <input type="hidden" name="points_per_step" :value="pointsPerStep">
                 @if ($templateKey)
                     <input type="hidden" name="template_key" value="{{ $templateKey }}">
                 @endif
@@ -131,16 +134,15 @@
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
                     <p class="rounded-xl bg-chalk/60 px-3 py-2 text-xs text-ink-muted">{{ __('loop.min_spend_example') }}</p>
-                    <input type="hidden" name="spend_step" :value="spendValue()">
                     <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $t['bonus_points'] ?? 0) }}">
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
                             <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>
-                            <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" :required="step === 2">
+                            <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" data-required="1">
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.points_earned') }}</label>
-                            <input type="number" name="points_per_step" class="loop-input" x-model="pointsPerStep" :required="step === 2" min="1">
+                            <input type="number" class="loop-input" x-model="pointsPerStep" data-required="1" min="1">
                         </div>
                     </div>
                     <p class="text-center font-display text-xl font-bold">
@@ -212,13 +214,9 @@
                             @endforeach
                         </div>
                     </div>
-                    <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
-                        {{ __('loop.campaign_offers_untied_hint') }}
-                        <a href="{{ route('rewards.create') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('rewards.create')), $event, { kind: 'push' })">{{ __('loop.offers') }} →</a>
-                    </p>
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click.prevent="prev()">{{ __('loop.back') }}</button>
-                        <button class="loop-btn-mint flex-1">{{ __('loop.launch_campaign') }}</button>
+                        <button type="submit" class="loop-btn-mint flex-1">{{ __('loop.launch_campaign') }}</button>
                     </div>
                 </div>
             </form>

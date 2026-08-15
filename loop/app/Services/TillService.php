@@ -30,12 +30,27 @@ class TillService
             ->first();
     }
 
+    public function findAnyByPhone(string $countryCode, string $phone): ?User
+    {
+        return User::query()
+            ->where('country_code', $countryCode)
+            ->where('phone', $phone)
+            ->first();
+    }
+
     public function registerCustomer(array $data): User
     {
         $existing = $this->findCustomer($data['country_code'], $data['phone']);
 
         if ($existing) {
             return $existing;
+        }
+
+        $taken = $this->findAnyByPhone($data['country_code'], $data['phone']);
+        if ($taken) {
+            throw ValidationException::withMessages([
+                'phone' => __('loop.phone_already_on_loop'),
+            ]);
         }
 
         return User::create([

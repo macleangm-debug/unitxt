@@ -730,6 +730,24 @@ Alpine.data('loopWizard', (config = {}) => {
         },
         startSave() {
             if (this.saving) return false;
+            // Ensure Alpine-bound hidden fields are flushed before native submit.
+            try {
+                const form = this.$refs.form;
+                if (form) {
+                    form.querySelectorAll('input[name="spend_step"]').forEach((el) => {
+                        if (typeof this.spendValue === 'function') {
+                            el.value = String(this.spendValue() || '');
+                        }
+                    });
+                    form.querySelectorAll('input[name="points_per_step"]').forEach((el) => {
+                        if (this.pointsPerStep !== undefined && this.pointsPerStep !== null) {
+                            el.value = String(this.pointsPerStep);
+                        }
+                    });
+                }
+            } catch (_) {
+                // ignore
+            }
             this.saving = true;
             return true;
         },

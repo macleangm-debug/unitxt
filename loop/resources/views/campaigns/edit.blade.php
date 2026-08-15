@@ -53,12 +53,19 @@
             <input type="hidden" name="type" value="{{ old('type', $campaign->type) }}">
             <input type="hidden" name="starts_at" value="{{ old('starts_at', $campaign->starts_at?->format('Y-m-d') ?? now()->toDateString()) }}">
             <input type="hidden" name="description" value="{{ old('description', $campaign->description) }}">
+            @if ($isEarn)
+                <input type="hidden" name="spend_step" :value="spendValue()">
+                <input type="hidden" name="points_per_step" :value="pointsPerStep">
+                @if ($campaign->type !== 'product_push')
+                    <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $campaign->bonus_points ?: 0) }}">
+                @endif
+            @endif
 
             <div data-step="1" x-show="step === 1" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_basics') }}</p>
                 <div>
                     <label class="loop-label">{{ __('loop.campaign_name') }}</label>
-                    <input name="name" class="loop-input" value="{{ old('name', $campaign->name) }}" required>
+                    <input name="name" class="loop-input" value="{{ old('name', $campaign->name) }}" data-required="1">
                 </div>
                 <p class="rounded-xl bg-chalk/60 px-3 py-2 text-sm text-ink-muted">
                     {{ __('loop.type') }}:
@@ -70,7 +77,6 @@
             <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
                 @if ($isEarn)
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.customer_gets') }}</p>
-                    <input type="hidden" name="spend_step" :value="spendValue()">
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
                     <p class="rounded-xl bg-chalk/60 px-3 py-2 text-xs text-ink-muted">{{ __('loop.min_spend_example') }}</p>
                     <div class="grid grid-cols-2 gap-3">
@@ -80,7 +86,7 @@
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.points_earned') }}</label>
-                            <input type="number" name="points_per_step" min="1" class="loop-input" x-model="pointsPerStep" data-required="1">
+                            <input type="number" min="1" class="loop-input" x-model="pointsPerStep" data-required="1">
                         </div>
                     </div>
                     <p class="text-center font-display text-xl font-bold">
@@ -99,8 +105,6 @@
                                 <input type="number" name="bonus_points" min="0" class="loop-input" value="{{ old('bonus_points', $campaign->bonus_points) }}">
                             </div>
                         </div>
-                    @else
-                        <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $campaign->bonus_points ?: 0) }}">
                     @endif
                 @else
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_bonus') }}</p>
@@ -118,17 +122,13 @@
 
             <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.save') }}</p>
-                <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
-                    {{ __('loop.campaign_offers_untied_hint') }}
-                    <a href="{{ route('rewards.index') }}" class="font-semibold text-mint-deep">{{ __('loop.offers') }} →</a>
-                </p>
                 <label class="flex items-center gap-2 text-sm font-semibold">
                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $campaign->is_active)) class="rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
                     {{ __('loop.live') }} — {{ __('loop.pause_or_resume_hint') }}
                 </label>
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click.prevent="prev()">{{ __('loop.back') }}</button>
-                    <button class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">
+                    <button type="submit" class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">
                         <span x-show="!saving">{{ __('loop.save') }}</span>
                         <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
                     </button>

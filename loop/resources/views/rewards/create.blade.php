@@ -271,10 +271,6 @@
                     <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
                         {{ __('loop.default_offer_owner_hint') }}
                     </p>
-                    <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm text-ink-muted">
-                        {{ __('loop.campaign_offers_untied_hint') }}
-                        <a href="{{ route('campaigns.index') }}" class="font-semibold text-mint-deep" @click="$store.loopNav.go(@js(route('campaigns.index')), $event, { kind: 'back' })">{{ __('loop.campaigns') }} →</a>
-                    </p>
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click.prevent="go(2)">{{ __('loop.back') }}</button>
                         <button class="loop-btn-mint flex-1">{{ __('loop.confirm_launch_offer') }}</button>

@@ -77,6 +77,15 @@ class TillController extends Controller
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
 
+        if (! $customer) {
+            $other = $till->findAnyByPhone($data['country_code'], $phone);
+            if ($other) {
+                return back()->withInput()->withErrors([
+                    'phone' => __('loop.phone_already_on_loop'),
+                ]);
+            }
+        }
+
         $request->session()->put('till.ticket', [
             'shop_id' => $shop->id,
             'channel' => $data['channel'],
@@ -174,15 +183,27 @@ class TillController extends Controller
 
         $existing = $till->findCustomer($ticket['country_code'], $ticket['phone']);
         if (! $existing) {
-            $existing = $till->registerCustomer([
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'country_code' => $ticket['country_code'],
-                'phone' => $ticket['phone'],
-                'email' => $data['email'] ?? null,
-                'birth_month' => $data['birth_month'] ?? null,
-                'birth_day' => $data['birth_day'] ?? null,
-            ]);
+            try {
+                $existing = $till->registerCustomer([
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                    'country_code' => $ticket['country_code'],
+                    'phone' => $ticket['phone'],
+                    'email' => $data['email'] ?? null,
+                    'birth_month' => $data['birth_month'] ?? null,
+                    'birth_day' => $data['birth_day'] ?? null,
+                ]);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return redirect()
+                    ->route('till.ticket')
+                    ->withInput()
+                    ->withErrors($e->errors());
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                return redirect()
+                    ->route('till.ticket')
+                    ->withInput()
+                    ->withErrors(['phone' => __('loop.phone_already_on_loop')]);
+            }
         }
 
         $ticket['customer_id'] = $existing->id;
