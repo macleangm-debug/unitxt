@@ -110,9 +110,20 @@ class CampaignController extends Controller
             $request->validate([
                 'spend_step' => ['required', 'integer', 'min:1'],
                 'points_per_step' => ['required', 'integer', 'min:1'],
+            ], [
+                'spend_step.required' => __('loop.campaign_spend_points_required'),
+                'spend_step.min' => __('loop.campaign_spend_points_required'),
+                'points_per_step.required' => __('loop.campaign_spend_points_required'),
+                'points_per_step.min' => __('loop.campaign_spend_points_required'),
             ]);
             $data['spend_step'] = (int) $request->input('spend_step');
             $data['points_per_step'] = (int) $request->input('points_per_step');
+            if ($data['spend_step'] < 1 || $data['points_per_step'] < 1) {
+                return back()->withInput()->withErrors([
+                    'spend_step' => __('loop.campaign_spend_points_required'),
+                    'points_per_step' => __('loop.campaign_spend_points_required'),
+                ]);
+            }
         } else {
             $request->validate([
                 'bonus_points' => ['required', 'integer', 'min:1'],

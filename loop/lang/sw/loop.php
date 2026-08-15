@@ -402,6 +402,7 @@ return [
     'intention_product' => 'Sukuma bidhaa maalum',
     'intention_retention' => 'Kampeni za bonasi',
     'campaigns_vs_offers_bridge' => 'Kidokezo: weka earn moja live, ongeza kampeni za bonasi unapohitaji, na simamia ukombozi chini ya Ofa.',
+    'campaign_spend_points_required' => 'Weka kiasi cha chini na pointi kabla ya kuendelea.',
     'campaign_name_placeholder' => 'mf. Harbor Beans earn',
     'featured_product_section' => 'Bidhaa maalum',
     'featured_product_how_it_works' => 'Kwenye till, mfanyakazi anabofya kuwa bidhaa hii ilikuwa katika mauzo. Pointi za ziada zinaongezeka juu ya earn ya kawaida.',

@@ -688,6 +688,30 @@ Alpine.data('loopWizard', (config = {}) => {
             this.step = next;
             this.syncStepUrl();
         },
+        earnRulesOk() {
+            const needsEarn = !! this.$refs.form?.querySelector('input[name="spend_step"]');
+            if (! needsEarn) return true;
+            const spend = typeof this.spendValue === 'function' ? this.spendValue() : 0;
+            const pts = parseInt(String(this.pointsPerStep ?? '').replace(/[^\d]/g, ''), 10) || 0;
+            return spend >= 1 && pts >= 1;
+        },
+        focusEarnRules() {
+            const pane = this.$refs.form?.querySelector('[data-step="2"]');
+            const spendEl = pane?.querySelector('input[inputmode="numeric"], input[x-model="spendDisplay"]')
+                || pane?.querySelector('input.loop-input');
+            const ptsEl = pane?.querySelectorAll('input[type="number"]');
+            const target = (spendEl && ! String(this.spendDisplay || '').trim())
+                ? spendEl
+                : (ptsEl && ptsEl[0]) || spendEl;
+            if (target) {
+                target.focus();
+                if (typeof target.setCustomValidity === 'function') {
+                    target.setCustomValidity(this.earnRulesMessage || 'Enter spend and points');
+                    target.reportValidity();
+                    target.setCustomValidity('');
+                }
+            }
+        },
         next() {
             const form = this.$refs.form;
             if (! form) {
@@ -702,6 +726,7 @@ Alpine.data('loopWizard', (config = {}) => {
                 const fields = pane.querySelectorAll('input, select, textarea');
                 for (const el of fields) {
                     if (el.disabled || el.type === 'hidden') continue;
+                    if (el.offsetParent === null && el.getClientRects().length === 0) continue;
                     const needs = el.hasAttribute('required') || el.dataset.required === '1';
                     if (needs && ! String(el.value || '').trim()) {
                         el.focus();
@@ -717,6 +742,11 @@ Alpine.data('loopWizard', (config = {}) => {
                     }
                 }
             }
+            // Earn / product-push campaigns must have spend + points before leaving step 2.
+            if (this.step === 2 && ! this.earnRulesOk()) {
+                this.focusEarnRules();
+                return;
+            }
             if (this.step < this.total) {
                 this.step += 1;
                 this.syncStepUrl();
@@ -730,19 +760,24 @@ Alpine.data('loopWizard', (config = {}) => {
         },
         startSave() {
             if (this.saving) return false;
+            if (! this.earnRulesOk()) {
+                this.go(2);
+                this.$nextTick(() => this.focusEarnRules());
+                return false;
+            }
             // Ensure Alpine-bound hidden fields are flushed before native submit.
             try {
                 const form = this.$refs.form;
                 if (form) {
                     form.querySelectorAll('input[name="spend_step"]').forEach((el) => {
                         if (typeof this.spendValue === 'function') {
-                            el.value = String(this.spendValue() || '');
+                            const n = this.spendValue();
+                            el.value = n >= 1 ? String(n) : '';
                         }
                     });
                     form.querySelectorAll('input[name="points_per_step"]').forEach((el) => {
-                        if (this.pointsPerStep !== undefined && this.pointsPerStep !== null) {
-                            el.value = String(this.pointsPerStep);
-                        }
+                        const pts = parseInt(String(this.pointsPerStep ?? '').replace(/[^\d]/g, ''), 10) || 0;
+                        el.value = pts >= 1 ? String(pts) : '';
                     });
                 }
             } catch (_) {

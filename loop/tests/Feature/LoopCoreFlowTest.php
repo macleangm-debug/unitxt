@@ -220,6 +220,39 @@ class LoopCoreFlowTest extends TestCase
         $this->assertSame(2, (int) $campaign->points_per_step);
     }
 
+    public function test_cannot_create_earn_campaign_without_spend_and_points(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Support\DefaultOffer::ensure($business);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create', ['own' => 1]))
+            ->post(route('campaigns.store'), [
+                'name' => 'Broken earn',
+                'type' => 'earn',
+                'starts_at' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('campaigns.create', ['own' => 1]))
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create', ['own' => 1]))
+            ->post(route('campaigns.store'), [
+                'name' => 'Zero earn',
+                'type' => 'earn',
+                'spend_step' => 0,
+                'points_per_step' => 0,
+                'starts_at' => now()->toDateString(),
+            ])
+            ->assertRedirect(route('campaigns.create', ['own' => 1]))
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->assertDatabaseMissing('campaigns', [
+            'business_id' => $business->id,
+            'name' => 'Broken earn',
+        ]);
+    }
+
     public function test_standalone_redeem_does_not_require_a_sale(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();

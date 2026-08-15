@@ -58,12 +58,13 @@
         <div
             class="mx-auto max-w-2xl"
             x-data="loopWizard({
-                step: {{ (int) request('_step', old('_step', 1)) }},
+                step: {{ (int) request('_step', old('_step', $errors->has('spend_step') || $errors->has('points_per_step') ? 2 : 1)) }},
                 total: 3,
                 campaignType: @js($defaultType),
                 spendDisplay: @js(old('spend_step') ? number_format((int) old('spend_step')) : ''),
-                pointsPerStep: @js(old('points_per_step', '')),
+                pointsPerStep: @js(old('points_per_step') !== null && old('points_per_step') !== '' ? (string) old('points_per_step') : ''),
                 currency: @js($business->currency),
+                earnRulesMessage: @js(__('loop.campaign_spend_points_required')),
                 formatSpend() {
                     let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
                     this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
@@ -83,8 +84,13 @@
                 @csrf
                 <input type="hidden" name="_step" :value="step">
                 @if ($isEarnLike)
-                    <input type="hidden" name="spend_step" :value="spendValue()">
-                    <input type="hidden" name="points_per_step" :value="pointsPerStep">
+                    <input type="hidden" name="spend_step" :value="spendValue() >= 1 ? spendValue() : ''">
+                    <input type="hidden" name="points_per_step" :value="(parseInt(String(pointsPerStep || '').replace(/[^\d]/g, ''), 10) || 0) >= 1 ? pointsPerStep : ''">
+                @endif
+                @if ($errors->has('spend_step') || $errors->has('points_per_step'))
+                    <div class="rounded-2xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-coral">
+                        {{ $errors->first('spend_step') ?: $errors->first('points_per_step') }}
+                    </div>
                 @endif
                 @if ($templateKey)
                     <input type="hidden" name="template_key" value="{{ $templateKey }}">
@@ -143,9 +149,12 @@
                                 <input type="number" class="loop-input" x-model="pointsPerStep" data-required="1" min="1" placeholder="{{ $pointsPlaceholder }}">
                             </div>
                         </div>
-                        <p class="text-center font-display text-xl font-bold">
-                            <span x-text="pointsPerStep || '{{ $pointsPlaceholder }}'"></span> {{ __('loop.pts') }} /
-                            <span x-text="spendDisplay || '{{ $spendPlaceholder }}'"></span> <span x-text="currency"></span>
+                        <p class="text-center font-display text-xl font-bold" x-show="earnRulesOk()" x-cloak>
+                            <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
+                            <span x-text="spendDisplay"></span> <span x-text="currency"></span>
+                        </p>
+                        <p class="text-center text-sm font-semibold text-ink-muted" x-show="!earnRulesOk()">
+                            {{ __('loop.campaign_spend_points_required') }}
                         </p>
 
                         @if ($defaultType === 'product_push' || ! $fromTemplate)

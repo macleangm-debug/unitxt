@@ -26,11 +26,12 @@
     <div
         class="mx-auto max-w-lg"
         x-data="loopWizard({
-            step: {{ (int) request('_step', old('_step', 1)) }},
+            step: {{ (int) request('_step', old('_step', $errors->has('spend_step') || $errors->has('points_per_step') ? 2 : 1)) }},
             total: 3,
-            spendDisplay: @js(number_format((int) old('spend_step', $campaign->spend_step ?: 1000))),
-            pointsPerStep: {{ (int) old('points_per_step', $campaign->points_per_step ?: 2) }},
+            spendDisplay: @js(old('spend_step', $campaign->spend_step) ? number_format((int) old('spend_step', $campaign->spend_step)) : ''),
+            pointsPerStep: @js(old('points_per_step', $campaign->points_per_step) !== null && old('points_per_step', $campaign->points_per_step) !== '' ? (string) old('points_per_step', $campaign->points_per_step) : ''),
             currency: @js($business->currency),
+            earnRulesMessage: @js(__('loop.campaign_spend_points_required')),
             formatSpend() {
                 let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
                 this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
@@ -54,11 +55,17 @@
             <input type="hidden" name="starts_at" value="{{ old('starts_at', $campaign->starts_at?->format('Y-m-d') ?? now()->toDateString()) }}">
             <input type="hidden" name="description" value="{{ old('description', $campaign->description) }}">
             @if ($isEarn)
-                <input type="hidden" name="spend_step" :value="spendValue()">
-                <input type="hidden" name="points_per_step" :value="pointsPerStep">
+                <input type="hidden" name="spend_step" :value="spendValue() >= 1 ? spendValue() : ''">
+                <input type="hidden" name="points_per_step" :value="(parseInt(String(pointsPerStep || '').replace(/[^\d]/g, ''), 10) || 0) >= 1 ? pointsPerStep : ''">
                 @if ($campaign->type !== 'product_push')
                     <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $campaign->bonus_points ?: 0) }}">
                 @endif
+            @endif
+
+            @if ($errors->has('spend_step') || $errors->has('points_per_step'))
+                <div class="rounded-2xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-coral">
+                    {{ $errors->first('spend_step') ?: $errors->first('points_per_step') }}
+                </div>
             @endif
 
             <div data-step="1" x-show="step === 1" class="space-y-4">

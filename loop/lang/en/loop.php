@@ -402,7 +402,7 @@ return array (
   'intention_product' => 'Push a featured product',
   'intention_retention' => 'Bonus campaigns',
   'campaigns_vs_offers_bridge' => 'Tip: keep one everyday earn live, add bonus campaigns when you need them, and manage what members redeem under Offers.',
-  'campaign_name_placeholder' => 'e.g. Harbor Beans earn',
+  'campaign_spend_points_required' => 'Enter the minimum spend and points before continuing.',
   'featured_product_section' => 'Featured product',
   'featured_product_how_it_works' => 'At the till, staff tick that this product was in the sale. Then the extra points apply on top of normal earn.',
   'bonus_campaign_step_help' => 'These stack on top of everyday earn — they do not replace it.',
