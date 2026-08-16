@@ -281,6 +281,26 @@
                     useIdea(idea) { this.name = idea; },
                     startSave() {
                         if (this.saving) return false;
+                        if (this.spendValue() < 1) {
+                            const el = this.$root.querySelector('[data-spend-input]');
+                            if (el) {
+                                el.setCustomValidity(@js(__('loop.campaign_spend_required')));
+                                el.reportValidity();
+                                el.setCustomValidity('');
+                            }
+                            return false;
+                        }
+                        const pts = parseInt(this.pointsPerStep, 10);
+                        if (!pts || pts < 1) {
+                            const el = this.$root.querySelector('[name=\"points_per_step\"]');
+                            if (el) {
+                                el.setCustomValidity(@js(__('loop.campaign_points_required')));
+                                el.reportValidity();
+                                el.setCustomValidity('');
+                            }
+                            return false;
+                        }
+                        if (!String(this.name || '').trim()) return false;
                         this.saving = true;
                         return true;
                     }
@@ -337,7 +357,7 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="loop-label">{{ __('loop.spend_amount') }} ({{ $currency }})</label>
-                                    <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" required>
+                                    <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" data-spend-input required>
                                 </div>
                                 <div>
                                     <label class="loop-label">{{ __('loop.points_earned') }}</label>

@@ -1,0 +1,216 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Business;
+use App\Models\Campaign;
+use App\Models\Reward;
+use App\Models\Shop;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class CampaignFormValidationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_campaign_cannot_be_created_without_spend_and_points(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create', ['own' => 1]))
+            ->post(route('campaigns.store'), $this->validPayload([
+                'spend_step' => '',
+                'points_per_step' => '',
+            ]))
+            ->assertRedirect(route('campaigns.create', ['own' => 1]))
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    public function test_campaign_cannot_be_created_with_zero_spend_or_points(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload([
+                'spend_step' => 0,
+                'points_per_step' => 0,
+            ]))
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    public function test_campaign_cannot_be_created_without_name_or_start_date(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload([
+                'name' => '',
+                'starts_at' => '',
+            ]))
+            ->assertSessionHasErrors(['name', 'starts_at']);
+
+        $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    public function test_complete_campaign_form_creates_campaign(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload())
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'name' => 'Everyday earn',
+            'type' => 'earn',
+            'spend_step' => 1500,
+            'points_per_step' => 3,
+        ]);
+    }
+
+    public function test_welcome_bonus_requires_points_when_enabled(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload([
+                'enable_welcome' => 1,
+                'welcome_points' => '',
+            ]))
+            ->assertSessionHasErrors('welcome_points');
+
+        $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    public function test_product_push_requires_featured_product_and_bonus_points(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload([
+                'type' => 'product_push',
+                'featured_product_name' => '',
+                'bonus_points' => '',
+            ]))
+            ->assertSessionHasErrors(['featured_product_name', 'bonus_points']);
+
+        $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    public function test_earn_campaign_update_requires_spend_and_points(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        $campaign = Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->put(route('campaigns.update', $campaign), [
+                'name' => 'Earn',
+                'type' => 'earn',
+                'spend_step' => '',
+                'points_per_step' => '',
+                'starts_at' => now()->toDateString(),
+                'is_active' => 1,
+            ])
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->assertSame(1000, $campaign->fresh()->spend_step);
+        $this->assertSame(2, $campaign->fresh()->points_per_step);
+    }
+
+    public function test_onboarding_campaign_requires_spend_and_points(): void
+    {
+        $owner = User::factory()->owner()->create(['phone' => '712888101']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Onboard Cafe',
+            'slug' => 'onboard-cafe',
+            'sector' => 'coffee',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'logo_path' => 'business-logos/demo.png',
+            'onboarding_completed_at' => null,
+        ]);
+        $owner->update(['business_id' => $business->id]);
+        Shop::create([
+            'business_id' => $business->id,
+            'name' => 'Main',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.campaign'), [
+                'template' => 'everyday_earn',
+                'name' => 'Onboard Cafe Points',
+            ])
+            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+
+        $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    /**
+     * @return array{0: User, 1: Business, 2: Shop}
+     */
+    private function seedOwnerWithOffer(): array
+    {
+        $owner = User::factory()->owner()->create(['phone' => '712888201']);
+        $business = Business::create([
+            'owner_id' => $owner->id,
+            'name' => 'Form Shop',
+            'slug' => 'form-shop',
+            'sector' => 'coffee',
+            'country' => 'TZ',
+            'currency' => 'TZS',
+            'city' => 'Dar es Salaam',
+            'onboarding_completed_at' => now(),
+        ]);
+        $owner->update(['business_id' => $business->id]);
+        $shop = Shop::create([
+            'business_id' => $business->id,
+            'name' => 'Main',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
+        Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+
+        return [$owner, $business, $shop];
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function validPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => 'Everyday earn',
+            'type' => 'earn',
+            'spend_step' => 1500,
+            'points_per_step' => 3,
+            'starts_at' => now()->toDateString(),
+        ], $overrides);
+    }
+}

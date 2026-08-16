@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Campaign;
 use App\Models\Reward;
 use App\Models\Shop;
+use App\Services\AffiliateService;
+use App\Services\ReferralService;
 use App\Support\CampaignTemplates;
 use App\Support\Confirm;
 use App\Support\Countries;
@@ -222,8 +224,8 @@ class OnboardingController extends Controller
         $data = $request->validate([
             'template' => ['required', 'string'],
             'name' => ['required', 'string', 'max:120'],
-            'spend_step' => ['nullable', 'integer', 'min:100'],
-            'points_per_step' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'spend_step' => ['required', 'integer', 'min:1'],
+            'points_per_step' => ['required', 'integer', 'min:1'],
             'bonus_points' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'featured_product_name' => ['nullable', 'string', 'max:120'],
         ]);
@@ -240,10 +242,9 @@ class OnboardingController extends Controller
             $data['bonus_points'] = (int) $request->input('bonus_points');
         }
 
-        // Prefer submitted rates; fall back to template defaults for earn / product push.
-        $spendStep = (int) ($data['spend_step'] ?? $template['spend_step'] ?? 1000);
-        $pointsPerStep = (int) ($data['points_per_step'] ?? $template['points_per_step'] ?? 2);
-        $campaignName = trim($data['name']) !== '' ? trim($data['name']) : $template['name'];
+        $spendStep = (int) $data['spend_step'];
+        $pointsPerStep = (int) $data['points_per_step'];
+        $campaignName = trim($data['name']);
 
         if ($business->campaigns()->doesntExist()) {
             $campaign = Campaign::create([
@@ -338,8 +339,8 @@ class OnboardingController extends Controller
 
         $business->update(['onboarding_completed_at' => now()]);
 
-        app(\App\Services\ReferralService::class)->qualifyForBusiness($business->fresh());
-        app(\App\Services\AffiliateService::class)->qualifyForBusiness($business->fresh());
+        app(ReferralService::class)->qualifyForBusiness($business->fresh());
+        app(AffiliateService::class)->qualifyForBusiness($business->fresh());
 
         return redirect()->route('dashboard')->with('confirm', Confirm::make(
             __('loop.first_offer_done_title'),

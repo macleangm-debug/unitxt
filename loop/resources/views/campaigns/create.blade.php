@@ -12,6 +12,21 @@
         3 => __('loop.section_bonuses'),
         4 => __('loop.section_schedule'),
     ];
+    $oldSpend = old('spend_step', $t['spend_step'] ?? null);
+    $spendDisplayInit = ($oldSpend !== null && $oldSpend !== '' && (int) $oldSpend > 0)
+        ? number_format((int) $oldSpend)
+        : '';
+    $oldPoints = old('points_per_step', $t['points_per_step'] ?? null);
+    $pointsInit = ($oldPoints !== null && $oldPoints !== '') ? (int) $oldPoints : 'null';
+    $errorStep = 1;
+    if ($errors->hasAny(['spend_step', 'points_per_step', 'featured_product_name', 'bonus_points'])) {
+        $errorStep = 2;
+    } elseif ($errors->hasAny(['welcome_points', 'birthday_points', 'streak_target', 'streak_period', 'streak_points'])) {
+        $errorStep = 3;
+    } elseif ($errors->hasAny(['starts_at', 'ends_at', 'shop_ids'])) {
+        $errorStep = 4;
+    }
+    $initialStep = $errors->any() ? $errorStep : (int) old('_step', 1);
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -52,30 +67,109 @@
         <div
             class="mx-auto max-w-2xl"
             x-data="{
-                step: {{ (int) old('_step', 1) }},
+                step: {{ (int) $initialStep }},
                 total: 4,
+                type: @js($defaultType),
                 enableWelcome: {{ old('enable_welcome') ? 'true' : 'false' }},
                 enableBirthday: {{ old('enable_birthday') ? 'true' : 'false' }},
                 enableStreak: {{ old('enable_streak') ? 'true' : 'false' }},
-                spendDisplay: @js(number_format((int) old('spend_step', $t['spend_step'] ?? 1000))),
-                pointsPerStep: {{ (int) old('points_per_step', $t['points_per_step'] ?? 2) }},
+                spendDisplay: @js($spendDisplayInit),
+                pointsPerStep: {{ $pointsInit }},
+                bonusPoints: {{ (int) old('bonus_points', $t['bonus_points'] ?? 0) }},
                 currency: @js($business->currency),
+                saving: false,
+                spendRequired: @js(__('loop.campaign_spend_required')),
+                pointsRequired: @js(__('loop.campaign_points_required')),
                 go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-                next() {
-                    const form = this.$refs.form;
-                    const fields = form.querySelectorAll('[data-step=\"'+this.step+'\'] [name]');
-                    for (const el of fields) {
-                        if (el.disabled) continue;
-                        if (el.hasAttribute('required') && !String(el.value || '').trim()) {
+                fail(stepNum, el, message) {
+                    if (this.step !== stepNum) this.go(stepNum);
+                    this.$nextTick(() => {
+                        if (!el) return;
+                        if (message) {
+                            el.setCustomValidity(message);
                             el.reportValidity();
-                            return;
+                            el.setCustomValidity('');
+                        } else {
+                            el.reportValidity();
                         }
-                        if (typeof el.checkValidity === 'function' && !el.checkValidity()) {
-                            el.reportValidity();
+                        el.focus();
+                    });
+                    return false;
+                },
+                validateStep(stepNum) {
+                    const form = this.$refs.form;
+                    if (!form) return false;
+                    const root = form.querySelector('[data-step=\"'+stepNum+'\"]');
+                    if (!root) return true;
+                    if (stepNum === 1) {
+                        const name = root.querySelector('[name=\"name\"]');
+                        if (!name || !String(name.value || '').trim()) return this.fail(1, name);
+                    }
+                    if (stepNum === 2) {
+                        const spendEl = root.querySelector('[data-spend-input]');
+                        if (this.spendValue() < 1) return this.fail(2, spendEl, this.spendRequired);
+                        const ptsEl = root.querySelector('[name=\"points_per_step\"]');
+                        const pts = parseInt(this.pointsPerStep, 10);
+                        if (!pts || pts < 1) return this.fail(2, ptsEl, this.pointsRequired);
+                        if (this.type === 'product_push') {
+                            const product = root.querySelector('[name=\"featured_product_name\"]');
+                            if (!product || !String(product.value || '').trim()) return this.fail(2, product);
+                            const bonusEl = root.querySelector('[data-bonus-input]');
+                            const bonus = parseInt(this.bonusPoints, 10);
+                            if (!bonus || bonus < 1) return this.fail(2, bonusEl);
+                        }
+                    }
+                    if (stepNum === 3) {
+                        if (this.enableWelcome) {
+                            const el = root.querySelector('[name=\"welcome_points\"]');
+                            if (!el || parseInt(el.value, 10) < 1) return this.fail(3, el);
+                        }
+                        if (this.enableBirthday) {
+                            const el = root.querySelector('[name=\"birthday_points\"]');
+                            if (!el || parseInt(el.value, 10) < 1) return this.fail(3, el);
+                        }
+                        if (this.enableStreak) {
+                            const target = root.querySelector('[name=\"streak_target\"]');
+                            const period = root.querySelector('[name=\"streak_period\"]');
+                            const points = root.querySelector('[name=\"streak_points\"]');
+                            if (!target || parseInt(target.value, 10) < 2) return this.fail(3, target);
+                            if (!period || !period.value) return this.fail(3, period);
+                            if (!points || parseInt(points.value, 10) < 1) return this.fail(3, points);
+                        }
+                    }
+                    if (stepNum === 4) {
+                        const starts = root.querySelector('[name=\"starts_at\"]');
+                        if (!starts || !String(starts.value || '').trim()) return this.fail(4, starts);
+                    }
+                    return true;
+                },
+                next() {
+                    if (!this.validateStep(this.step)) return;
+                    this.go(Math.min(this.total, this.step + 1));
+                },
+                goTo(n) {
+                    n = parseInt(n, 10);
+                    if (n <= this.step) { this.go(n); return; }
+                    while (this.step < n) {
+                        const before = this.step;
+                        this.next();
+                        if (this.step === before) return;
+                    }
+                },
+                submitForm(event) {
+                    if (this.saving) { event.preventDefault(); return; }
+                    if (this.step !== this.total) {
+                        event.preventDefault();
+                        this.next();
+                        return;
+                    }
+                    for (let s = 1; s <= this.total; s++) {
+                        if (!this.validateStep(s)) {
+                            event.preventDefault();
                             return;
                         }
                     }
-                    this.go(Math.min(this.total, this.step + 1));
+                    this.saving = true;
                 },
                 formatSpend() {
                     let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
@@ -91,9 +185,15 @@
                 method="POST"
                 action="{{ route('campaigns.store') }}"
                 class="space-y-6 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
+                @submit="submitForm($event)"
             >
                 @csrf
                 <input type="hidden" name="_step" :value="step">
+                @if ($errors->any())
+                    <div class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
+                        {{ $errors->first() ?: __('loop.campaign_form_errors') }}
+                    </div>
+                @endif
                 @if ($templateKey)
                     <input type="hidden" name="template_key" value="{{ $templateKey }}">
                 @endif
@@ -113,6 +213,7 @@
                     <div>
                         <label class="loop-label">{{ __('loop.campaign_name') }}</label>
                         <input name="name" class="loop-input" value="{{ old('name', $t['name'] ?? '') }}" :required="step === 1">
+                        <x-input-error :messages="$errors->get('name')" class="mt-1" />
                         <p class="mt-1 text-xs text-ink-muted">{{ __('loop.campaign_name_hint', ['business' => $business->name]) }}</p>
                     </div>
                     @if ($fromTemplate)
@@ -124,7 +225,7 @@
                     @else
                         <div>
                             <label class="loop-label">{{ __('loop.type') }}</label>
-                            <select name="type" class="loop-input" :required="step === 1">
+                            <select name="type" class="loop-input" x-model="type" :required="step === 1">
                                 <option value="earn" @selected($defaultType === 'earn')>{{ __('loop.type_earn') }}</option>
                                 <option value="product_push" @selected($defaultType === 'product_push')>{{ __('loop.type_product_push') }}</option>
                             </select>
@@ -144,21 +245,36 @@
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.customer_gets') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
                     <input type="hidden" name="spend_step" :value="spendValue()">
-                    <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $t['bonus_points'] ?? 0) }}">
+                    <input type="hidden" name="bonus_points" :value="type === 'product_push' ? bonusPoints : {{ (int) old('bonus_points', $t['bonus_points'] ?? 0) }}">
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
                             <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>
-                            <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" :required="step === 2">
+                            <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" data-spend-input :required="step === 2">
+                            <x-input-error :messages="$errors->get('spend_step')" class="mt-1" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.points_earned') }}</label>
                             <input type="number" name="points_per_step" class="loop-input" x-model="pointsPerStep" :required="step === 2" min="1">
+                            <x-input-error :messages="$errors->get('points_per_step')" class="mt-1" />
                         </div>
                     </div>
                     <p class="text-center font-display text-xl font-bold">
-                        <span x-text="pointsPerStep"></span> {{ __('loop.pts') }} /
+                        <span x-text="pointsPerStep || '—'"></span> {{ __('loop.pts') }} /
                         <span x-text="spendDisplay || '0'"></span> <span x-text="currency"></span>
                     </p>
+                    <div x-show="type === 'product_push'" x-cloak class="space-y-3 rounded-2xl border border-violet/20 bg-violet-soft/40 p-4">
+                        <div>
+                            <label class="loop-label">{{ __('loop.featured_product_name') }}</label>
+                            <input type="text" name="featured_product_name" class="loop-input" value="{{ old('featured_product_name', $t['featured_product_name'] ?? '') }}" :required="step === 2 && type === 'product_push'" placeholder="{{ __('loop.featured_product_placeholder') }}">
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.featured_product_till_hint') }}</p>
+                            <x-input-error :messages="$errors->get('featured_product_name')" class="mt-1" />
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.featured_bonus_points') }}</label>
+                            <input type="number" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :required="step === 2 && type === 'product_push'">
+                            <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
+                        </div>
+                    </div>
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
                         <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
@@ -176,7 +292,8 @@
                         <span class="flex-1">
                             <span class="block text-sm font-semibold">{{ __('loop.type_welcome') }}</span>
                             <span class="text-xs text-ink-muted">{{ __('loop.welcome_bonus_hint') }}</span>
-                            <input type="number" name="welcome_points" class="loop-input mt-2" value="{{ old('welcome_points', 20) }}" x-show="enableWelcome" x-cloak>
+                            <input type="number" name="welcome_points" min="1" class="loop-input mt-2" value="{{ old('welcome_points', 20) }}" x-show="enableWelcome" x-cloak :required="step === 3 && enableWelcome">
+                            <x-input-error :messages="$errors->get('welcome_points')" class="mt-1" />
                         </span>
                     </label>
 
@@ -185,7 +302,8 @@
                         <span class="flex-1">
                             <span class="block text-sm font-semibold">{{ __('loop.type_birthday') }}</span>
                             <span class="text-xs text-ink-muted">{{ __('loop.birthday_bonus_hint') }}</span>
-                            <input type="number" name="birthday_points" class="loop-input mt-2" value="{{ old('birthday_points', 50) }}" x-show="enableBirthday" x-cloak>
+                            <input type="number" name="birthday_points" min="1" class="loop-input mt-2" value="{{ old('birthday_points', 50) }}" x-show="enableBirthday" x-cloak :required="step === 3 && enableBirthday">
+                            <x-input-error :messages="$errors->get('birthday_points')" class="mt-1" />
                         </span>
                     </label>
 
@@ -195,13 +313,14 @@
                             <span class="block text-sm font-semibold">{{ __('loop.type_streak') }}</span>
                             <span class="text-xs text-ink-muted">{{ __('loop.streak_advice') }}</span>
                             <div class="mt-2 grid gap-2 sm:grid-cols-3" x-show="enableStreak" x-cloak>
-                                <input type="number" name="streak_target" class="loop-input" placeholder="{{ __('loop.streak_target') }}" value="{{ old('streak_target', 3) }}">
-                                <select name="streak_period" class="loop-input">
+                                <input type="number" name="streak_target" min="2" class="loop-input" placeholder="{{ __('loop.streak_target') }}" value="{{ old('streak_target', 3) }}" :required="step === 3 && enableStreak">
+                                <select name="streak_period" class="loop-input" :required="step === 3 && enableStreak">
                                     <option value="week">{{ __('loop.streak_period_week') }}</option>
                                     <option value="month">{{ __('loop.streak_period_month') }}</option>
                                 </select>
-                                <input type="number" name="streak_points" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" value="{{ old('streak_points', 30) }}">
+                                <input type="number" name="streak_points" min="1" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" value="{{ old('streak_points', 30) }}" :required="step === 3 && enableStreak">
                             </div>
+                            <x-input-error :messages="$errors->get('streak_points')" class="mt-1" />
                         </span>
                     </label>
 
@@ -233,7 +352,10 @@
                     </div>
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="go(3)">{{ __('loop.back') }}</button>
-                        <button class="loop-btn-mint flex-1">{{ __('loop.launch_campaign') }}</button>
+                        <button type="submit" class="loop-btn-mint flex-1" :disabled="saving" :class="{ 'opacity-70': saving }">
+                            <span x-show="!saving">{{ __('loop.launch_campaign') }}</span>
+                            <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                        </button>
                     </div>
                 </div>
             </form>

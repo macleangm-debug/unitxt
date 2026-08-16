@@ -84,6 +84,7 @@ class CampaignController extends Controller
             'spend_step' => ['required', 'integer', 'min:1'],
             'points_per_step' => ['required', 'integer', 'min:1'],
             'bonus_points' => ['nullable', 'integer', 'min:0'],
+            'featured_product_name' => ['nullable', 'string', 'max:120'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'shop_ids' => ['nullable', 'array'],
@@ -98,6 +99,25 @@ class CampaignController extends Controller
             'streak_period' => ['nullable', 'in:week,month'],
             'streak_points' => ['nullable', 'integer', 'min:1'],
         ]);
+
+        if ($data['type'] === 'product_push') {
+            $request->validate([
+                'featured_product_name' => ['required', 'string', 'max:120'],
+                'bonus_points' => ['required', 'integer', 'min:1'],
+            ]);
+        }
+
+        if ($request->boolean('enable_welcome')) {
+            $request->validate([
+                'welcome_points' => ['required', 'integer', 'min:1'],
+            ]);
+        }
+
+        if ($request->boolean('enable_birthday')) {
+            $request->validate([
+                'birthday_points' => ['required', 'integer', 'min:1'],
+            ]);
+        }
 
         if ($request->boolean('enable_streak')) {
             $request->validate([
@@ -120,6 +140,9 @@ class CampaignController extends Controller
             'spend_step' => $data['spend_step'],
             'points_per_step' => $data['points_per_step'],
             'bonus_points' => $data['bonus_points'] ?? 0,
+            'featured_product_name' => $data['type'] === 'product_push'
+                ? ($data['featured_product_name'] ?? null)
+                : null,
             'starts_at' => $data['starts_at'],
             'ends_at' => $data['ends_at'] ?? null,
             'is_active' => true,
@@ -136,7 +159,7 @@ class CampaignController extends Controller
             $business->campaigns()->create([
                 'name' => __('loop.type_welcome'),
                 'type' => 'welcome',
-                'bonus_points' => $data['welcome_points'] ?? 20,
+                'bonus_points' => (int) $data['welcome_points'],
                 'starts_at' => $data['starts_at'],
                 'ends_at' => $data['ends_at'] ?? null,
                 'is_active' => true,
@@ -148,7 +171,7 @@ class CampaignController extends Controller
             $business->campaigns()->create([
                 'name' => __('loop.type_birthday'),
                 'type' => 'birthday',
-                'bonus_points' => $data['birthday_points'] ?? 50,
+                'bonus_points' => (int) $data['birthday_points'],
                 'starts_at' => $data['starts_at'],
                 'ends_at' => $data['ends_at'] ?? null,
                 'is_active' => true,
@@ -160,13 +183,13 @@ class CampaignController extends Controller
             $business->campaigns()->create([
                 'name' => __('loop.type_streak'),
                 'type' => 'streak',
-                'bonus_points' => $data['streak_points'] ?? 30,
-                'streak_target' => $data['streak_target'] ?? 3,
-                'streak_period' => $data['streak_period'] ?? 'week',
+                'bonus_points' => (int) $data['streak_points'],
+                'streak_target' => (int) $data['streak_target'],
+                'streak_period' => $data['streak_period'],
                 'starts_at' => $data['starts_at'],
                 'ends_at' => $data['ends_at'] ?? null,
                 'is_active' => true,
-                'template_key' => ($data['streak_period'] ?? 'week') === 'month' ? 'monthly_streak' : 'visit_streak',
+                'template_key' => $data['streak_period'] === 'month' ? 'monthly_streak' : 'visit_streak',
             ]);
         }
 
@@ -226,20 +249,36 @@ class CampaignController extends Controller
         $this->authorizeOwner($request, $campaign);
         $business = $campaign->business;
 
+        $type = (string) $request->input('type', $campaign->type);
+        $isEarn = in_array($type, ['earn', 'product_push'], true);
+        $isBonus = in_array($type, ['birthday', 'welcome', 'streak'], true);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'type' => ['required', 'in:earn,birthday,welcome,product_push,streak'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'spend_step' => ['nullable', 'integer', 'min:1'],
-            'points_per_step' => ['nullable', 'integer', 'min:1'],
-            'bonus_points' => ['nullable', 'integer', 'min:0'],
-            'featured_product_name' => ['nullable', 'string', 'max:120'],
+            'spend_step' => [$isEarn ? 'required' : 'nullable', 'integer', 'min:1'],
+            'points_per_step' => [$isEarn ? 'required' : 'nullable', 'integer', 'min:1'],
+            'bonus_points' => [$isBonus || $type === 'product_push' ? 'required' : 'nullable', 'integer', 'min:0'],
+            'featured_product_name' => [$type === 'product_push' ? 'required' : 'nullable', 'string', 'max:120'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'is_active' => ['sometimes', 'boolean'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
         ]);
+
+        if ($type === 'product_push') {
+            $request->validate([
+                'bonus_points' => ['required', 'integer', 'min:1'],
+            ]);
+        }
+
+        if ($isBonus) {
+            $request->validate([
+                'bonus_points' => ['required', 'integer', 'min:1'],
+            ]);
+        }
 
         $campaign->update([
             'name' => $data['name'],
