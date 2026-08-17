@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reward;
+use App\Services\PlanLimitService;
 use App\Support\Confirm;
 use App\Support\OfferTemplates;
 use Illuminate\Http\RedirectResponse;
@@ -16,9 +17,16 @@ class RewardController extends Controller
         return redirect()->route('campaigns.index', ['tab' => 'offers']);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): View|RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+        $limits = app(PlanLimitService::class);
+        if (! $limits->canAddOffer($business)) {
+            return redirect()
+                ->route('campaigns.index', ['tab' => 'offers'])
+                ->withErrors(['plan' => $limits->offerLimitMessage($business)]);
+        }
+
         $earn = $business->campaigns()->where('type', 'earn')->latest()->first();
         $type = $request->query('type');
         $templateKey = $request->query('template');
@@ -47,6 +55,12 @@ class RewardController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+        $limits = app(PlanLimitService::class);
+        if (! $limits->canAddOffer($business)) {
+            return redirect()
+                ->route('campaigns.index', ['tab' => 'offers'])
+                ->withErrors(['plan' => $limits->offerLimitMessage($business)]);
+        }
 
         if ($request->filled('template_key') && ! $request->boolean('customize') && ! $request->filled('name')) {
             $catalog = collect(OfferTemplates::forSector($business->sector ?: 'other'))->keyBy('key');

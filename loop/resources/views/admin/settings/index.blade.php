@@ -130,6 +130,14 @@
                                 <label class="loop-label">{{ __('loop.max_monthly_visits') }}</label>
                                 <input type="number" min="1" name="max_monthly_visits" value="{{ old('max_monthly_visits', $plan->max_monthly_visits) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
                             </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.max_product_pushes') }}</label>
+                                <input type="number" min="0" name="max_product_pushes" value="{{ old('max_product_pushes', $plan->max_product_pushes) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.max_offers') }}</label>
+                                <input type="number" min="1" name="max_offers" value="{{ old('max_offers', $plan->max_offers) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
+                            </div>
                             <div class="sm:col-span-2">
                                 <label class="loop-label">{{ __('loop.plan_features') }}</label>
                                 <textarea name="features_text" rows="4" class="loop-input" placeholder="{{ __('loop.plan_features_help') }}">{{ old('features_text', implode("\n", $plan->features ?? [])) }}</textarea>
@@ -170,6 +178,15 @@
                         <div>
                             <label class="loop-label">{{ __('loop.free_max_monthly_visits') }}</label>
                             <input type="number" min="1" name="free_max_monthly_visits" value="{{ old('free_max_monthly_visits', $billing['free_max_monthly_visits']) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.free_max_product_pushes') }}</label>
+                            <input type="number" min="0" name="free_max_product_pushes" value="{{ old('free_max_product_pushes', $billing['free_max_product_pushes']) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.free_max_offers') }}</label>
+                            <input type="number" min="1" name="free_max_offers" value="{{ old('free_max_offers', $billing['free_max_offers']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.free_max_offers_help') }}</p>
                         </div>
                     </div>
                     <label class="flex items-start gap-3 text-sm">

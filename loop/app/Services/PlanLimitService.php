@@ -19,7 +19,7 @@ class PlanLimitService
     /**
      * Effective caps — free/trial plan uses admin BillingSettings overrides.
      *
-     * @return array{max_shops: ?int, max_members: ?int, max_monthly_visits: ?int}
+     * @return array{max_shops: ?int, max_members: ?int, max_monthly_visits: ?int, max_product_pushes: ?int, max_offers: ?int}
      */
     public function effectiveCaps(Business $business): array
     {
@@ -31,6 +31,8 @@ class PlanLimitService
                 'max_shops' => $billing['free_max_shops'],
                 'max_members' => $billing['free_max_members'],
                 'max_monthly_visits' => $billing['free_max_monthly_visits'],
+                'max_product_pushes' => $billing['free_max_product_pushes'],
+                'max_offers' => $billing['free_max_offers'],
             ];
         }
 
@@ -38,6 +40,8 @@ class PlanLimitService
             'max_shops' => $plan->max_shops,
             'max_members' => $plan->max_members,
             'max_monthly_visits' => $plan->max_monthly_visits,
+            'max_product_pushes' => $plan->max_product_pushes,
+            'max_offers' => $plan->max_offers,
         ];
     }
 
@@ -95,6 +99,48 @@ class PlanLimitService
         return __('loop.shop_limit_reached', [
             'plan' => $plan?->name ?? 'Trial',
             'max' => $caps['max_shops'] ?? 1,
+        ]);
+    }
+
+    public function canAddProductPush(Business $business): bool
+    {
+        $caps = $this->effectiveCaps($business);
+        if ($caps['max_product_pushes'] === null) {
+            return true;
+        }
+
+        return $business->campaigns()->where('type', 'product_push')->count() < $caps['max_product_pushes'];
+    }
+
+    public function productPushLimitMessage(Business $business): string
+    {
+        $caps = $this->effectiveCaps($business);
+        $plan = $this->planFor($business);
+
+        return __('loop.product_push_limit_reached', [
+            'plan' => $plan?->name ?? 'Trial',
+            'max' => $caps['max_product_pushes'] ?? 0,
+        ]);
+    }
+
+    public function canAddOffer(Business $business): bool
+    {
+        $caps = $this->effectiveCaps($business);
+        if ($caps['max_offers'] === null) {
+            return true;
+        }
+
+        return $business->rewards()->count() < $caps['max_offers'];
+    }
+
+    public function offerLimitMessage(Business $business): string
+    {
+        $caps = $this->effectiveCaps($business);
+        $plan = $this->planFor($business);
+
+        return __('loop.offer_limit_reached', [
+            'plan' => $plan?->name ?? 'Trial',
+            'max' => $caps['max_offers'] ?? 0,
         ]);
     }
 

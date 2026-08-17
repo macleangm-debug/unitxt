@@ -16,6 +16,10 @@
         </div>
     </x-slot>
 
+    @if ($errors->has('plan'))
+        <div class="mb-4 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink">{{ $errors->first('plan') }}</div>
+    @endif
+
     <div class="mb-5 grid grid-cols-3 gap-3">
         @if ($tab === 'offers')
             <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">

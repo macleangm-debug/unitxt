@@ -51,6 +51,8 @@ class SettingsHubController extends Controller
             'free_max_shops' => ['required', 'integer', 'min:1', 'max:5'],
             'free_max_members' => ['required', 'integer', 'min:1', 'max:500'],
             'free_max_monthly_visits' => ['required', 'integer', 'min:1', 'max:500'],
+            'free_max_product_pushes' => ['required', 'integer', 'min:0', 'max:50'],
+            'free_max_offers' => ['required', 'integer', 'min:1', 'max:200'],
             'block_till_when_trial_ends' => ['sometimes', 'boolean'],
         ]);
 
@@ -67,10 +69,14 @@ class SettingsHubController extends Controller
             'max_shops' => $normalized['free_max_shops'],
             'max_members' => $normalized['free_max_members'],
             'max_monthly_visits' => $normalized['free_max_monthly_visits'],
+            'max_product_pushes' => $normalized['free_max_product_pushes'],
+            'max_offers' => $normalized['free_max_offers'],
             'features' => [
                 '1 physical shop + address',
                 "Up to {$normalized['free_max_members']} members",
                 "Up to {$normalized['free_max_monthly_visits']} sales / month",
+                "Up to {$normalized['free_max_product_pushes']} product-push campaigns",
+                "Up to {$normalized['free_max_offers']} offers",
                 "{$normalized['trial_days']}-day trial then upgrade",
             ],
         ]);
@@ -318,6 +324,8 @@ class SettingsHubController extends Controller
             'max_shops' => ['nullable', 'integer', 'min:1', 'max:500'],
             'max_members' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'max_monthly_visits' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'max_product_pushes' => ['nullable', 'integer', 'min:0', 'max:500'],
+            'max_offers' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:100'],
             'is_public' => ['sometimes', 'boolean'],
             'features_text' => ['nullable', 'string', 'max:4000'],
@@ -337,6 +345,8 @@ class SettingsHubController extends Controller
             'max_shops' => $data['max_shops'] ?? null,
             'max_members' => $data['max_members'] ?? null,
             'max_monthly_visits' => $data['max_monthly_visits'] ?? null,
+            'max_product_pushes' => $data['max_product_pushes'] ?? null,
+            'max_offers' => $data['max_offers'] ?? null,
             'sort_order' => $data['sort_order'],
             'is_public' => $request->boolean('is_public'),
             'features' => $features,

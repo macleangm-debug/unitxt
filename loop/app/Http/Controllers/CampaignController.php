@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
+use App\Services\PlanLimitService;
 use App\Support\CampaignTemplates;
 use App\Support\Confirm;
 use Illuminate\Http\RedirectResponse;
@@ -72,6 +73,8 @@ class CampaignController extends Controller
         }
         $template = $templateKey ? CampaignTemplates::localized($templateKey) : null;
         $usedTypes = $business->campaigns()->pluck('type')->unique()->values()->all();
+        $limits = app(PlanLimitService::class);
+        $canAddProductPush = $limits->canAddProductPush($business);
 
         if ($template && CampaignTemplates::isUniqueType($template['type']) && in_array($template['type'], $usedTypes, true)) {
             return redirect()
@@ -81,14 +84,21 @@ class CampaignController extends Controller
                     : __('loop.only_one_bonus_of_type', ['type' => __('loop.type_'.$template['type'])])]);
         }
 
+        if ($template && $template['type'] === 'product_push' && ! $canAddProductPush) {
+            return redirect()
+                ->route('campaigns.create')
+                ->withErrors(['plan' => $limits->productPushLimitMessage($business)]);
+        }
+
         return view('campaigns.create', [
             'business' => $business,
             'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
             'offers' => $offers,
-            'pickerGroups' => CampaignTemplates::picker($usedTypes),
+            'pickerGroups' => CampaignTemplates::picker($usedTypes, $canAddProductPush),
             'template' => $template,
             'templateKey' => $templateKey,
             'picking' => $template === null,
+            'productPushCapped' => ! $canAddProductPush,
         ]);
     }
 
@@ -164,6 +174,15 @@ class CampaignController extends Controller
                     ? __('loop.only_one_main_campaign')
                     : __('loop.only_one_bonus_of_type', ['type' => __('loop.type_'.$type)]),
             ])->withInput();
+        }
+
+        if ($type === 'product_push') {
+            $limits = app(PlanLimitService::class);
+            if (! $limits->canAddProductPush($business)) {
+                return back()->withErrors([
+                    'plan' => $limits->productPushLimitMessage($business),
+                ])->withInput();
+            }
         }
 
         $templateKey = $data['template_key'] ?? null;

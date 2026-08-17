@@ -24,7 +24,7 @@
         </div>
     @endif
 
-    <div class="mb-8 grid gap-3 sm:grid-cols-3">
+    <div class="mb-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div class="loop-panel p-4">
             <p class="text-xs text-ink-muted">{{ __('loop.free_max_shops') }}</p>
             <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_shops'] ?? __('loop.unlimited') }}</p>
@@ -36,6 +36,14 @@
         <div class="loop-panel p-4">
             <p class="text-xs text-ink-muted">{{ __('loop.free_max_monthly_visits') }}</p>
             <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_monthly_visits'] ?? __('loop.unlimited') }}</p>
+        </div>
+        <div class="loop-panel p-4">
+            <p class="text-xs text-ink-muted">{{ __('loop.max_product_pushes') }}</p>
+            <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_product_pushes'] ?? __('loop.unlimited') }}</p>
+        </div>
+        <div class="loop-panel p-4">
+            <p class="text-xs text-ink-muted">{{ __('loop.max_offers') }}</p>
+            <p class="mt-1 font-display text-2xl font-semibold">{{ $caps['max_offers'] ?? __('loop.unlimited') }}</p>
         </div>
     </div>
 

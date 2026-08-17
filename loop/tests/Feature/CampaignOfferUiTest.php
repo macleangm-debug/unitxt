@@ -124,7 +124,48 @@ class CampaignOfferUiTest extends TestCase
             ->assertSee(__('loop.choose_offer_type'), false)
             ->assertSee('offerWizard', false)
             ->assertSee(__('loop.offer_type_percent_off_title'), false)
+            ->assertSee(__('loop.choose_offer_type_body_short'), false)
+            ->assertSee(__('loop.offer_type_percent_off_body'), false)
             ->assertDontSee('href="'.route('rewards.create', ['type' => 'percent_off']).'"', false);
+    }
+
+    public function test_product_push_is_hidden_when_plan_cap_is_reached(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'ALPHA',
+            'type' => 'product_push',
+            'featured_product_name' => 'ALPHA',
+            'bonus_points' => 10,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.create'))
+            ->assertOk()
+            ->assertDontSee(__('loop.templates.product_push.name'), false)
+            ->assertSee(__('loop.templates.birthday_treat.name'), false);
+    }
+
+    public function test_offer_create_redirects_when_plan_cap_is_reached(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        foreach ([2, 3] as $i) {
+            Reward::create([
+                'business_id' => $business->id,
+                'name' => $i.'0% off',
+                'points_cost' => 100 + ($i * 40),
+                'reward_type' => 'percent_off',
+                'reward_value' => $i * 5,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->actingAs($owner)
+            ->get(route('rewards.create'))
+            ->assertRedirect(route('campaigns.index', ['tab' => 'offers']));
     }
 
     public function test_offer_list_cards_match_campaign_card_layout(): void

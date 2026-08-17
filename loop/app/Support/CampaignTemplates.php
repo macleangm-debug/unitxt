@@ -180,7 +180,7 @@ class CampaignTemplates
      * @param  list<string>  $usedTypes
      * @return array<string, array{label: string, hint: string, templates: array<string, array<string, mixed>>}>
      */
-    public static function picker(array $usedTypes = []): array
+    public static function picker(array $usedTypes = [], bool $canAddProductPush = true): array
     {
         $main = [];
         if (! in_array('earn', $usedTypes, true)) {
@@ -191,6 +191,9 @@ class CampaignTemplates
         foreach (self::BONUS_KEYS as $key) {
             $template = self::localized($key);
             if (! $template) {
+                continue;
+            }
+            if ($template['type'] === 'product_push' && ! $canAddProductPush) {
                 continue;
             }
             if ($template['type'] !== 'product_push' && in_array($template['type'], $usedTypes, true)) {

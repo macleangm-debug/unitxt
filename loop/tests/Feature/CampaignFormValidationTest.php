@@ -174,6 +174,106 @@ class CampaignFormValidationTest extends TestCase
         $this->assertSame(1, $business->campaigns()->where('type', 'earn')->count());
     }
 
+    public function test_second_birthday_campaign_is_rejected(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Birthday',
+            'type' => 'birthday',
+            'bonus_points' => 50,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create'))
+            ->post(route('campaigns.store'), $this->validPayload([
+                'name' => 'Another birthday',
+                'type' => 'birthday',
+                'spend_step' => '',
+                'points_per_step' => '',
+                'bonus_points' => 40,
+            ]))
+            ->assertRedirect(route('campaigns.create'))
+            ->assertSessionHasErrors('type');
+
+        $this->assertSame(1, $business->campaigns()->where('type', 'birthday')->count());
+    }
+
+    public function test_multiple_percent_off_offers_are_allowed(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('rewards.store'), $this->offerPayload())
+            ->assertRedirect();
+
+        $this->assertSame(2, $business->rewards()->where('reward_type', 'percent_off')->count());
+        $this->assertDatabaseHas('rewards', [
+            'business_id' => $business->id,
+            'name' => '10% off',
+            'points_cost' => 180,
+            'reward_value' => 10,
+        ]);
+    }
+
+    public function test_trial_offer_cap_blocks_a_fourth_offer(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        foreach ([2, 3] as $i) {
+            Reward::create([
+                'business_id' => $business->id,
+                'name' => $i.'0% off',
+                'points_cost' => 100 + ($i * 40),
+                'reward_type' => 'percent_off',
+                'reward_value' => $i * 5,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->actingAs($owner)
+            ->from(route('rewards.create'))
+            ->post(route('rewards.store'), $this->offerPayload([
+                'name' => '15% off',
+                'points_cost' => 250,
+                'reward_value' => 15,
+            ]))
+            ->assertRedirect(route('campaigns.index', ['tab' => 'offers']))
+            ->assertSessionHasErrors('plan');
+
+        $this->assertSame(3, $business->rewards()->count());
+    }
+
+    public function test_trial_product_push_cap_blocks_a_second_push(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'ALPHA',
+            'type' => 'product_push',
+            'featured_product_name' => 'ALPHA',
+            'bonus_points' => 10,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create'))
+            ->post(route('campaigns.store'), $this->validPayload([
+                'name' => 'BETA',
+                'type' => 'product_push',
+                'spend_step' => '',
+                'points_per_step' => '',
+                'featured_product_name' => 'BETA',
+                'bonus_points' => 12,
+            ]))
+            ->assertRedirect(route('campaigns.create'))
+            ->assertSessionHasErrors('plan');
+
+        $this->assertSame(1, $business->campaigns()->where('type', 'product_push')->count());
+    }
+
     public function test_product_push_requires_featured_product_and_bonus_points(): void
     {
         [$owner] = $this->seedOwnerWithOffer();
@@ -298,6 +398,20 @@ class CampaignFormValidationTest extends TestCase
             'spend_step' => 1500,
             'points_per_step' => 3,
             'starts_at' => now()->toDateString(),
+        ], $overrides);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function offerPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => '10% off',
+            'points_cost' => 180,
+            'reward_type' => 'percent_off',
+            'reward_value' => 10,
         ], $overrides);
     }
 }

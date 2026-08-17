@@ -1,4 +1,5 @@
 @php
+    $productPushCapped = $productPushCapped ?? false;
     $selectedShops = old('shop_ids', []);
     $t = $template ?? null;
     $allowedTypes = ['earn', 'product_push', 'birthday', 'welcome', 'streak'];
@@ -147,7 +148,7 @@
                         @endforeach
                     </section>
                 @empty
-                    <div class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 text-sm text-ink-muted">{{ __('loop.all_templates_used') }}</div>
+                    <div class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 text-sm text-ink-muted">{{ ! empty($productPushCapped) ? __('loop.all_campaigns_capped') : __('loop.all_templates_used') }}</div>
                 @endforelse
 
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>

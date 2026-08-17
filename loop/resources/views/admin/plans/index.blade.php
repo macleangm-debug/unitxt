@@ -35,6 +35,8 @@
                     @if ($plan->max_monthly_visits)
                         · {{ __('loop.max_monthly_visits') }}: {{ $plan->max_monthly_visits }}
                     @endif
+                    · {{ __('loop.max_product_pushes') }}: {{ $plan->max_product_pushes ?? __('loop.unlimited') }}
+                    · {{ __('loop.max_offers') }}: {{ $plan->max_offers ?? __('loop.unlimited') }}
                 </p>
             </div>
         @endforeach

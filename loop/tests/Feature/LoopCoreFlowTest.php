@@ -881,11 +881,15 @@ class LoopCoreFlowTest extends TestCase
                 'free_max_shops' => 1,
                 'free_max_members' => 40,
                 'free_max_monthly_visits' => 30,
+                'free_max_product_pushes' => 2,
+                'free_max_offers' => 5,
                 'block_till_when_trial_ends' => 1,
             ])
             ->assertRedirect();
 
         $this->assertSame(30, \App\Support\BillingSettings::settings()['free_max_monthly_visits']);
+        $this->assertSame(2, \App\Support\BillingSettings::settings()['free_max_product_pushes']);
+        $this->assertSame(5, \App\Support\BillingSettings::settings()['free_max_offers']);
     }
 
     public function test_expired_trial_blocks_till_on_free_plan(): void
