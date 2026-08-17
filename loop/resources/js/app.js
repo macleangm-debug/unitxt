@@ -665,17 +665,63 @@ Alpine.data('loopPageMotion', () => ({
 Alpine.data('campaignWizard', (cfg = {}) => ({
     step: cfg.step ?? 1,
     total: cfg.total ?? 4,
+    hasPick: cfg.hasPick ?? false,
+    templateKey: cfg.templateKey ?? '',
+    fromTemplate: cfg.fromTemplate ?? false,
+    pickedLabel: cfg.pickedLabel ?? '',
+    namePlaceholder: cfg.namePlaceholder ?? '',
+    descPlaceholder: cfg.descPlaceholder ?? '',
+    spendPlaceholder: cfg.spendPlaceholder ?? '',
+    pointsPlaceholder: cfg.pointsPlaceholder ?? '',
+    templates: cfg.templates ?? {},
+    pickRequired: cfg.pickRequired ?? '',
     type: cfg.type ?? 'earn',
     enableWelcome: cfg.enableWelcome ?? false,
     enableBirthday: cfg.enableBirthday ?? false,
     enableStreak: cfg.enableStreak ?? false,
     spendDisplay: cfg.spendDisplay ?? '',
     pointsPerStep: cfg.pointsPerStep ?? null,
-    bonusPoints: cfg.bonusPoints ?? 0,
+    bonusPoints: cfg.bonusPoints ?? null,
     currency: cfg.currency ?? '',
     spendRequired: cfg.spendRequired ?? '',
     pointsRequired: cfg.pointsRequired ?? '',
     saving: false,
+    basicsStep() {
+        return this.hasPick ? 2 : 1;
+    },
+    spendStep() {
+        return this.hasPick ? 3 : 2;
+    },
+    bonusesStep() {
+        return this.hasPick ? 4 : 3;
+    },
+    scheduleStep() {
+        return this.hasPick ? 5 : 4;
+    },
+    pickTemplate(key) {
+        const t = this.templates[key];
+        if (!t) {
+            return;
+        }
+        this.templateKey = key;
+        this.type = t.type || 'earn';
+        this.fromTemplate = true;
+        this.pickedLabel = t.name || '';
+        this.namePlaceholder = t.name || this.namePlaceholder;
+        this.descPlaceholder = t.description || this.descPlaceholder;
+        if (t.spend_step) {
+            this.spendPlaceholder = String(t.spend_step).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        if (t.points_per_step) {
+            this.pointsPlaceholder = String(t.points_per_step);
+        }
+    },
+    pickOwn() {
+        this.templateKey = 'own';
+        this.type = 'earn';
+        this.fromTemplate = false;
+        this.pickedLabel = '';
+    },
     go(n) {
         this.step = n;
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -708,52 +754,58 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
         if (!root) {
             return true;
         }
-        if (stepNum === 1) {
+        if (this.hasPick && stepNum === 1) {
+            if (!this.templateKey) {
+                return this.fail(1, this.$refs.pickAnchor, this.pickRequired);
+            }
+            return true;
+        }
+        if (stepNum === this.basicsStep()) {
             const name = root.querySelector('[name="name"]');
             if (!name || !String(name.value || '').trim()) {
-                return this.fail(1, name);
+                return this.fail(stepNum, name);
             }
         }
-        if (stepNum === 2) {
+        if (stepNum === this.spendStep()) {
             if (['earn', 'product_push'].includes(this.type)) {
                 const spendEl = root.querySelector('[data-spend-input]');
                 if (this.spendValue() < 1) {
-                    return this.fail(2, spendEl, this.spendRequired);
+                    return this.fail(stepNum, spendEl, this.spendRequired);
                 }
                 const ptsEl = root.querySelector('[name="points_per_step"]');
                 const pts = parseInt(this.pointsPerStep, 10);
                 if (!pts || pts < 1) {
-                    return this.fail(2, ptsEl, this.pointsRequired);
+                    return this.fail(stepNum, ptsEl, this.pointsRequired);
                 }
                 if (this.type === 'product_push') {
                     const product = root.querySelector('[name="featured_product_name"]');
                     if (!product || !String(product.value || '').trim()) {
-                        return this.fail(2, product);
+                        return this.fail(stepNum, product);
                     }
                     const bonusEl = root.querySelector('[data-bonus-input]');
                     const bonus = parseInt(this.bonusPoints, 10);
                     if (!bonus || bonus < 1) {
-                        return this.fail(2, bonusEl);
+                        return this.fail(stepNum, bonusEl);
                     }
                 }
             } else {
                 const bonus = root.querySelector('[name="bonus_points"]');
                 if (!bonus || parseInt(bonus.value, 10) < 1) {
-                    return this.fail(2, bonus);
+                    return this.fail(stepNum, bonus);
                 }
             }
         }
-        if (stepNum === 3 && this.total >= 4) {
+        if (stepNum === this.bonusesStep() && this.total > this.bonusesStep()) {
             if (this.enableWelcome) {
                 const el = root.querySelector('[name="welcome_points"]');
                 if (!el || parseInt(el.value, 10) < 1) {
-                    return this.fail(3, el);
+                    return this.fail(stepNum, el);
                 }
             }
             if (this.enableBirthday) {
                 const el = root.querySelector('[name="birthday_points"]');
                 if (!el || parseInt(el.value, 10) < 1) {
-                    return this.fail(3, el);
+                    return this.fail(stepNum, el);
                 }
             }
             if (this.enableStreak) {
@@ -761,20 +813,20 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
                 const period = root.querySelector('[name="streak_period"]');
                 const points = root.querySelector('[name="streak_points"]');
                 if (!target || parseInt(target.value, 10) < 2) {
-                    return this.fail(3, target);
+                    return this.fail(stepNum, target);
                 }
                 if (!period || !period.value) {
-                    return this.fail(3, period);
+                    return this.fail(stepNum, period);
                 }
                 if (!points || parseInt(points.value, 10) < 1) {
-                    return this.fail(3, points);
+                    return this.fail(stepNum, points);
                 }
             }
         }
-        if (stepNum === 4) {
+        if (stepNum === this.scheduleStep()) {
             const starts = root.querySelector('[name="starts_at"]');
             if (!starts || !String(starts.value || '').trim()) {
-                return this.fail(4, starts);
+                return this.fail(stepNum, starts);
             }
         }
         return true;
@@ -823,6 +875,171 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
     },
     spendValue() {
         return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0;
+    },
+}));
+
+Alpine.data('offerWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    total: cfg.total ?? 5,
+    hasPick: cfg.hasPick ?? false,
+    type: cfg.type ?? '',
+    typeLabel: cfg.typeLabel ?? '',
+    name: cfg.name ?? '',
+    namePlaceholder: cfg.namePlaceholder ?? '',
+    descPlaceholder: cfg.descPlaceholder ?? '',
+    points: cfg.points ?? null,
+    pointsPlaceholder: cfg.pointsPlaceholder ?? '',
+    valueDisplay: cfg.valueDisplay ?? '',
+    valuePlaceholder: cfg.valuePlaceholder ?? '',
+    product: cfg.product ?? '',
+    productPlaceholder: cfg.productPlaceholder ?? '',
+    spendPerPoint: cfg.spendPerPoint ?? 0,
+    currency: cfg.currency ?? '',
+    businessName: cfg.businessName ?? '',
+    pickRequired: cfg.pickRequired ?? '',
+    valueRequired: cfg.valueRequired ?? '',
+    pointsRequired: cfg.pointsRequired ?? '',
+    saving: false,
+    nameStep() {
+        return this.hasPick ? 2 : 1;
+    },
+    rewardStep() {
+        return this.hasPick ? 3 : 2;
+    },
+    costStep() {
+        return this.hasPick ? 4 : 3;
+    },
+    selectType(starter) {
+        if (!starter) {
+            return;
+        }
+        this.type = starter.reward_type || starter.key || '';
+        this.typeLabel = starter.name || '';
+        this.namePlaceholder = starter.default_name || starter.name || this.namePlaceholder;
+        this.descPlaceholder = starter.description || this.descPlaceholder;
+        this.pointsPlaceholder = starter.points_cost ? String(starter.points_cost) : this.pointsPlaceholder;
+        if ((starter.reward_type || starter.key) === 'percent_off') {
+            this.valuePlaceholder = String(starter.reward_value || 5);
+        } else if ((starter.reward_type || starter.key) === 'fixed_off') {
+            const raw = String(starter.reward_value || '');
+            this.valuePlaceholder = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : this.valuePlaceholder;
+        }
+    },
+    go(n) {
+        this.step = n;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        if (this.hasPick && stepNum === 1) {
+            if (!this.type) {
+                return this.fail(1, this.$refs.pickAnchor, this.pickRequired);
+            }
+            return true;
+        }
+        if (stepNum === this.nameStep()) {
+            const name = root.querySelector('[name="name"]');
+            if (!name || !String(name.value || '').trim()) {
+                return this.fail(stepNum, name);
+            }
+        }
+        if (stepNum === this.rewardStep() && (this.type === 'percent_off' || this.type === 'fixed_off')) {
+            const el = root.querySelector('[data-value-input]');
+            if (this.valueNumber() < 1) {
+                return this.fail(stepNum, el, this.valueRequired);
+            }
+        }
+        if (stepNum === this.costStep()) {
+            const el = root.querySelector('[name="points_cost"]');
+            const pts = parseInt(this.points, 10);
+            if (!pts || pts < 1) {
+                return this.fail(stepNum, el, this.pointsRequired);
+            }
+        }
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(Math.min(this.total, this.step + 1));
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.step !== this.total) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        for (let s = 1; s <= this.total; s++) {
+            if (!this.validateStep(s)) {
+                event.preventDefault();
+                return;
+            }
+        }
+        this.saving = true;
+    },
+    formatValue() {
+        if (this.type !== 'fixed_off') {
+            return;
+        }
+        let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
+        this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+    },
+    valueNumber() {
+        return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0;
+    },
+    unlockSpend() {
+        if (!this.spendPerPoint) {
+            return 0;
+        }
+        return Math.round((parseInt(this.points, 10) || 0) * this.spendPerPoint);
+    },
+    applyIdea(label) {
+        this.name = this.businessName ? (this.businessName + ' ' + label) : label;
     },
 }));
 

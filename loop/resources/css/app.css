@@ -290,7 +290,7 @@
     }
 
     .loop-input {
-        @apply mt-1 block w-full rounded-2xl border-ink/10 bg-white shadow-sm focus:border-violet focus:ring-violet;
+        @apply mt-1 block w-full rounded-2xl border-ink/10 bg-white shadow-sm placeholder:text-ink-muted focus:border-violet focus:ring-violet;
     }
 
     .loop-label {

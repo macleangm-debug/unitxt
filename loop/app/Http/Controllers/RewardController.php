@@ -161,4 +161,29 @@ class RewardController extends Controller
             false,
         ));
     }
+
+    public function toggle(Request $request, Reward $reward): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness;
+        abort_unless($business && $reward->business_id === $business->id, 403);
+
+        $reward->update([
+            'is_active' => ! $reward->is_active,
+        ]);
+        $reward->refresh();
+
+        $live = $reward->is_active;
+
+        return redirect()->route('rewards.show', $reward)->with(
+            'confirm',
+            Confirm::withBoldName(
+                $live ? __('loop.offer_resumed_title') : __('loop.offer_paused_title'),
+                $live ? 'offer_resumed_body' : 'offer_paused_body',
+                $reward->name,
+                __('loop.done'),
+                route('rewards.show', $reward),
+                false,
+            )
+        );
+    }
 }

@@ -48,23 +48,28 @@
             <a href="{{ route('rewards.create') }}" class="loop-btn-mint shrink-0 !py-2.5">{{ __('loop.add_offer') }}</a>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="space-y-3">
             @forelse ($rewards as $reward)
-                <a href="{{ route('rewards.show', $reward) }}" class="loop-panel block p-5 transition hover:-translate-y-0.5 hover:bg-white">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="font-display text-lg font-semibold">{{ $reward->name }}</p>
-                            <p class="mt-1 text-sm text-ink-muted">{{ $reward->label() }}</p>
+                <a href="{{ route('rewards.show', $reward) }}" class="loop-panel flex items-center justify-between gap-4 p-5 transition hover:-translate-y-0.5 hover:bg-white">
+                    <div class="min-w-0">
+                        <p class="font-display text-lg font-semibold">{{ $reward->name }}</p>
+                        <p class="mt-0.5 truncate text-sm text-ink-muted">
+                            {{ $reward->label() }}
                             @if ($reward->product_name)
-                                <p class="mt-2 text-sm">{{ __('loop.product') }}: <span class="font-semibold">{{ $reward->product_name }}</span></p>
+                                · {{ $reward->product_name }}
                             @endif
-                        </div>
-                        <span class="shrink-0 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold text-mint">{{ $reward->points_cost }} pts</span>
+                        </p>
                     </div>
-                    <p class="mt-4 text-sm font-semibold text-mint-deep">{{ __('loop.view_stats') }} →</p>
+                    <div class="flex shrink-0 items-center gap-3">
+                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ $reward->points_cost }} {{ __('loop.pts') }}</span>
+                        @if ($reward->is_active)
+                            <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
+                        @endif
+                        <span class="text-ink-muted">→</span>
+                    </div>
                 </a>
             @empty
-                <div class="loop-panel p-8 text-center sm:col-span-2">
+                <div class="loop-panel p-8 text-center">
                     <p class="font-display text-lg font-semibold">{{ __('loop.no_offers_yet_hint') }}</p>
                     <a href="{{ route('rewards.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.add_offer') }}</a>
                 </div>
