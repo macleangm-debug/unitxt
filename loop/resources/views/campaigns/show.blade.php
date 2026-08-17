@@ -5,6 +5,9 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.campaigns') }}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $campaign->displayName() }}</h1>
+                    <span class="rounded-full {{ $campaign->isMain() ? 'bg-mint-soft text-mint-deep' : 'bg-chalk text-ink-muted' }} px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]">
+                        {{ $campaign->isMain() ? __('loop.main_campaign') : __('loop.bonus_campaign') }}
+                    </span>
                     <x-status-pill :live="$campaign->isCurrentlyActive()" size="lg" />
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">{{ $campaign->scheduleLabel() }}</p>
@@ -28,7 +31,7 @@
         </div>
     </x-slot>
 
-    @if (in_array($campaign->type, ['earn', 'product_push'], true) && $campaign->spend_step && $campaign->points_per_step)
+    @if ($campaign->isMain() && $campaign->spend_step && $campaign->points_per_step)
         <div class="mt-6 rounded-[1.5rem] border border-ink/10 bg-white px-5 py-5">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.customer_gets') }}</p>
             <p class="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">

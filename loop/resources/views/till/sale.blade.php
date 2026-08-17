@@ -226,14 +226,18 @@
                         <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
                     </div>
 
-                    @if ($campaign && $campaign->type === 'product_push' && filled($campaign->featured_product_name))
-                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
-                            <input type="checkbox" name="includes_featured_product" value="1" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(old('includes_featured_product'))>
-                            <span>
-                                <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $campaign->featured_product_name]) }}</span>
-                                <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $campaign->bonus_points]) }}</span>
-                            </span>
-                        </label>
+                    @if (($productPushes ?? collect())->isNotEmpty())
+                        <div class="space-y-2">
+                            @foreach ($productPushes as $push)
+                                <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
+                                    <input type="checkbox" name="featured_campaign_ids[]" value="{{ $push->id }}" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(in_array($push->id, old('featured_campaign_ids', []), false))>
+                                    <span>
+                                        <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $push->featured_product_name]) }}</span>
+                                        <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $push->bonus_points]) }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
                     @endif
 
                     @if ($membership && $membership->points_balance > 0 && $payEnabled)

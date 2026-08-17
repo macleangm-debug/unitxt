@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\Campaign;
 use App\Models\Reward;
 use App\Models\Shop;
 use App\Models\User;
@@ -21,27 +22,65 @@ class CampaignOfferUiTest extends TestCase
             ->get(route('campaigns.create'))
             ->assertOk()
             ->assertSee(__('loop.pick_campaign_template'), false)
-            ->assertSee(__('loop.create_own'), false)
+            ->assertSee(__('loop.main_campaign'), false)
+            ->assertSee(__('loop.bonus_campaigns'), false)
+            ->assertSee(__('loop.templates.everyday_earn.name'), false)
+            ->assertSee(__('loop.templates.product_push.name'), false)
+            ->assertSee(__('loop.templates.birthday_treat.name'), false)
+            ->assertSee(__('loop.templates.visit_streak.name'), false)
+            ->assertSee(__('loop.templates.welcome_bonus.name'), false)
+            ->assertDontSee(__('loop.create_own'), false)
+            ->assertDontSee(__('loop.templates.faster_earn.name'), false)
             ->assertSee('campaignWizard', false)
             ->assertSee('data-step="1"', false)
-            ->assertSee('data-step="5"', false);
+            ->assertSee('data-step="4"', false)
+            ->assertDontSee('data-step="5"', false)
+            ->assertDontSee('<option value="earn">', false);
     }
 
     public function test_campaign_template_does_not_fill_name_or_description(): void
     {
         [$owner] = $this->seedOwnerWithOffer();
         $html = $this->actingAs($owner)
-            ->get(route('campaigns.create', ['template' => 'faster_earn']))
+            ->get(route('campaigns.create', ['template' => 'everyday_earn']))
             ->assertOk()
             ->getContent();
 
         $this->assertMatchesRegularExpression('/name="name"[^>]*value=""/', $html);
         $this->assertTrue(
-            str_contains($html, 'placeholder="'.trans('loop.templates.faster_earn.name', [], 'en').'"')
-            || str_contains($html, 'placeholder="'.trans('loop.templates.faster_earn.name', [], 'sw').'"')
+            str_contains($html, 'placeholder="'.trans('loop.templates.everyday_earn.name', [], 'en').'"')
+            || str_contains($html, 'placeholder="'.trans('loop.templates.everyday_earn.name', [], 'sw').'"')
         );
-        $this->assertStringNotContainsString('>'.trans('loop.templates.faster_earn.name', [], 'en').'</textarea>', $html);
-        $this->assertStringNotContainsString('>'.trans('loop.templates.faster_earn.name', [], 'sw').'</textarea>', $html);
+        $this->assertStringNotContainsString('>'.trans('loop.templates.everyday_earn.name', [], 'en').'</textarea>', $html);
+        $this->assertStringNotContainsString('>'.trans('loop.templates.everyday_earn.name', [], 'sw').'</textarea>', $html);
+    }
+
+    public function test_new_campaign_hides_main_earn_when_one_already_exists(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        \App\Models\Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Main earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.create'))
+            ->assertOk()
+            ->assertDontSee(__('loop.templates.everyday_earn.name'), false)
+            ->assertSee(__('loop.templates.product_push.name'), false)
+            ->assertSee(__('loop.templates.birthday_treat.name'), false);
+    }
+
+    public function test_swahili_offer_type_titles(): void
+    {
+        $this->assertSame('Punguzo la Asilimia', trans('loop.offer_type_percent_off_title', [], 'sw'));
+        $this->assertSame('Punguzo la Kiasi', trans('loop.offer_type_fixed_off_title', [], 'sw'));
+        $this->assertSame('Bidhaa ya Bure', trans('loop.offer_type_free_item_title', [], 'sw'));
     }
 
     public function test_new_offer_shows_type_cards_inside_wizard(): void

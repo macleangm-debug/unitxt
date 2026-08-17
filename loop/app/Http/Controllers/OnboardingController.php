@@ -61,11 +61,11 @@ class OnboardingController extends Controller
                 ->mapWithKeys(fn ($city) => [$city => Countries::areas($city)])
                 ->all(),
             'groupedTemplates' => CampaignTemplates::grouped([
-                // Retention / bonus campaigns come after the first earn + offer.
-                'visit_streak', 'monthly_streak', 'birthday_treat', 'welcome_bonus',
+                // First campaign is the one main earn. Bonuses come later.
+                'faster_earn', 'product_push', 'visit_streak', 'monthly_streak', 'birthday_treat', 'welcome_bonus',
             ]),
             'offerTemplates' => OfferTemplates::forSector($business->sector ?: 'other'),
-            'earnCampaign' => $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first(),
+            'earnCampaign' => $business->campaigns()->where('type', 'earn')->latest()->first(),
             'existingOffers' => $business->rewards()->latest()->get(),
             'step' => $step,
             'totalSteps' => 6,
@@ -231,41 +231,32 @@ class OnboardingController extends Controller
         ]);
 
         $template = CampaignTemplates::localized($data['template']);
-        abort_unless($template, 422);
+        abort_unless($template && $template['type'] === 'earn', 422);
 
-        if ($template['type'] === 'product_push') {
-            $request->validate([
-                'featured_product_name' => ['required', 'string', 'max:120'],
-                'bonus_points' => ['required', 'integer', 'min:1', 'max:10000'],
-            ]);
-            $data['featured_product_name'] = $request->input('featured_product_name');
-            $data['bonus_points'] = (int) $request->input('bonus_points');
+        if ($business->campaigns()->where('type', 'earn')->exists()) {
+            return redirect()->route('onboarding.show', ['step' => 6]);
         }
 
         $spendStep = (int) $data['spend_step'];
         $pointsPerStep = (int) $data['points_per_step'];
         $campaignName = trim($data['name']);
 
-        if ($business->campaigns()->doesntExist()) {
-            $campaign = Campaign::create([
-                'business_id' => $business->id,
-                'name' => $campaignName,
-                'type' => $template['type'],
-                'description' => $template['description'],
-                'spend_step' => $spendStep,
-                'points_per_step' => $pointsPerStep,
-                'bonus_points' => $data['bonus_points'] ?? ($template['bonus_points'] ?? 0),
-                'featured_product_name' => $data['featured_product_name'] ?? null,
-                'streak_target' => $template['streak_target'] ?? null,
-                'streak_period' => $template['streak_period'] ?? null,
-                'starts_at' => now(),
-                'is_active' => true,
-                'template_key' => $data['template'],
-            ]);
+        $campaign = Campaign::create([
+            'business_id' => $business->id,
+            'name' => $campaignName,
+            'type' => 'earn',
+            'description' => $template['description'],
+            'spend_step' => $spendStep,
+            'points_per_step' => $pointsPerStep,
+            'bonus_points' => 0,
+            'featured_product_name' => null,
+            'starts_at' => now(),
+            'is_active' => true,
+            'template_key' => CampaignTemplates::MAIN_KEY,
+        ]);
 
-            $shopIds = $business->shops()->pluck('id');
-            $campaign->shops()->sync($shopIds);
-        }
+        $shopIds = $business->shops()->pluck('id');
+        $campaign->shops()->sync($shopIds);
 
         return redirect()->route('onboarding.show', ['step' => 6])->with('confirm', Confirm::make(
             __('loop.first_campaign_done_title'),

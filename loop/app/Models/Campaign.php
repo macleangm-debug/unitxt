@@ -37,6 +37,8 @@ class Campaign extends Model
 
     public const TYPE_STREAK = 'streak';
 
+    public const TYPE_PRODUCT_PUSH = 'product_push';
+
     protected function casts(): array
     {
         return [
@@ -98,9 +100,19 @@ class Campaign extends Model
         return $this->ends_at === null || $this->ends_at->gte($today);
     }
 
+    public function isMain(): bool
+    {
+        return $this->type === self::TYPE_EARN;
+    }
+
+    public function isBonus(): bool
+    {
+        return ! $this->isMain();
+    }
+
     public function pointsForSpend(float $amount): int
     {
-        if (! in_array($this->type, [self::TYPE_EARN, 'product_push'], true) || ! $this->spend_step || ! $this->points_per_step) {
+        if ($this->type !== self::TYPE_EARN || ! $this->spend_step || ! $this->points_per_step) {
             return 0;
         }
 
@@ -122,16 +134,17 @@ class Campaign extends Model
     public function ruleSummary(string $currency = 'TZS'): string
     {
         return match ($this->type) {
-            self::TYPE_EARN, 'product_push' => __('loop.rule_earn', [
+            self::TYPE_EARN => __('loop.rule_earn', [
                 'currency' => $currency,
                 'step' => number_format($this->spend_step),
                 'points' => $this->points_per_step,
-            ]).($this->type === 'product_push' && $this->featured_product_name
-                ? ' · '.__('loop.rule_featured_product', [
+            ]),
+            self::TYPE_PRODUCT_PUSH => $this->featured_product_name
+                ? __('loop.rule_featured_product', [
                     'product' => $this->featured_product_name,
                     'points' => $this->bonus_points,
                 ])
-                : ''),
+                : $this->displayName(),
             self::TYPE_BIRTHDAY => __('loop.rule_birthday', ['points' => $this->bonus_points]),
             self::TYPE_WELCOME => __('loop.rule_welcome', ['points' => $this->bonus_points]),
             self::TYPE_STREAK => __('loop.rule_streak_detail', [

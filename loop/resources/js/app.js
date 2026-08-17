@@ -2,6 +2,42 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+(() => {
+    if ('Notification' in window) {
+        try {
+            Object.defineProperty(Notification, 'requestPermission', {
+                configurable: true,
+                value: () => Promise.resolve('denied'),
+            });
+        } catch (_) {
+            try {
+                Notification.requestPermission = () => Promise.resolve('denied');
+            } catch (_) {
+                // Ignore: some browsers freeze Notification.requestPermission.
+            }
+        }
+    }
+
+    const hardenCredentials = () => {
+        document.querySelectorAll('form').forEach((form) => {
+            if (form.querySelector('input[type="password"], input[name="pin"]')) {
+                form.setAttribute('autocomplete', 'off');
+            }
+        });
+        document.querySelectorAll('input[type="password"], input[name="pin"]').forEach((el) => {
+            el.setAttribute('autocomplete', 'off');
+            el.setAttribute('data-lpignore', 'true');
+            el.setAttribute('data-1p-ignore', 'true');
+        });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hardenCredentials);
+    } else {
+        hardenCredentials();
+    }
+})();
+
 const prefersReducedMotion = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -666,6 +702,7 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
     step: cfg.step ?? 1,
     total: cfg.total ?? 4,
     hasPick: cfg.hasPick ?? false,
+    skipBonuses: cfg.skipBonuses ?? false,
     templateKey: cfg.templateKey ?? '',
     fromTemplate: cfg.fromTemplate ?? false,
     pickedLabel: cfg.pickedLabel ?? '',
@@ -673,7 +710,9 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
     descPlaceholder: cfg.descPlaceholder ?? '',
     spendPlaceholder: cfg.spendPlaceholder ?? '',
     pointsPlaceholder: cfg.pointsPlaceholder ?? '',
+    bonusPlaceholder: cfg.bonusPlaceholder ?? '',
     templates: cfg.templates ?? {},
+    typeLabels: cfg.typeLabels ?? {},
     pickRequired: cfg.pickRequired ?? '',
     type: cfg.type ?? 'earn',
     enableWelcome: cfg.enableWelcome ?? false,
@@ -682,10 +721,25 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
     spendDisplay: cfg.spendDisplay ?? '',
     pointsPerStep: cfg.pointsPerStep ?? null,
     bonusPoints: cfg.bonusPoints ?? null,
+    streakTarget: cfg.streakTarget ?? 3,
+    streakPeriod: cfg.streakPeriod ?? 'week',
     currency: cfg.currency ?? '',
     spendRequired: cfg.spendRequired ?? '',
     pointsRequired: cfg.pointsRequired ?? '',
+    bonusRequired: cfg.bonusRequired ?? '',
     saving: false,
+    isEarn() {
+        return this.type === 'earn';
+    },
+    isProductPush() {
+        return this.type === 'product_push';
+    },
+    isStreak() {
+        return this.type === 'streak';
+    },
+    typeLabel() {
+        return this.typeLabels[this.type] || this.type;
+    },
     basicsStep() {
         return this.hasPick ? 2 : 1;
     },
@@ -693,9 +747,15 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
         return this.hasPick ? 3 : 2;
     },
     bonusesStep() {
+        if (this.skipBonuses) {
+            return -1;
+        }
         return this.hasPick ? 4 : 3;
     },
     scheduleStep() {
+        if (this.skipBonuses) {
+            return this.hasPick ? 4 : 3;
+        }
         return this.hasPick ? 5 : 4;
     },
     pickTemplate(key) {
@@ -715,9 +775,21 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
         if (t.points_per_step) {
             this.pointsPlaceholder = String(t.points_per_step);
         }
+        if (t.bonus_points) {
+            this.bonusPlaceholder = String(t.bonus_points);
+            if (this.bonusPoints === null || this.bonusPoints === '') {
+                this.bonusPoints = t.bonus_points;
+            }
+        }
+        if (t.streak_target) {
+            this.streakTarget = t.streak_target;
+        }
+        if (t.streak_period) {
+            this.streakPeriod = t.streak_period;
+        }
     },
     pickOwn() {
-        this.templateKey = 'own';
+        this.templateKey = '';
         this.type = 'earn';
         this.fromTemplate = false;
         this.pickedLabel = '';
@@ -767,35 +839,49 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
             }
         }
         if (stepNum === this.spendStep()) {
-            if (['earn', 'product_push'].includes(this.type)) {
+            if (this.type === 'earn') {
                 const spendEl = root.querySelector('[data-spend-input]');
                 if (this.spendValue() < 1) {
                     return this.fail(stepNum, spendEl, this.spendRequired);
                 }
-                const ptsEl = root.querySelector('[name="points_per_step"]');
+                const ptsEl = root.querySelector('[data-points-input]') || root.querySelector('[name="points_per_step"]');
                 const pts = parseInt(this.pointsPerStep, 10);
                 if (!pts || pts < 1) {
                     return this.fail(stepNum, ptsEl, this.pointsRequired);
                 }
-                if (this.type === 'product_push') {
-                    const product = root.querySelector('[name="featured_product_name"]');
-                    if (!product || !String(product.value || '').trim()) {
-                        return this.fail(stepNum, product);
-                    }
-                    const bonusEl = root.querySelector('[data-bonus-input]');
-                    const bonus = parseInt(this.bonusPoints, 10);
-                    if (!bonus || bonus < 1) {
-                        return this.fail(stepNum, bonusEl);
-                    }
+            } else if (this.type === 'product_push') {
+                const product = root.querySelector('[name="featured_product_name"]');
+                if (!product || !String(product.value || '').trim()) {
+                    return this.fail(stepNum, product);
+                }
+                const bonusEl = root.querySelector('[data-bonus-input]');
+                const bonus = parseInt(this.bonusPoints, 10);
+                if (!bonus || bonus < 1) {
+                    return this.fail(stepNum, bonusEl, this.bonusRequired);
+                }
+            } else if (this.type === 'streak') {
+                const target = root.querySelector('[name="streak_target"]');
+                const period = root.querySelector('[name="streak_period"]');
+                const bonusEl = root.querySelector('[data-bonus-input]');
+                if (!target || parseInt(this.streakTarget || target.value, 10) < 2) {
+                    return this.fail(stepNum, target);
+                }
+                if (!period || !(this.streakPeriod || period.value)) {
+                    return this.fail(stepNum, period);
+                }
+                const bonus = parseInt(this.bonusPoints, 10);
+                if (!bonus || bonus < 1) {
+                    return this.fail(stepNum, bonusEl, this.bonusRequired);
                 }
             } else {
-                const bonus = root.querySelector('[name="bonus_points"]');
-                if (!bonus || parseInt(bonus.value, 10) < 1) {
-                    return this.fail(stepNum, bonus);
+                const bonusEl = root.querySelector('[data-bonus-input]') || root.querySelector('[name="bonus_points"]');
+                const bonus = parseInt(this.bonusPoints || (bonusEl && bonusEl.value), 10);
+                if (!bonus || bonus < 1) {
+                    return this.fail(stepNum, bonusEl, this.bonusRequired);
                 }
             }
         }
-        if (stepNum === this.bonusesStep() && this.total > this.bonusesStep()) {
+        if (stepNum === this.bonusesStep() && this.bonusesStep() > 0 && this.total > this.bonusesStep()) {
             if (this.enableWelcome) {
                 const el = root.querySelector('[name="welcome_points"]');
                 if (!el || parseInt(el.value, 10) < 1) {

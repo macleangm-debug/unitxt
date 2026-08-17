@@ -19,7 +19,7 @@ class RewardController extends Controller
     public function create(Request $request): View
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
-        $earn = $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first();
+        $earn = $business->campaigns()->where('type', 'earn')->latest()->first();
         $type = $request->query('type');
         $templateKey = $request->query('template');
         $starters = OfferTemplates::typeStarters();

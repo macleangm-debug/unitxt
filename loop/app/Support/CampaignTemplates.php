@@ -10,6 +10,19 @@ class CampaignTemplates
 
     public const INTENTION_RETENTION = 'retention';
 
+    public const MAIN_KEY = 'everyday_earn';
+
+    /** @var list<string> */
+    public const BONUS_KEYS = [
+        'product_push',
+        'birthday_treat',
+        'visit_streak',
+        'welcome_bonus',
+    ];
+
+    /** One per business — product push can repeat. */
+    public const UNIQUE_TYPES = ['earn', 'birthday', 'welcome', 'streak'];
+
     /**
      * @return array<string, array<string, mixed>>
      */
@@ -149,5 +162,59 @@ class CampaignTemplates
         }
 
         return __('loop.templates.'.$templateKey.'.description');
+    }
+
+    public static function isUniqueType(string $type): bool
+    {
+        return in_array($type, self::UNIQUE_TYPES, true);
+    }
+
+    public static function isMainType(string $type): bool
+    {
+        return $type === 'earn';
+    }
+
+    /**
+     * Picker groups: one main earn slot, then bonus add-ons.
+     *
+     * @param  list<string>  $usedTypes
+     * @return array<string, array{label: string, hint: string, templates: array<string, array<string, mixed>>}>
+     */
+    public static function picker(array $usedTypes = []): array
+    {
+        $main = [];
+        if (! in_array('earn', $usedTypes, true)) {
+            $main[self::MAIN_KEY] = self::localized(self::MAIN_KEY);
+        }
+
+        $bonus = [];
+        foreach (self::BONUS_KEYS as $key) {
+            $template = self::localized($key);
+            if (! $template) {
+                continue;
+            }
+            if ($template['type'] !== 'product_push' && in_array($template['type'], $usedTypes, true)) {
+                continue;
+            }
+            $bonus[$key] = $template;
+        }
+
+        $result = [];
+        if ($main !== []) {
+            $result['main'] = [
+                'label' => __('loop.main_campaign'),
+                'hint' => __('loop.main_campaign_hint'),
+                'templates' => $main,
+            ];
+        }
+        if ($bonus !== []) {
+            $result['bonus'] = [
+                'label' => __('loop.bonus_campaigns'),
+                'hint' => __('loop.bonus_campaigns_hint'),
+                'templates' => $bonus,
+            ];
+        }
+
+        return $result;
     }
 }

@@ -27,13 +27,13 @@
                 <p class="font-semibold">{{ $affiliate->name }}</p>
                 <p class="text-ink-muted">{{ $affiliate->full_phone }} · {{ $affiliate->tracking_code }}</p>
             </div>
-            <form method="POST" action="{{ route('affiliate.activate.store') }}" class="mt-6 space-y-4">
+            <form method="POST" action="{{ route('affiliate.activate.store') }}" class="mt-6 space-y-4" autocomplete="off">
                 @csrf
                 <input type="hidden" name="country_code" value="{{ $affiliate->country_code }}">
                 <input type="hidden" name="phone" value="{{ $affiliate->phone }}">
                 <div>
                     <label class="loop-label">{{ __('loop.password') }}</label>
-                    <input type="password" name="password" class="loop-input" required autocomplete="new-password">
+                    <input type="password" name="password" class="loop-input" required autocomplete="off">
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.confirm_password') }}</label>

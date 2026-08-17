@@ -593,10 +593,17 @@ class LoopCoreFlowTest extends TestCase
         [$owner, $business, $shop] = $this->seedBusiness();
         Campaign::create([
             'business_id' => $business->id,
-            'name' => 'Featured push',
-            'type' => 'product_push',
+            'name' => 'Everyday earn',
+            'type' => 'earn',
             'spend_step' => 1000,
             'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Featured push',
+            'type' => 'product_push',
             'bonus_points' => 15,
             'featured_product_name' => 'New Coffee',
             'starts_at' => now()->subDay(),

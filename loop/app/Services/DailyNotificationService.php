@@ -47,7 +47,7 @@ class DailyNotificationService
             'cta_key' => 'loop.view_campaigns',
             'url' => route('campaigns.create'),
             'tone' => 'ink',
-            'when' => $business->campaigns()->whereIn('type', ['earn', 'product_push'])->where('is_active', true)->doesntExist(),
+            'when' => $business->campaigns()->where('type', 'earn')->where('is_active', true)->doesntExist(),
         ]);
 
         if (FeatureFlags::enabled('birthday_campaigns')) {

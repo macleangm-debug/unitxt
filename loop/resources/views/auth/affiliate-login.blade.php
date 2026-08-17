@@ -4,7 +4,7 @@
         <h1 class="mt-2 font-display text-3xl font-semibold">{{ __('loop.affiliate_login') }}</h1>
         <p class="mt-2 text-sm text-ink-muted">{{ __('loop.affiliate_login_blurb') }}</p>
 
-        <form method="POST" action="{{ route('affiliate.login') }}" class="mt-8 space-y-4" x-data="{ method: 'pin' }">
+        <form method="POST" action="{{ route('affiliate.login') }}" class="mt-8 space-y-4" autocomplete="off" data-lpignore="true" data-1p-ignore="true" x-data="{ method: 'pin' }">
             @csrf
             <div>
                 <label class="loop-label">{{ __('loop.phone') }}</label>
@@ -14,7 +14,7 @@
                             <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
                         @endforeach
                     </select>
-                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required inputmode="tel" autocomplete="tel-national">
+                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required inputmode="tel" autocomplete="off" data-lpignore="true">
                 </div>
             </div>
 
@@ -26,11 +26,11 @@
 
             <div x-show="method==='pin'">
                 <label class="loop-label">{{ __('loop.pin') }} ({{ $pinLength }} {{ __('loop.digits') }})</label>
-                <input type="password" inputmode="numeric" name="pin" maxlength="{{ $pinLength }}" class="loop-input" autocomplete="one-time-code">
+                <input type="password" inputmode="numeric" name="pin" maxlength="{{ $pinLength }}" class="loop-input" autocomplete="off" data-lpignore="true">
             </div>
             <div x-show="method==='password'" x-cloak>
                 <label class="loop-label">{{ __('loop.password') }}</label>
-                <input type="password" name="password" class="loop-input" autocomplete="current-password">
+                <input type="password" name="password" class="loop-input" autocomplete="off" data-lpignore="true">
             </div>
 
             <button class="loop-btn-mint w-full">{{ __('loop.log_in') }}</button>

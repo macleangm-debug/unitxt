@@ -14,6 +14,17 @@ class CampaignFormValidationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_login_pages_block_browser_notification_prompts(): void
+    {
+        $this->get(route('staff.login'))
+            ->assertOk()
+            ->assertHeader('Permissions-Policy', 'notifications=(), push=()')
+            ->assertSee('autocomplete="off"', false);
+
+        $html = $this->get(route('staff.login'))->getContent();
+        $this->assertStringNotContainsString('value="password"', $html);
+    }
+
     public function test_campaign_cannot_be_created_without_spend_and_points(): void
     {
         [$owner] = $this->seedOwnerWithOffer();
@@ -75,18 +86,66 @@ class CampaignFormValidationTest extends TestCase
         ]);
     }
 
-    public function test_welcome_bonus_requires_points_when_enabled(): void
+    public function test_bonus_campaign_requires_bonus_points(): void
     {
         [$owner] = $this->seedOwnerWithOffer();
 
         $this->actingAs($owner)
             ->post(route('campaigns.store'), $this->validPayload([
-                'enable_welcome' => 1,
-                'welcome_points' => '',
+                'type' => 'birthday',
+                'spend_step' => '',
+                'points_per_step' => '',
+                'bonus_points' => '',
             ]))
-            ->assertSessionHasErrors('welcome_points');
+            ->assertSessionHasErrors('bonus_points');
 
         $this->assertDatabaseCount('campaigns', 0);
+    }
+
+    public function test_birthday_campaign_can_be_created_without_spend(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload([
+                'name' => 'Birthday treat',
+                'type' => 'birthday',
+                'spend_step' => '',
+                'points_per_step' => '',
+                'bonus_points' => 50,
+            ]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'type' => 'birthday',
+            'bonus_points' => 50,
+            'spend_step' => null,
+        ]);
+    }
+
+    public function test_second_earn_campaign_is_rejected(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Main',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->from(route('campaigns.create'))
+            ->post(route('campaigns.store'), $this->validPayload([
+                'name' => 'Another earn',
+            ]))
+            ->assertRedirect(route('campaigns.create'))
+            ->assertSessionHasErrors('type');
+
+        $this->assertSame(1, $business->campaigns()->where('type', 'earn')->count());
     }
 
     public function test_product_push_requires_featured_product_and_bonus_points(): void
@@ -96,6 +155,8 @@ class CampaignFormValidationTest extends TestCase
         $this->actingAs($owner)
             ->post(route('campaigns.store'), $this->validPayload([
                 'type' => 'product_push',
+                'spend_step' => '',
+                'points_per_step' => '',
                 'featured_product_name' => '',
                 'bonus_points' => '',
             ]))

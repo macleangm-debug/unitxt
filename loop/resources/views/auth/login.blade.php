@@ -1,7 +1,7 @@
 <x-guest-layout>
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-4">
+    <form method="POST" action="{{ route('login') }}" class="space-y-4" autocomplete="off" data-lpignore="true" data-1p-ignore="true">
         @csrf
 
         <div>
@@ -11,13 +11,13 @@
 
         <div>
             <label class="loop-label" for="email">Email</label>
-            <input id="email" class="loop-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username" />
+            <input id="email" class="loop-input" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="off" data-lpignore="true" data-1p-ignore="true" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <div>
             <label class="loop-label" for="password">Password</label>
-            <input id="password" class="loop-input" type="password" name="password" required autocomplete="current-password" />
+            <input id="password" class="loop-input" type="password" name="password" required autocomplete="off" data-lpignore="true" data-1p-ignore="true" />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 

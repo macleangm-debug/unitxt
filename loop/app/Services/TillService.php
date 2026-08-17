@@ -63,7 +63,7 @@ class TillService
         string $channel = 'in_store',
         bool $applyPointsAsPayment = false,
         ?int $pointsToSpend = null,
-        bool $includesFeaturedProduct = false,
+        bool|array $includesFeaturedProduct = false,
     ): Visit {
         if (! $staff->canUseTill()) {
             throw ValidationException::withMessages(['staff' => 'You are not allowed to record sales.']);
@@ -111,18 +111,14 @@ class TillService
                 $bonuses[] = __('loop.bonus_from_purchase', ['points' => $basePoints]);
             }
 
-            if (
-                $includesFeaturedProduct
-                && $campaign
-                && $campaign->type === 'product_push'
-                && filled($campaign->featured_product_name)
-                && (int) $campaign->bonus_points > 0
-            ) {
-                $pointsEarned += (int) $campaign->bonus_points;
-                $bonuses[] = __('loop.bonus_from_featured', [
-                    'product' => $campaign->featured_product_name,
-                    'points' => $campaign->bonus_points,
-                ]);
+            foreach ($this->featuredPushCampaigns($shop, $includesFeaturedProduct) as $push) {
+                if (filled($push->featured_product_name) && (int) $push->bonus_points > 0) {
+                    $pointsEarned += (int) $push->bonus_points;
+                    $bonuses[] = __('loop.bonus_from_featured', [
+                        'product' => $push->featured_product_name,
+                        'points' => $push->bonus_points,
+                    ]);
+                }
             }
 
             $birthdayCampaign = $this->findBirthdayCampaign($business);
@@ -366,13 +362,39 @@ class TillService
         return Campaign::query()
             ->active()
             ->where('business_id', $shop->business_id)
-            ->whereIn('type', [Campaign::TYPE_EARN, 'product_push'])
+            ->where('type', Campaign::TYPE_EARN)
             ->where(function ($query) use ($shop) {
                 $query->whereDoesntHave('shops')
                     ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
             })
             ->orderByDesc('points_per_step')
             ->first();
+    }
+
+    /**
+     * @param  bool|list<int>  $includesFeaturedProduct
+     * @return \Illuminate\Support\Collection<int, Campaign>
+     */
+    private function featuredPushCampaigns(Shop $shop, bool|array $includesFeaturedProduct)
+    {
+        if ($includesFeaturedProduct === false || $includesFeaturedProduct === []) {
+            return collect();
+        }
+
+        $query = Campaign::query()
+            ->active()
+            ->where('business_id', $shop->business_id)
+            ->where('type', Campaign::TYPE_PRODUCT_PUSH)
+            ->where(function ($query) use ($shop) {
+                $query->whereDoesntHave('shops')
+                    ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
+            });
+
+        if (is_array($includesFeaturedProduct)) {
+            $query->whereIn('id', $includesFeaturedProduct);
+        }
+
+        return $query->get();
     }
 
     private function findBirthdayCampaign(Business $business): ?Campaign

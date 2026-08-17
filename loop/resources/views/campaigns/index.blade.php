@@ -94,6 +94,9 @@
                 <a href="{{ route('campaigns.show', $campaign) }}" class="flex items-center justify-between gap-4 rounded-[1.5rem] border border-ink/8 bg-white/90 px-5 py-4 transition hover:-translate-y-0.5 hover:bg-white">
                     <div class="min-w-0">
                         <p class="font-display text-lg font-semibold">{{ $campaign->displayName() }}</p>
+                        <p class="mt-0.5 text-xs font-semibold uppercase tracking-[0.12em] {{ $campaign->isMain() ? 'text-mint-deep' : 'text-ink-muted' }}">
+                            {{ $campaign->isMain() ? __('loop.main_campaign') : __('loop.bonus_campaign') }}
+                        </p>
                         <p class="mt-0.5 truncate text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
                         <div class="mt-2">
                             <x-status-pill :live="$campaign->isCurrentlyActive()" />

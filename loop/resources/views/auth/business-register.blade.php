@@ -41,7 +41,7 @@
         <h1 class="font-display text-2xl font-semibold">{{ __('loop.cta_business') }}</h1>
         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.grow_with_phone') }}</p>
 
-        <form method="POST" action="{{ route('business.register') }}" class="mt-6 space-y-4">
+        <form method="POST" action="{{ route('business.register') }}" class="mt-6 space-y-4" autocomplete="off">
             @csrf
             <input type="hidden" name="step" :value="step">
 
@@ -92,12 +92,12 @@
             <div x-show="step === 3" x-cloak class="space-y-4">
                 <div>
                     <label class="loop-label">{{ __('loop.password') }}</label>
-                    <input type="password" name="password" class="loop-input" required x-model="password" autocomplete="new-password">
+                    <input type="password" name="password" class="loop-input" required x-model="password" autocomplete="off">
                     <x-input-error :messages="$errors->get('password')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.confirm_password') }}</label>
-                    <input type="password" name="password_confirmation" class="loop-input" required x-model="passwordConfirm" autocomplete="new-password"
+                    <input type="password" name="password_confirmation" class="loop-input" required x-model="passwordConfirm" autocomplete="off"
                            :class="passwordConfirm && !passwordsMatch ? 'border-coral focus:border-coral focus:ring-coral' : ''">
                     <p x-show="passwordConfirm && !passwordsMatch" x-cloak class="mt-1 text-xs font-semibold text-coral">{{ __('loop.passwords_must_match') }}</p>
                     <p x-show="passwordsMatch" x-cloak class="mt-1 text-xs font-semibold text-mint-deep">{{ __('loop.passwords_match') }}</p>

@@ -97,15 +97,25 @@ class TillController extends Controller
             $customer = $till->findCustomer($ticket['country_code'], $ticket['phone']);
         }
 
+        $shopScope = function ($query) use ($shop) {
+            $query->whereDoesntHave('shops')
+                ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
+        };
+
         $campaign = $business->campaigns()
             ->active()
-            ->whereIn('type', ['earn', 'product_push'])
-            ->where(function ($query) use ($shop) {
-                $query->whereDoesntHave('shops')
-                    ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
-            })
+            ->where('type', 'earn')
+            ->where($shopScope)
             ->orderByDesc('points_per_step')
             ->first();
+
+        $productPushes = $business->campaigns()
+            ->active()
+            ->where('type', 'product_push')
+            ->where($shopScope)
+            ->whereNotNull('featured_product_name')
+            ->orderBy('featured_product_name')
+            ->get();
 
         $membership = $customer
             ? $business->memberships()->where('customer_id', $customer->id)->first()
@@ -135,6 +145,7 @@ class TillController extends Controller
             'membership' => $membership,
             'rewards' => $rewards,
             'campaign' => $campaign,
+            'productPushes' => $productPushes,
             'nextOffer' => $nextOffer,
             'mode' => $mode,
             'needsRegister' => (bool) ($ticket['needs_register'] ?? false) && ! $customer,
@@ -204,6 +215,8 @@ class TillController extends Controller
             'pay_with_points' => ['nullable', 'boolean'],
             'points_to_spend' => ['nullable', 'integer', 'min:1'],
             'includes_featured_product' => ['nullable', 'boolean'],
+            'featured_campaign_ids' => ['nullable', 'array'],
+            'featured_campaign_ids.*' => ['integer'],
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
@@ -211,6 +224,14 @@ class TillController extends Controller
         $customer = $till->findCustomer($data['country_code'], $phone);
         $payWithPoints = $request->boolean('pay_with_points');
         $includesFeatured = $request->boolean('includes_featured_product');
+        $featuredIds = collect($request->input('featured_campaign_ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        if ($featuredIds !== []) {
+            $includesFeatured = $featuredIds;
+        }
 
         if (! $customer) {
             return redirect()->route('till.index')->withErrors([

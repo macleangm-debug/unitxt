@@ -1,16 +1,13 @@
 @php
-    $isEarn = in_array(old('type', $campaign->type), ['earn', 'product_push'], true);
-    $editSteps = $isEarn
-        ? [
-            1 => __('loop.section_basics'),
-            2 => __('loop.customer_gets'),
-            3 => __('loop.save'),
-        ]
-        : [
-            1 => __('loop.section_basics'),
-            2 => __('loop.section_bonus'),
-            3 => __('loop.save'),
-        ];
+    $type = old('type', $campaign->type);
+    $isEarn = $type === 'earn';
+    $isProductPush = $type === 'product_push';
+    $isStreak = $type === 'streak';
+    $editSteps = [
+        1 => __('loop.section_basics'),
+        2 => $isEarn ? __('loop.customer_gets') : __('loop.section_bonus'),
+        3 => __('loop.save'),
+    ];
     $oldSpend = old('spend_step', $campaign->spend_step);
     $spendDisplayInit = ($oldSpend !== null && $oldSpend !== '' && (int) $oldSpend > 0)
         ? number_format((int) $oldSpend)
@@ -34,13 +31,17 @@
         x-data="campaignWizard({
             step: {{ (int) $initialStep }},
             total: 3,
+            skipBonuses: true,
             type: @js(old('type', $campaign->type)),
             spendDisplay: @js($spendDisplayInit),
             pointsPerStep: {{ $pointsInit }},
             bonusPoints: {{ (int) old('bonus_points', $campaign->bonus_points ?: 0) }},
+            streakTarget: {{ (int) old('streak_target', $campaign->streak_target ?: 3) }},
+            streakPeriod: @js(old('streak_period', $campaign->streak_period ?: 'week')),
             currency: @js($business->currency),
             spendRequired: @js(__('loop.campaign_spend_required')),
             pointsRequired: @js(__('loop.campaign_points_required')),
+            bonusRequired: @js(__('loop.campaign_bonus_required')),
         })"
     >
         <x-form-stepper :steps="$editSteps" />
@@ -72,7 +73,7 @@
                     <x-input-error :messages="$errors->get('name')" class="mt-1" />
                 </div>
                 <p class="rounded-xl bg-chalk/60 px-3 py-2 text-sm text-ink-muted">
-                    {{ __('loop.type') }}:
+                    {{ $campaign->isMain() ? __('loop.main_campaign') : __('loop.bonus_campaign') }}:
                     <span class="font-semibold text-ink">{{ __('loop.type_'.$campaign->type) }}</span>
                 </p>
                 <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
@@ -91,7 +92,7 @@
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.points_earned') }}</label>
-                            <input type="number" name="points_per_step" min="1" class="loop-input" x-model="pointsPerStep" :required="step === 2">
+                            <input type="number" name="points_per_step" min="1" class="loop-input" x-model="pointsPerStep" data-points-input :required="step === 2">
                             <x-input-error :messages="$errors->get('points_per_step')" class="mt-1" />
                         </div>
                     </div>
@@ -99,28 +100,37 @@
                         <span x-text="pointsPerStep || '—'"></span> {{ __('loop.pts') }} /
                         <span x-text="spendDisplay || '0'"></span> <span x-text="currency"></span>
                     </p>
-
-                    @if ($campaign->type === 'product_push')
-                        <div class="space-y-3 rounded-2xl border border-violet/20 bg-violet-soft/40 p-4">
-                            <div>
-                                <label class="loop-label">{{ __('loop.featured_product_name') }}</label>
-                                <input type="text" name="featured_product_name" class="loop-input" value="{{ old('featured_product_name', $campaign->featured_product_name) }}" :required="step === 2">
-                                <x-input-error :messages="$errors->get('featured_product_name')" class="mt-1" />
-                            </div>
-                            <div>
-                                <label class="loop-label">{{ __('loop.featured_bonus_points') }}</label>
-                                <input type="number" name="bonus_points" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :required="step === 2">
-                                <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
-                            </div>
-                        </div>
-                    @else
-                        <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $campaign->bonus_points ?: 0) }}">
-                    @endif
+                    <input type="hidden" name="bonus_points" value="{{ old('bonus_points', $campaign->bonus_points ?: 0) }}">
+                @elseif ($isProductPush)
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_bonus') }}</p>
+                    <p class="text-sm text-ink-muted">{{ __('loop.featured_product_till_hint') }}</p>
+                    <div>
+                        <label class="loop-label">{{ __('loop.featured_product_name') }}</label>
+                        <input type="text" name="featured_product_name" class="loop-input" value="{{ old('featured_product_name', $campaign->featured_product_name) }}" :required="step === 2">
+                        <x-input-error :messages="$errors->get('featured_product_name')" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.featured_bonus_points') }}</label>
+                        <input type="number" name="bonus_points" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :required="step === 2">
+                        <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
+                    </div>
+                @elseif ($isStreak)
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_bonus') }}</p>
+                    <p class="text-sm text-ink-muted">{{ __('loop.streak_section_hint') }}</p>
+                    <div class="grid gap-2 sm:grid-cols-3">
+                        <input type="number" name="streak_target" min="2" class="loop-input" placeholder="{{ __('loop.streak_target') }}" x-model="streakTarget" :required="step === 2">
+                        <select name="streak_period" class="loop-input" x-model="streakPeriod" :required="step === 2">
+                            <option value="week" @selected(old('streak_period', $campaign->streak_period) === 'week')>{{ __('loop.streak_period_week') }}</option>
+                            <option value="month" @selected(old('streak_period', $campaign->streak_period) === 'month')>{{ __('loop.streak_period_month') }}</option>
+                        </select>
+                        <input type="number" name="bonus_points" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :required="step === 2">
+                    </div>
+                    <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
                 @else
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">2 · {{ __('loop.section_bonus') }}</p>
                     <div>
                         <label class="loop-label">{{ __('loop.bonus_points') }}</label>
-                        <input type="number" name="bonus_points" min="1" class="loop-input" value="{{ old('bonus_points', $campaign->bonus_points) }}" :required="step === 2">
+                        <input type="number" name="bonus_points" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :required="step === 2">
                         <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
                     </div>
                 @endif
