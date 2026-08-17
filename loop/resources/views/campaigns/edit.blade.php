@@ -31,7 +31,7 @@
 
     <div
         class="mx-auto max-w-lg"
-        x-data="{
+        x-data="campaignWizard({
             step: {{ (int) $initialStep }},
             total: 3,
             type: @js(old('type', $campaign->type)),
@@ -39,89 +39,9 @@
             pointsPerStep: {{ $pointsInit }},
             bonusPoints: {{ (int) old('bonus_points', $campaign->bonus_points ?: 0) }},
             currency: @js($business->currency),
-            saving: false,
             spendRequired: @js(__('loop.campaign_spend_required')),
             pointsRequired: @js(__('loop.campaign_points_required')),
-            go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-            fail(stepNum, el, message) {
-                if (this.step !== stepNum) this.go(stepNum);
-                this.$nextTick(() => {
-                    if (!el) return;
-                    if (message) {
-                        el.setCustomValidity(message);
-                        el.reportValidity();
-                        el.setCustomValidity('');
-                    } else {
-                        el.reportValidity();
-                    }
-                    el.focus();
-                });
-                return false;
-            },
-            validateStep(stepNum) {
-                const form = this.$refs.form;
-                if (!form) return false;
-                const root = form.querySelector('[data-step=\"'+stepNum+'\"]');
-                if (!root) return true;
-                if (stepNum === 1) {
-                    const name = root.querySelector('[name=\"name\"]');
-                    if (!name || !String(name.value || '').trim()) return this.fail(1, name);
-                }
-                if (stepNum === 2) {
-                    if (['earn', 'product_push'].includes(this.type)) {
-                        const spendEl = root.querySelector('[data-spend-input]');
-                        if (this.spendValue() < 1) return this.fail(2, spendEl, this.spendRequired);
-                        const ptsEl = root.querySelector('[name=\"points_per_step\"]');
-                        const pts = parseInt(this.pointsPerStep, 10);
-                        if (!pts || pts < 1) return this.fail(2, ptsEl, this.pointsRequired);
-                        if (this.type === 'product_push') {
-                            const product = root.querySelector('[name=\"featured_product_name\"]');
-                            if (!product || !String(product.value || '').trim()) return this.fail(2, product);
-                            const bonusEl = root.querySelector('[data-bonus-input]');
-                            const bonus = parseInt(this.bonusPoints, 10);
-                            if (!bonus || bonus < 1) return this.fail(2, bonusEl);
-                        }
-                    } else {
-                        const bonus = root.querySelector('[name=\"bonus_points\"]');
-                        if (!bonus || parseInt(bonus.value, 10) < 1) return this.fail(2, bonus);
-                    }
-                }
-                return true;
-            },
-            next() {
-                if (!this.validateStep(this.step)) return;
-                this.go(Math.min(this.total, this.step + 1));
-            },
-            goTo(n) {
-                n = parseInt(n, 10);
-                if (n <= this.step) { this.go(n); return; }
-                while (this.step < n) {
-                    const before = this.step;
-                    this.next();
-                    if (this.step === before) return;
-                }
-            },
-            formatSpend() {
-                let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
-                this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
-            },
-            spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; },
-            startSave(event) {
-                if (this.saving) { event.preventDefault(); return; }
-                if (this.step !== this.total) {
-                    event.preventDefault();
-                    this.next();
-                    return;
-                }
-                for (let s = 1; s <= this.total; s++) {
-                    if (!this.validateStep(s)) {
-                        event.preventDefault();
-                        return;
-                    }
-                }
-                this.saving = true;
-            }
-        }"
+        })"
     >
         <x-form-stepper :steps="$editSteps" />
 
@@ -130,7 +50,7 @@
             method="POST"
             action="{{ route('campaigns.update', $campaign) }}"
             class="space-y-5 rounded-[2rem] border border-ink/10 bg-white/90 p-6 shadow-[0_24px_70px_rgba(11,31,42,0.08)] sm:p-8"
-            @submit="startSave($event)"
+            @submit="submitForm($event)"
         >
             @csrf
             @method('PUT')

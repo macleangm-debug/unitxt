@@ -66,7 +66,7 @@
     @else
         <div
             class="mx-auto max-w-2xl"
-            x-data="{
+            x-data="campaignWizard({
                 step: {{ (int) $initialStep }},
                 total: 4,
                 type: @js($defaultType),
@@ -77,106 +77,9 @@
                 pointsPerStep: {{ $pointsInit }},
                 bonusPoints: {{ (int) old('bonus_points', $t['bonus_points'] ?? 0) }},
                 currency: @js($business->currency),
-                saving: false,
                 spendRequired: @js(__('loop.campaign_spend_required')),
                 pointsRequired: @js(__('loop.campaign_points_required')),
-                go(n) { this.step = n; window.scrollTo({ top: 0, behavior: 'smooth' }); },
-                fail(stepNum, el, message) {
-                    if (this.step !== stepNum) this.go(stepNum);
-                    this.$nextTick(() => {
-                        if (!el) return;
-                        if (message) {
-                            el.setCustomValidity(message);
-                            el.reportValidity();
-                            el.setCustomValidity('');
-                        } else {
-                            el.reportValidity();
-                        }
-                        el.focus();
-                    });
-                    return false;
-                },
-                validateStep(stepNum) {
-                    const form = this.$refs.form;
-                    if (!form) return false;
-                    const root = form.querySelector('[data-step=\"'+stepNum+'\"]');
-                    if (!root) return true;
-                    if (stepNum === 1) {
-                        const name = root.querySelector('[name=\"name\"]');
-                        if (!name || !String(name.value || '').trim()) return this.fail(1, name);
-                    }
-                    if (stepNum === 2) {
-                        const spendEl = root.querySelector('[data-spend-input]');
-                        if (this.spendValue() < 1) return this.fail(2, spendEl, this.spendRequired);
-                        const ptsEl = root.querySelector('[name=\"points_per_step\"]');
-                        const pts = parseInt(this.pointsPerStep, 10);
-                        if (!pts || pts < 1) return this.fail(2, ptsEl, this.pointsRequired);
-                        if (this.type === 'product_push') {
-                            const product = root.querySelector('[name=\"featured_product_name\"]');
-                            if (!product || !String(product.value || '').trim()) return this.fail(2, product);
-                            const bonusEl = root.querySelector('[data-bonus-input]');
-                            const bonus = parseInt(this.bonusPoints, 10);
-                            if (!bonus || bonus < 1) return this.fail(2, bonusEl);
-                        }
-                    }
-                    if (stepNum === 3) {
-                        if (this.enableWelcome) {
-                            const el = root.querySelector('[name=\"welcome_points\"]');
-                            if (!el || parseInt(el.value, 10) < 1) return this.fail(3, el);
-                        }
-                        if (this.enableBirthday) {
-                            const el = root.querySelector('[name=\"birthday_points\"]');
-                            if (!el || parseInt(el.value, 10) < 1) return this.fail(3, el);
-                        }
-                        if (this.enableStreak) {
-                            const target = root.querySelector('[name=\"streak_target\"]');
-                            const period = root.querySelector('[name=\"streak_period\"]');
-                            const points = root.querySelector('[name=\"streak_points\"]');
-                            if (!target || parseInt(target.value, 10) < 2) return this.fail(3, target);
-                            if (!period || !period.value) return this.fail(3, period);
-                            if (!points || parseInt(points.value, 10) < 1) return this.fail(3, points);
-                        }
-                    }
-                    if (stepNum === 4) {
-                        const starts = root.querySelector('[name=\"starts_at\"]');
-                        if (!starts || !String(starts.value || '').trim()) return this.fail(4, starts);
-                    }
-                    return true;
-                },
-                next() {
-                    if (!this.validateStep(this.step)) return;
-                    this.go(Math.min(this.total, this.step + 1));
-                },
-                goTo(n) {
-                    n = parseInt(n, 10);
-                    if (n <= this.step) { this.go(n); return; }
-                    while (this.step < n) {
-                        const before = this.step;
-                        this.next();
-                        if (this.step === before) return;
-                    }
-                },
-                submitForm(event) {
-                    if (this.saving) { event.preventDefault(); return; }
-                    if (this.step !== this.total) {
-                        event.preventDefault();
-                        this.next();
-                        return;
-                    }
-                    for (let s = 1; s <= this.total; s++) {
-                        if (!this.validateStep(s)) {
-                            event.preventDefault();
-                            return;
-                        }
-                    }
-                    this.saving = true;
-                },
-                formatSpend() {
-                    let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
-                    this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
-                },
-                spendValue() { return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0; }
-            }"
+            })"
         >
             <x-form-stepper :steps="$createSteps" />
 
