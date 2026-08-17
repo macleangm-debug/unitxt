@@ -5,27 +5,24 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.campaigns') }}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $campaign->displayName() }}</h1>
-                    @if ($campaign->isCurrentlyActive())
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-mint px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-[0_0_0_4px_rgba(46,125,50,0.18)]">
-                            <span class="h-2 w-2 animate-pulse rounded-full bg-ink"></span>
-                            {{ __('loop.live') }}
-                        </span>
-                    @else
-                        <span class="inline-flex items-center rounded-full bg-ink/10 px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink-muted">
-                            {{ __('loop.paused') }}
-                        </span>
-                    @endif
+                    <x-status-pill :live="$campaign->isCurrentlyActive()" size="lg" />
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">{{ $campaign->scheduleLabel() }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('campaigns.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
-                <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
-                    @csrf
-                    <button class="loop-btn-ghost !py-2.5">
-                        {{ $campaign->is_active ? __('loop.pause_campaign') : __('loop.resume_campaign') }}
-                    </button>
-                </form>
+                @if ($campaign->is_active)
+                    <x-pause-confirm
+                        :action="route('campaigns.toggle', $campaign)"
+                        :title="__('loop.pause_campaign_confirm_title')"
+                        :body="__('loop.pause_campaign_confirm_body')"
+                    />
+                @else
+                    <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
+                        @csrf
+                        <button class="loop-btn-ghost !py-2.5">{{ __('loop.resume_campaign') }}</button>
+                    </form>
+                @endif
                 <a href="{{ route('campaigns.edit', $campaign) }}" class="loop-btn-mint !py-2.5">{{ __('loop.edit') }}</a>
             </div>
         </div>

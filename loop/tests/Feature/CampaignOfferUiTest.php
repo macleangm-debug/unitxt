@@ -64,8 +64,59 @@ class CampaignOfferUiTest extends TestCase
         $this->actingAs($owner)
             ->get(route('campaigns.index'))
             ->assertOk()
-            ->assertDontSee(__('loop.view_stats'), false)
-            ->assertSee(__('loop.add_offer'), false);
+            ->assertSee(__('loop.new_campaign'), false)
+            ->assertSee(__('loop.how_they_earn'), false)
+            ->assertSee(__('loop.what_they_choose'), false)
+            ->assertSee(__('loop.live_campaigns'), false);
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.index', ['tab' => 'offers']))
+            ->assertOk()
+            ->assertSee(__('loop.add_offer'), false)
+            ->assertSee(__('loop.live_offers'), false)
+            ->assertSee('5% off anything', false)
+            ->assertSee('text-white', false)
+            ->assertDontSee(__('loop.view_stats'), false);
+    }
+
+    public function test_view_offer_hides_recent_redemptions_when_empty(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        $reward = $business->rewards()->first();
+
+        $html = $this->actingAs($owner)
+            ->get(route('rewards.show', $reward))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('text-white', $html);
+        $this->assertStringNotContainsString(trans('loop.recent_redemptions', [], 'en'), $html);
+        $this->assertStringNotContainsString(trans('loop.recent_redemptions', [], 'sw'), $html);
+        $this->assertStringNotContainsString(trans('loop.no_redemptions_yet', [], 'en'), $html);
+        $this->assertStringNotContainsString(trans('loop.no_redemptions_yet', [], 'sw'), $html);
+        $this->assertTrue(
+            str_contains($html, trans('loop.pause_offer_confirm_title', [], 'en'))
+            || str_contains($html, trans('loop.pause_offer_confirm_title', [], 'sw'))
+        );
+    }
+
+    public function test_paused_offer_uses_red_status_pill(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        $reward = $business->rewards()->first();
+        $reward->update(['is_active' => false]);
+
+        $html = $this->actingAs($owner)
+            ->get(route('rewards.show', $reward))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('bg-coral', $html);
+        $this->assertStringContainsString('text-white', $html);
+        $this->assertTrue(
+            str_contains($html, trans('loop.paused', [], 'en'))
+            || str_contains($html, trans('loop.paused', [], 'sw'))
+        );
     }
 
     public function test_view_offer_matches_campaign_layout(): void

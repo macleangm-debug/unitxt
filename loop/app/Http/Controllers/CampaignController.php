@@ -16,10 +16,33 @@ class CampaignController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->canManageCampaigns(), 403);
 
+        $campaigns = $business->campaigns()
+            ->with('shops')
+            ->withCount('visits')
+            ->withSum('visits', 'amount_spent')
+            ->latest()
+            ->get();
+        $rewards = $business->rewards()
+            ->withCount('redemptions')
+            ->withSum('redemptions', 'points_spent')
+            ->latest()
+            ->get();
+
         return view('campaigns.index', [
             'business' => $business,
-            'campaigns' => $business->campaigns()->with('shops')->latest()->get(),
-            'rewards' => $business->rewards()->latest()->get(),
+            'campaigns' => $campaigns,
+            'rewards' => $rewards,
+            'campaignStats' => [
+                'live' => $campaigns->filter(fn ($campaign) => $campaign->isCurrentlyActive())->count(),
+                'sales' => (int) $campaigns->sum('visits_count'),
+                'spend' => (float) $campaigns->sum('visits_sum_amount_spent'),
+            ],
+            'offerStats' => [
+                'live' => $rewards->where('is_active', true)->count(),
+                'redemptions' => (int) $rewards->sum('redemptions_count'),
+                'points_spent' => (int) $rewards->sum('redemptions_sum_points_spent'),
+            ],
+            'tab' => in_array($request->query('tab'), ['offers'], true) ? 'offers' : 'campaigns',
         ]);
     }
 

@@ -13,7 +13,7 @@ class RewardController extends Controller
 {
     public function index(): RedirectResponse
     {
-        return redirect()->to(route('campaigns.index').'#offers');
+        return redirect()->route('campaigns.index', ['tab' => 'offers']);
     }
 
     public function create(Request $request): View

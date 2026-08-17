@@ -5,27 +5,24 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.offers') }}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $reward->name }}</h1>
-                    @if ($reward->is_active)
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-mint px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-[0_0_0_4px_rgba(46,125,50,0.18)]">
-                            <span class="h-2 w-2 animate-pulse rounded-full bg-ink"></span>
-                            {{ __('loop.live') }}
-                        </span>
-                    @else
-                        <span class="inline-flex items-center rounded-full bg-ink/10 px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink-muted">
-                            {{ __('loop.paused') }}
-                        </span>
-                    @endif
+                    <x-status-pill :live="$reward->is_active" size="lg" />
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index') }}#offers" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
-                <form method="POST" action="{{ route('rewards.toggle', $reward) }}">
-                    @csrf
-                    <button class="loop-btn-ghost !py-2.5">
-                        {{ $reward->is_active ? __('loop.pause_campaign') : __('loop.resume_campaign') }}
-                    </button>
-                </form>
+                <a href="{{ route('campaigns.index', ['tab' => 'offers']) }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
+                @if ($reward->is_active)
+                    <x-pause-confirm
+                        :action="route('rewards.toggle', $reward)"
+                        :title="__('loop.pause_offer_confirm_title')"
+                        :body="__('loop.pause_offer_confirm_body')"
+                    />
+                @else
+                    <form method="POST" action="{{ route('rewards.toggle', $reward) }}">
+                        @csrf
+                        <button class="loop-btn-ghost !py-2.5">{{ __('loop.resume_campaign') }}</button>
+                    </form>
+                @endif
                 <a href="{{ route('rewards.edit', $reward) }}" class="loop-btn-mint !py-2.5">{{ __('loop.edit') }}</a>
             </div>
         </div>
@@ -65,35 +62,35 @@
         </div>
     </div>
 
-    <section class="mt-8">
-        <div class="mb-4 flex items-end justify-between gap-3">
-            <div>
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_redemptions') }}</h2>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_redemptions_blurb') }}</p>
+    @if ($recentRedemptions->isNotEmpty())
+        <section class="mt-8">
+            <div class="mb-4 flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_redemptions') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_redemptions_blurb') }}</p>
+                </div>
             </div>
-        </div>
-        <div class="space-y-3">
-            @forelse ($recentRedemptions as $redemption)
-                <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
-                    <div class="min-w-0">
-                        <p class="truncate font-semibold">{{ $redemption->customer?->name ?? __('loop.customer') }}</p>
-                        <p class="mt-0.5 text-xs text-ink-muted">
-                            {{ $redemption->created_at->format('d M · H:i') }}
-                            @if ($redemption->shop)
-                                · {{ $redemption->shop->name }}
-                            @elseif ($redemption->visit?->shop)
-                                · {{ $redemption->visit->shop->name }}
-                            @endif
-                            · −{{ $redemption->points_spent }} {{ __('loop.pts') }}
+            <div class="space-y-3">
+                @foreach ($recentRedemptions as $redemption)
+                    <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold">{{ $redemption->customer?->name ?? __('loop.customer') }}</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">
+                                {{ $redemption->created_at->format('d M · H:i') }}
+                                @if ($redemption->shop)
+                                    · {{ $redemption->shop->name }}
+                                @elseif ($redemption->visit?->shop)
+                                    · {{ $redemption->visit->shop->name }}
+                                @endif
+                                · −{{ $redemption->points_spent }} {{ __('loop.pts') }}
+                            </p>
+                        </div>
+                        <p class="shrink-0 font-display text-lg font-semibold">
+                            −{{ number_format($redemption->points_spent, 0) }}
                         </p>
                     </div>
-                    <p class="shrink-0 font-display text-lg font-semibold">
-                        −{{ number_format($redemption->points_spent, 0) }}
-                    </p>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_redemptions_yet') }}</p>
-            @endforelse
-        </div>
-    </section>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </x-app-layout>
