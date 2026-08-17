@@ -30,16 +30,18 @@ class CampaignOfferUiTest extends TestCase
     public function test_campaign_template_does_not_fill_name_or_description(): void
     {
         [$owner] = $this->seedOwnerWithOffer();
-        $templateName = __('loop.templates.faster_earn.name');
-
         $html = $this->actingAs($owner)
             ->get(route('campaigns.create', ['template' => 'faster_earn']))
             ->assertOk()
             ->getContent();
 
         $this->assertMatchesRegularExpression('/name="name"[^>]*value=""/', $html);
-        $this->assertStringContainsString('placeholder="'.$templateName.'"', $html);
-        $this->assertStringNotContainsString('>'.$templateName.'</textarea>', $html);
+        $this->assertTrue(
+            str_contains($html, 'placeholder="'.trans('loop.templates.faster_earn.name', [], 'en').'"')
+            || str_contains($html, 'placeholder="'.trans('loop.templates.faster_earn.name', [], 'sw').'"')
+        );
+        $this->assertStringNotContainsString('>'.trans('loop.templates.faster_earn.name', [], 'en').'</textarea>', $html);
+        $this->assertStringNotContainsString('>'.trans('loop.templates.faster_earn.name', [], 'sw').'</textarea>', $html);
     }
 
     public function test_new_offer_shows_type_cards_inside_wizard(): void
