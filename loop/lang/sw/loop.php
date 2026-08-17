@@ -306,6 +306,7 @@ return [
     'featured_bonus_points' => 'Pointi za ziada zinapojumuishwa',
     'featured_in_sale_q' => 'Je, mauzo haya yanajumuisha :product?',
     'featured_in_sale_hint' => 'Weka alama ndiyo kuongeza +:points pointi juu ya pointi za matumizi.',
+    'auto_bonuses_till_hint' => 'Zawadi za karibu, siku ya kuzaliwa, na mfululizo zinatumika moja kwa moja zinapolingana. Weka alama ya bidhaa tu ikiwa iko kwenye mauzo haya.',
     'first_campaign_done_title' => 'Hongera — kampeni ya kwanza imeanza',
     'first_campaign_done_body' => ':name sasa inaendelea. Unaweza kuongeza kampeni nyingine wakati wowote. Ifuatayo, unda ofa yako ya kwanza.',
     'campaign_name_hint' => 'Ipe jina lako — mf. Pointi za :business, Uaminifu wa :business, au Klabu ya :business.',
@@ -645,7 +646,7 @@ return [
   'product_push' => 
   array (
     'name' => 'Sukuma bidhaa maalum',
-    'description' => 'Taja bidhaa. Kwenye till, mfanyakazi anathibitisha ilikuwa katika mauzo — kisha pointi za ziada. Hakuna SKU zinazohitajika.',
+    'description' => 'Taja bidhaa na pointi za ziada. Mfanyakazi anathibitisha kwenye kaunta — Loop inaongeza pointi hizo juu ya kampeni kuu.',
   ),
   'visit_streak' => 
   array (
@@ -915,6 +916,8 @@ return [
     'birthday_advice' => 'Pointi za ziada siku ya kuzaliwa.',
     'section_bonus' => 'Bonasi',
     'bonus_section_hint' => 'Pointi za ziada — hakuna sheria ya matumizi.',
+    'bonus_on_top_hint' => 'Weka pointi za ziada tu. Zinaongezwa juu ya kampeni kuu ya Pointi kwa matumizi — mfumo unazitumia kwenye kaunta.',
+    'product_push_only_hint' => 'Taja bidhaa na pointi za ziada. Mfanyakazi anathibitisha kwenye kaunta; kampeni kuu tayari inatoa pointi kwenye mauzo.',
     'section_schedule' => 'Ratiba',
     'when_and_where' => 'Lini na wapi',
     'rule_streak_detail' => 'Ziara :target / :period → +:points pointi',

@@ -46,8 +46,8 @@ class CampaignTemplates
             'product_push' => [
                 'intention' => self::INTENTION_PRODUCT,
                 'type' => 'product_push',
-                'spend_step' => 1000,
-                'points_per_step' => 2,
+                'spend_step' => null,
+                'points_per_step' => null,
                 'bonus_points' => 10,
             ],
             'visit_streak' => [

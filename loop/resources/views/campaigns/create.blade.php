@@ -11,7 +11,7 @@
     $createSteps = [
         1 => __('loop.section_pick'),
         2 => __('loop.section_basics'),
-        3 => __('loop.customer_gets'),
+        3 => $defaultType === 'earn' ? __('loop.customer_gets') : __('loop.section_bonus'),
         4 => __('loop.section_schedule'),
     ];
     $oldSpend = old('spend_step');
@@ -99,7 +99,7 @@
             pickRequired: @js(__('loop.pick_required')),
         })"
     >
-        <x-form-stepper :steps="$createSteps" />
+        <x-form-stepper :steps="$createSteps" :dynamic-third="true" />
 
         <form
             x-ref="form"
@@ -183,70 +183,79 @@
                 </div>
             </div>
 
-            {{-- 3 · Customer gets / bonus --}}
+            {{-- 3 · Main earn rate, or bonus points only --}}
             <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">3 · {{ __('loop.customer_gets') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">
+                    3 · <span x-text="type === 'earn' ? @js(__('loop.customer_gets')) : @js(__('loop.section_bonus'))"></span>
+                </p>
                 <h2 class="font-display text-xl font-semibold" x-text="type === 'earn' ? @js(__('loop.customer_gets')) : @js(__('loop.section_bonus'))"></h2>
                 <input type="hidden" name="spend_step" :value="type === 'earn' ? spendValue() : ''">
                 <input type="hidden" name="points_per_step" :value="type === 'earn' ? (pointsPerStep || '') : ''">
                 <input type="hidden" name="bonus_points" :value="type === 'earn' ? 0 : (bonusPoints || '')">
 
-                <div x-show="type === 'earn'" class="space-y-3">
-                    <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
-                    <div class="grid gap-3 sm:grid-cols-2">
+                <template x-if="type === 'earn'">
+                    <div class="space-y-3">
+                        <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>
+                                <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" data-spend-input :placeholder="spendPlaceholder" :required="step === 3 && type === 'earn'">
+                                <x-input-error :messages="$errors->get('spend_step')" class="mt-1" />
+                            </div>
+                            <div>
+                                <label class="loop-label">{{ __('loop.points_earned') }}</label>
+                                <input type="number" class="loop-input" x-model="pointsPerStep" data-points-input :placeholder="pointsPlaceholder" :required="step === 3 && type === 'earn'" min="1">
+                                <x-input-error :messages="$errors->get('points_per_step')" class="mt-1" />
+                            </div>
+                        </div>
+                        <p class="text-center font-display text-xl font-bold">
+                            <span x-text="pointsPerStep || '—'"></span> {{ __('loop.pts') }} /
+                            <span x-text="spendDisplay || '0'"></span> <span x-text="currency"></span>
+                        </p>
+                    </div>
+                </template>
+
+                <template x-if="type === 'product_push'">
+                    <div class="space-y-3">
+                        <p class="text-sm text-ink-muted">{{ __('loop.product_push_only_hint') }}</p>
                         <div>
-                            <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>
-                            <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" data-spend-input :placeholder="spendPlaceholder" :required="step === 3 && type === 'earn'">
-                            <x-input-error :messages="$errors->get('spend_step')" class="mt-1" />
+                            <label class="loop-label">{{ __('loop.featured_product_name') }}</label>
+                            <input type="text" name="featured_product_name" class="loop-input" value="{{ old('featured_product_name') }}" :required="step === 3" placeholder="{{ __('loop.featured_product_placeholder') }}">
+                            <x-input-error :messages="$errors->get('featured_product_name')" class="mt-1" />
                         </div>
                         <div>
-                            <label class="loop-label">{{ __('loop.points_earned') }}</label>
-                            <input type="number" class="loop-input" x-model="pointsPerStep" data-points-input :placeholder="pointsPlaceholder" :required="step === 3 && type === 'earn'" min="1">
-                            <x-input-error :messages="$errors->get('points_per_step')" class="mt-1" />
+                            <label class="loop-label">{{ __('loop.featured_bonus_points') }}</label>
+                            <input type="number" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :placeholder="bonusPlaceholder" :required="step === 3">
+                            <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
                         </div>
                     </div>
-                    <p class="text-center font-display text-xl font-bold">
-                        <span x-text="pointsPerStep || '—'"></span> {{ __('loop.pts') }} /
-                        <span x-text="spendDisplay || '0'"></span> <span x-text="currency"></span>
-                    </p>
-                </div>
+                </template>
 
-                <div x-show="type === 'product_push'" x-cloak class="space-y-3">
-                    <p class="text-sm text-ink-muted">{{ __('loop.featured_product_till_hint') }}</p>
-                    <div>
-                        <label class="loop-label">{{ __('loop.featured_product_name') }}</label>
-                        <input type="text" name="featured_product_name" class="loop-input" value="{{ old('featured_product_name') }}" :required="step === 3 && type === 'product_push'" placeholder="{{ __('loop.featured_product_placeholder') }}">
-                        <x-input-error :messages="$errors->get('featured_product_name')" class="mt-1" />
+                <template x-if="type === 'birthday' || type === 'welcome'">
+                    <div class="space-y-3">
+                        <p class="text-sm text-ink-muted">{{ __('loop.bonus_on_top_hint') }}</p>
+                        <div>
+                            <label class="loop-label">{{ __('loop.bonus_points') }}</label>
+                            <input type="number" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :placeholder="bonusPlaceholder" :required="step === 3">
+                            <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
+                        </div>
                     </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.featured_bonus_points') }}</label>
-                        <input type="number" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :placeholder="bonusPlaceholder" :required="step === 3 && type === 'product_push'">
+                </template>
+
+                <template x-if="type === 'streak'">
+                    <div class="space-y-3">
+                        <p class="text-sm text-ink-muted">{{ __('loop.bonus_on_top_hint') }}</p>
+                        <div class="grid gap-2 sm:grid-cols-3">
+                            <input type="number" name="streak_target" min="2" class="loop-input" placeholder="{{ __('loop.streak_target') }}" x-model="streakTarget" :required="step === 3">
+                            <select name="streak_period" class="loop-input" x-model="streakPeriod" :required="step === 3">
+                                <option value="week">{{ __('loop.streak_period_week') }}</option>
+                                <option value="month">{{ __('loop.streak_period_month') }}</option>
+                            </select>
+                            <input type="number" min="1" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" x-model="bonusPoints" data-bonus-input :required="step === 3">
+                        </div>
                         <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
                     </div>
-                </div>
-
-                <div x-show="type === 'birthday' || type === 'welcome'" x-cloak class="space-y-3">
-                    <p class="text-sm text-ink-muted">{{ __('loop.bonus_section_hint') }}</p>
-                    <div>
-                        <label class="loop-label">{{ __('loop.bonus_points') }}</label>
-                        <input type="number" min="1" class="loop-input" x-model="bonusPoints" data-bonus-input :placeholder="bonusPlaceholder" :required="step === 3 && (type === 'birthday' || type === 'welcome')">
-                        <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
-                    </div>
-                </div>
-
-                <div x-show="type === 'streak'" x-cloak class="space-y-3">
-                    <p class="text-sm text-ink-muted">{{ __('loop.streak_section_hint') }}</p>
-                    <div class="grid gap-2 sm:grid-cols-3">
-                        <input type="number" name="streak_target" min="2" class="loop-input" placeholder="{{ __('loop.streak_target') }}" x-model="streakTarget" :required="step === 3 && type === 'streak'">
-                        <select name="streak_period" class="loop-input" x-model="streakPeriod" :required="step === 3 && type === 'streak'">
-                            <option value="week">{{ __('loop.streak_period_week') }}</option>
-                            <option value="month">{{ __('loop.streak_period_month') }}</option>
-                        </select>
-                        <input type="number" min="1" class="loop-input" placeholder="{{ __('loop.bonus_points') }}" x-model="bonusPoints" data-bonus-input :required="step === 3 && type === 'streak'">
-                    </div>
-                    <x-input-error :messages="$errors->get('streak_points')" class="mt-1" />
-                    <x-input-error :messages="$errors->get('bonus_points')" class="mt-1" />
-                </div>
+                </template>
 
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>

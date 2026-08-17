@@ -35,7 +35,10 @@ class CampaignOfferUiTest extends TestCase
             ->assertSee('data-step="1"', false)
             ->assertSee('data-step="4"', false)
             ->assertDontSee('data-step="5"', false)
-            ->assertDontSee('<option value="earn">', false);
+            ->assertDontSee('<option value="earn">', false)
+            ->assertDontSee(__('loop.bonuses_title'), false)
+            ->assertDontSee('enable_welcome', false)
+            ->assertDontSee(__('loop.welcome_bonus_hint'), false);
     }
 
     public function test_campaign_template_does_not_fill_name_or_description(): void
@@ -74,6 +77,34 @@ class CampaignOfferUiTest extends TestCase
             ->assertDontSee(__('loop.templates.everyday_earn.name'), false)
             ->assertSee(__('loop.templates.product_push.name'), false)
             ->assertSee(__('loop.templates.birthday_treat.name'), false);
+    }
+
+    public function test_product_push_wizard_only_asks_for_product_and_bonus_points(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.create', ['template' => 'product_push']))
+            ->assertOk()
+            ->assertSee(__('loop.featured_product_name'), false)
+            ->assertSee(__('loop.product_push_only_hint'), false)
+            ->assertSee(__('loop.section_bonus'), false)
+            ->assertDontSee(__('loop.bonuses_title'), false)
+            ->assertDontSee('name="enable_welcome"', false)
+            ->assertDontSee(__('loop.welcome_bonus_hint'), false)
+            ->assertDontSee(__('loop.birthday_bonus_hint'), false);
+    }
+
+    public function test_birthday_wizard_only_asks_for_bonus_points(): void
+    {
+        [$owner] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.create', ['template' => 'birthday_treat']))
+            ->assertOk()
+            ->assertSee(__('loop.bonus_on_top_hint'), false)
+            ->assertDontSee(__('loop.bonuses_title'), false)
+            ->assertDontSee('name="enable_welcome"', false);
     }
 
     public function test_swahili_offer_type_titles(): void

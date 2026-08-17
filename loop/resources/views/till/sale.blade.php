@@ -228,6 +228,7 @@
 
                     @if (($productPushes ?? collect())->isNotEmpty())
                         <div class="space-y-2">
+                            <p class="text-xs text-ink-muted">{{ __('loop.auto_bonuses_till_hint') }}</p>
                             @foreach ($productPushes as $push)
                                 <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
                                     <input type="checkbox" name="featured_campaign_ids[]" value="{{ $push->id }}" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(in_array($push->id, old('featured_campaign_ids', []), false))>

@@ -372,18 +372,6 @@
                                 </p>
                             </div>
 
-                            <div x-show="type === 'product_push'" x-cloak class="space-y-3 rounded-2xl border border-violet/20 bg-violet-soft/40 p-4">
-                                <div>
-                                    <label class="loop-label">{{ __('loop.featured_product_name') }}</label>
-                                    <input type="text" name="featured_product_name" class="loop-input" x-model="productName" :required="type === 'product_push'" placeholder="{{ __('loop.featured_product_placeholder') }}">
-                                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.featured_product_till_hint') }}</p>
-                                </div>
-                                <div>
-                                    <label class="loop-label">{{ __('loop.featured_bonus_points') }}</label>
-                                    <input type="number" name="bonus_points" min="1" class="loop-input" x-model="bonusPoints" :required="type === 'product_push'">
-                                </div>
-                            </div>
-
                             <button class="loop-btn w-full text-base" :disabled="saving" :class="{ 'opacity-70': saving }">
                                 <span x-show="!saving">{{ __('loop.save_campaign') }}</span>
                                 <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>

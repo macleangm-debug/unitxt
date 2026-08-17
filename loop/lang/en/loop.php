@@ -306,6 +306,7 @@ return [
     'featured_bonus_points' => 'Bonus points when included',
     'featured_in_sale_q' => 'Does this sale include :product?',
     'featured_in_sale_hint' => 'Tick yes to add +:points bonus points on top of the spend earn.',
+    'auto_bonuses_till_hint' => 'Welcome, birthday, and streak bonuses are applied automatically when they match. Tick a product only when it is in this sale.',
     'first_campaign_done_title' => 'Congratulations — first campaign live',
     'first_campaign_done_body' => ':name is live. You can add more campaigns anytime. Next, create your first offer.',
     'campaign_name_hint' => 'Make it yours — e.g. :business Points, :business Loyalty, or :business Club.',
@@ -645,7 +646,7 @@ return [
   'product_push' => 
   array (
     'name' => 'Featured product push',
-    'description' => 'Name a product. At the till, staff confirm it was in the sale — then bonus points apply. No SKUs needed.',
+    'description' => 'Name a product and the extra points. Staff confirm it at the till — Loop adds those points on top of the main campaign.',
   ),
   'visit_streak' => 
   array (
@@ -915,6 +916,8 @@ return [
     'birthday_advice' => 'Extra points on their birthday purchase.',
     'section_bonus' => 'Bonus',
     'bonus_section_hint' => 'Flat bonus points — no spend rule needed.',
+    'bonus_on_top_hint' => 'Only the extra points. They stack on top of the main Earn to Spend campaign — the system applies them at the till.',
+    'product_push_only_hint' => 'Name the product and the extra points. Staff tick it at the till; the main campaign already awards points on the sale.',
     'section_schedule' => 'Schedule',
     'when_and_where' => 'When and where',
     'rule_streak_detail' => ':target visits / :period → +:points pts',

@@ -124,6 +124,32 @@ class CampaignFormValidationTest extends TestCase
         ]);
     }
 
+    public function test_product_push_can_be_created_without_spend_or_earn_points(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+
+        $this->actingAs($owner)
+            ->post(route('campaigns.store'), $this->validPayload([
+                'name' => 'ALPHA',
+                'type' => 'product_push',
+                'spend_step' => '',
+                'points_per_step' => '',
+                'featured_product_name' => 'ALPHA',
+                'bonus_points' => 10,
+            ]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'name' => 'ALPHA',
+            'type' => 'product_push',
+            'featured_product_name' => 'ALPHA',
+            'bonus_points' => 10,
+            'spend_step' => null,
+            'points_per_step' => null,
+        ]);
+    }
+
     public function test_second_earn_campaign_is_rejected(): void
     {
         [$owner, $business] = $this->seedOwnerWithOffer();

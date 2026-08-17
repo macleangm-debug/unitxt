@@ -40,11 +40,6 @@
                 {{ $business->currency }} {{ number_format($campaign->spend_step) }}
             </p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.min_spend_to_earn_hint', ['currency' => $business->currency, 'amount' => number_format($campaign->spend_step)]) }}</p>
-            @if ($campaign->type === 'product_push' && $campaign->featured_product_name)
-                <p class="mt-2 text-sm text-ink-muted">
-                    {{ __('loop.rule_featured_product', ['product' => $campaign->featured_product_name, 'points' => $campaign->bonus_points]) }}
-                </p>
-            @endif
         </div>
     @elseif ($campaign->ruleSummary($business->currency))
         <p class="mt-6 text-base font-medium text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
