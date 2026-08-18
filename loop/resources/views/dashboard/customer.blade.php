@@ -176,36 +176,48 @@
             :link="__('loop.browse_campaigns').' →'"
             class="mb-5"
         />
-        <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
-            @forelse ($memberships as $membership)
-                @php
-                    $progress = $membership->home_progress ?? ['percent' => 0, 'needed' => 0, 'ready' => false];
-                    $target = $membership->home_target_reward;
-                    $footnote = null;
-                    if ($target) {
-                        $footnote = ($progress['ready'] ?? false)
-                            ? __('loop.reward_unlocked')
-                            : __('loop.pts_to_unlock', ['points' => $progress['needed']]);
-                    }
-                @endphp
-                <x-discover-tile
-                    :business="$membership->business"
-                    :points="$membership->points_balance"
-                    :show-points="true"
-                    :carousel="true"
-                    :footnote="$footnote"
-                    data-loop-card
-                />
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.visit_or_browse') }}</p>
-            @endforelse
-            <a href="{{ route('discover') }}" data-loop-card class="group flex w-40 shrink-0 flex-col sm:w-44">
-                <div class="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-ink/20 bg-white/60 px-3 py-8 shadow-[0_12px_40px_rgba(17,17,20,0.04)]">
-                    <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-soft text-2xl font-semibold text-violet">+</span>
-                    <span class="mt-3 text-center text-sm font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
+        @if ($memberships->isNotEmpty())
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
+                @foreach ($memberships as $membership)
+                    @php
+                        $progress = $membership->home_progress ?? ['percent' => 0, 'needed' => 0, 'ready' => false];
+                        $target = $membership->home_target_reward;
+                        $footnote = null;
+                        if ($target) {
+                            $footnote = ($progress['ready'] ?? false)
+                                ? __('loop.reward_unlocked')
+                                : __('loop.pts_to_unlock', ['points' => $progress['needed']]);
+                        }
+                    @endphp
+                    <x-discover-tile
+                        :business="$membership->business"
+                        :points="$membership->points_balance"
+                        :show-points="true"
+                        :carousel="true"
+                        :footnote="$footnote"
+                        data-loop-card
+                    />
+                @endforeach
+                <a href="{{ route('discover') }}" data-loop-card class="group flex w-40 shrink-0 flex-col sm:w-44">
+                    <div class="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-ink/20 bg-white/60 px-3 py-8 shadow-[0_12px_40px_rgba(17,17,20,0.04)]">
+                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-soft text-2xl font-semibold text-violet">+</span>
+                        <span class="mt-3 text-center text-sm font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
+                    </div>
+                </a>
+            </div>
+        @else
+            <div class="flex items-stretch gap-4">
+                <a href="{{ route('discover') }}" class="group flex w-40 shrink-0 flex-col sm:w-44">
+                    <div class="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-ink/20 bg-white/60 px-3 py-8 shadow-[0_12px_40px_rgba(17,17,20,0.04)]">
+                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-soft text-2xl font-semibold text-violet">+</span>
+                        <span class="mt-3 text-center text-sm font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
+                    </div>
+                </a>
+                <div class="flex max-w-xs flex-col justify-center py-2">
+                    <p class="text-sm text-ink-muted">{{ __('loop.visit_or_browse') }}</p>
                 </div>
-            </a>
-        </div>
+            </div>
+        @endif
     </section>
 
     {{-- Where offers work — browse-tile carousel --}}

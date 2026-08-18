@@ -174,21 +174,9 @@ Alpine.store('loopNav', {
         document.documentElement.dataset.loopNav = kind;
         sessionStorage.setItem('loopNavKind', kind);
 
-        // View Transitions carry tab/push/morph without a heavy veil wipe.
-        if (supportsVT) {
-            this.transitioning = kind === 'fade' && ! usedMorph;
-            if (usedMorph || kind === 'tab' || kind === 'push' || kind === 'back') {
-                this.transitioning = false;
-            }
-            window.location.href = next.href;
-            return;
-        }
-
-        // Fallback veil for browsers without VT.
-        this.transitioning = true;
-        setTimeout(() => {
-            window.location.href = next.href;
-        }, usedMorph ? 160 : kind === 'tab' ? 180 : 260);
+        // Navigate immediately — a veil or delayed fade hid copy on slow preview loads.
+        this.transitioning = false;
+        window.location.href = next.href;
     },
 });
 
@@ -208,12 +196,6 @@ function loopSettleMorph() {
         sessionStorage.removeItem('loopMorphLift');
         sessionStorage.removeItem('loopVt');
         return;
-    }
-
-    // Soft content entrance only after an in-app navigation (not cold loads).
-    if (navKind === 'tab' || navKind === 'push' || navKind === 'back' || navKind === 'fade') {
-        const shell = document.querySelector('main.loop-shell') || document.querySelector('main');
-        shell?.classList.add(navKind === 'tab' ? 'loop-nav-enter-tab' : 'loop-nav-enter-push');
     }
 
     const usedVt = sessionStorage.getItem('loopVt') === '1';
@@ -607,101 +589,24 @@ Alpine.data('loopLivingWallet', (earnedDelta = 0) => ({
 }));
 
 /**
- * Horizontal carousel: slow swipe + soft snap + light parallax.
+ * Horizontal carousel: native swipe + light parallax.
+ * Never hijack the wheel — that turned page-scroll into a sideways snap and hid copy.
  */
 Alpine.data('loopParallaxCarousel', () => ({
-    _target: 0,
-    _current: 0,
-    _raf: null,
     init() {
-        this._target = this.$el.scrollLeft;
-        this._current = this.$el.scrollLeft;
+        this._onScroll = () => this.refresh();
         this.$nextTick(() => this.refresh());
-
-        if (prefersReducedMotion()) {
-            this._onScroll = () => this.refresh();
-            this.$el.addEventListener('scroll', this._onScroll, { passive: true });
-            return;
-        }
-
-        this._onScroll = () => {
-            if (! this._raf) {
-                this._target = this.$el.scrollLeft;
-                this._current = this.$el.scrollLeft;
-            }
-            this.refresh();
-        };
         this.$el.addEventListener('scroll', this._onScroll, { passive: true });
         window.addEventListener('resize', this._onScroll, { passive: true });
-
-        this._onWheel = (event) => {
-            const primarilyHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
-            if (! primarilyHorizontal) {
-                return;
-            }
-            if (this.$el.scrollWidth <= this.$el.clientWidth + 4) {
-                return;
-            }
-            event.preventDefault();
-            const delta = event.deltaX || event.deltaY;
-            this._target = Math.max(
-                0,
-                Math.min(this.$el.scrollWidth - this.$el.clientWidth, this._target + delta * 0.35)
-            );
-            this.lerp();
-        };
-        this.$el.addEventListener('wheel', this._onWheel, { passive: false });
     },
     destroy() {
         this.$el.removeEventListener('scroll', this._onScroll);
         window.removeEventListener('resize', this._onScroll);
-        if (this._onWheel) {
-            this.$el.removeEventListener('wheel', this._onWheel);
-        }
-        if (this._raf) {
-            cancelAnimationFrame(this._raf);
-        }
-    },
-    lerp() {
-        if (this._raf) {
-            return;
-        }
-        const tick = () => {
-            this._current += (this._target - this._current) * 0.06;
-            this.$el.scrollLeft = this._current;
-            this.refresh();
-            if (Math.abs(this._target - this._current) > 0.4) {
-                this._raf = requestAnimationFrame(tick);
-            } else {
-                this.$el.scrollLeft = this._target;
-                this._raf = null;
-                this.snapSlow();
-            }
-        };
-        this._raf = requestAnimationFrame(tick);
-    },
-    snapSlow() {
-        const cards = [...this.$el.querySelectorAll('[data-loop-card]')];
-        if (! cards.length) {
-            return;
-        }
-        const mid = this.$el.scrollLeft + this.$el.clientWidth / 2;
-        let best = cards[0];
-        let bestDist = Infinity;
-        cards.forEach((card) => {
-            const center = card.offsetLeft + card.offsetWidth / 2;
-            const dist = Math.abs(mid - center);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = card;
-            }
-        });
-        this._target = Math.max(0, best.offsetLeft - 8);
-        if (Math.abs(this._target - this._current) > 1) {
-            this.lerp();
-        }
     },
     refresh() {
+        if (prefersReducedMotion()) {
+            return;
+        }
         const root = this.$el;
         const mid = root.scrollLeft + root.clientWidth / 2;
         root.querySelectorAll('[data-loop-card]').forEach((card) => {
@@ -713,7 +618,6 @@ Alpine.data('loopParallaxCarousel', () => ({
             if (media) {
                 const shift = Math.max(-4, Math.min(4, (mid - center) * 0.015));
                 media.style.transform = `translateX(${shift}px) scale(1.04)`;
-                media.style.transition = 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
             }
         });
     },

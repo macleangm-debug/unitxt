@@ -90,6 +90,8 @@ class LoopMemberExperienceTest extends TestCase
         $this->actingAs($customer)
             ->get(route('dashboard'))
             ->assertOk()
+            ->assertDontSee('name="view-transition"', false)
+            ->assertSee(__('loop.visit_or_browse'), false)
             ->assertSee(__('loop.redeem_places_empty_title'), false)
             ->assertSee(__('loop.redeem_places_empty'), false)
             ->assertSee(__('loop.explore'), false);

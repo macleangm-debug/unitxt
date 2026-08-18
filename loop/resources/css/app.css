@@ -482,7 +482,7 @@
     }
 
     .loop-morph-page-enter {
-        animation: loop-page-soft-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation: none;
     }
 
     .loop-morph-flyer.is-settling {
@@ -624,10 +624,10 @@
 
     .loop-carousel {
         @apply flex gap-4 overflow-x-auto pb-1;
-        scroll-snap-type: x mandatory;
-        scroll-behavior: smooth;
+        scroll-snap-type: x proximity;
         -webkit-overflow-scrolling: touch;
         overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
         scrollbar-width: none;
         -ms-overflow-style: none;
     }
@@ -638,7 +638,6 @@
 
     .loop-carousel > * {
         scroll-snap-align: start;
-        scroll-snap-stop: always;
     }
 
     .loop-shop-grid {
@@ -648,7 +647,6 @@
     .loop-shop-card {
         @apply relative w-36 shrink-0 overflow-hidden;
         scroll-snap-align: start;
-        scroll-snap-stop: always;
         transform: scale(0.98);
         transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
     }
@@ -875,7 +873,7 @@
 
 @keyframes loop-page-soft-in {
     from {
-        opacity: 0.55;
+        opacity: 1;
         transform: translateY(10px);
     }
     to {
@@ -886,32 +884,32 @@
 
 @keyframes loop-vt-fade-out {
     from { opacity: 1; }
-    to { opacity: 0.35; }
+    to { opacity: 1; }
 }
 
 @keyframes loop-vt-fade-in {
-    from { opacity: 0.45; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 1; transform: none; }
+    to { opacity: 1; transform: none; }
 }
 
 @keyframes loop-vt-slide-out-left {
     from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0.4; transform: translateX(-18%); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes loop-vt-slide-in-right {
-    from { opacity: 0.45; transform: translateX(18%); }
-    to { opacity: 1; transform: translateX(0); }
+    from { opacity: 1; transform: none; }
+    to { opacity: 1; transform: none; }
 }
 
 @keyframes loop-vt-slide-out-right {
     from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0.4; transform: translateX(18%); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes loop-vt-slide-in-left {
-    from { opacity: 0.45; transform: translateX(-14%); }
-    to { opacity: 1; transform: translateX(0); }
+    from { opacity: 1; transform: none; }
+    to { opacity: 1; transform: none; }
 }
 
 /* Cross-document View Transitions — logo morph + soft root fade */
@@ -975,12 +973,9 @@
     }
 }
 
-.loop-nav-enter-tab {
-    animation: loop-vt-fade-in 0.32s ease-out both;
-}
-
+.loop-nav-enter-tab,
 .loop-nav-enter-push {
-    animation: loop-page-soft-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
