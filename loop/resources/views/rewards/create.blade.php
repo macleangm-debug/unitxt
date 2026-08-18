@@ -58,7 +58,7 @@
             step: {{ (int) $initialStep }},
             total: 5,
             hasPick: true,
-            persistKey: 'loop.offerWizard.create',"
+            persistKey: 'loop.offerWizard.create',
             type: @js($queryType),
             typeLabel: @js($starterLabel),
             name: @js($defaultName),

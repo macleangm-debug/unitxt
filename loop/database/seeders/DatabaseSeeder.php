@@ -97,7 +97,7 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        Shop::create([
+        $waterfront = Shop::create([
             'business_id' => $business->id,
             'name' => 'Harbor Beans Waterfront',
             'code' => 'SHOP-HBWAVE',
@@ -106,6 +106,8 @@ class DatabaseSeeder extends Seeder
             'phone' => '+255 712 000 002',
             'is_active' => true,
         ]);
+
+        $frontDesk->assignedShops()->sync([$downtown->id, $waterfront->id]);
 
         $campaign = Campaign::create([
             'business_id' => $business->id,

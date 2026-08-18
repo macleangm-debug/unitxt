@@ -243,6 +243,21 @@ class LoopProductPassTest extends TestCase
             ->assertRedirect();
     }
 
+    public function test_free_item_create_wizard_renders_alpine_setup(): void
+    {
+        [$owner] = $this->seedBusiness();
+
+        $html = $this->actingAs($owner)
+            ->get(route('rewards.create'))
+            ->assertOk()
+            ->assertSee('offerWizard', false)
+            ->assertSee(__('loop.tie_to_product'), false)
+            ->getContent();
+
+        $this->assertStringContainsString("persistKey: 'loop.offerWizard.create',", $html);
+        $this->assertStringNotContainsString("persistKey: 'loop.offerWizard.create',\"", $html);
+    }
+
     public function test_same_day_earn_does_not_unlock_redeem_by_default(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();
