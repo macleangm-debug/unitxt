@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Article;
 use App\Models\Business;
 use App\Models\Membership;
 use App\Models\Visit;
@@ -122,18 +123,31 @@ class DashboardController extends Controller
         // Prefer shops where the customer can already redeem, then shops with live offers.
         $redeemableBusinessIds = $redeemables->pluck('business.id')->unique()->values();
 
-        $topShops = Business::query()
+        $topQuery = Business::query()
             ->where('is_active', true)
             ->where('country', $country)
-            ->whereHas('rewards', fn ($q) => $q->where('is_active', true))
-            ->when($user->interests, fn ($q) => $q->whereIn('sector', $user->interests))
-            ->with([
-                'shops' => fn ($q) => $q->where('is_active', true),
-                'rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
-                'campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
-            ])
+            ->whereHas('rewards', fn ($q) => $q->where('is_active', true));
+
+        $withShops = [
+            'shops' => fn ($q) => $q->where('is_active', true),
+            'rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            'campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
+        ];
+
+        $topShops = (clone $topQuery)
+            ->when(filled($user->interests), fn ($q) => $q->whereIn('sector', $user->interests))
+            ->with($withShops)
             ->withCount(['memberships', 'shops'])
-            ->get()
+            ->get();
+
+        if ($topShops->isEmpty() && filled($user->interests)) {
+            $topShops = (clone $topQuery)
+                ->with($withShops)
+                ->withCount(['memberships', 'shops'])
+                ->get();
+        }
+
+        $topShops = $topShops
             ->sortByDesc(function (Business $business) use ($redeemableBusinessIds, $memberBusinessIds) {
                 $score = 0;
                 if ($redeemableBusinessIds->contains($business->id)) {
@@ -172,6 +186,12 @@ class DashboardController extends Controller
             return $membership;
         });
 
+        $stories = Article::query()
+            ->visibleTo($user)
+            ->orderByDesc('published_at')
+            ->take(5)
+            ->get();
+
         return view('dashboard.customer', [
             'memberships' => $memberships,
             'grouped' => $memberships->groupBy(fn ($m) => $m->business->sector),
@@ -184,6 +204,8 @@ class DashboardController extends Controller
             'otherShops' => $otherShops,
             'discover' => $topShops,
             'showWelcome' => $request->session()->pull('show_welcome', false) || ! $user->profile_completed,
+            'featuredStory' => $stories->first(),
+            'moreStories' => $stories->skip(1)->values(),
         ]);
     }
 }

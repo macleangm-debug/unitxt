@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Article;
 use App\Models\Business;
 use App\Models\Campaign;
 use App\Models\Plan;
@@ -230,6 +231,34 @@ class DatabaseSeeder extends Seeder
             'points_per_step' => 3,
             'starts_at' => now()->subDay(),
             'is_active' => true,
+        ]);
+
+        Article::query()->create([
+            'user_id' => User::query()->where('role', User::ROLE_ADMIN)->value('id'),
+            'slug' => 'welcome-to-loop-tanzania',
+            'title_en' => 'Harbor Beans is live in Dar',
+            'title_sw' => 'Harbor Beans imeanza Dar',
+            'excerpt_en' => 'Coffee points across Downtown and Waterfront — one balance, two shops.',
+            'excerpt_sw' => 'Pointi za kahawa Downtown na Waterfront — salio moja, maduka mawili.',
+            'body_en' => "Harbor Beans joined Loop this week.\n\nEarn on every cup, then redeem a free drink once you hit the offer. Same points at Downtown and Waterfront.",
+            'body_sw' => "Harbor Beans imejiunga na Loop wiki hii.\n\nPata pointi kila kikombe, kisha komboa kinywaji bure unapofikia ofa. Pointi zilezile Downtown na Waterfront.",
+            'country' => 'TZ',
+            'audience' => Article::AUDIENCE_MEMBERS,
+            'published_at' => now()->subHour(),
+        ]);
+
+        Article::query()->create([
+            'user_id' => User::query()->where('role', User::ROLE_ADMIN)->value('id'),
+            'slug' => 'how-loop-offers-work',
+            'title_en' => 'How Loop offers unlock',
+            'title_sw' => 'Ofa za Loop zinavyofunguka',
+            'excerpt_en' => 'Reach the points, then come back another day unless the shop allows same-day redeem.',
+            'excerpt_sw' => 'Fikia pointi, kisha rudi siku nyingine isipokuwa duka linaruhusu kukomboa siku ileile.',
+            'body_en' => "Loop’s default is simple: points you earn today do not unlock an offer until a later day.\n\nThat is how most loyalty programs avoid buying a reward on the same ticket. A shop can turn same-day redeem on in Redeem settings.",
+            'body_sw' => "Chaguo-msingi la Loop ni rahisi: pointi za leo hazifungui ofa hadi siku nyingine.\n\nProgramu nyingi za uaminifu hufanya hivyo ili mtu asinunue ofa kwenye tiketi ileile. Duka linaweza kuwasha kukomboa siku ileile kwenye mipangilio.",
+            'country' => null,
+            'audience' => Article::AUDIENCE_MEMBERS,
+            'published_at' => now()->subDay(),
         ]);
     }
 }

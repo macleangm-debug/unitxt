@@ -69,7 +69,7 @@ class MessagingService
     }
 
     /**
-     * @param  array{audience?: string, shop_ids?: array<int,int>, genders?: array<int,string>, group_ids?: array<int,int>}  $audience
+     * @param  array{audience?: string, shop_ids?: array<int,int>, genders?: array<int,string>, group_ids?: array<int,int>, customer_id?: int, min_points?: int}  $audience
      * @return Collection<int, User>
      */
     public function recipients(Business $business, array $audience): Collection
@@ -112,6 +112,27 @@ class MessagingService
                     ->flatMap(fn (MemberGroup $group) => $group->members->pluck('id'));
                 $query->whereIn('id', $ids);
             }
+        }
+
+        if ($type === 'person') {
+            $query->where('id', (int) ($audience['customer_id'] ?? 0));
+        }
+
+        if ($type === 'points') {
+            $min = max(0, (int) ($audience['min_points'] ?? 0));
+            $ids = Membership::query()
+                ->where('business_id', $business->id)
+                ->where('points_balance', '>=', $min)
+                ->pluck('customer_id');
+            $query->whereIn('id', $ids);
+        }
+
+        if ($type === 'redeemed') {
+            $ids = Membership::query()
+                ->where('business_id', $business->id)
+                ->whereHas('redemptions')
+                ->pluck('customer_id');
+            $query->whereIn('id', $ids);
         }
 
         return $query->get();

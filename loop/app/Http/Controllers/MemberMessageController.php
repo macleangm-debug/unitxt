@@ -131,13 +131,15 @@ class MemberMessageController extends Controller
         $data = $request->validate([
             'sender_id_id' => ['required', 'integer'],
             'body' => ['required', 'string', 'max:480'],
-            'audience' => ['required', 'in:all,shops,gender,groups'],
+            'audience' => ['required', 'in:all,shops,gender,groups,person,points,redeemed'],
             'shop_ids' => ['nullable', 'array'],
             'shop_ids.*' => ['integer'],
             'genders' => ['nullable', 'array'],
             'genders.*' => ['in:male,female'],
             'group_ids' => ['nullable', 'array'],
             'group_ids.*' => ['integer'],
+            'customer_id' => ['required_if:audience,person', 'nullable', 'integer'],
+            'min_points' => ['required_if:audience,points', 'nullable', 'integer', 'min:1'],
             'phone' => ['required', 'string', 'max:20'],
         ]);
 
@@ -149,6 +151,8 @@ class MemberMessageController extends Controller
             'shop_ids' => $data['shop_ids'] ?? [],
             'genders' => $data['genders'] ?? [],
             'group_ids' => $data['group_ids'] ?? [],
+            'customer_id' => $data['customer_id'] ?? null,
+            'min_points' => $data['min_points'] ?? null,
         ];
         $recipients = $messaging->recipients($business, $audience);
         if ($recipients->isEmpty()) {

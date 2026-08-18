@@ -36,6 +36,11 @@
                         <p class="mt-2 text-sm text-white/70">
                             {{ __('loop.across_shops', ['count' => $memberships->count()]) }}
                         </p>
+                        @if ($redeemables->isNotEmpty())
+                            <a href="#ready" class="mt-3 inline-flex items-center gap-2 rounded-full bg-lime px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink">
+                                {{ trans_choice('loop.offer_ready_badge', $redeemables->count(), ['count' => $redeemables->count()]) }}
+                            </a>
+                        @endif
                     </div>
                 </div>
 
@@ -68,6 +73,50 @@
                 <button type="button" class="text-sm font-semibold text-violet" @click="i = i === 0 ? 1 : 0">{{ __('loop.next') }} →</button>
             </div>
         </div>
+    @endif
+
+    @if ($featuredStory ?? null)
+        <section class="mb-10">
+            <x-section-heading
+                :eyebrow="__('loop.stories')"
+                :title="__('loop.stories_title')"
+                :blurb="__('loop.stories_blurb')"
+                :href="route('stories.index')"
+                :link="__('loop.more_stories').' →'"
+                class="mb-5"
+            />
+            <a href="{{ route('stories.show', $featuredStory) }}" class="block overflow-hidden rounded-[1.75rem] border border-white/55 bg-white/75 shadow-[0_12px_40px_rgba(17,17,20,0.06)]">
+                @if ($featuredStory->imageUrl())
+                    <img src="{{ $featuredStory->imageUrl() }}" alt="" class="h-48 w-full object-cover sm:h-56">
+                @else
+                    <span class="flex h-36 w-full items-center justify-center bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 font-display text-5xl font-semibold text-lime">
+                        {{ mb_substr($featuredStory->title(), 0, 1) }}
+                    </span>
+                @endif
+                <span class="block p-5">
+                    <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ $featuredStory->country ? $featuredStory->countryLabel() : __('loop.story_general') }}</span>
+                    <span class="mt-1 block font-display text-2xl font-semibold">{{ $featuredStory->title() }}</span>
+                    <span class="mt-2 block text-sm text-ink-muted">{{ $featuredStory->excerpt() }}</span>
+                </span>
+            </a>
+            @if (($moreStories ?? collect())->isNotEmpty())
+                <div class="mt-3 space-y-2">
+                    @foreach ($moreStories as $story)
+                        <a href="{{ route('stories.show', $story) }}" class="flex items-center gap-3 rounded-[1.25rem] border border-ink/8 bg-white/70 px-3 py-2.5">
+                            @if ($story->imageUrl())
+                                <img src="{{ $story->imageUrl() }}" alt="" class="h-12 w-12 rounded-xl object-cover">
+                            @else
+                                <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-display text-lg font-semibold text-lime">{{ mb_substr($story->title(), 0, 1) }}</span>
+                            @endif
+                            <span class="min-w-0">
+                                <span class="block truncate text-sm font-semibold">{{ $story->title() }}</span>
+                                <span class="block truncate text-xs text-ink-muted">{{ $story->excerpt() }}</span>
+                            </span>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+        </section>
     @endif
 
     {{-- Ready to redeem — only when something is unlocked --}}
@@ -170,25 +219,36 @@
             class="mb-5"
         />
         <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
-            @forelse ($topShops as $business)
-                @php
-                    $cheapest = $business->rewards->first();
-                    $footnote = $cheapest
-                        ? __('loop.from_points', ['points' => $cheapest->points_cost])
-                        : null;
-                    $memberPoints = $memberships->firstWhere('business_id', $business->id)?->points_balance;
-                @endphp
-                <x-discover-tile
-                    :business="$business"
-                    :points="$memberPoints"
-                    :show-points="$memberPoints !== null"
-                    :carousel="true"
-                    :footnote="$footnote"
-                    data-loop-card
-                />
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.explore_nearby') }}</p>
-            @endforelse
+            @if ($topShops->isNotEmpty())
+                @foreach ($topShops as $business)
+                    @php
+                        $cheapest = $business->rewards->first();
+                        $footnote = $cheapest
+                            ? __('loop.from_points', ['points' => $cheapest->points_cost])
+                            : null;
+                        $memberPoints = $memberships->firstWhere('business_id', $business->id)?->points_balance;
+                    @endphp
+                    <x-discover-tile
+                        :business="$business"
+                        :points="$memberPoints"
+                        :show-points="$memberPoints !== null"
+                        :carousel="true"
+                        :footnote="$footnote"
+                        data-loop-card
+                    />
+                @endforeach
+            @else
+                <a href="{{ route('discover') }}" data-loop-card class="group flex w-40 shrink-0 flex-col sm:w-44">
+                    <div class="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-ink/20 bg-white/60 px-3 py-8 shadow-[0_12px_40px_rgba(17,17,20,0.04)]">
+                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-soft text-2xl font-semibold text-violet">+</span>
+                        <span class="mt-3 text-center text-sm font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
+                    </div>
+                </a>
+                <div class="flex max-w-xs flex-col justify-center py-2">
+                    <p class="font-semibold">{{ __('loop.redeem_places_empty_title') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_places_empty') }}</p>
+                </div>
+            @endif
         </div>
     </section>
 

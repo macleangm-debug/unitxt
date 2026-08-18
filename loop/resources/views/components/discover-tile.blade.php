@@ -36,18 +36,17 @@
                 @if ($business->logoUrl())
                     <img src="{{ $business->logoUrl() }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" draggable="false">
                 @else
-                    <span class="flex h-full w-full flex-col justify-between bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 p-4">
+                    <span class="flex h-full w-full flex-col justify-start bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 p-4">
                         <span class="font-display text-3xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
-                        <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">{{ $sectorLabel }}</span>
                     </span>
                 @endif
             </span>
             @if ($showPoints && $points !== null)
-                <div class="absolute bottom-3 left-3 z-[1] rounded-xl bg-lime px-2.5 py-1 text-xs font-semibold text-ink">
+                <div class="absolute right-3 top-3 z-[1] rounded-xl bg-lime px-2.5 py-1 text-xs font-semibold text-ink">
                     {{ number_format($points) }} pts
                 </div>
             @elseif ($branchCount > 1)
-                <div class="absolute bottom-3 left-3 z-[1] rounded-xl bg-ink/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                <div class="absolute right-3 top-3 z-[1] rounded-xl bg-ink/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
                     {{ $branchCount }} {{ __('loop.branches') }}
                 </div>
             @endif

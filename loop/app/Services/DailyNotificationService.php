@@ -192,7 +192,13 @@ class DailyNotificationService
         }
 
         $day = ($day ?? now())->copy()->startOfDay();
-        $membership = Membership::query()->with('business')->where('customer_id', $customer->id)->latest('id')->first();
+        $memberships = Membership::query()
+            ->with([
+                'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            ])
+            ->where('customer_id', $customer->id)
+            ->get();
+        $membership = $memberships->sortByDesc('id')->first();
         $business = $membership?->business;
         $created = 0;
 
@@ -201,7 +207,7 @@ class DailyNotificationService
             'body_key' => 'loop.notif_member_hello_body',
             'params' => [
                 'name' => $customer->first_name ?: $customer->name,
-                'points' => (int) ($membership?->points_balance ?? 0),
+                'points' => (int) $memberships->sum('points_balance'),
             ],
             'cta_key' => 'loop.discover',
             'url' => route('discover'),
@@ -210,15 +216,41 @@ class DailyNotificationService
             'audience' => 'customer',
         ]);
 
-        $created += $this->push($customer, $business, 'member_offers', 'offers', $day, [
-            'title_key' => 'loop.notif_member_offers_title',
-            'body_key' => 'loop.notif_member_offers_body',
-            'cta_key' => 'loop.wallets',
-            'url' => route('memberships.index'),
-            'tone' => 'violet',
-            'when' => true,
-            'audience' => 'customer',
-        ]);
+        $ready = null;
+        foreach ($memberships as $row) {
+            $reward = $row->nearestReadyReward();
+            if ($reward) {
+                $ready = [$row, $reward];
+                break;
+            }
+        }
+
+        if ($ready) {
+            [$readyMembership, $reward] = $ready;
+            $created += $this->push($customer, $readyMembership->business, 'member_redeem_ready', 'redeem_'.$readyMembership->business_id.'_'.$reward->id, $day, [
+                'title_key' => 'loop.notif_member_redeem_title',
+                'body_key' => 'loop.notif_member_redeem_body',
+                'params' => [
+                    'shop' => $readyMembership->business->name,
+                    'offer' => $reward->name,
+                ],
+                'cta_key' => 'loop.see_rewards',
+                'url' => route('memberships.show', $readyMembership->business),
+                'tone' => 'mint',
+                'when' => true,
+                'audience' => 'customer',
+            ]);
+        } else {
+            $created += $this->push($customer, $business, 'member_offers', 'offers', $day, [
+                'title_key' => 'loop.notif_member_offers_title',
+                'body_key' => 'loop.notif_member_offers_body',
+                'cta_key' => 'loop.wallets',
+                'url' => route('memberships.index'),
+                'tone' => 'violet',
+                'when' => true,
+                'audience' => 'customer',
+            ]);
+        }
 
         return $created;
     }

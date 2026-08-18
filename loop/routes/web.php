@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AffiliateController as AdminAffiliateController;
+use App\Http\Controllers\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Admin\BusinessController as AdminBusinessController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\InsightController as AdminInsightController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\RewardController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\StoryController;
 use App\Http\Controllers\TillController;
 use App\Http\Controllers\TransactionController;
 use App\Models\Plan;
@@ -100,6 +102,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::get('/stories', [StoryController::class, 'index'])->name('stories.index');
+    Route::get('/stories/{article:slug}', [StoryController::class, 'show'])->name('stories.show');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
@@ -113,6 +117,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/referrals/program', [AdminReferralProgramController::class, 'update'])->name('referrals.program.update');
         Route::post('/referrals/{referral}/qualify', [AdminReferralController::class, 'qualify'])->name('referrals.qualify');
         Route::post('/referrals/{referral}/reward', [AdminReferralController::class, 'reward'])->name('referrals.reward');
+        Route::get('/articles', [AdminArticleController::class, 'index'])->name('articles.index');
+        Route::get('/articles/create', [AdminArticleController::class, 'create'])->name('articles.create');
+        Route::post('/articles', [AdminArticleController::class, 'store'])->name('articles.store');
+        Route::get('/articles/{article}/edit', [AdminArticleController::class, 'edit'])->name('articles.edit');
+        Route::put('/articles/{article}', [AdminArticleController::class, 'update'])->name('articles.update');
+        Route::delete('/articles/{article}', [AdminArticleController::class, 'destroy'])->name('articles.destroy');
         Route::get('/affiliates', [AdminAffiliateController::class, 'index'])->name('affiliates.index');
         Route::put('/affiliates/settings', [AdminAffiliateController::class, 'updateSettings'])->name('affiliates.settings');
         Route::get('/affiliates/{affiliate}', [AdminAffiliateController::class, 'show'])->name('affiliates.show');

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -126,6 +127,40 @@ class Membership extends Model
             ->filter(fn (Reward $reward) => $reward->points_cost <= $balance)
             ->sortBy('points_cost')
             ->first();
+    }
+
+    /**
+     * One row per visit (net points) so members do not see every earn fragment.
+     *
+     * @return Collection<int, object{points: int, created_at: \Illuminate\Support\Carbon, visit_id: int|null, type: string}>
+     */
+    public function groupedActivity(int $limit = 20): Collection
+    {
+        $rows = $this->pointTransactions()->latest('id')->limit(80)->get();
+        $grouped = [];
+        $order = [];
+
+        foreach ($rows as $tx) {
+            $key = $tx->visit_id ? 'v:'.$tx->visit_id : 't:'.$tx->id;
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'points' => 0,
+                    'created_at' => $tx->created_at,
+                    'type' => $tx->type,
+                    'visit_id' => $tx->visit_id,
+                ];
+                $order[] = $key;
+            }
+            $grouped[$key]['points'] += (int) $tx->points;
+            if ($tx->type === PointTransaction::TYPE_REDEEM) {
+                $grouped[$key]['type'] = PointTransaction::TYPE_REDEEM;
+            }
+        }
+
+        return collect($order)
+            ->map(fn (string $key) => (object) $grouped[$key])
+            ->take($limit)
+            ->values();
     }
 
     public function progressTo(?Reward $reward): array

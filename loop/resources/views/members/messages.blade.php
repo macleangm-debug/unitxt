@@ -52,6 +52,9 @@
                                 <input type="radio" name="audience" value="all" class="sr-only" x-model="audience" checked> {{ __('loop.all_members') }}
                             </label>
                             <label class="rounded-xl border border-ink/10 px-3 py-2 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" name="audience" value="person" class="sr-only" x-model="audience"> {{ __('loop.by_person') }}
+                            </label>
+                            <label class="rounded-xl border border-ink/10 px-3 py-2 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
                                 <input type="radio" name="audience" value="gender" class="sr-only" x-model="audience"> {{ __('loop.by_gender') }}
                             </label>
                             <label class="rounded-xl border border-ink/10 px-3 py-2 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
@@ -60,7 +63,22 @@
                             <label class="rounded-xl border border-ink/10 px-3 py-2 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
                                 <input type="radio" name="audience" value="groups" class="sr-only" x-model="audience"> {{ __('loop.by_group') }}
                             </label>
+                            <label class="rounded-xl border border-ink/10 px-3 py-2 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" name="audience" value="points" class="sr-only" x-model="audience"> {{ __('loop.by_points') }}
+                            </label>
+                            <label class="rounded-xl border border-ink/10 px-3 py-2 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                                <input type="radio" name="audience" value="redeemed" class="sr-only" x-model="audience"> {{ __('loop.by_redeemed') }}
+                            </label>
                         </div>
+                    </div>
+                    <div x-show="audience === 'person'" x-cloak>
+                        <label class="loop-label">{{ __('loop.pick_member') }}</label>
+                        <select name="customer_id" class="loop-input">
+                            <option value="">{{ __('loop.pick_option') }}</option>
+                            @foreach ($members as $member)
+                                <option value="{{ $member->id }}">{{ $member->name }} · {{ $member->phone }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div x-show="audience === 'gender'" x-cloak class="flex gap-3">
                         <label class="text-sm"><input type="checkbox" name="genders[]" value="male"> {{ __('loop.gender_male') }}</label>
@@ -77,6 +95,10 @@
                         @empty
                             <p class="text-sm text-ink-muted">{{ __('loop.no_groups_yet') }}</p>
                         @endforelse
+                    </div>
+                    <div x-show="audience === 'points'" x-cloak>
+                        <label class="loop-label">{{ __('loop.min_points') }}</label>
+                        <input type="number" name="min_points" min="1" value="{{ old('min_points', 100) }}" class="loop-input">
                     </div>
                     <div>
                         <label class="loop-label">{{ __('loop.message') }}</label>

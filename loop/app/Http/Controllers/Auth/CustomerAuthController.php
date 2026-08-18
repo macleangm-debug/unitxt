@@ -100,7 +100,7 @@ class CustomerAuthController extends Controller
         $request->session()->forget('customer_auth');
         $request->session()->regenerate();
 
-        return redirect()->route($user->profile_completed ? 'dashboard' : 'customer.complete');
+        return redirect()->route($user->profile_completed ? 'dashboard' : 'customer.register');
     }
 
     public function registerForm(Request $request): View|RedirectResponse

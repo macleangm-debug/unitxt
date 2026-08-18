@@ -1,0 +1,105 @@
+@php
+    $editing = $article->exists;
+@endphp
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('admin.articles.index')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin_articles') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ $editing ? __('loop.edit_article') : __('loop.new_article') }}</h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.article_language_help') }}</p>
+            </div>
+        </div>
+    </x-slot>
+
+    @include('admin.partials.nav')
+
+    <form
+        method="POST"
+        action="{{ $editing ? route('admin.articles.update', $article) : route('admin.articles.store') }}"
+        enctype="multipart/form-data"
+        class="loop-panel space-y-6 p-6"
+    >
+        @csrf
+        @if ($editing)
+            @method('PUT')
+        @endif
+
+        <div class="grid gap-6 lg:grid-cols-2">
+            <div class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">English</p>
+                <div>
+                    <label class="loop-label">{{ __('loop.article_title_en') }}</label>
+                    <input name="title_en" value="{{ old('title_en', $article->title_en) }}" class="loop-input">
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.article_excerpt_en') }}</label>
+                    <textarea name="excerpt_en" rows="2" class="loop-input">{{ old('excerpt_en', $article->excerpt_en) }}</textarea>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.article_body_en') }}</label>
+                    <textarea name="body_en" rows="10" class="loop-input">{{ old('body_en', $article->body_en) }}</textarea>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">Kiswahili</p>
+                <div>
+                    <label class="loop-label">{{ __('loop.article_title_sw') }}</label>
+                    <input name="title_sw" value="{{ old('title_sw', $article->title_sw) }}" class="loop-input">
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.article_excerpt_sw') }}</label>
+                    <textarea name="excerpt_sw" rows="2" class="loop-input">{{ old('excerpt_sw', $article->excerpt_sw) }}</textarea>
+                </div>
+                <div>
+                    <label class="loop-label">{{ __('loop.article_body_sw') }}</label>
+                    <textarea name="body_sw" rows="10" class="loop-input">{{ old('body_sw', $article->body_sw) }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+                <label class="loop-label">{{ __('loop.article_country') }}</label>
+                <select name="country" class="loop-input">
+                    <option value="">{{ __('loop.all_countries') }}</option>
+                    @foreach ($countries as $code => $meta)
+                        <option value="{{ $code }}" @selected(old('country', $article->country) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="loop-label">{{ __('loop.article_image') }}</label>
+                <input type="file" name="image" accept="image/*" class="loop-input">
+                @if ($article->imageUrl())
+                    <img src="{{ $article->imageUrl() }}" alt="" class="mt-3 h-28 w-full rounded-2xl object-cover">
+                @endif
+            </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-sm font-semibold">
+            <input type="checkbox" name="published" value="1" @checked(old('published', $article->isPublished()))>
+            {{ __('loop.article_publish') }}
+        </label>
+
+        <div class="flex flex-wrap gap-3">
+            <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+            @if ($editing)
+                <button
+                    type="submit"
+                    form="article-delete"
+                    class="loop-btn-ghost text-coral"
+                    onclick="return confirm(@js(__('loop.article_delete_confirm')))"
+                >{{ __('loop.delete') }}</button>
+            @endif
+        </div>
+    </form>
+
+    @if ($editing)
+        <form id="article-delete" method="POST" action="{{ route('admin.articles.destroy', $article) }}" class="hidden">
+            @csrf
+            @method('DELETE')
+        </form>
+    @endif
+</x-app-layout>

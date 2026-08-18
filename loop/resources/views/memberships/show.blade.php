@@ -207,15 +207,14 @@
 
             <div class="overflow-hidden rounded-[1.6rem] border border-ink/8 bg-white/75 shadow-[0_12px_36px_rgba(17,17,20,0.04)] backdrop-blur-xl">
                 @forelse ($transactions as $tx)
+                    @php
+                        $label = $tx->points >= 0
+                            ? ($tx->visit_id ? __('loop.points_visit_earned') : __('loop.points_earned_private'))
+                            : ($tx->visit_id ? __('loop.points_visit_spent') : __('loop.points_spent_private'));
+                    @endphp
                     <div class="flex items-center justify-between gap-3 border-b border-ink/5 px-5 py-4 last:border-b-0">
                         <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-ink">
-                                @if ($customersSeeSales)
-                                    {{ $tx->description }}
-                                @else
-                                    {{ $tx->points >= 0 ? __('loop.points_earned_private') : __('loop.points_spent_private') }}
-                                @endif
-                            </p>
+                            <p class="truncate text-sm font-semibold text-ink">{{ $label }}</p>
                             <p class="mt-0.5 text-xs text-ink-muted">{{ $tx->created_at->diffForHumans() }}</p>
                         </div>
                         <span class="shrink-0 font-display text-xl font-semibold {{ $tx->points >= 0 ? 'text-violet' : 'text-coral' }}">

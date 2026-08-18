@@ -1598,4 +1598,113 @@ Alpine.data('memberMessageWizard', (cfg = {}) => ({
     memberCount: cfg.memberCount || 0,
 }));
 
+Alpine.data('memberRegisterWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    persistKey: 'loop.memberRegister',
+    init() {
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        if (cfg.force) {
+            this.step = cfg.step ?? 1;
+        } else {
+            if (saved && saved.step) {
+                this.step = saved.step;
+            }
+            if (urlStep >= 1 && urlStep <= 3) {
+                this.step = urlStep;
+            }
+        }
+        this.syncUrl();
+        this.persist();
+    },
+    persist() {
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({ step: this.step }));
+        } catch (e) {}
+    },
+    syncUrl() {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
+    totalSteps() {
+        return 3;
+    },
+    go(n) {
+        this.step = Math.max(1, Math.min(3, parseInt(n, 10) || 1));
+        this.syncUrl();
+        this.persist();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(Math.min(3, this.step + 1));
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        const fields = root.querySelectorAll('input, select, textarea');
+        for (const el of fields) {
+            if (typeof el.reportValidity === 'function' && !el.reportValidity()) {
+                el.focus();
+                return false;
+            }
+        }
+        if (stepNum === 3) {
+            const pin = form.querySelector('[name="pin"]');
+            const confirm = form.querySelector('[name="pin_confirmation"]');
+            if (pin && confirm && pin.value !== confirm.value) {
+                confirm.setCustomValidity(confirm.validationMessage || 'PIN');
+                confirm.reportValidity();
+                confirm.setCustomValidity('');
+                return false;
+            }
+        }
+        return true;
+    },
+    submitForm(event) {
+        if (this.step !== 3) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        if (!this.validateStep(3)) {
+            event.preventDefault();
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+    },
+}));
+
 Alpine.start();
