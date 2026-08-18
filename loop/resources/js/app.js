@@ -635,15 +635,15 @@ Alpine.data('loopParallaxCarousel', () => ({
         window.addEventListener('resize', this._onScroll, { passive: true });
 
         this._onWheel = (event) => {
-            const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
-            if (! horizontal && Math.abs(event.deltaY) < 2) {
+            const primarilyHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
+            if (! primarilyHorizontal) {
                 return;
             }
-            if (! horizontal && this.$el.scrollWidth <= this.$el.clientWidth + 4) {
+            if (this.$el.scrollWidth <= this.$el.clientWidth + 4) {
                 return;
             }
             event.preventDefault();
-            const delta = horizontal ? event.deltaX || event.deltaY : event.deltaY;
+            const delta = event.deltaX || event.deltaY;
             this._target = Math.max(
                 0,
                 Math.min(this.$el.scrollWidth - this.$el.clientWidth, this._target + delta * 0.35)

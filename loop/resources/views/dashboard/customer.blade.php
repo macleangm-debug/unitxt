@@ -218,8 +218,8 @@
             :link="__('loop.explore').' →'"
             class="mb-5"
         />
-        <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
-            @if ($topShops->isNotEmpty())
+        @if ($topShops->isNotEmpty())
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
                 @foreach ($topShops as $business)
                     @php
                         $cheapest = $business->rewards->first();
@@ -237,8 +237,10 @@
                         data-loop-card
                     />
                 @endforeach
-            @else
-                <a href="{{ route('discover') }}" data-loop-card class="group flex w-40 shrink-0 flex-col sm:w-44">
+            </div>
+        @else
+            <div class="flex items-stretch gap-4">
+                <a href="{{ route('discover') }}" class="group flex w-40 shrink-0 flex-col sm:w-44">
                     <div class="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-ink/20 bg-white/60 px-3 py-8 shadow-[0_12px_40px_rgba(17,17,20,0.04)]">
                         <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-soft text-2xl font-semibold text-violet">+</span>
                         <span class="mt-3 text-center text-sm font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
@@ -248,8 +250,8 @@
                     <p class="font-semibold">{{ __('loop.redeem_places_empty_title') }}</p>
                     <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_places_empty') }}</p>
                 </div>
-            @endif
-        </div>
+            </div>
+        @endif
     </section>
 
     @if ($otherShops->isNotEmpty())
