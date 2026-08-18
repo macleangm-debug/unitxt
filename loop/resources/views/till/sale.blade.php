@@ -41,10 +41,11 @@
             <div
                 x-show="open && step === 1"
                 x-cloak
-                class="fixed inset-0 z-[80] flex items-center justify-center px-4"
+                class="fixed inset-0 z-[80] flex items-end justify-center sm:static sm:z-auto sm:block sm:items-stretch"
             >
-                <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm"></div>
-                <div class="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
+                <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm sm:hidden"></div>
+                <div class="relative w-full max-w-md rounded-t-[2rem] bg-white p-8 text-center shadow-2xl sm:max-w-none sm:rounded-[2rem] sm:border sm:border-ink/10 sm:shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
+                    <div class="mx-auto mb-1 h-1.5 w-12 rounded-full bg-ink/15 sm:hidden"></div>
                     <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
                     <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
                     <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
@@ -84,14 +85,12 @@
                             :label="__('loop.month')"
                             :options="collect(range(1,12))->mapWithKeys(fn ($m) => [$m => $m])->all()"
                             :value="old('birth_month', '')"
-                            :placeholder="__('loop.month')"
                         />
                         <x-sheet-select
                             name="birth_day"
                             :label="__('loop.day')"
                             :options="collect(range(1,31))->mapWithKeys(fn ($d) => [$d => $d])->all()"
                             :value="old('birth_day', '')"
-                            :placeholder="__('loop.day')"
                         />
                     </div>
                     <div>

@@ -139,6 +139,46 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
+    public function test_till_new_member_birthday_fields_do_not_repeat_labels_or_use_a_web_sheet(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999002',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555777',
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.ticket'));
+
+        $html = $this->actingAs($staff)
+            ->get(route('till.ticket'))
+            ->assertOk()
+            ->assertSee(__('loop.month'), false)
+            ->assertSee(__('loop.day'), false)
+            ->assertSee(__('loop.pick_option'), false)
+            ->assertSee('sm:hidden', false)
+            ->assertSee('sm:flex', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            'placeholder="'.e(__('loop.month')).'"',
+            $html
+        );
+        $this->assertStringNotContainsString(
+            'placeholder="'.e(__('loop.day')).'"',
+            $html
+        );
+        $this->assertStringContainsString('fixed inset-0 z-[90] sm:hidden', $html);
+        $this->assertStringContainsString('hidden max-h-72 w-full flex-col overflow-hidden rounded-2xl', $html);
+    }
+
     public function test_standalone_redeem_does_not_require_a_sale(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();
