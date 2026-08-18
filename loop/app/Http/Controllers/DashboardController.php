@@ -106,7 +106,7 @@ class DashboardController extends Controller
         $redeemables = $memberships
             ->flatMap(function (Membership $membership) {
                 return $membership->business->rewards
-                    ->filter(fn ($reward) => $reward->points_cost <= $membership->points_balance)
+                    ->filter(fn ($reward) => $reward->points_cost <= $membership->redeemablePoints())
                     ->map(fn ($reward) => [
                         'membership' => $membership,
                         'business' => $membership->business,

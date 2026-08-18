@@ -34,6 +34,7 @@
             step: {{ (int) $initialStep }},
             total: 4,
             hasPick: false,
+            persistKey: @js('loop.offerWizard.edit.'.$reward->id),
             type: @js($defaultType),
             typeLabel: @js(__('loop.'.$defaultType)),
             name: @js(old('name', $reward->name)),
@@ -41,9 +42,11 @@
             valueDisplay: @js($valueSeed),
             product: @js(old('product_name', $reward->product_name)),
             productPlaceholder: @js(__('loop.tie_to_product_placeholder')),
+            productRequired: @js(__('loop.product_required_free_item')),
             valueRequired: @js(__('loop.offer_value_required')),
             pointsRequired: @js(__('loop.offer_points_required')),
         })"
+        x-effect="persist()"
     >
         <x-form-stepper :steps="$editSteps" />
 
@@ -94,8 +97,8 @@
                     <input type="text" inputmode="numeric" class="loop-input" x-model="valueDisplay" data-value-input @input="formatValue()" :required="step === 2 && type === 'fixed_off'">
                 </div>
                 <div x-show="type === 'free_item' || type === 'custom'" x-cloak>
-                    <label class="loop-label">{{ __('loop.tie_to_product_optional') }}</label>
-                    <input name="product_name" class="loop-input" x-model="product" :placeholder="productPlaceholder">
+                    <label class="loop-label">{{ __('loop.tie_to_product') }}</label>
+                    <input name="product_name" class="loop-input" x-model="product" :placeholder="productPlaceholder" :required="step === 2 && type === 'free_item'">
                 </div>
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click="go(1)">{{ __('loop.back') }}</button>
@@ -109,11 +112,15 @@
                 <input type="number" name="points_cost" x-model.number="points" class="loop-input" min="1" :required="step === 3">
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
-                    <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="button" class="loop-btn-mint flex-1" x-show="type !== 'free_item'" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="submit" class="loop-btn-mint flex-1" x-show="type === 'free_item'" x-cloak :disabled="saving" :class="{ 'opacity-70': saving }">
+                        <span x-show="!saving">{{ __('loop.save') }}</span>
+                        <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                    </button>
                 </div>
             </div>
 
-            <div data-step="4" x-show="step === 4" x-cloak class="space-y-4">
+            <div data-step="4" x-show="step === 4 && type !== 'free_item'" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">4 · {{ __('loop.section_limits') }}</p>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>

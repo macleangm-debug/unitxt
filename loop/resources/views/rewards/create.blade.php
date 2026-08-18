@@ -58,6 +58,7 @@
             step: {{ (int) $initialStep }},
             total: 5,
             hasPick: true,
+            persistKey: 'loop.offerWizard.create',"
             type: @js($queryType),
             typeLabel: @js($starterLabel),
             name: @js($defaultName),
@@ -69,6 +70,7 @@
             valuePlaceholder: @js($valuePlaceholder),
             product: @js($defaultProduct),
             productPlaceholder: @js(__('loop.tie_to_product_placeholder')),
+            productRequired: @js(__('loop.product_required_free_item')),
             spendPerPoint: {{ (float) $spendPerPoint }},
             currency: @js($business->currency),
             businessName: @js($biz),
@@ -76,6 +78,7 @@
             valueRequired: @js(__('loop.offer_value_required')),
             pointsRequired: @js(__('loop.offer_points_required')),
         })"
+        x-effect="persist()"
     >
         <x-form-stepper :steps="$offerSteps" />
 
@@ -188,9 +191,9 @@
                 </div>
 
                 <div x-show="type === 'free_item' || type === 'custom'" x-cloak>
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.tie_to_product_optional') }}</h2>
-                    <p class="text-sm text-ink-muted">{{ __('loop.tie_to_product_hint') }}</p>
-                    <input name="product_name" class="loop-input" x-model="product" :placeholder="productPlaceholder">
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.tie_to_product') }}</h2>
+                    <p class="text-sm text-ink-muted">{{ __('loop.tie_to_product_required_hint') }}</p>
+                    <input name="product_name" class="loop-input" x-model="product" :placeholder="productPlaceholder" :required="step === 3 && type === 'free_item'">
                 </div>
 
                 <div class="flex gap-3">
@@ -212,12 +215,16 @@
                 </p>
                 <div class="flex gap-3">
                     <button type="button" class="loop-btn-ghost flex-1" @click="go(3)">{{ __('loop.back') }}</button>
-                    <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="button" class="loop-btn-mint flex-1" x-show="type !== 'free_item'" @click="next()">{{ __('loop.continue') }}</button>
+                    <button type="submit" class="loop-btn-mint flex-1" x-show="type === 'free_item'" x-cloak :disabled="saving" :class="{ 'opacity-70': saving }">
+                        <span x-show="!saving">{{ __('loop.confirm_launch_offer') }}</span>
+                        <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                    </button>
                 </div>
             </div>
 
-            {{-- 5 · Limits --}}
-            <div data-step="5" x-show="step === 5" x-cloak class="space-y-4">
+            {{-- 5 · Limits (not used for free-item offers) --}}
+            <div data-step="5" x-show="step === 5 && type !== 'free_item'" x-cloak class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">5 · {{ __('loop.section_limits') }}</p>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.section_limits') }}</h2>
                 <p class="text-sm text-ink-muted">{{ __('loop.limits_optional_hint') }}</p>

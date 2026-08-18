@@ -29,6 +29,31 @@
         </div>
     @endif
 
+    @if ($shopCount < 1)
+        <div class="loop-panel mx-auto max-w-xl p-6">
+            <p class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm">{{ __('loop.till_needs_shop') }}</p>
+        </div>
+    @elseif (! empty($needsBranchPick))
+        <div class="loop-panel mx-auto max-w-xl space-y-3 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
+            <div>
+                <p class="loop-label">{{ __('loop.choose_branch') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.choose_branch_first_blurb') }}</p>
+            </div>
+            @foreach ($shops as $shop)
+                <form method="POST" action="{{ route('till.branch') }}">
+                    @csrf
+                    <input type="hidden" name="shop_id" value="{{ $shop->id }}">
+                    @if (! empty($scanQuery))
+                        <input type="hidden" name="scan" value="{{ $scanQuery }}">
+                    @endif
+                    <button type="submit" class="flex w-full items-center justify-between rounded-2xl border border-ink/10 bg-white px-4 py-4 text-left hover:border-mint">
+                        <span class="font-semibold">{{ $shop->name }}</span>
+                        <span class="text-sm text-ink-muted">{{ $shop->city }}</span>
+                    </button>
+                </form>
+            @endforeach
+        </div>
+    @else
     <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
         @csrf
         @if ($errors->any())
@@ -36,18 +61,16 @@
                 {{ $errors->first() }}
             </div>
         @endif
-        @if ($shopCount < 1)
-            <p class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm">{{ __('loop.till_needs_shop') }}</p>
-        @else
-            <x-sheet-select
-                name="shop_id"
-                :label="__('loop.shop')"
-                :options="$shops->mapWithKeys(fn ($s) => [$s->id => $s->name])->all()"
-                :value="old('shop_id')"
-                :required="true"
-                :placeholder="__('loop.choose_branch')"
-            />
-        @endif
+            <input type="hidden" name="shop_id" value="{{ $activeShop->id }}">
+            <div class="flex items-center justify-between rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.selling_at') }}</p>
+                    <p class="font-semibold">{{ $activeShop->name }}</p>
+                </div>
+                @if ($shopCount > 1)
+                    <a href="{{ route('till.index', array_filter(['change' => 1, 'scan' => $scanQuery ?? null])) }}" class="text-sm font-semibold text-violet">{{ __('loop.change_branch') }}</a>
+                @endif
+            </div>
 
         <div>
             <label class="loop-label">{{ __('loop.channel') }}</label>
@@ -112,6 +135,7 @@
         </div>
         <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
     </form>
+    @endif
 
     @if ($hasRecent)
         <section class="mx-auto mt-10 max-w-xl">

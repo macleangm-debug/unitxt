@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
     'pay_spend_step',
     'pay_points_per_step',
     'pay_points_max_percent',
+    'allow_same_day_earn_redeem',
     'onboarding_completed_at',
     'plan_key',
     'referral_code',
@@ -50,6 +51,7 @@ class Business extends Model
         return [
             'is_active' => 'boolean',
             'allow_pay_with_points' => 'boolean',
+            'allow_same_day_earn_redeem' => 'boolean',
             'pay_spend_step' => 'integer',
             'pay_points_per_step' => 'integer',
             'pay_points_max_percent' => 'integer',

@@ -842,6 +842,7 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
     spendRequired: cfg.spendRequired ?? '',
     pointsRequired: cfg.pointsRequired ?? '',
     bonusRequired: cfg.bonusRequired ?? '',
+    persistKey: cfg.persistKey ?? 'loop.campaignWizard',
     saving: false,
     isEarn() {
         return this.type === 'earn';
@@ -909,8 +910,50 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
         this.fromTemplate = false;
         this.pickedLabel = '';
     },
+    init() {
+        if (!this.persistKey) {
+            return;
+        }
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        if (saved && typeof saved === 'object') {
+            if (saved.step) this.step = saved.step;
+            if (saved.type) this.type = saved.type;
+            if (saved.templateKey) this.templateKey = saved.templateKey;
+        }
+        if (urlStep >= 1) this.step = urlStep;
+        this.syncCampaignUrl();
+        this.persistCampaign();
+    },
+    persistCampaign() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                type: this.type,
+                templateKey: this.templateKey,
+            }));
+        } catch (e) {}
+    },
+    syncCampaignUrl() {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
     go(n) {
         this.step = n;
+        this.syncCampaignUrl();
+        this.persistCampaign();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     fail(stepNum, el, message) {
@@ -1068,6 +1111,9 @@ Alpine.data('campaignWizard', (cfg = {}) => ({
                 return;
             }
         }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
         this.saving = true;
     },
     formatSpend() {
@@ -1083,6 +1129,7 @@ Alpine.data('offerWizard', (cfg = {}) => ({
     step: cfg.step ?? 1,
     total: cfg.total ?? 5,
     hasPick: cfg.hasPick ?? false,
+    persistKey: cfg.persistKey ?? '',
     type: cfg.type ?? '',
     typeLabel: cfg.typeLabel ?? '',
     name: cfg.name ?? '',
@@ -1094,6 +1141,7 @@ Alpine.data('offerWizard', (cfg = {}) => ({
     valuePlaceholder: cfg.valuePlaceholder ?? '',
     product: cfg.product ?? '',
     productPlaceholder: cfg.productPlaceholder ?? '',
+    productRequired: cfg.productRequired ?? '',
     spendPerPoint: cfg.spendPerPoint ?? 0,
     currency: cfg.currency ?? '',
     businessName: cfg.businessName ?? '',
@@ -1101,6 +1149,70 @@ Alpine.data('offerWizard', (cfg = {}) => ({
     valueRequired: cfg.valueRequired ?? '',
     pointsRequired: cfg.pointsRequired ?? '',
     saving: false,
+    init() {
+        if (!this.persistKey) {
+            return;
+        }
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        const urlType = params.get('reward_type') || '';
+        if (saved && typeof saved === 'object') {
+            if (saved.type) this.type = saved.type;
+            if (saved.typeLabel) this.typeLabel = saved.typeLabel;
+            if (saved.name) this.name = saved.name;
+            if (saved.points != null) this.points = saved.points;
+            if (saved.valueDisplay) this.valueDisplay = saved.valueDisplay;
+            if (saved.product) this.product = saved.product;
+            if (saved.step) this.step = saved.step;
+        }
+        if (urlType) this.type = urlType;
+        if (urlStep >= 1) this.step = urlStep;
+        this.step = Math.max(1, Math.min(this.step, this.totalSteps()));
+        this.syncUrl();
+        this.persist();
+    },
+    persist() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                type: this.type,
+                typeLabel: this.typeLabel,
+                name: this.name,
+                points: this.points,
+                valueDisplay: this.valueDisplay,
+                product: this.product,
+            }));
+        } catch (e) {}
+    },
+    clearPersist() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+    },
+    isFreeItem() {
+        return this.type === 'free_item';
+    },
+    hideLimits(n) {
+        return this.isFreeItem() && Number(n) === this.limitsStep();
+    },
+    limitsStep() {
+        return this.hasPick ? 5 : 4;
+    },
+    totalSteps() {
+        return this.isFreeItem() ? this.costStep() : (this.hasPick ? 5 : 4);
+    },
     nameStep() {
         return this.hasPick ? 2 : 1;
     },
@@ -1125,9 +1237,22 @@ Alpine.data('offerWizard', (cfg = {}) => ({
             const raw = String(starter.reward_value || '');
             this.valuePlaceholder = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : this.valuePlaceholder;
         }
+        this.persist();
+    },
+    syncUrl() {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            if (this.type) {
+                url.searchParams.set('reward_type', this.type);
+            }
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
     },
     go(n) {
         this.step = n;
+        this.syncUrl();
+        this.persist();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     fail(stepNum, el, message) {
@@ -1176,6 +1301,12 @@ Alpine.data('offerWizard', (cfg = {}) => ({
                 return this.fail(stepNum, el, this.valueRequired);
             }
         }
+        if (stepNum === this.rewardStep() && this.isFreeItem()) {
+            const el = root.querySelector('[name="product_name"]');
+            if (!el || !String(this.product || el.value || '').trim()) {
+                return this.fail(stepNum, el, this.productRequired);
+            }
+        }
         if (stepNum === this.costStep()) {
             const el = root.querySelector('[name="points_cost"]');
             const pts = parseInt(this.points, 10);
@@ -1189,7 +1320,7 @@ Alpine.data('offerWizard', (cfg = {}) => ({
         if (!this.validateStep(this.step)) {
             return;
         }
-        this.go(Math.min(this.total, this.step + 1));
+        this.go(Math.min(this.totalSteps(), this.step + 1));
     },
     goTo(n) {
         n = parseInt(n, 10);
@@ -1210,17 +1341,18 @@ Alpine.data('offerWizard', (cfg = {}) => ({
             event.preventDefault();
             return;
         }
-        if (this.step !== this.total) {
+        if (this.step !== this.totalSteps()) {
             event.preventDefault();
             this.next();
             return;
         }
-        for (let s = 1; s <= this.total; s++) {
+        for (let s = 1; s <= this.totalSteps(); s++) {
             if (!this.validateStep(s)) {
                 event.preventDefault();
                 return;
             }
         }
+        this.clearPersist();
         this.saving = true;
     },
     formatValue() {

@@ -344,8 +344,12 @@ class TillService
         }
 
         $membershipFresh = Membership::query()->lockForUpdate()->findOrFail($membership->id);
-        if ($membershipFresh->points_balance < $reward->points_cost) {
-            throw ValidationException::withMessages(['reward_id' => 'Customer does not have enough points yet.']);
+        if ($membershipFresh->redeemablePoints() < $reward->points_cost) {
+            throw ValidationException::withMessages([
+                'reward_id' => $membershipFresh->points_balance >= $reward->points_cost
+                    ? __('loop.same_day_earn_redeem_blocked')
+                    : 'Customer does not have enough points yet.',
+            ]);
         }
 
         if ($reward->max_redemptions_per_member) {

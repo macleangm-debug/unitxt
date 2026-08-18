@@ -32,6 +32,7 @@
             step: {{ (int) $initialStep }},
             total: 3,
             skipBonuses: true,
+            persistKey: @js('loop.campaignWizard.edit.'.$campaign->id),
             type: @js(old('type', $campaign->type)),
             spendDisplay: @js($spendDisplayInit),
             pointsPerStep: {{ $pointsInit }},
@@ -43,6 +44,7 @@
             pointsRequired: @js(__('loop.campaign_points_required')),
             bonusRequired: @js(__('loop.campaign_bonus_required')),
         })"
+        x-effect="persistCampaign()"
     >
         <x-form-stepper :steps="$editSteps" />
 

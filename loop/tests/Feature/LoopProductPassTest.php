@@ -25,7 +25,9 @@ class LoopProductPassTest extends TestCase
             ->assertOk()
             ->assertSee($business->currency, false)
             ->assertSee(__('loop.sales'))
-            ->assertDontSee(__('loop.performance'), false);
+            ->assertDontSee(__('loop.performance'), false)
+            ->assertSee(__('loop.notifications'))
+            ->assertSee('bg-coral', false);
 
         app(\App\Services\DailyNotificationService::class)->generateForBusiness($business->fresh());
         $this->assertGreaterThanOrEqual(2, InAppNotification::query()->where('user_id', $owner->id)->count());
@@ -34,11 +36,19 @@ class LoopProductPassTest extends TestCase
     public function test_till_requires_a_branch_choice(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();
+        Shop::create([
+            'business_id' => $business->id,
+            'name' => 'Second',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
 
         $this->actingAs($owner)
             ->get(route('till.index'))
             ->assertOk()
-            ->assertSee(__('loop.choose_branch'));
+            ->assertSee(__('loop.choose_branch'))
+            ->assertSee(__('loop.choose_branch_first_blurb'))
+            ->assertDontSee(__('loop.look_up'));
 
         $this->actingAs($owner)
             ->post(route('till.lookup'), [
@@ -46,7 +56,19 @@ class LoopProductPassTest extends TestCase
                 'phone' => '713555111',
                 'channel' => 'in_store',
             ])
+            ->assertRedirect(route('till.index'))
             ->assertSessionHasErrors('shop_id');
+
+        $this->actingAs($owner)
+            ->post(route('till.branch'), ['shop_id' => $shop->id])
+            ->assertRedirect(route('till.index'));
+
+        $this->actingAs($owner)
+            ->get(route('till.index'))
+            ->assertOk()
+            ->assertSee(__('loop.selling_at'))
+            ->assertSee('Main')
+            ->assertSee(__('loop.look_up'));
 
         $this->actingAs($owner)
             ->post(route('till.lookup'), [
@@ -82,6 +104,17 @@ class LoopProductPassTest extends TestCase
         $staff = User::query()->where('phone', '712444001')->first();
         $this->assertNotNull($staff);
         $this->assertEqualsCanonicalizing([$shop->id, $second->id], $staff->assignedShops()->pluck('shops.id')->all());
+
+        $this->actingAs($owner)
+            ->post(route('staff.store'), [
+                'first_name' => 'Asha',
+                'last_name' => 'Till',
+                'country_code' => '+255',
+                'phone' => '712444002',
+                'password' => 'password',
+                'shop_ids' => [$shop->id],
+            ])
+            ->assertSessionHasErrors('shop_ids');
     }
 
     public function test_kenya_registration_maps_kes_currency(): void
@@ -186,6 +219,86 @@ class LoopProductPassTest extends TestCase
         $daily = app(\App\Services\DailyNotificationService::class);
         $this->assertSame(2, $daily->generateForCustomer($customer));
         $this->assertSame(2, $daily->generateForAffiliate($affiliate));
+    }
+
+    public function test_free_item_offer_requires_a_product_name(): void
+    {
+        [$owner] = $this->seedBusiness();
+
+        $this->actingAs($owner)
+            ->post(route('rewards.store'), [
+                'name' => 'Free pastry',
+                'reward_type' => 'free_item',
+                'points_cost' => 80,
+            ])
+            ->assertSessionHasErrors('product_name');
+
+        $this->actingAs($owner)
+            ->post(route('rewards.store'), [
+                'name' => 'Free pastry',
+                'reward_type' => 'free_item',
+                'product_name' => 'Cinnamon roll',
+                'points_cost' => 80,
+            ])
+            ->assertRedirect();
+    }
+
+    public function test_same_day_earn_does_not_unlock_redeem_by_default(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Models\Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $offer = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => 'Free drink',
+            'product_name' => 'Latte',
+            'points_cost' => 100,
+            'reward_type' => 'free_item',
+            'reward_value' => 0,
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create(['phone' => '713777009']);
+
+        app(\App\Services\TillService::class)->recordSale($owner, $shop, $customer, 50000);
+        $membership = $business->memberships()->where('customer_id', $customer->id)->first();
+        $this->assertSame(100, (int) $membership->points_balance);
+        $this->assertSame(0, $membership->redeemablePoints());
+        $this->assertTrue($membership->availableRewards()->isEmpty());
+
+        $this->actingAs($owner)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713777009',
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.ticket'));
+
+        $this->actingAs($owner)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713777009',
+                'channel' => 'in_store',
+                'amount_spent' => 0,
+                'reward_id' => $offer->id,
+            ])
+            ->assertSessionHasErrors('reward_id');
+
+        $business->update(['allow_same_day_earn_redeem' => true]);
+        $this->assertSame(100, $membership->fresh()->redeemablePoints());
+
+        $business->update(['allow_same_day_earn_redeem' => false]);
+        $this->travel(1)->day();
+        $this->assertSame(100, $membership->fresh()->redeemablePoints());
+        $this->assertTrue($membership->fresh()->availableRewards()->contains('id', $offer->id));
     }
 
     private function seedBusiness(): array

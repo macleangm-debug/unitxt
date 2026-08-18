@@ -88,7 +88,11 @@ class RewardController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'product_name' => ['nullable', 'string', 'max:120'],
+            'product_name' => [
+                $request->input('reward_type') === 'free_item' ? 'required' : 'nullable',
+                'string',
+                'max:120',
+            ],
             'points_cost' => ['required', 'integer', 'min:1'],
             'reward_type' => ['required', 'in:percent_off,fixed_off,free_item,custom'],
             'reward_value' => ['nullable', 'numeric', 'min:0'],
@@ -153,7 +157,11 @@ class RewardController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'product_name' => ['nullable', 'string', 'max:120'],
+            'product_name' => [
+                $request->input('reward_type') === 'free_item' ? 'required' : 'nullable',
+                'string',
+                'max:120',
+            ],
             'points_cost' => ['required', 'integer', 'min:1'],
             'reward_type' => ['required', 'in:percent_off,fixed_off,free_item,custom'],
             'reward_value' => ['nullable', 'numeric', 'min:0'],

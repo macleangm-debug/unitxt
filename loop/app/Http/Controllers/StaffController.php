@@ -18,11 +18,21 @@ class StaffController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business, 403);
 
+        $shops = $business->shops()->where('is_active', true)->with('staff')->orderBy('name')->get();
+        $staffByShop = [];
+        foreach ($shops as $shop) {
+            $desk = $shop->staff->first(fn (User $user) => $user->isFrontDesk() && $user->is_active);
+            if ($desk) {
+                $staffByShop[$shop->id] = $desk;
+            }
+        }
+
         return view('staff.index', [
             'business' => $business,
             'staff' => $business->frontDeskStaff()->with('assignedShops')->latest()->get(),
             'countries' => Countries::OPTIONS,
-            'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
+            'shops' => $shops,
+            'staffByShop' => $staffByShop,
         ]);
     }
 
@@ -31,13 +41,14 @@ class StaffController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
 
+        $shopCount = $business->shops()->where('is_active', true)->count();
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
             'country_code' => ['required', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
             'password' => ['required', 'string', Password::defaults()],
-            'shop_ids' => ['nullable', 'array'],
+            'shop_ids' => $shopCount > 1 ? ['required', 'array', 'min:1'] : ['nullable', 'array'],
             'shop_ids.*' => ['integer', 'exists:shops,id'],
         ]);
 
@@ -45,6 +56,28 @@ class StaffController extends Controller
 
         if (User::query()->where('country_code', $data['country_code'])->where('phone', $phone)->exists()) {
             return back()->withInput()->withErrors(['phone' => 'That phone is already registered on Loop.']);
+        }
+
+        $shopIds = $business->shops()
+            ->whereIn('id', $data['shop_ids'] ?? [])
+            ->pluck('id')
+            ->all();
+        if ($shopIds === [] && $shopCount === 1) {
+            $shopIds = $business->shops()->where('is_active', true)->pluck('id')->all();
+        }
+
+        $taken = \Illuminate\Support\Facades\DB::table('shop_user')
+            ->join('users', 'users.id', '=', 'shop_user.user_id')
+            ->whereIn('shop_user.shop_id', $shopIds)
+            ->where('users.role', User::ROLE_FRONT_DESK)
+            ->where('users.is_active', true)
+            ->pluck('shop_user.shop_id');
+        if ($taken->isNotEmpty()) {
+            $names = $business->shops()->whereIn('id', $taken)->pluck('name')->join(', ');
+
+            return back()->withInput()->withErrors([
+                'shop_ids' => __('loop.shop_already_has_staff', ['shops' => $names]),
+            ]);
         }
 
         $staff = User::create([
@@ -60,10 +93,6 @@ class StaffController extends Controller
             'is_active' => true,
         ]);
 
-        $shopIds = $business->shops()
-            ->whereIn('id', $data['shop_ids'] ?? [])
-            ->pluck('id')
-            ->all();
         if ($shopIds !== []) {
             $staff->assignedShops()->sync($shopIds);
         }

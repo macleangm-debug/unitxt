@@ -37,9 +37,28 @@ class TillController extends Controller
             ? $request->user()->tillShops($business)
             : collect();
 
+        if ($request->boolean('change')) {
+            $request->session()->forget('till.shop_id');
+        }
+
+        $activeShop = null;
+        if ($shops->count() === 1) {
+            $activeShop = $shops->first();
+            $request->session()->put('till.shop_id', $activeShop->id);
+        } elseif ($shops->count() > 1) {
+            $requested = $request->query('shop_id');
+            $sessionShopId = filled($requested) ? $requested : $request->session()->get('till.shop_id');
+            $activeShop = $shops->firstWhere('id', (int) $sessionShopId);
+            if ($activeShop) {
+                $request->session()->put('till.shop_id', $activeShop->id);
+            }
+        }
+
         return view('till.index', [
             'business' => $business,
             'shops' => $shops,
+            'activeShop' => $activeShop,
+            'needsBranchPick' => $shops->count() > 1 && ! $activeShop,
             'countries' => Countries::OPTIONS,
             'recent' => ($isOwner && $business)
                 ? $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get()
@@ -49,16 +68,14 @@ class TillController extends Controller
             'isOwner' => $isOwner,
             'scanDial' => $scanDial,
             'scanPhone' => $scanPhone,
+            'scanQuery' => $scan !== '' ? $scan : null,
         ]);
     }
 
-    public function lookup(Request $request, TillService $till): RedirectResponse
+    public function pickBranch(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'country_code' => ['required', 'string', 'max:8'],
-            'phone' => ['required', 'string', 'max:32'],
             'shop_id' => ['required', 'exists:shops,id'],
-            'channel' => ['required', 'in:in_store,phone_order'],
         ]);
 
         $business = $request->user()->workplace();
@@ -66,6 +83,40 @@ class TillController extends Controller
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         abort_unless($request->user()->canAccessShop($shop), 403);
+
+        $request->session()->put('till.shop_id', $shop->id);
+
+        $query = [];
+        $scan = (string) $request->input('scan', $request->query('scan', ''));
+        if ($scan !== '') {
+            $query['scan'] = $scan;
+        }
+
+        return redirect()->route('till.index', $query);
+    }
+
+    public function lookup(Request $request, TillService $till): RedirectResponse
+    {
+        $data = $request->validate([
+            'country_code' => ['required', 'string', 'max:8'],
+            'phone' => ['required', 'string', 'max:32'],
+            'shop_id' => ['nullable', 'exists:shops,id'],
+            'channel' => ['required', 'in:in_store,phone_order'],
+        ]);
+
+        $business = $request->user()->workplace();
+        abort_unless($business, 403);
+
+        $shopId = $data['shop_id'] ?? $request->session()->get('till.shop_id');
+        if (! $shopId) {
+            return redirect()->route('till.index')->withErrors([
+                'shop_id' => __('loop.choose_branch'),
+            ]);
+        }
+
+        $shop = $business->shops()->whereKey($shopId)->firstOrFail();
+        abort_unless($request->user()->canAccessShop($shop), 403);
+        $request->session()->put('till.shop_id', $shop->id);
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
 
@@ -286,12 +337,16 @@ class TillController extends Controller
         $amount = (float) $data['amount_spent'];
 
         if ($reward?->isFreeRedeem() && $amount <= 0) {
-            $redemption = $till->redeemOffer(
-                $request->user(),
-                $shop,
-                $customer,
-                $reward->id,
-            );
+            try {
+                $redemption = $till->redeemOffer(
+                    $request->user(),
+                    $shop,
+                    $customer,
+                    $reward->id,
+                );
+            } catch (ValidationException $e) {
+                return back()->withInput()->withErrors($e->errors());
+            }
             $request->session()->forget('till.ticket');
             $body = __('loop.redeem_done_body', [
                 'name' => $customer->name,
@@ -398,13 +453,21 @@ class TillController extends Controller
             ]);
         }
 
-        $redemption = $till->redeemOffer(
-            $request->user(),
-            $shop,
-            $customer,
-            (int) $data['reward_id'],
-            $data['notes'] ?? null,
-        );
+        try {
+            $redemption = $till->redeemOffer(
+                $request->user(),
+                $shop,
+                $customer,
+                (int) $data['reward_id'],
+                $data['notes'] ?? null,
+            );
+        } catch (ValidationException $e) {
+            $fallback = $request->session()->has('till.ticket')
+                ? redirect()->route('till.ticket')
+                : redirect()->route('till.index');
+
+            return $fallback->withInput()->withErrors($e->errors());
+        }
 
         $body = __('loop.redeem_done_body', [
             'name' => $customer->name,

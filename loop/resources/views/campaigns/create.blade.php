@@ -77,6 +77,7 @@
             total: 4,
             hasPick: true,
             skipBonuses: true,
+            persistKey: 'loop.campaignWizard.create',
             templateKey: @js($preselectedKey ?: ''),
             fromTemplate: {{ $fromTemplate ? 'true' : 'false' }},
             pickedLabel: @js($t['name'] ?? ''),
@@ -99,6 +100,7 @@
             bonusRequired: @js(__('loop.campaign_bonus_required')),
             pickRequired: @js(__('loop.pick_required')),
         })"
+        x-effect="persistCampaign()"
     >
         <x-form-stepper :steps="$createSteps" :dynamic-third="true" />
 

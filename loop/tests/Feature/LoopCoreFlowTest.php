@@ -306,6 +306,7 @@ class LoopCoreFlowTest extends TestCase
         ]);
 
         app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
+        $this->travel(1)->day();
 
         $this->actingAs($staff)
             ->post(route('till.lookup'), [

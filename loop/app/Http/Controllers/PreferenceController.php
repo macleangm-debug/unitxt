@@ -13,6 +13,8 @@ class PreferenceController extends Controller
     private const UNSAFE_RETURN_NAMES = [
         'till.lookup',
         'till.store',
+        'till.branch',
+        'till.redeem',
         'till.register-customer',
     ];
 

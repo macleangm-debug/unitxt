@@ -35,6 +35,7 @@ class BusinessController extends Controller
             'pay_spend_step' => ['nullable', 'integer', 'min:1'],
             'pay_points_per_step' => ['nullable', 'integer', 'min:1'],
             'pay_points_max_percent' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'allow_same_day_earn_redeem' => ['sometimes', 'boolean'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -55,6 +56,7 @@ class BusinessController extends Controller
             'pay_spend_step' => $allowPay ? ($data['pay_spend_step'] ?? $business->pay_spend_step) : null,
             'pay_points_per_step' => $allowPay ? ($data['pay_points_per_step'] ?? $business->pay_points_per_step) : null,
             'pay_points_max_percent' => $allowPay ? ($data['pay_points_max_percent'] ?? 50) : ($business->pay_points_max_percent ?: 50),
+            'allow_same_day_earn_redeem' => $request->boolean('allow_same_day_earn_redeem'),
         ]);
 
         return redirect()->route('business.edit')->with('confirm', Confirm::make(

@@ -66,6 +66,7 @@
                 @endif
 
                 @php
+                    app(\App\Services\DailyNotificationService::class)->ensureTodayForUser($user);
                     $unreadNotifications = \App\Models\InAppNotification::query()
                         ->where('user_id', $user->id)
                         ->whereNull('read_at')
@@ -81,13 +82,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
                     </svg>
                     @if ($unreadNotifications > 0)
-                        <span class="absolute -right-1 -top-1 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">{{ min(9, $unreadNotifications) }}{{ $unreadNotifications > 9 ? '+' : '' }}</span>
+                        <span class="absolute -right-1 -top-1 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold leading-none text-white">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
                     @endif
                 </a>
 
                 <div class="flex rounded-xl border border-ink/10 bg-white p-0.5 text-xs font-semibold shadow-sm">
-                    <a href="{{ route('locale', ['locale' => 'en', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}">EN</a>
-                    <a href="{{ route('locale', ['locale' => 'sw', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'sw' ? 'bg-ink text-white' : 'text-ink-muted' }}">SW</a>
+                    <a href="{{ route('locale', ['locale' => 'en', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}" @click.prevent="window.location.href = @js(url('/locale/en')) + '?return=' + encodeURIComponent(window.location.href)">EN</a>
+                    <a href="{{ route('locale', ['locale' => 'sw', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'sw' ? 'bg-ink text-white' : 'text-ink-muted' }}" @click.prevent="window.location.href = @js(url('/locale/sw')) + '?return=' + encodeURIComponent(window.location.href)">SW</a>
                 </div>
 
                 <form method="POST" action="{{ route('logout') }}" class="hidden md:block">
@@ -154,7 +155,8 @@
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
                 </button>
             </div>
-            <nav class="loop-mobile-actions flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+            <nav class="loop-mobile-actions flex flex-1 flex-col overflow-y-auto p-4">
+                <div class="loop-menu-group">
                 @if ($user->isAffiliate())
                     <div class="loop-menu-role">
                         <span class="loop-menu-role__mark">AF</span>
@@ -194,9 +196,16 @@
                         @endif
                     @endif
                 @endif
-                <form method="POST" action="{{ route('logout') }}" class="mt-2">
+                <x-loop-link :href="route('notifications.index')" kind="push" :current="request()->routeIs('notifications.*')">
+                    {{ __('loop.notifications') }}
+                    @if ($unreadNotifications > 0)
+                        <span class="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-coral px-1.5 text-[10px] font-bold text-white">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
+                    @endif
+                </x-loop-link>
+                </div>
+                <form method="POST" action="{{ route('logout') }}" class="loop-menu-group mt-auto">
                     @csrf
-                    <button type="submit" class="loop-btn-ghost w-full">{{ __('loop.log_out') }}</button>
+                    <button type="submit">{{ __('loop.log_out') }}</button>
                 </form>
             </nav>
             </div>

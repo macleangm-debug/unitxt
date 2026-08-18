@@ -85,9 +85,22 @@
                         <p class="mb-2 text-xs text-ink-muted">{{ __('loop.assign_branches_help') }}</p>
                         <div class="space-y-2">
                             @foreach ($shops as $shop)
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="shop_ids[]" value="{{ $shop->id }}" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(in_array($shop->id, old('shop_ids', [])))>
-                                    {{ $shop->name }}
+                                @php $occupant = $staffByShop[$shop->id] ?? null; @endphp
+                                <label class="flex items-center gap-2 text-sm {{ $occupant ? 'opacity-60' : '' }}">
+                                    <input
+                                        type="checkbox"
+                                        name="shop_ids[]"
+                                        value="{{ $shop->id }}"
+                                        class="rounded border-ink/20 text-mint focus:ring-mint"
+                                        @checked(in_array($shop->id, old('shop_ids', [])))
+                                        @disabled($occupant)
+                                    >
+                                    <span>
+                                        {{ $shop->name }}
+                                        @if ($occupant)
+                                            <span class="text-xs text-ink-muted">· {{ $occupant->name }}</span>
+                                        @endif
+                                    </span>
                                 </label>
                             @endforeach
                         </div>

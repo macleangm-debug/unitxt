@@ -105,6 +105,18 @@
             @endif
         </section>
 
+        <section class="space-y-3 rounded-2xl border border-ink/10 bg-chalk/40 p-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.redeem_settings') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_settings_help') }}</p>
+            </div>
+            <label class="flex items-start gap-2 text-sm font-semibold">
+                <input type="checkbox" name="allow_same_day_earn_redeem" value="1" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep" @checked(old('allow_same_day_earn_redeem', $business->allow_same_day_earn_redeem))>
+                <span>{{ __('loop.allow_same_day_earn_redeem') }}</span>
+            </label>
+            <p class="text-xs text-ink-muted">{{ __('loop.allow_same_day_earn_redeem_help') }}</p>
+        </section>
+
         <button class="loop-btn-mint w-full">{{ __('loop.save_changes') }}</button>
     </form>
 </x-app-layout>

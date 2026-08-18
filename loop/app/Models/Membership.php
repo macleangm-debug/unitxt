@@ -71,11 +71,30 @@ class Membership extends Model
         return $this->hasMany(Redemption::class);
     }
 
+    /**
+     * Points that may unlock an offer right now.
+     * Default: today's earn does not count, so a member cannot buy their way
+     * into a redeem on the same visit/day. Businesses can opt in.
+     */
+    public function redeemablePoints(): int
+    {
+        $balance = (int) $this->points_balance;
+        if ($this->business?->allow_same_day_earn_redeem) {
+            return $balance;
+        }
+
+        $earnedToday = (int) $this->visits()->whereDate('created_at', today())->sum('points_earned');
+
+        return max(0, $balance - $earnedToday);
+    }
+
     public function availableRewards()
     {
+        $balance = $this->redeemablePoints();
+
         return $this->business->rewards()
             ->where('is_active', true)
-            ->where('points_cost', '<=', $this->points_balance)
+            ->where('points_cost', '<=', $balance)
             ->orderBy('points_cost')
             ->get()
             ->filter(fn (Reward $reward) => $reward->isAvailable());
@@ -87,8 +106,10 @@ class Membership extends Model
             ? $this->business->rewards
             : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
 
+        $balance = $this->redeemablePoints();
+
         return $rewards
-            ->filter(fn (Reward $reward) => $reward->points_cost > $this->points_balance)
+            ->filter(fn (Reward $reward) => $reward->points_cost > $balance)
             ->sortBy('points_cost')
             ->first();
     }
@@ -99,8 +120,10 @@ class Membership extends Model
             ? $this->business->rewards
             : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
 
+        $balance = $this->redeemablePoints();
+
         return $rewards
-            ->filter(fn (Reward $reward) => $reward->points_cost <= $this->points_balance)
+            ->filter(fn (Reward $reward) => $reward->points_cost <= $balance)
             ->sortBy('points_cost')
             ->first();
     }
@@ -111,9 +134,10 @@ class Membership extends Model
             return ['needed' => 0, 'percent' => 100, 'ready' => true];
         }
 
-        $needed = max(0, $reward->points_cost - $this->points_balance);
+        $balance = $this->redeemablePoints();
+        $needed = max(0, $reward->points_cost - $balance);
         $percent = $reward->points_cost > 0
-            ? (int) min(100, round(($this->points_balance / $reward->points_cost) * 100))
+            ? (int) min(100, round(($balance / $reward->points_cost) * 100))
             : 100;
 
         return [

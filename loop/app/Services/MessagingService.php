@@ -154,6 +154,10 @@ class MessagingService
 
     public function markExpiredSenderIds(): void
     {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('sender_ids')) {
+            return;
+        }
+
         SenderId::query()
             ->where('status', SenderId::STATUS_ACTIVE)
             ->whereNotNull('paid_until')

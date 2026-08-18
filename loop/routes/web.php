@@ -210,6 +210,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:owner,front_desk')->group(function () {
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::get('/sale', [TillController::class, 'index'])->name('till.index');
+        Route::post('/sale/branch', [TillController::class, 'pickBranch'])->name('till.branch');
         Route::post('/sale/lookup', [TillController::class, 'lookup'])->name('till.lookup');
         Route::get('/sale/ticket', [TillController::class, 'ticket'])->name('till.ticket');
         Route::get('/sale/registered', [TillController::class, 'registered'])->name('till.registered');
