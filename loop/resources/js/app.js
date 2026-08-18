@@ -1137,6 +1137,10 @@ Alpine.data('tillWizard', (cfg = {}) => ({
     amountDisplay: cfg.amountDisplay ?? '',
     currency: cfg.currency ?? '',
     amountRequired: cfg.amountRequired ?? '',
+    giveButton: cfg.giveButton ?? '',
+    giveAndCollect: cfg.giveAndCollect ?? '',
+    collectRemaining: cfg.collectRemaining ?? '',
+    completeSale: cfg.completeSale ?? '',
     payWithPoints: cfg.payWithPoints ?? false,
     pointsToSpend: cfg.pointsToSpend ?? '',
     balance: cfg.balance ?? 0,
@@ -1197,6 +1201,32 @@ Alpine.data('tillWizard', (cfg = {}) => ({
     },
     remaining() {
         return Math.max(0, this.amountValue() - this.discount());
+    },
+    hasExtraPurchase() {
+        return this.isFreeItem() && this.amountValue() >= 1;
+    },
+    showFeatured() {
+        return !this.isFreeItem() || this.hasExtraPurchase();
+    },
+    submitLabel() {
+        const name = this.selectedOffer()?.name || '';
+        if (this.isFreeItem()) {
+            if (!this.hasExtraPurchase()) {
+                return this.giveButton.replace(':name', name);
+            }
+
+            return this.giveAndCollect
+                .replace(':name', name)
+                .replace(':currency', this.currency)
+                .replace(':amount', this.remaining().toLocaleString());
+        }
+        if (this.discount() > 0) {
+            return this.collectRemaining
+                .replace(':amount', this.remaining().toLocaleString())
+                .replace(':currency', this.currency);
+        }
+
+        return this.completeSale;
     },
     maxPointsByPercent() {
         if (!this.rate || !this.amountValue()) {

@@ -403,6 +403,7 @@ class LoopCoreFlowTest extends TestCase
             ->get(route('till.ticket'))
             ->assertOk()
             ->assertSee(__('loop.till_free_item_hint'), false)
+            ->assertSee(__('loop.till_also_buying_label'), false)
             ->assertSee('Free coffee', false);
 
         $visitsBefore = \App\Models\Visit::query()->count();
@@ -428,6 +429,215 @@ class LoopCoreFlowTest extends TestCase
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'points_balance' => 20,
+        ]);
+    }
+
+    public function test_free_item_plus_extra_purchase_redeems_and_records_the_sale(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999056',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713555001',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+        $reward = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => 'Free coffee',
+            'points_cost' => 100,
+            'reward_type' => 'free_item',
+            'reward_value' => 0,
+            'is_active' => true,
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
+        $business->memberships()->where('customer_id', $customer->id)->update(['points_balance' => 120]);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555001',
+                'channel' => 'in_store',
+            ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555001',
+                'channel' => 'in_store',
+                'amount_spent' => 5000,
+                'reward_id' => $reward->id,
+            ])
+            ->assertRedirect(route('till.index'));
+
+        $visit = \App\Models\Visit::query()->where('customer_id', $customer->id)->latest('id')->first();
+        $this->assertNotNull($visit);
+        $this->assertSame(5000.0, (float) $visit->amount_spent);
+        $this->assertSame($reward->id, $visit->reward_id);
+        $this->assertSame(0.0, (float) $visit->discount_amount);
+        $this->assertSame(100, $visit->points_redeemed);
+        $this->assertSame(10, $visit->points_earned);
+
+        $this->assertDatabaseHas('redemptions', [
+            'reward_id' => $reward->id,
+            'customer_id' => $customer->id,
+            'visit_id' => $visit->id,
+            'points_spent' => 100,
+            'discount_amount' => 0,
+        ]);
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'points_balance' => 30, // 120 − 100 + 10 from 5,000 spend
+        ]);
+    }
+
+    public function test_percent_off_offer_without_a_bill_is_rejected(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999067',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713555002',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+        $reward = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
+        $business->memberships()->where('customer_id', $customer->id)->update(['points_balance' => 120]);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555002',
+                'channel' => 'in_store',
+            ]);
+
+        $this->actingAs($staff)
+            ->from(route('till.ticket'))
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555002',
+                'channel' => 'in_store',
+                'amount_spent' => 0,
+                'reward_id' => $reward->id,
+            ])
+            ->assertRedirect(route('till.ticket'))
+            ->assertSessionHasErrors('amount_spent');
+
+        $this->assertDatabaseCount('redemptions', 0);
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'points_balance' => 120,
+        ]);
+    }
+
+    public function test_fixed_off_offer_needs_a_bill_and_collects_the_rest(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999068',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713555003',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+        $reward = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => 'TZS 500 off',
+            'points_cost' => 80,
+            'reward_type' => 'fixed_off',
+            'reward_value' => 500,
+            'is_active' => true,
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
+        $business->memberships()->where('customer_id', $customer->id)->update(['points_balance' => 120]);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555003',
+                'channel' => 'in_store',
+            ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555003',
+                'channel' => 'in_store',
+                'amount_spent' => 4000,
+                'reward_id' => $reward->id,
+            ])
+            ->assertRedirect(route('till.index'));
+
+        $this->assertDatabaseHas('visits', [
+            'customer_id' => $customer->id,
+            'amount_spent' => 4000,
+            'reward_id' => $reward->id,
+            'discount_amount' => 500,
+            'points_redeemed' => 80,
+            'points_earned' => 8,
+        ]);
+        $this->assertDatabaseHas('redemptions', [
+            'reward_id' => $reward->id,
+            'customer_id' => $customer->id,
+            'points_spent' => 80,
+            'discount_amount' => 500,
+        ]);
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'points_balance' => 48, // 120 − 80 + 8 from 4,000 spend
         ]);
     }
 

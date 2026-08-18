@@ -259,7 +259,9 @@ class TillController extends Controller
             }
         }
 
-        if ($reward?->isFreeRedeem()) {
+        $amount = (float) $data['amount_spent'];
+
+        if ($reward?->isFreeRedeem() && $amount <= 0) {
             $redemption = $till->redeemOffer(
                 $request->user(),
                 $shop,
@@ -289,7 +291,7 @@ class TillController extends Controller
             return back()->withErrors(['pay_with_points' => __('loop.till_no_pay_points_with_offer')])->withInput();
         }
 
-        if ((float) $data['amount_spent'] <= 0 && ! $payWithPoints) {
+        if ($amount <= 0 && ! $payWithPoints) {
             return back()->withErrors(['amount_spent' => __('loop.amount_required')])->withInput();
         }
 
@@ -297,7 +299,7 @@ class TillController extends Controller
             $request->user(),
             $shop,
             $customer,
-            (float) $data['amount_spent'],
+            $amount,
             $data['receipt_ref'] ?? null,
             $data['channel'],
             $payWithPoints,
@@ -306,19 +308,32 @@ class TillController extends Controller
             $reward?->id,
         );
 
-        $body = __('loop.sale_done_body', [
-            'name' => $visit->customer->name,
-            'earned' => $visit->points_earned,
-        ]);
-        if ($visit->points_redeemed > 0) {
-            $body .= ' '.__('loop.sale_done_redeemed', ['redeemed' => $visit->points_redeemed]);
-        }
-        if ($visit->discount_amount > 0) {
-            $remaining = max(0, (float) $visit->amount_spent - (float) $visit->discount_amount);
-            $body .= ' '.__('loop.till_collect_done', [
+        $applied = $visit->reward;
+        if ($applied?->isFreeRedeem()) {
+            $title = __('loop.till_gave_and_sale_title');
+            $body = __('loop.till_gave_and_sale_body', [
+                'name' => $visit->customer->name,
+                'offer' => $applied->name,
                 'currency' => $business->currency,
-                'amount' => number_format($remaining, 0),
+                'amount' => number_format((float) $visit->amount_spent, 0),
+                'earned' => $visit->points_earned,
             ]);
+        } else {
+            $title = __('loop.sale_done_title');
+            $body = __('loop.sale_done_body', [
+                'name' => $visit->customer->name,
+                'earned' => $visit->points_earned,
+            ]);
+            if ($visit->points_redeemed > 0) {
+                $body .= ' '.__('loop.sale_done_redeemed', ['redeemed' => $visit->points_redeemed]);
+            }
+            if ($visit->discount_amount > 0) {
+                $remaining = max(0, (float) $visit->amount_spent - (float) $visit->discount_amount);
+                $body .= ' '.__('loop.till_collect_done', [
+                    'currency' => $business->currency,
+                    'amount' => number_format($remaining, 0),
+                ]);
+            }
         }
         if ($visit->notes) {
             $body .= ' — '.$visit->notes;
@@ -327,7 +342,7 @@ class TillController extends Controller
         $request->session()->forget('till.ticket');
 
         return redirect()->route('till.index')->with('confirm', Confirm::make(
-            __('loop.sale_done_title'),
+            $title,
             $body,
             __('loop.next_sale'),
             route('till.index'),

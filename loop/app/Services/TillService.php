@@ -293,15 +293,13 @@ class TillService
     }
 
     /**
+     * Attach one offer to a billed sale. Free items discount nothing — extras are paid in full.
+     *
      * @return array{reward: Reward, points: int, discount: float}
      */
     private function prepareBillOffer(Business $business, Membership $membership, int $rewardId, float $amountSpent): array
     {
         $reward = $this->assertOfferAvailable($business, $membership, $rewardId);
-
-        if ($reward->isFreeRedeem()) {
-            throw ValidationException::withMessages(['reward_id' => __('loop.till_free_item_no_bill')]);
-        }
 
         if ($amountSpent <= 0) {
             throw ValidationException::withMessages(['amount_spent' => __('loop.amount_required')]);
@@ -310,7 +308,7 @@ class TillService
         return [
             'reward' => $reward,
             'points' => (int) $reward->points_cost,
-            'discount' => $reward->discountForAmount($amountSpent),
+            'discount' => $reward->isFreeRedeem() ? 0.0 : $reward->discountForAmount($amountSpent),
         ];
     }
 

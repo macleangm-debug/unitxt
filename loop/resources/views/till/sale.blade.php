@@ -116,6 +116,10 @@
                 amountDisplay: @js(old('amount_spent', '')),
                 currency: @js($business->currency),
                 amountRequired: @js(__('loop.amount_required')),
+                giveButton: @js(__('loop.till_give_button')),
+                giveAndCollect: @js(__('loop.till_give_and_collect')),
+                collectRemaining: @js(__('loop.till_collect_remaining')),
+                completeSale: @js(__('loop.complete_sale')),
                 payWithPoints: {{ old('pay_with_points') ? 'true' : 'false' }},
                 pointsToSpend: @js((string) old('points_to_spend', '')),
                 balance: {{ (int) ($membership->points_balance ?? 0) }},
@@ -154,7 +158,7 @@
                 <input type="hidden" name="phone" value="{{ $phone }}">
                 <input type="hidden" name="channel" value="{{ $channel }}">
                 <input type="hidden" name="reward_id" :value="rewardId">
-                <input type="hidden" name="amount_spent" :value="isFreeItem() ? 0 : amountValue()">
+                <input type="hidden" name="amount_spent" :value="amountValue()">
 
                 @if ($errors->any())
                     <div class="mx-6 mt-6 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
@@ -201,70 +205,75 @@
                         {{ $hasRedeemable ? '2 · ' : '' }}<span x-text="isFreeItem() ? @js(__('loop.till_step_give')) : @js(__('loop.till_step_bill'))"></span>
                     </p>
 
-                    <div x-show="isFreeItem()" x-cloak class="space-y-4">
+                    <div x-show="isFreeItem()" x-cloak class="space-y-2">
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.till_give_title') }}</h2>
                         <p class="text-sm text-ink-muted">{{ __('loop.till_give_body') }}</p>
                         <p class="rounded-2xl bg-mint-soft/60 px-4 py-3 text-sm font-semibold" x-text="selectedOffer() ? selectedOffer().name : ''"></p>
-                        <button class="loop-btn-mint w-full" x-text="selectedOffer() ? @js(__('loop.till_give_button')).replace(':name', selectedOffer().name) : @js(__('loop.till_give_title'))"></button>
                     </div>
 
-                    <div x-show="!isFreeItem()" class="space-y-5">
-                        <div>
-                            <label class="loop-label">{{ __('loop.till_bill_label') }} ({{ $business->currency }})</label>
-                            <input type="text" inputmode="decimal" x-ref="amountInput" x-model="amountDisplay" @input="formatAmount()" class="loop-input text-3xl font-display font-semibold" placeholder="0" data-amount-input>
-                            @if ($campaign)
-                                <p class="mt-2 text-xs text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
-                            @endif
-                            <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
-                        </div>
-
-                        <div x-show="discount() > 0" x-cloak class="rounded-2xl border border-mint/30 bg-mint-soft/40 px-4 py-3 text-sm">
-                            <p>{{ __('loop.till_offer_takes_off') }}: <span class="font-semibold" x-text="currency + ' ' + discount().toLocaleString()"></span></p>
-                            <p class="mt-1 font-display text-lg font-semibold">{{ __('loop.till_they_pay') }}: <span x-text="currency + ' ' + remaining().toLocaleString()"></span></p>
-                        </div>
-
-                        @if (($productPushes ?? collect())->isNotEmpty())
-                            <div class="space-y-2">
-                                <p class="text-xs text-ink-muted">{{ __('loop.auto_bonuses_till_hint') }}</p>
-                                @foreach ($productPushes as $push)
-                                    <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
-                                        <input type="checkbox" name="featured_campaign_ids[]" value="{{ $push->id }}" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(in_array($push->id, old('featured_campaign_ids', []), false))>
-                                        <span>
-                                            <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $push->featured_product_name]) }}</span>
-                                            <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $push->bonus_points]) }}</span>
-                                        </span>
-                                    </label>
-                                @endforeach
-                            </div>
+                    <div>
+                        <label class="loop-label">
+                            <span x-show="!isFreeItem()">{{ __('loop.till_bill_label') }} ({{ $business->currency }})</span>
+                            <span x-show="isFreeItem()" x-cloak>{{ __('loop.till_also_buying_label') }} ({{ $business->currency }})</span>
+                        </label>
+                        <input type="text" inputmode="decimal" x-ref="amountInput" x-model="amountDisplay" @input="formatAmount()" class="loop-input text-3xl font-display font-semibold" placeholder="0" data-amount-input>
+                        <p x-show="isFreeItem()" x-cloak class="mt-2 text-xs text-ink-muted">{{ __('loop.till_also_buying_hint') }}</p>
+                        @if ($campaign)
+                            <p x-show="!isFreeItem() || amountValue() > 0" class="mt-2 text-xs text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
                         @endif
+                        <x-input-error :messages="$errors->get('amount_spent')" class="mt-1" />
+                    </div>
 
-                        @if ($membership && $membership->points_balance > 0 && $payEnabled)
-                            <div x-show="!rewardId" x-cloak class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 space-y-3">
-                                <label class="flex items-start gap-3 text-sm font-semibold">
-                                    <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
+                    <div x-show="discount() > 0" x-cloak class="rounded-2xl border border-mint/30 bg-mint-soft/40 px-4 py-3 text-sm">
+                        <p>{{ __('loop.till_offer_takes_off') }}: <span class="font-semibold" x-text="currency + ' ' + discount().toLocaleString()"></span></p>
+                        <p class="mt-1 font-display text-lg font-semibold">{{ __('loop.till_they_pay') }}: <span x-text="currency + ' ' + remaining().toLocaleString()"></span></p>
+                    </div>
+
+                    <div x-show="hasExtraPurchase()" x-cloak class="rounded-2xl border border-mint/30 bg-mint-soft/40 px-4 py-3 text-sm">
+                        <p>{{ __('loop.till_they_pay') }}: <span class="font-display text-lg font-semibold" x-text="currency + ' ' + remaining().toLocaleString()"></span></p>
+                    </div>
+
+                    @if (($productPushes ?? collect())->isNotEmpty())
+                        <div x-show="showFeatured()" class="space-y-2">
+                            <p class="text-xs text-ink-muted">{{ __('loop.auto_bonuses_till_hint') }}</p>
+                            @foreach ($productPushes as $push)
+                                <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">
+                                    <input type="checkbox" name="featured_campaign_ids[]" value="{{ $push->id }}" class="mt-0.5 rounded border-ink/20 text-violet focus:ring-violet" @checked(in_array($push->id, old('featured_campaign_ids', []), false))>
                                     <span>
-                                        {{ __('loop.pay_with_points') }}
-                                        <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.pay_with_points_till_help', [
-                                            'rate' => number_format($payRate, 0),
-                                            'currency' => $business->currency,
-                                            'percent' => $payMaxPercent,
-                                        ]) }}</span>
+                                        <span class="block text-sm font-semibold">{{ __('loop.featured_in_sale_q', ['product' => $push->featured_product_name]) }}</span>
+                                        <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.featured_in_sale_hint', ['points' => $push->bonus_points]) }}</span>
                                     </span>
                                 </label>
-                                <div x-show="payWithPoints" x-cloak class="space-y-2">
-                                    <label class="loop-label">{{ __('loop.points_to_spend') }}</label>
-                                    <input type="number" name="points_to_spend" min="1" :max="maxPointsByPercent()" x-model="pointsToSpend" class="loop-input">
-                                    <p class="text-xs text-ink-muted">
-                                        {{ __('loop.max') }}: <span x-text="maxPointsByPercent()"></span> {{ __('loop.pts') }}
-                                        · ≈ <span x-text="currency + ' ' + pointsDiscount().toLocaleString()"></span>
-                                    </p>
-                                    <x-input-error :messages="$errors->get('points_to_spend')" class="mt-1" />
-                                </div>
-                            </div>
-                        @endif
+                            @endforeach
+                        </div>
+                    @endif
 
-                        <button class="loop-btn w-full" x-text="discount() > 0 ? (@js(__('loop.till_collect_remaining')).replace(':amount', remaining().toLocaleString()).replace(':currency', currency)) : @js(__('loop.complete_sale'))"></button>
-                    </div>
+                    @if ($membership && $membership->points_balance > 0 && $payEnabled)
+                        <div x-show="!rewardId" x-cloak class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 space-y-3">
+                            <label class="flex items-start gap-3 text-sm font-semibold">
+                                <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
+                                <span>
+                                    {{ __('loop.pay_with_points') }}
+                                    <span class="mt-1 block text-xs font-normal text-ink-muted">{{ __('loop.pay_with_points_till_help', [
+                                        'rate' => number_format($payRate, 0),
+                                        'currency' => $business->currency,
+                                        'percent' => $payMaxPercent,
+                                    ]) }}</span>
+                                </span>
+                            </label>
+                            <div x-show="payWithPoints" x-cloak class="space-y-2">
+                                <label class="loop-label">{{ __('loop.points_to_spend') }}</label>
+                                <input type="number" name="points_to_spend" min="1" :max="maxPointsByPercent()" x-model="pointsToSpend" class="loop-input">
+                                <p class="text-xs text-ink-muted">
+                                    {{ __('loop.max') }}: <span x-text="maxPointsByPercent()"></span> {{ __('loop.pts') }}
+                                    · ≈ <span x-text="currency + ' ' + pointsDiscount().toLocaleString()"></span>
+                                </p>
+                                <x-input-error :messages="$errors->get('points_to_spend')" class="mt-1" />
+                            </div>
+                        </div>
+                    @endif
+
+                    <button class="w-full" :class="isFreeItem() ? 'loop-btn-mint' : 'loop-btn'" x-text="submitLabel()"></button>
 
                     @if ($hasRedeemable)
                         <button type="button" class="loop-btn-ghost w-full" @click="go(1)">{{ __('loop.back') }}</button>
