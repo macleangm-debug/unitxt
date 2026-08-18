@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.staff') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.staff_page_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('settings')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.staff') }}</h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.staff_page_blurb') }}</p>
+            </div>
         </div>
     </x-slot>
 
@@ -16,6 +19,9 @@
                         <div>
                             <p class="font-display text-lg font-semibold">{{ $member->name }}</p>
                             <p class="mt-1 text-sm text-ink-muted">{{ $member->full_phone }}</p>
+                            @if ($member->assignedShops->isNotEmpty())
+                                <p class="mt-1 text-xs text-ink-muted">{{ $member->assignedShops->pluck('name')->join(', ') }}</p>
+                            @endif
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $member->is_active ? 'bg-mint-soft text-ink' : 'bg-chalk text-ink-muted' }}">
@@ -73,6 +79,20 @@
                     <label class="loop-label">{{ __('loop.temp_password') }}</label>
                     <input type="password" name="password" class="loop-input" required>
                 </div>
+                @if (($shops ?? collect())->count() > 1)
+                    <div>
+                        <p class="loop-label">{{ __('loop.assign_branches') }}</p>
+                        <p class="mb-2 text-xs text-ink-muted">{{ __('loop.assign_branches_help') }}</p>
+                        <div class="space-y-2">
+                            @foreach ($shops as $shop)
+                                <label class="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" name="shop_ids[]" value="{{ $shop->id }}" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(in_array($shop->id, old('shop_ids', [])))>
+                                    {{ $shop->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 <button class="loop-btn-mint w-full">{{ __('loop.add_front_desk') }}</button>
             </form>
         </section>

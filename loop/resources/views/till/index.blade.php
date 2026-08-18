@@ -36,16 +36,17 @@
                 {{ $errors->first() }}
             </div>
         @endif
-        @if ($shopCount > 1)
+        @if ($shopCount < 1)
+            <p class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm">{{ __('loop.till_needs_shop') }}</p>
+        @else
             <x-sheet-select
                 name="shop_id"
                 :label="__('loop.shop')"
                 :options="$shops->mapWithKeys(fn ($s) => [$s->id => $s->name])->all()"
-                :value="old('shop_id', $shops->first()?->id)"
+                :value="old('shop_id')"
                 :required="true"
+                :placeholder="__('loop.choose_branch')"
             />
-        @else
-            <input type="hidden" name="shop_id" value="{{ $shops->first()?->id }}">
         @endif
 
         <div>

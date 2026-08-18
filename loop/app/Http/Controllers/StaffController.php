@@ -20,8 +20,9 @@ class StaffController extends Controller
 
         return view('staff.index', [
             'business' => $business,
-            'staff' => $business->frontDeskStaff()->latest()->get(),
+            'staff' => $business->frontDeskStaff()->with('assignedShops')->latest()->get(),
             'countries' => Countries::OPTIONS,
+            'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -36,6 +37,8 @@ class StaffController extends Controller
             'country_code' => ['required', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
             'password' => ['required', 'string', Password::defaults()],
+            'shop_ids' => ['nullable', 'array'],
+            'shop_ids.*' => ['integer', 'exists:shops,id'],
         ]);
 
         $phone = Countries::normalizePhone($data['phone']);
@@ -44,7 +47,7 @@ class StaffController extends Controller
             return back()->withInput()->withErrors(['phone' => 'That phone is already registered on Loop.']);
         }
 
-        User::create([
+        $staff = User::create([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
             'country_code' => $data['country_code'],
@@ -56,6 +59,14 @@ class StaffController extends Controller
             'phone_verified_at' => now(),
             'is_active' => true,
         ]);
+
+        $shopIds = $business->shops()
+            ->whereIn('id', $data['shop_ids'] ?? [])
+            ->pluck('id')
+            ->all();
+        if ($shopIds !== []) {
+            $staff->assignedShops()->sync($shopIds);
+        }
 
         return back()->with('confirm', Confirm::make(
             __('loop.staff_added_title'),

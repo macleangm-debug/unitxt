@@ -228,4 +228,36 @@ class PlanLimitService
             $business->update(['billing_status' => 'past_due']);
         }
     }
+
+    public function rafflesEnabled(Business $business): bool
+    {
+        if (! \App\Support\FeatureFlags::enabled('raffles')) {
+            return false;
+        }
+
+        $plan = $this->planFor($business);
+        if ($plan && $plan->exists) {
+            return (bool) $plan->has_raffles;
+        }
+
+        $catalog = Plans::catalog()[$business->plan_key] ?? [];
+
+        return (bool) ($catalog['has_raffles'] ?? false);
+    }
+
+    public function smsEnabled(Business $business): bool
+    {
+        if (! \App\Support\FeatureFlags::enabled('sms_messaging')) {
+            return false;
+        }
+
+        $plan = $this->planFor($business);
+        if ($plan && $plan->exists) {
+            return (bool) $plan->has_sms;
+        }
+
+        $catalog = Plans::catalog()[$business->plan_key] ?? [];
+
+        return (bool) ($catalog['has_sms'] ?? false);
+    }
 }

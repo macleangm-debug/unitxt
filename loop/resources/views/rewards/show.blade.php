@@ -10,7 +10,7 @@
                 <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index', ['tab' => 'offers']) }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
+                <x-back-icon :href="route('campaigns.index', ['tab' => 'offers'])" />
                 @if ($reward->is_active)
                     <x-pause-confirm
                         :action="route('rewards.toggle', $reward)"

@@ -48,8 +48,12 @@ class IntegrationSettings
                 'sender_id' => 'Loop',
                 'api_key' => '',
                 'api_secret' => '',
+                'api_url' => '',
                 'business_can_message_customers' => true,
                 'platform_can_message_businesses' => true,
+                'price_per_message' => 30,
+                'sender_id_yearly_fee' => 15000,
+                'enabled_countries' => ['TZ'],
             ],
             'email' => [
                 'enabled' => false,
@@ -98,8 +102,12 @@ class IntegrationSettings
                 'sender_id' => (string) ($m['sender_id'] ?? 'Loop'),
                 'api_key' => (string) ($m['api_key'] ?? ''),
                 'api_secret' => (string) ($m['api_secret'] ?? ''),
+                'api_url' => (string) ($m['api_url'] ?? ''),
                 'business_can_message_customers' => ! empty($m['business_can_message_customers']),
                 'platform_can_message_businesses' => ! empty($m['platform_can_message_businesses']),
+                'price_per_message' => max(1, (int) ($m['price_per_message'] ?? 30)),
+                'sender_id_yearly_fee' => max(0, (int) ($m['sender_id_yearly_fee'] ?? 15000)),
+                'enabled_countries' => self::normalizeCountries($m['enabled_countries'] ?? ['TZ']),
             ];
         }
 
@@ -115,6 +123,24 @@ class IntegrationSettings
         }
 
         return $current;
+    }
+
+    /**
+     * @param  mixed  $input
+     * @return list<string>
+     */
+    private static function normalizeCountries(mixed $input): array
+    {
+        $raw = is_array($input) ? $input : (preg_split('/[\s,]+/', (string) $input) ?: []);
+        $out = [];
+        foreach ($raw as $code) {
+            $code = strtoupper(trim((string) $code));
+            if (strlen($code) === 2) {
+                $out[] = $code;
+            }
+        }
+
+        return $out !== [] ? array_values(array_unique($out)) : ['TZ'];
     }
 
     public static function primaryProvider(): string

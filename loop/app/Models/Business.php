@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Plans;
 use App\Support\Sectors;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,8 @@ use Illuminate\Support\Str;
     'referred_by_affiliate_id',
     'billing_status',
     'trial_ends_at',
+    'plan_renews_at',
+    'plan_interval_months',
     'referral_discount_percent',
     'referral_credit_months',
     'referral_credit_days',
@@ -53,6 +56,8 @@ class Business extends Model
             'onboarding_completed_at' => 'datetime',
             'branch_count' => 'integer',
             'trial_ends_at' => 'datetime',
+            'plan_renews_at' => 'datetime',
+            'plan_interval_months' => 'integer',
             'referral_discount_percent' => 'integer',
             'referral_credit_months' => 'integer',
             'referral_credit_days' => 'integer',
@@ -149,6 +154,60 @@ class Business extends Model
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class);
+    }
+
+    public function senderIds(): HasMany
+    {
+        return $this->hasMany(SenderId::class);
+    }
+
+    public function memberGroups(): HasMany
+    {
+        return $this->hasMany(MemberGroup::class);
+    }
+
+    public function messageBroadcasts(): HasMany
+    {
+        return $this->hasMany(MessageBroadcast::class);
+    }
+
+    public function syncCurrencyFromCountry(): void
+    {
+        if (filled($this->country)) {
+            $this->currency = \App\Support\Countries::currency($this->country);
+        }
+    }
+
+    public function subscriptionBanner(): ?array
+    {
+        if (Plans::isPaidPlan($this->plan_key) && $this->billing_status === 'active' && $this->plan_renews_at) {
+            $days = (int) now()->startOfDay()->diffInDays($this->plan_renews_at->copy()->startOfDay(), false);
+            if ($days >= 0 && $days <= 14) {
+                return [
+                    'tone' => $days <= 3 ? 'coral' : 'amber',
+                    'text' => __('loop.sub_renews_soon', ['days' => max(0, $days), 'plan' => $this->plan?->name ?? $this->plan_key]),
+                ];
+            }
+        }
+
+        if ($this->billing_status === 'past_due' || ($this->trial_ends_at && $this->trial_ends_at->isPast() && ! Plans::isPaidPlan($this->plan_key))) {
+            return [
+                'tone' => 'coral',
+                'text' => __('loop.sub_expired_banner'),
+            ];
+        }
+
+        if ($this->billing_status === 'trialing' && $this->trial_ends_at && $this->trial_ends_at->isFuture()) {
+            $days = (int) now()->startOfDay()->diffInDays($this->trial_ends_at->copy()->startOfDay(), false);
+            if ($days <= 7) {
+                return [
+                    'tone' => $days <= 2 ? 'coral' : 'amber',
+                    'text' => __('loop.sub_trial_ending', ['days' => max(0, $days)]),
+                ];
+            }
+        }
+
+        return null;
     }
 
     public function uniqueMemberCount(): int

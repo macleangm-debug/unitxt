@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.upgrade_title') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('settings')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.upgrade_title') }}</h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+            </div>
         </div>
     </x-slot>
 
@@ -21,6 +24,9 @@
         <div class="mb-6 rounded-[1.5rem] border border-mint/30 bg-mint-soft/40 px-5 py-4">
             <p class="font-semibold">{{ __('loop.current_plan') }}: {{ $currentPlan?->name ?? $business->plan_key }}</p>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.on_paid_plan_body') }}</p>
+            @if ($business->plan_renews_at)
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.renews_on', ['date' => $business->plan_renews_at->format('d M Y')]) }}</p>
+            @endif
         </div>
     @endif
 
@@ -47,47 +53,86 @@
         </div>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
-        @foreach ($plans->where('key', '!=', 'free') as $plan)
-            @php $isCurrent = $business->plan_key === $plan->key && $business->billing_status === 'active'; @endphp
-            <div @class([
-                'flex flex-col rounded-[1.75rem] border p-6',
-                'border-mint bg-mint-soft/30 ring-2 ring-mint' => $plan->key === 'growth',
-                'border-ink/10 bg-white' => $plan->key !== 'growth',
-            ])>
-                @if ($plan->key === 'growth')
-                    <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.most_popular') }}</p>
-                @endif
-                <p class="font-display text-xl font-semibold">{{ $plan->name }}</p>
-                <p class="mt-1 text-sm text-ink-muted">{{ $plan->tagline }}</p>
-                <p class="mt-4 font-display text-3xl font-semibold">{{ $plan->priceLabel() }}</p>
-                <ul class="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
-                    @foreach ($plan->features ?? [] as $feature)
-                        <li>✓ {{ $feature }}</li>
-                    @endforeach
-                </ul>
-                @if ($isCurrent)
-                    <span class="mt-6 inline-flex justify-center rounded-xl bg-chalk px-4 py-3 text-sm font-semibold text-ink-muted">{{ __('loop.current_plan') }}</span>
-                @else
-                    <form method="POST" action="{{ route('billing.choose') }}" class="mt-6 space-y-3">
-                        @csrf
-                        <input type="hidden" name="plan_key" value="{{ $plan->key }}">
-                        <input type="hidden" name="country" value="{{ $country }}">
-                        <div>
-                            <label class="loop-label">{{ __('loop.pay_with_phone') }}</label>
-                            <div class="flex gap-2">
-                                <span class="inline-flex items-center rounded-2xl border border-ink/10 bg-chalk px-3 text-sm font-semibold">{{ $dial }}</span>
-                                <input name="phone" value="{{ old('phone') }}" class="loop-input !mt-0" placeholder="7XXXXXXXX" required>
-                            </div>
-                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.pay_with_phone_help', ['currency' => $plan->currency ?: $currency]) }}</p>
-                        </div>
-                        <button class="loop-btn-mint w-full">{{ __('loop.pay_and_activate', ['plan' => $plan->name]) }}</button>
-                    </form>
-                @endif
+    <div
+        class="space-y-6"
+        x-data="billingPayConfirm({
+            discounts: @js($intervals),
+            monthsLabel: @js(__('loop.months')),
+            confirmTitle: @js(__('loop.confirm_plan_title')),
+            confirmCta: @js(__('loop.pay_now')),
+            cancelCta: @js(__('loop.cancel')),
+        })"
+    >
+        <div>
+            <p class="loop-label">{{ __('loop.pay_for_months') }}</p>
+            <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                @foreach ($intervals as $months => $discount)
+                    <label class="cursor-pointer rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
+                        <input type="radio" class="sr-only" name="interval_ui" value="{{ $months }}" x-model.number="months" @checked($months === 1)>
+                        <span class="font-semibold">{{ $months }} {{ __('loop.months') }}</span>
+                        @if ($discount > 0)
+                            <span class="mt-1 block text-xs text-mint-deep">-{{ $discount }}%</span>
+                        @endif
+                    </label>
+                @endforeach
             </div>
-        @endforeach
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+            @foreach ($plans->where('key', '!=', 'free') as $plan)
+                @php $isCurrent = $business->plan_key === $plan->key && $business->billing_status === 'active'; @endphp
+                <div @class([
+                    'flex flex-col rounded-[1.75rem] border p-6',
+                    'border-mint bg-mint-soft/30 ring-2 ring-mint' => $plan->key === 'growth',
+                    'border-ink/10 bg-white' => $plan->key !== 'growth',
+                ])>
+                    @if ($plan->key === 'growth')
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.most_popular') }}</p>
+                    @endif
+                    <p class="font-display text-xl font-semibold">{{ $plan->name }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ $plan->tagline }}</p>
+                    <p class="mt-4 font-display text-3xl font-semibold" x-text="priceLabel({{ (int) $plan->price_monthly }}, @js($plan->currency ?: $currency))"></p>
+                    <p class="text-xs text-ink-muted">{{ __('loop.billed_upfront') }}</p>
+                    <ul class="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
+                        @foreach ($plan->features ?? [] as $feature)
+                            <li>✓ {{ $feature }}</li>
+                        @endforeach
+                    </ul>
+                    @if ($isCurrent)
+                        <span class="mt-6 inline-flex justify-center rounded-xl bg-chalk px-4 py-3 text-sm font-semibold text-ink-muted">{{ __('loop.current_plan') }}</span>
+                    @else
+                        <form method="POST" action="{{ route('billing.choose') }}" class="mt-6 space-y-3" @submit="ask($event, @js($plan->name), {{ (int) $plan->price_monthly }}, @js($plan->currency ?: $currency))">
+                            @csrf
+                            <input type="hidden" name="plan_key" value="{{ $plan->key }}">
+                            <input type="hidden" name="country" value="{{ $country }}">
+                            <input type="hidden" name="months" :value="months">
+                            <div>
+                                <label class="loop-label">{{ __('loop.pay_with_phone') }}</label>
+                                <div class="flex gap-2">
+                                    <span class="inline-flex items-center rounded-2xl border border-ink/10 bg-chalk px-3 text-sm font-semibold">{{ $dial }}</span>
+                                    <input name="phone" value="{{ old('phone') }}" class="loop-input !mt-0" placeholder="7XXXXXXXX" required>
+                                </div>
+                                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.pay_with_phone_help', ['currency' => $plan->currency ?: $currency]) }}</p>
+                            </div>
+                            <button class="loop-btn-mint w-full">{{ __('loop.pay_and_activate', ['plan' => $plan->name]) }}</button>
+                        </form>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+
+        <template x-teleport="body">
+            <div x-show="open" x-cloak class="fixed inset-0 z-[80] flex items-center justify-center p-4" @keydown.escape.window="open=false">
+                <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm" @click="open=false"></div>
+                <div class="relative w-full max-w-md rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-[0_40px_100px_rgba(17,17,20,0.35)]">
+                    <p class="font-display text-3xl font-semibold" x-text="title"></p>
+                    <p class="mt-3 text-base text-ink-muted" x-text="body"></p>
+                    <button type="button" class="loop-btn mt-8 w-full" @click="confirm()">{{ __('loop.pay_now') }}</button>
+                    <button type="button" class="mt-4 text-sm font-semibold text-ink-muted" @click="open=false">{{ __('loop.cancel') }}</button>
+                </div>
+            </div>
+        </template>
     </div>
 
     <p class="mt-8 text-center text-sm text-ink-muted">{{ __('loop.upgrade_payment_note') }}</p>
-    <a href="{{ route('settings') }}" class="mt-4 block text-center text-sm font-semibold text-ink-muted underline">{{ __('loop.back') }}</a>
 </x-app-layout>

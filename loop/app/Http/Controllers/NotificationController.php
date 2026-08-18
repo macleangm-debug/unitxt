@@ -15,8 +15,8 @@ class NotificationController extends Controller
         $user = $request->user();
         abort_unless($user->isOwner() || $user->isAdmin() || $user->isAffiliate() || $user->isCustomer(), 403);
 
-        if ($user->isOwner()) {
-            $daily->ensureTodayForOwner($user);
+        if ($user->isOwner() || $user->isAdmin() || $user->isAffiliate() || $user->isCustomer()) {
+            $daily->ensureTodayForUser($user);
         }
 
         $notifications = InAppNotification::query()

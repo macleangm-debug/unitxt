@@ -138,6 +138,14 @@
                                 <label class="loop-label">{{ __('loop.max_offers') }}</label>
                                 <input type="number" min="1" name="max_offers" value="{{ old('max_offers', $plan->max_offers) }}" class="loop-input" placeholder="{{ __('loop.unlimited') }}">
                             </div>
+                            <label class="flex items-center gap-2 text-sm font-semibold">
+                                <input type="checkbox" name="has_raffles" value="1" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(old('has_raffles', $plan->has_raffles))>
+                                {{ __('loop.plan_includes_raffles') }}
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold">
+                                <input type="checkbox" name="has_sms" value="1" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(old('has_sms', $plan->has_sms))>
+                                {{ __('loop.plan_includes_sms') }}
+                            </label>
                             <div class="sm:col-span-2">
                                 <label class="loop-label">{{ __('loop.plan_features') }}</label>
                                 <textarea name="features_text" rows="4" class="loop-input" placeholder="{{ __('loop.plan_features_help') }}">{{ old('features_text', implode("\n", $plan->features ?? [])) }}</textarea>
@@ -187,6 +195,18 @@
                             <label class="loop-label">{{ __('loop.free_max_offers') }}</label>
                             <input type="number" min="1" name="free_max_offers" value="{{ old('free_max_offers', $billing['free_max_offers']) }}" class="loop-input" required>
                             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.free_max_offers_help') }}</p>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.discount_3_months') }}</label>
+                            <input type="number" min="0" max="80" name="discount_months_3" value="{{ old('discount_months_3', $billing['discount_months_3'] ?? 8) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.discount_6_months') }}</label>
+                            <input type="number" min="0" max="80" name="discount_months_6" value="{{ old('discount_months_6', $billing['discount_months_6'] ?? 15) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.discount_12_months') }}</label>
+                            <input type="number" min="0" max="80" name="discount_months_12" value="{{ old('discount_months_12', $billing['discount_months_12'] ?? 25) }}" class="loop-input" required>
                         </div>
                     </div>
                     <label class="flex items-start gap-3 text-sm">

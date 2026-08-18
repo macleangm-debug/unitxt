@@ -7,7 +7,7 @@
                 <p class="mt-1 text-ink-muted">{{ $shop->city }} · {{ $shop->code }}</p>
             </div>
             <div class="flex gap-2">
-                <a href="{{ route('shops.index') }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+                <x-back-icon :href="route('shops.index')" />
                 <a href="{{ route('shops.edit', $shop) }}" class="loop-btn-mint !py-2">{{ __('loop.edit') }}</a>
             </div>
         </div>

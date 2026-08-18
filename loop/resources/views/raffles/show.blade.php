@@ -7,7 +7,7 @@
                 <p class="mt-1 text-ink-muted">{{ $raffle->prize_name }} · {{ __('loop.raffle_status_'.$raffle->status) }}</p>
             </div>
             <div class="flex gap-2">
-                <a href="{{ route('raffles.index') }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+                <x-back-icon :href="route('raffles.index')" />
                 @if (in_array($raffle->status, ['scheduled','live'], true) && $raffle->remainingWinnerSlots() > 0)
                     <a href="{{ route('raffles.live', $raffle) }}" class="loop-btn-mint !py-2">{{ __('loop.go_live') }}</a>
                 @endif

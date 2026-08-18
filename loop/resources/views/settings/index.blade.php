@@ -25,6 +25,11 @@
             <p class="relative mt-3 font-display text-3xl font-semibold" >{{ $staffCount }}</p>
             <p class="relative mt-2 text-sm text-ink-muted">{{ __('loop.settings_staff') }}</p>
         </a>
+        <a href="{{ route('members.messages.index') }}" class="loop-panel loop-panel--energy group block p-6 transition hover:-translate-y-0.5">
+            <p class="relative text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.member_messages') }}</p>
+            <p class="relative mt-3 font-display text-2xl font-semibold">{{ __('loop.sms') }}</p>
+            <p class="relative mt-2 text-sm text-ink-muted">{{ __('loop.settings_messages') }}</p>
+        </a>
         <a href="{{ route('raffles.index') }}" class="loop-panel loop-panel--energy group block p-6 transition hover:-translate-y-0.5">
             <p class="relative text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.raffles') }}</p>
             <p class="relative mt-3 font-display text-3xl font-semibold" >{{ $raffleCount }}</p>

@@ -54,11 +54,17 @@ class SettingsHubController extends Controller
             'free_max_product_pushes' => ['required', 'integer', 'min:0', 'max:50'],
             'free_max_offers' => ['required', 'integer', 'min:1', 'max:200'],
             'block_till_when_trial_ends' => ['sometimes', 'boolean'],
+            'discount_months_3' => ['nullable', 'integer', 'min:0', 'max:80'],
+            'discount_months_6' => ['nullable', 'integer', 'min:0', 'max:80'],
+            'discount_months_12' => ['nullable', 'integer', 'min:0', 'max:80'],
         ]);
 
         $normalized = BillingSettings::normalizeInput([
             ...$data,
             'block_till_when_trial_ends' => $request->boolean('block_till_when_trial_ends'),
+            'discount_months_3' => $data['discount_months_3'] ?? 8,
+            'discount_months_6' => $data['discount_months_6'] ?? 15,
+            'discount_months_12' => $data['discount_months_12'] ?? 25,
         ]);
 
         PlatformSetting::putValue(BillingSettings::KEY, $normalized);
@@ -329,6 +335,8 @@ class SettingsHubController extends Controller
             'sort_order' => ['required', 'integer', 'min:0', 'max:100'],
             'is_public' => ['sometimes', 'boolean'],
             'features_text' => ['nullable', 'string', 'max:4000'],
+            'has_raffles' => ['sometimes', 'boolean'],
+            'has_sms' => ['sometimes', 'boolean'],
         ]);
 
         $features = collect(preg_split('/\r\n|\r|\n/', (string) ($data['features_text'] ?? '')))
@@ -349,6 +357,8 @@ class SettingsHubController extends Controller
             'max_offers' => $data['max_offers'] ?? null,
             'sort_order' => $data['sort_order'],
             'is_public' => $request->boolean('is_public'),
+            'has_raffles' => $request->boolean('has_raffles'),
+            'has_sms' => $request->boolean('has_sms'),
             'features' => $features,
         ]);
 

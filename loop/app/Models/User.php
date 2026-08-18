@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -149,5 +150,42 @@ class User extends Authenticatable
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class, 'customer_id');
+    }
+
+    public function assignedShops(): BelongsToMany
+    {
+        return $this->belongsToMany(Shop::class)->withTimestamps();
+    }
+
+    /**
+     * Shops this staff member may sell from. Owners see every active shop.
+     * Front desk with no assignments still sees every shop (legacy staff).
+     *
+     * @return \Illuminate\Support\Collection<int, Shop>
+     */
+    public function tillShops(?Business $business = null)
+    {
+        $business = $business ?? $this->workplace();
+        if (! $business) {
+            return collect();
+        }
+
+        $all = $business->shops()->where('is_active', true)->orderBy('name')->get();
+        if ($this->isOwner() || $all->count() <= 1) {
+            return $all;
+        }
+
+        $assigned = $this->assignedShops()
+            ->where('shops.business_id', $business->id)
+            ->where('shops.is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return $assigned->isNotEmpty() ? $assigned : $all;
+    }
+
+    public function canAccessShop(Shop $shop): bool
+    {
+        return $this->tillShops($shop->business)->contains(fn (Shop $row) => (int) $row->id === (int) $shop->id);
     }
 }

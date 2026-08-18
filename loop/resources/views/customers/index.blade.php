@@ -1,8 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <h1 class="font-display text-3xl font-semibold">{{ __('loop.customers') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.customers_blurb', ['count' => $memberCount]) }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.customers') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.customers_blurb', ['count' => $memberCount]) }}</p>
+            </div>
+            <a href="{{ route('members.messages.index') }}" class="loop-btn-mint !py-2.5">{{ __('loop.send_messages') }}</a>
         </div>
     </x-slot>
 

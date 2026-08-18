@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.content_studio') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.content_studio_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('settings')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.content_studio') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.content_studio_blurb') }}</p>
+            </div>
         </div>
     </x-slot>
 

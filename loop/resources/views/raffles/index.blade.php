@@ -1,10 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">Loop</p>
-                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.raffles') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.raffles_blurb') }}</p>
+            <div class="flex items-start gap-3">
+                <x-back-icon :href="route('settings')" />
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">Loop</p>
+                    <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.raffles') }}</h1>
+                    <p class="mt-1 text-ink-muted">{{ __('loop.raffles_blurb') }}</p>
+                </div>
             </div>
             @if ($unlocked)
                 <a href="{{ route('raffles.create') }}" class="loop-btn-mint">{{ __('loop.create_raffle') }}</a>
@@ -12,7 +15,14 @@
         </div>
     </x-slot>
 
-    @if (! $unlocked)
+    @if (! empty($planLocked))
+        <section class="rounded-[2rem] border border-ink/10 bg-gradient-to-br from-ink to-ink-soft p-8 text-white">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.raffle_plan_locked') }}</p>
+            <h2 class="mt-3 font-display text-3xl font-semibold">{{ __('loop.raffle_plan_locked_title') }}</h2>
+            <p class="mt-3 max-w-xl text-sm text-white/70">{{ __('loop.raffle_plan_locked_body') }}</p>
+            <a href="{{ route('billing.show') }}" class="loop-btn-lime mt-6 inline-flex">{{ __('loop.upgrade_now') }}</a>
+        </section>
+    @elseif (! $unlocked)
         <section class="rounded-[2rem] border border-ink/10 bg-gradient-to-br from-ink to-ink-soft p-8 text-white">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.raffle_locked') }}</p>
             <h2 class="mt-3 font-display text-3xl font-semibold">{{ __('loop.raffle_locked_title') }}</h2>

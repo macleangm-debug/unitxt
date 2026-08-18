@@ -1270,6 +1270,8 @@ class LoopCoreFlowTest extends TestCase
             'currency' => 'TZS',
             'city' => 'Dar es Salaam',
             'onboarding_completed_at' => now(),
+            'plan_key' => 'growth',
+            'billing_status' => 'active',
         ]);
         $owner->update(['business_id' => $business->id]);
         $shop = Shop::create([

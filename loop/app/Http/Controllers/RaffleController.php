@@ -19,11 +19,13 @@ class RaffleController extends Controller
 
         $memberCount = $business->uniqueMemberCount();
         $min = GrowthSettings::raffleMinMembers();
+        $planAllows = app(\App\Services\PlanLimitService::class)->rafflesEnabled($business);
 
         return view('raffles.index', [
             'business' => $business,
             'raffles' => $business->raffles()->withCount('winners')->latest()->get(),
-            'unlocked' => $memberCount >= $min,
+            'unlocked' => $planAllows && $memberCount >= $min,
+            'planLocked' => ! $planAllows,
             'memberCount' => $memberCount,
             'minMembers' => $min,
             'reminders' => $business->raffles()
@@ -40,6 +42,7 @@ class RaffleController extends Controller
         abort_unless($business && $request->user()->isOwner(), 403);
 
         $memberCount = $business->uniqueMemberCount();
+        abort_unless(app(\App\Services\PlanLimitService::class)->rafflesEnabled($business), 403);
         if ($memberCount < GrowthSettings::raffleMinMembers()) {
             return redirect()->route('raffles.index')
                 ->withErrors(['raffle' => __('loop.raffle_locked_body', [
@@ -65,6 +68,7 @@ class RaffleController extends Controller
         abort_unless($business && $request->user()->isOwner(), 403);
 
         $memberCount = $business->uniqueMemberCount();
+        abort_unless(app(\App\Services\PlanLimitService::class)->rafflesEnabled($business), 403);
         abort_unless($memberCount >= GrowthSettings::raffleMinMembers(), 403);
 
         $maxWinners = GrowthSettings::maxWinnersForMembers($memberCount);

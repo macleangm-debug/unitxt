@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Plan;
 use App\Services\Payments\PaymentService;
 use App\Services\PlanLimitService;
+use App\Support\BillingSettings;
+use App\Support\Confirm;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,6 +35,7 @@ class BillingController extends Controller
             'country' => $country,
             'dial' => Countries::dial($country),
             'currency' => Countries::currency($country),
+            'intervals' => BillingSettings::intervalDiscounts(),
         ]);
     }
 
@@ -45,23 +48,39 @@ class BillingController extends Controller
             'plan_key' => ['required', 'in:starter,growth,scale'],
             'phone' => ['required', 'string', 'max:20'],
             'country' => ['required', 'string', 'size:2'],
+            'months' => ['nullable', 'integer', 'in:1,3,6,12'],
         ]);
 
         $plan = Plan::query()->where('key', $data['plan_key'])->where('is_public', true)->firstOrFail();
         $country = strtoupper($data['country']);
         abort_unless(isset(Countries::OPTIONS[$country]), 422);
+        $months = (int) ($data['months'] ?? 1);
 
-        if ((int) $plan->price_monthly <= 0) {
+        $monthly = $business->effectiveMonthlyPrice();
+        if ($monthly <= 0) {
+            $monthly = (int) $plan->price_monthly;
+        }
+        $amount = BillingSettings::amountForMonths($monthly, $months);
+
+        if ($amount <= 0) {
             $business->update([
                 'plan_key' => $plan->key,
                 'billing_status' => 'active',
                 'trial_ends_at' => null,
+                'plan_interval_months' => $months,
+                'plan_renews_at' => now()->addMonths($months),
             ]);
 
-            return redirect()->route('billing.show')->with('status', __('loop.plan_activated', ['plan' => $plan->name]));
+            return redirect()->route('billing.show')->with('confirm', Confirm::make(
+                __('loop.plan_activated_title', ['plan' => $plan->name]),
+                __('loop.plan_activated', ['plan' => $plan->name]),
+                __('loop.done'),
+                route('billing.show'),
+                true,
+            ));
         }
 
-        $intent = $payments->startPlanPayment($business, $request->user(), $plan, $data['phone'], $country);
+        $intent = $payments->startPlanPayment($business, $request->user(), $plan, $data['phone'], $country, $months);
 
         return redirect()->route('payments.wait', $intent);
     }

@@ -4,9 +4,12 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="min-w-0 max-w-2xl">
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+            <div class="flex min-w-0 items-start gap-3">
+                <x-back-icon :href="route('settings')" />
+                <div class="min-w-0 max-w-2xl">
+                    <h1 class="font-display text-3xl font-semibold">{{ __('loop.campaigns_and_offers') }}</h1>
+                    <p class="mt-1 text-ink-muted">{{ __('loop.campaigns_and_offers_blurb') }}</p>
+                </div>
             </div>
             @if ($tab === 'offers')
                 <a href="{{ route('rewards.create') }}" class="loop-btn-mint shrink-0 !py-2.5">{{ __('loop.add_offer') }}</a>

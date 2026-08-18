@@ -176,6 +176,27 @@
     @endif
 
     @if ($tab === 'messaging')
+        <div class="mb-6 grid gap-3 sm:grid-cols-3">
+            <div class="loop-glass p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.sms_health') }}</p>
+                <p class="mt-2 font-display text-xl font-semibold">{{ ($smsHealth['configured'] ?? false) ? __('loop.configured') : __('loop.stub_mode') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ $smsHealth['message'] ?? '' }}</p>
+            </div>
+            <div class="loop-glass p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.psp_health') }}</p>
+                <p class="mt-2 font-display text-xl font-semibold">{{ $payinHealth['configured'] ? __('loop.configured') : __('loop.stub_mode') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ $payinHealth['message'] }}</p>
+            </div>
+            <div class="loop-glass p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.members_by_country') }}</p>
+                @forelse ($membersByCountry ?? [] as $row)
+                    <p class="mt-1 text-sm">{{ $row->country ?: '—' }} · {{ $row->members }}</p>
+                @empty
+                    <p class="mt-2 text-sm text-ink-muted">—</p>
+                @endforelse
+            </div>
+        </div>
+
         <div class="loop-glass p-6">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.messaging_integration') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.messaging_integration_blurb') }}</p>
@@ -188,11 +209,23 @@
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="loop-label">{{ __('loop.sender_id') }}</label>
-                            <input name="messaging[sender_id]" value="{{ $settings['messaging']['sender_id'] }}" class="loop-input">
+                            <input name="messaging[sender_id]" value="{{ $settings['messaging']['sender_id'] }}" maxlength="11" class="loop-input">
                         </div>
                         <div>
                             <label class="loop-label">API key</label>
                             <input name="messaging[api_key]" value="{{ $settings['messaging']['api_key'] }}" class="loop-input">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.price_per_message') }}</label>
+                            <input type="number" min="1" name="messaging[price_per_message]" value="{{ $settings['messaging']['price_per_message'] ?? 30 }}" class="loop-input">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.sender_id_yearly_fee') }}</label>
+                            <input type="number" min="0" name="messaging[sender_id_yearly_fee]" value="{{ $settings['messaging']['sender_id_yearly_fee'] ?? 15000 }}" class="loop-input">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="loop-label">{{ __('loop.sms_enabled_countries') }}</label>
+                            <input name="messaging[enabled_countries]" value="{{ implode(',', $settings['messaging']['enabled_countries'] ?? ['TZ']) }}" class="loop-input" placeholder="TZ">
                         </div>
                     </div>
                     <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="messaging[business_can_message_customers]" value="1" @checked($settings['messaging']['business_can_message_customers'])> {{ __('loop.biz_message_customers') }}</label>
@@ -200,6 +233,100 @@
                     <button class="loop-btn-mint">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
+        </div>
+
+        <div class="mt-6 grid gap-6 lg:grid-cols-2">
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.test_sms') }}</h2>
+                <form method="POST" action="{{ route('admin.integrations.test-sms') }}" class="mt-4 space-y-3">
+                    @csrf
+                    <input name="sender" maxlength="11" class="loop-input" value="LOOP" placeholder="LOOP">
+                    <div class="grid grid-cols-[8rem_1fr] gap-2">
+                        <select name="country" class="loop-input">
+                            @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
+                                <option value="{{ $code }}" @selected($code === 'TZ')>{{ $meta['flag'] }} {{ $code }}</option>
+                            @endforeach
+                        </select>
+                        <input name="phone" class="loop-input" placeholder="7XXXXXXXX" required>
+                    </div>
+                    <textarea name="body" rows="3" class="loop-input" required>{{ __('loop.sms_test_default') }}</textarea>
+                    <button class="loop-btn-mint w-full">{{ __('loop.send_test_sms') }}</button>
+                </form>
+            </section>
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sms_businesses') }}</h2>
+                <form method="POST" action="{{ route('admin.integrations.sms.businesses') }}" class="mt-4 space-y-3">
+                    @csrf
+                    <select name="template_key" class="loop-input" required>
+                        @foreach ($smsTemplates ?? [] as $template)
+                            <option value="{{ $template->key }}">{{ $template->name }}</option>
+                        @endforeach
+                    </select>
+                    <select name="sector" class="loop-input">
+                        <option value="">{{ __('loop.all_sectors') }}</option>
+                        @foreach ($sectors ?? [] as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <button class="loop-btn w-full">{{ __('loop.send_to_businesses') }}</button>
+                </form>
+            </section>
+        </div>
+
+        <div class="mt-6 grid gap-6 lg:grid-cols-2">
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.starter_sender_ids') }}</h2>
+                <form method="POST" action="{{ route('admin.integrations.sender-ids.store') }}" class="mt-4 grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+                    @csrf
+                    <input name="code" maxlength="11" class="loop-input uppercase" placeholder="OFFER" required>
+                    <input type="number" name="yearly_fee" class="loop-input" value="15000">
+                    <button class="loop-btn-mint">{{ __('loop.add') }}</button>
+                </form>
+                <div class="mt-4 space-y-2">
+                    @foreach ($platformSenderIds ?? [] as $starter)
+                        <form method="POST" action="{{ route('admin.integrations.sender-ids.update', $starter) }}" class="flex items-center gap-2">
+                            @csrf
+                            @method('PATCH')
+                            <span class="w-28 font-semibold">{{ $starter->code }}</span>
+                            <select name="status" class="loop-input !mt-0 !py-2">
+                                <option value="inactive" @selected($starter->status === 'inactive')>{{ __('loop.inactive') }}</option>
+                                <option value="active" @selected($starter->status === 'active')>{{ __('loop.active') }}</option>
+                            </select>
+                            <input type="number" name="yearly_fee" value="{{ $starter->yearly_fee }}" class="loop-input !mt-0 !w-28 !py-2">
+                            <button class="text-sm font-semibold text-violet">{{ __('loop.save') }}</button>
+                        </form>
+                    @endforeach
+                </div>
+            </section>
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.pending_sender_ids') }}</h2>
+                <div class="mt-4 space-y-2">
+                    @forelse ($pendingSenderIds ?? [] as $row)
+                        <form method="POST" action="{{ route('admin.integrations.business-sender.activate', $row) }}" class="flex items-center justify-between gap-2 text-sm">
+                            @csrf
+                            <span>{{ $row->business?->name }} · {{ $row->code }} · {{ $row->status }}</span>
+                            <button class="font-semibold text-violet">{{ __('loop.activate') }}</button>
+                        </form>
+                    @empty
+                        <p class="text-sm text-ink-muted">{{ __('loop.none_pending') }}</p>
+                    @endforelse
+                </div>
+            </section>
+        </div>
+
+        <div class="mt-6 grid gap-6 lg:grid-cols-2">
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-lg font-semibold">{{ __('loop.subscription_payments') }}</h2>
+                @foreach ($subscriptionPayments ?? [] as $p)
+                    <p class="mt-2 text-sm">{{ $p->created_at?->diffForHumans() }} · {{ $p->currency }} {{ number_format($p->amount) }} · {{ $p->status }}</p>
+                @endforeach
+            </section>
+            <section class="loop-glass p-6">
+                <h2 class="font-display text-lg font-semibold">{{ __('loop.messaging_payments') }}</h2>
+                @foreach ($messagingPayments ?? [] as $p)
+                    <p class="mt-2 text-sm">{{ $p->purpose }} · {{ $p->currency }} {{ number_format($p->amount) }} · {{ $p->status }}</p>
+                @endforeach
+            </section>
         </div>
     @endif
 

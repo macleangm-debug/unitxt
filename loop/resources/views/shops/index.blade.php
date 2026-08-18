@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.shops') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.shops_blurb') }}</p>
+            <div class="flex items-start gap-3">
+                <x-back-icon :href="route('settings')" />
+                <div>
+                    <h1 class="font-display text-3xl font-semibold">{{ __('loop.shops') }}</h1>
+                    <p class="mt-1 text-ink-muted">{{ __('loop.shops_blurb') }}</p>
+                </div>
             </div>
             <a href="{{ route('shops.create') }}" class="loop-btn-mint">{{ __('loop.add_shop') }}</a>
         </div>

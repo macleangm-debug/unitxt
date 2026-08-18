@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.business_settings') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.business_settings_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('settings')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.business_settings') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.business_settings_blurb') }}</p>
+            </div>
         </div>
     </x-slot>
 
@@ -31,6 +34,17 @@
         <div>
             <label class="loop-label">{{ __('loop.city') }}</label>
             <input name="city" value="{{ old('city', $business->city) }}" class="loop-input">
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+                <label class="loop-label">{{ __('loop.country') }}</label>
+                <input class="loop-input bg-chalk" value="{{ \App\Support\Countries::OPTIONS[$business->country]['name'] ?? $business->country }}" disabled>
+            </div>
+            <div>
+                <label class="loop-label">{{ __('loop.currency') }}</label>
+                <input class="loop-input bg-chalk" value="{{ $business->currency }}" disabled>
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.currency_follows_country') }}</p>
+            </div>
         </div>
         <div>
             <label class="loop-label">{{ __('loop.hotline') }}</label>

@@ -1430,4 +1430,40 @@ Alpine.data('tillWizard', (cfg = {}) => ({
     },
 }));
 
+Alpine.data('billingPayConfirm', (cfg = {}) => ({
+    months: 1,
+    open: false,
+    form: null,
+    title: '',
+    body: '',
+    discounts: cfg.discounts || { 1: 0, 3: 8, 6: 15, 12: 25 },
+    priceLabel(monthly, currency) {
+        const months = Number(this.months) || 1;
+        const discount = Number(this.discounts[months] || 0);
+        const amount = Math.round(monthly * months * (100 - discount) / 100);
+        return `${currency} ${amount.toLocaleString()} / ${months} ${cfg.monthsLabel || 'mo'}`;
+    },
+    ask(event, planName, monthly, currency) {
+        event.preventDefault();
+        this.form = event.target;
+        this.title = cfg.confirmTitle || planName;
+        this.body = `${planName} · ${this.priceLabel(monthly, currency)}`;
+        this.open = true;
+    },
+    confirm() {
+        this.open = false;
+        if (this.form) {
+            this.form.submit();
+        }
+    },
+}));
+
+Alpine.data('memberMessageWizard', (cfg = {}) => ({
+    audience: 'all',
+    body: '',
+    price: cfg.price || 30,
+    currency: cfg.currency || 'TZS',
+    memberCount: cfg.memberCount || 0,
+}));
+
 Alpine.start();

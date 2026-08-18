@@ -1,7 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.create_raffle') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.create_raffle_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('raffles.index')" />
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.create_raffle') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.create_raffle_blurb') }}</p>
+            </div>
+        </div>
     </x-slot>
 
     <form method="POST" action="{{ route('raffles.store') }}" class="mx-auto max-w-xl space-y-6 rounded-[2rem] border border-ink/10 bg-white/90 p-6 sm:p-8">
@@ -71,6 +76,5 @@
         </section>
 
         <button class="loop-btn-mint w-full">{{ __('loop.save_raffle') }}</button>
-        <a href="{{ route('raffles.index') }}" class="block text-center text-sm text-ink-muted underline">{{ __('loop.back') }}</a>
     </form>
 </x-app-layout>

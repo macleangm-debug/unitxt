@@ -13,7 +13,9 @@
                     @endif
                 </p>
             </div>
-            <a href="{{ route('customers.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
+            <div class="flex flex-wrap gap-2">
+                <x-back-icon :href="route('customers.index')" />
+            </div>
         </div>
     </x-slot>
 

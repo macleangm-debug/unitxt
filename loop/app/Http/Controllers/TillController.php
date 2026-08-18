@@ -33,9 +33,13 @@ class TillController extends Controller
             $scanPhone = $scanPhone ? preg_replace('/\D+/', '', $scanPhone) : null;
         }
 
+        $shops = $business?->id
+            ? $request->user()->tillShops($business)
+            : collect();
+
         return view('till.index', [
             'business' => $business,
-            'shops' => $business?->shops()->where('is_active', true)->orderBy('name')->get() ?? collect(),
+            'shops' => $shops,
             'countries' => Countries::OPTIONS,
             'recent' => ($isOwner && $business)
                 ? $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get()
@@ -61,6 +65,7 @@ class TillController extends Controller
         abort_unless($business, 403);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
+        abort_unless($request->user()->canAccessShop($shop), 403);
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
 
@@ -250,6 +255,7 @@ class TillController extends Controller
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
+        abort_unless($request->user()->canAccessShop($shop), 403);
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
         $payWithPoints = $request->boolean('pay_with_points');
@@ -382,6 +388,7 @@ class TillController extends Controller
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
+        abort_unless($request->user()->canAccessShop($shop), 403);
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
 

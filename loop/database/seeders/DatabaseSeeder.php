@@ -30,6 +30,8 @@ class DatabaseSeeder extends Seeder
                     'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
                     'max_product_pushes' => $plan['max_product_pushes'] ?? null,
                     'max_offers' => $plan['max_offers'] ?? null,
+                    'has_raffles' => (bool) ($plan['has_raffles'] ?? false),
+                    'has_sms' => (bool) ($plan['has_sms'] ?? false),
                     'is_public' => true,
                     'sort_order' => $plan['sort_order'],
                     'features' => $plan['features'],

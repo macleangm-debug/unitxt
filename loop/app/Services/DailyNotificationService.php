@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Affiliate;
 use App\Models\Business;
 use App\Models\Campaign;
 use App\Models\InAppNotification;
@@ -9,6 +10,7 @@ use App\Models\Membership;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\FeatureFlags;
+use App\Support\NotificationSettings;
 use Illuminate\Support\Carbon;
 
 class DailyNotificationService
@@ -31,6 +33,8 @@ class DailyNotificationService
 
         $day = ($day ?? now())->copy()->startOfDay();
         $created = 0;
+
+        $created += $this->pushInsights($owner, $business, $day);
 
         $created += $this->push($owner, $business, 'setup_offers', 'need_offers', $day, [
             'title_key' => 'loop.notif_need_offers_title',
@@ -138,11 +142,22 @@ class DailyNotificationService
             ]);
         }
 
+        $tip = app(SalesTipService::class)->tipFor($business);
+        $created += $this->push($owner, $business, 'sales_tip', $business->sector ?: 'default', $day, [
+            'title_key' => $tip['title_key'],
+            'body_key' => $tip['body_key'],
+            'cta_key' => $tip['cta_key'],
+            'url' => $tip['url'],
+            'tone' => 'mint',
+            'when' => true,
+        ]);
+
         $created += $this->push($owner, $business, 'daily_hello', 'hello', $day, [
             'title_key' => 'loop.notif_daily_hello_title',
             'body_key' => 'loop.notif_daily_hello_body',
             'params' => [
                 'business' => $business->name,
+                'customers' => $business->uniqueMemberCount(),
                 'members' => $business->uniqueMemberCount(),
             ],
             'cta_key' => 'loop.start_selling',
@@ -151,31 +166,180 @@ class DailyNotificationService
             'when' => true,
         ]);
 
+        $created += $this->ensureMinimum($owner, $business, $day, 'owner', [
+            [
+                'type' => 'daily_hello',
+                'dedupe' => 'hello_fill',
+                'title_key' => 'loop.notif_daily_hello_title',
+                'body_key' => 'loop.notif_daily_hello_body',
+                'params' => ['business' => $business->name, 'customers' => $business->uniqueMemberCount(), 'members' => $business->uniqueMemberCount()],
+                'cta_key' => 'loop.start_selling',
+                'url' => route('till.index'),
+                'tone' => 'mint',
+            ],
+        ]);
+
+        return $created;
+    }
+
+    public function generateForCustomer(User $customer, ?Carbon $day = null): int
+    {
+        if (! FeatureFlags::enabled('member_daily_digest') || ! $customer->isCustomer()) {
+            return 0;
+        }
+        if (! NotificationSettings::settings()['customer_in_app']) {
+            return 0;
+        }
+
+        $day = ($day ?? now())->copy()->startOfDay();
+        $membership = Membership::query()->with('business')->where('customer_id', $customer->id)->latest('id')->first();
+        $business = $membership?->business;
+        $created = 0;
+
+        $created += $this->push($customer, $business, 'member_hello', 'hello', $day, [
+            'title_key' => 'loop.notif_member_hello_title',
+            'body_key' => 'loop.notif_member_hello_body',
+            'params' => [
+                'name' => $customer->first_name ?: $customer->name,
+                'points' => (int) ($membership?->points_balance ?? 0),
+            ],
+            'cta_key' => 'loop.discover',
+            'url' => route('discover'),
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+
+        $created += $this->push($customer, $business, 'member_offers', 'offers', $day, [
+            'title_key' => 'loop.notif_member_offers_title',
+            'body_key' => 'loop.notif_member_offers_body',
+            'cta_key' => 'loop.wallets',
+            'url' => route('memberships.index'),
+            'tone' => 'violet',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+
+        return $created;
+    }
+
+    public function generateForAffiliate(User $affiliateUser, ?Carbon $day = null): int
+    {
+        if (! FeatureFlags::enabled('affiliate_daily_digest') || ! $affiliateUser->isAffiliate()) {
+            return 0;
+        }
+        if (! NotificationSettings::settings()['affiliate_in_app']) {
+            return 0;
+        }
+
+        $day = ($day ?? now())->copy()->startOfDay();
+        $profile = Affiliate::query()->where('user_id', $affiliateUser->id)->first();
+        $created = 0;
+
+        $created += $this->push($affiliateUser, null, 'affiliate_share', 'share', $day, [
+            'title_key' => 'loop.notif_affiliate_share_title',
+            'body_key' => 'loop.notif_affiliate_share_body',
+            'params' => ['code' => $profile?->promo_code ?? ''],
+            'cta_key' => 'loop.affiliate_nav_share',
+            'url' => route('affiliate.dashboard').'#share',
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'affiliate',
+        ]);
+
+        $created += $this->push($affiliateUser, null, 'affiliate_tips', 'tips', $day, [
+            'title_key' => 'loop.notif_affiliate_tips_title',
+            'body_key' => 'loop.notif_affiliate_tips_body',
+            'cta_key' => 'loop.affiliate_nav_referrals',
+            'url' => route('affiliate.dashboard').'#referrals',
+            'tone' => 'violet',
+            'when' => true,
+            'audience' => 'affiliate',
+        ]);
+
         return $created;
     }
 
     public function ensureTodayForOwner(User $owner): void
     {
-        $business = $owner->ownedBusiness;
-        if (! $business || ! FeatureFlags::enabled('owner_daily_digest')) {
+        $this->ensureTodayForUser($owner);
+    }
+
+    public function ensureTodayForUser(User $user): void
+    {
+        $today = now()->toDateString();
+        $count = InAppNotification::query()
+            ->where('user_id', $user->id)
+            ->whereDate('for_date', $today)
+            ->count();
+
+        if ($count >= 2) {
             return;
         }
 
-        $today = now()->toDateString();
-        $exists = InAppNotification::query()
-            ->where('user_id', $owner->id)
-            ->whereDate('for_date', $today)
-            ->exists();
-
-        if (! $exists) {
-            $this->generateForBusiness($business);
+        if ($user->isOwner() && FeatureFlags::enabled('owner_daily_digest')) {
+            $business = $user->ownedBusiness;
+            if ($business) {
+                $this->generateForBusiness($business);
+            }
         }
+
+        if ($user->isCustomer()) {
+            $this->generateForCustomer($user);
+        }
+
+        if ($user->isAffiliate()) {
+            $this->generateForAffiliate($user);
+        }
+    }
+
+    private function pushInsights(User $owner, Business $business, Carbon $day): int
+    {
+        $created = 0;
+        foreach (app(BusinessInsightService::class)->notificationSpecs($business) as $spec) {
+            $created += $this->push($owner, $business, 'insight_'.$spec['key'], $spec['key'], $day, [
+                'title_key' => $spec['title_key'],
+                'body_key' => $spec['body_key'],
+                'params' => $spec['params'] ?? [],
+                'cta_key' => $spec['cta_key'],
+                'url' => $spec['url'],
+                'tone' => $spec['tone'] ?? 'mint',
+                'when' => true,
+            ]);
+        }
+
+        return $created;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $fallbacks
+     */
+    private function ensureMinimum(User $user, ?Business $business, Carbon $day, string $audience, array $fallbacks): int
+    {
+        $count = InAppNotification::query()
+            ->where('user_id', $user->id)
+            ->whereDate('for_date', $day->toDateString())
+            ->count();
+        $created = 0;
+
+        foreach ($fallbacks as $row) {
+            if ($count + $created >= 2) {
+                break;
+            }
+            $created += $this->push($user, $business, $row['type'], $row['dedupe'], $day, [
+                ...$row,
+                'when' => true,
+                'audience' => $audience,
+            ]);
+        }
+
+        return $created;
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function push(User $user, Business $business, string $type, string $dedupe, Carbon $day, array $data): int
+    private function push(User $user, ?Business $business, string $type, string $dedupe, Carbon $day, array $data): int
     {
         if (empty($data['when'])) {
             return 0;
@@ -194,8 +358,8 @@ class DailyNotificationService
 
         InAppNotification::create([
             'user_id' => $user->id,
-            'business_id' => $business->id,
-            'audience' => 'owner',
+            'business_id' => $business?->id,
+            'audience' => $data['audience'] ?? 'owner',
             'type' => $type,
             'dedupe_key' => $dedupe,
             'title_key' => $data['title_key'],

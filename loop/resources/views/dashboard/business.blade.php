@@ -1,5 +1,15 @@
 <x-app-layout>
     <x-slot name="header">
+        @if (!empty($subscriptionBanner))
+            <div @class([
+                'mb-3 flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-2 text-sm',
+                'border-coral/30 bg-coral/10 text-ink' => ($subscriptionBanner['tone'] ?? '') === 'coral',
+                'border-amber-200 bg-amber-50 text-ink' => ($subscriptionBanner['tone'] ?? '') !== 'coral',
+            ])>
+                <p class="min-w-0 truncate font-medium">{{ $subscriptionBanner['text'] }}</p>
+                <a href="{{ route('billing.show') }}" class="shrink-0 text-xs font-semibold text-violet">{{ __('loop.renew_now') }}</a>
+            </div>
+        @endif
         <div
             class="loop-wallet mb-2 px-5 py-6 sm:px-7 sm:py-7"
         >
@@ -34,59 +44,15 @@
         <div class="loop-stat">
             <p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p>
             <p class="mt-2 font-display text-3xl font-semibold">{{ $visitCount }}</p>
+            <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($totalSpend ?? 0, 0) }}</p>
         </div>
     </div>
 
-    @if ($isOwner && !empty($heroBanners))
-        <div class="mt-6 space-y-4">
-            @foreach ($heroBanners as $banner)
-                <section @class([
-                    'overflow-hidden rounded-[1.5rem] p-6',
-                    'border border-violet/20 bg-violet-soft/50' => ($banner['tone'] ?? '') === 'mint',
-                    'border border-coral/25 bg-coral/10' => ($banner['tone'] ?? '') === 'coral',
-                    'loop-wallet' => ($banner['tone'] ?? '') === 'ink',
-                ])>
-                    <div class="relative flex flex-wrap items-start justify-between gap-4">
-                        <div class="max-w-xl">
-                            <p @class([
-                                'text-xs font-semibold uppercase tracking-[0.14em]',
-                                'text-violet' => ($banner['tone'] ?? '') !== 'ink',
-                                'text-lime' => ($banner['tone'] ?? '') === 'ink',
-                            ])>{{ __('loop.performance') }}</p>
-                            <h2 class="mt-2 font-display text-2xl font-semibold {{ ($banner['tone'] ?? '') === 'ink' ? 'text-white' : '' }}">{{ $banner['title'] }}</h2>
-                            <p @class(['mt-2 text-sm', 'text-ink-muted' => ($banner['tone'] ?? '') !== 'ink', 'text-white/70' => ($banner['tone'] ?? '') === 'ink'])>{{ $banner['body'] }}</p>
-                        </div>
-                        <a href="{{ $banner['url'] }}" @class([
-                            'rounded-2xl px-5 py-2.5 text-sm font-semibold',
-                            'bg-violet text-white' => ($banner['tone'] ?? '') !== 'ink',
-                            'bg-lime text-ink' => ($banner['tone'] ?? '') === 'ink',
-                        ])>{{ $banner['cta'] }}</a>
-                    </div>
-                </section>
-            @endforeach
-        </div>
-    @endif
-
-    @if ($isOwner && !empty($needsUpgrade))
-        <section class="mt-6 overflow-hidden rounded-[1.5rem] border border-coral/25 bg-white p-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="max-w-xl">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-coral">{{ __('loop.billing') }}</p>
-                    <h2 class="mt-2 font-display text-2xl font-semibold">
-                        {{ !empty($trialExpired) ? __('loop.trial_ended_title') : __('loop.upgrade_nudge_title') }}
-                    </h2>
-                    <p class="mt-2 text-sm text-ink-muted">
-                        @if (!empty($trialExpired))
-                            {{ __('loop.trial_ended_body') }}
-                        @elseif (($trialDaysLeft ?? 0) > 0)
-                            {{ __('loop.trial_days_left', ['days' => $trialDaysLeft]) }} — {{ __('loop.upgrade_nudge_body') }}
-                        @else
-                            {{ __('loop.upgrade_nudge_body') }}
-                        @endif
-                    </p>
-                </div>
-                <a href="{{ route('billing.show') }}" class="loop-btn">{{ __('loop.upgrade_now') }}</a>
-            </div>
+    @if ($isOwner && !empty($salesTip))
+        <section class="mt-6 rounded-[1.5rem] border border-violet/15 bg-violet-soft/40 px-5 py-4">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.sales_tips') }}</p>
+            <h2 class="mt-1 font-display text-lg font-semibold">{{ __($salesTip['title_key']) }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __($salesTip['body_key']) }}</p>
         </section>
     @endif
 

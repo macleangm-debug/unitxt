@@ -1,7 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit_shop') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.code') }}: <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('shops.show', $shop)" />
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit_shop') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.code') }}: <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
+            </div>
+        </div>
     </x-slot>
 
     <form method="POST" action="{{ route('shops.update', $shop) }}" class="loop-panel mx-auto max-w-xl space-y-5 p-6 sm:p-8">

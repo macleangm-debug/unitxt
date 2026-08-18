@@ -7,7 +7,6 @@ use App\Models\Membership;
 use App\Models\Visit;
 use App\Services\PlanLimitService;
 use App\Services\ReferralService;
-use App\Support\Plans;
 use App\Support\Sectors;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -41,6 +40,7 @@ class DashboardController extends Controller
 
             $todayVisits = $business->visits()->whereDate('created_at', today())->count();
             $todaySpend = (float) $business->visits()->whereDate('created_at', today())->sum('amount_spent');
+            $totalSpend = (float) $business->visits()->sum('amount_spent');
 
             $activeCampaigns = $business->campaigns()->active()->withCount([
                 'visits as today_visits_count' => fn ($q) => $q->whereDate('created_at', today()),
@@ -52,9 +52,9 @@ class DashboardController extends Controller
                 $business = $business->fresh();
             }
 
-            $insights = $user->isOwner()
-                ? app(\App\Services\BusinessInsightService::class)->heroBanners($business)
-                : [];
+            $salesTip = $user->isOwner()
+                ? app(\App\Services\SalesTipService::class)->tipFor($business)
+                : null;
 
             return view('dashboard.business', [
                 'business' => $business,
@@ -62,12 +62,12 @@ class DashboardController extends Controller
                 'campaignCount' => $business->campaigns()->count(),
                 'memberCount' => $business->uniqueMemberCount(),
                 'visitCount' => $business->visits()->count(),
+                'totalSpend' => $totalSpend,
                 'todayVisits' => $todayVisits,
                 'todaySpend' => $todaySpend,
                 'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get(),
                 'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
-                'heroBanners' => $insights,
                 'showWelcome' => $request->session()->pull('show_welcome', false) || $request->boolean('welcome'),
                 'referralProgress' => $user->isOwner()
                     ? app(ReferralService::class)->progress($business)
@@ -75,10 +75,8 @@ class DashboardController extends Controller
                 'referralShareUrl' => $user->isOwner()
                     ? app(ReferralService::class)->shareUrl($business)
                     : null,
-                'needsUpgrade' => $user->isOwner() && (
-                    $limits->trialExpired($business) || $business->billing_status === 'past_due'
-                    || ($business->billing_status === 'trialing' && ! Plans::isPaidPlan($business->plan_key))
-                ),
+                'subscriptionBanner' => $user->isOwner() ? $business->subscriptionBanner() : null,
+                'salesTip' => $salesTip,
                 'trialExpired' => $user->isOwner() && $limits->trialExpired($business),
                 'trialDaysLeft' => ($user->isOwner() && $business->trial_ends_at && $business->trial_ends_at->isFuture())
                     ? (int) now()->diffInDays($business->trial_ends_at)

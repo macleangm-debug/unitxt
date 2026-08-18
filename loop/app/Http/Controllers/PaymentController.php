@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymentIntent;
 use App\Services\Payments\PaymentService;
+use App\Support\Confirm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,9 +31,7 @@ class PaymentController extends Controller
             'paid' => $payment->isPaid(),
             'terminal' => $payment->isTerminal(),
             'redirect' => $payment->isPaid()
-                ? ($payment->purpose === 'test'
-                    ? route('admin.integrations.index', ['tab' => 'console'])
-                    : route('billing.show'))
+                ? $payments->paidRedirectUrl($payment)
                 : null,
         ]);
     }
@@ -41,15 +40,38 @@ class PaymentController extends Controller
     {
         $this->authorizePayment($payment);
         $payments->stubConfirm($payment);
+        $payment = $payment->fresh();
+        $url = $payments->paidRedirectUrl($payment);
 
-        if ($payment->fresh()->purpose === 'test') {
-            return redirect()->route('admin.integrations.index', ['tab' => 'console'])
-                ->with('status', __('loop.payment_stub_confirmed'));
+        if ($payment->purpose === 'plan_upgrade') {
+            return redirect()->to($url)->with('confirm', Confirm::make(
+                __('loop.plan_activated_title', ['plan' => $payment->meta['plan_name'] ?? $payment->plan_key]),
+                __('loop.plan_activated', ['plan' => $payment->meta['plan_name'] ?? $payment->plan_key]),
+                __('loop.done'),
+                $url,
+                true,
+            ));
         }
 
-        return redirect()->route('billing.show')->with('status', __('loop.plan_activated', [
-            'plan' => $payment->meta['plan_name'] ?? $payment->plan_key,
-        ]));
+        if (in_array($payment->purpose, ['sender_id', 'sms_broadcast'], true)) {
+            return redirect()->to($url)->with('confirm', Confirm::make(
+                __('loop.payment_received_title'),
+                $payment->purpose === 'sender_id'
+                    ? __('loop.sender_id_paid_body')
+                    : __('loop.sms_paid_body'),
+                __('loop.done'),
+                $url,
+                true,
+            ));
+        }
+
+        return redirect()->to($url)->with('confirm', Confirm::make(
+            __('loop.payment_received_title'),
+            __('loop.payment_stub_confirmed'),
+            __('loop.done'),
+            $url,
+            false,
+        ));
     }
 
     public function payinWebhook(Request $request, PaymentService $payments, \App\Services\Payments\PayinClient $payin): JsonResponse
