@@ -62,15 +62,7 @@ class TillController extends Controller
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
-        $account = $till->findAccount($data['country_code'], $phone);
-
-        if ($account && ! $account->isCustomer()) {
-            return redirect()->route('till.index')->withErrors([
-                'phone' => __('loop.phone_belongs_to_staff'),
-            ])->withInput();
-        }
-
-        $customer = $account?->isCustomer() ? $account : null;
+        $customer = $till->findCustomer($data['country_code'], $phone);
 
         $request->session()->put('till.ticket', [
             'shop_id' => $shop->id,
@@ -169,8 +161,17 @@ class TillController extends Controller
             'nextOffer' => $nextOffer,
             'initialStep' => $errorStep,
             'needsRegister' => (bool) ($ticket['needs_register'] ?? false) && ! $customer,
-            'justRegistered' => (bool) $request->session()->pull('till.just_registered', false),
         ]);
+    }
+
+    public function registered(Request $request): View|RedirectResponse
+    {
+        $ticket = $request->session()->get('till.ticket');
+        if (! is_array($ticket) || empty($ticket['customer_id'])) {
+            return redirect()->route('till.index');
+        }
+
+        return view('till.registered');
     }
 
     public function registerCustomer(Request $request, TillService $till): RedirectResponse
@@ -186,6 +187,7 @@ class TillController extends Controller
             'last_name' => ['required', 'string', 'max:80'],
             'birth_month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'gender' => ['nullable', 'in:male,female'],
             'email' => ['nullable', 'email', 'max:255'],
         ]);
 
@@ -200,6 +202,7 @@ class TillController extends Controller
                     'email' => $data['email'] ?? null,
                     'birth_month' => $data['birth_month'] ?? null,
                     'birth_day' => $data['birth_day'] ?? null,
+                    'gender' => $data['gender'] ?? null,
                 ]);
             } catch (ValidationException $e) {
                 $request->session()->forget('till.ticket');
@@ -211,14 +214,14 @@ class TillController extends Controller
         $ticket['customer_id'] = $existing->id;
         $ticket['needs_register'] = false;
         $request->session()->put('till.ticket', $ticket);
-        $request->session()->flash('till.just_registered', true);
 
-        return redirect()->route('till.ticket')->with('confirm', Confirm::make(
+        return redirect()->route('till.registered')->with('confirm', Confirm::make(
             __('loop.customer_registered_title'),
             __('loop.customer_registered_body', ['name' => $existing->name]),
             __('loop.continue_to_sale'),
             route('till.ticket'),
             true,
+            ['must_continue' => true],
         ));
     }
 

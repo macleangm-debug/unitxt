@@ -17,6 +17,8 @@ class CustomerController extends Controller
         abort_unless($business && $request->user()->isOwner(), 403);
 
         $sort = $request->query('sort', 'spend');
+        $gender = $request->query('gender');
+        $gender = in_array($gender, ['male', 'female'], true) ? $gender : null;
 
         $stats = Visit::query()
             ->select('customer_id')
@@ -32,6 +34,13 @@ class CustomerController extends Controller
             ->groupBy('memberships.customer_id')
             ->leftJoinSub($stats, 'visit_stats', function ($join) {
                 $join->on('visit_stats.customer_id', '=', 'memberships.customer_id');
+            })
+            ->when($gender, function ($query) use ($gender) {
+                $query->whereExists(function ($sub) use ($gender) {
+                    $sub->from('users')
+                        ->whereColumn('users.id', 'memberships.customer_id')
+                        ->where('users.gender', $gender);
+                });
             })
             ->addSelect([
                 DB::raw('COALESCE(visit_stats.visits_count, 0) as visits_count'),
@@ -75,6 +84,7 @@ class CustomerController extends Controller
                 ->distinct()
                 ->count('customer_id'),
             'sort' => $sort,
+            'gender' => $gender,
             'topSpenders' => $topSpenders,
         ]);
     }

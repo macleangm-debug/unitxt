@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Confirm;
 use App\Support\Countries;
 use App\Support\Sectors;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,10 +33,15 @@ class CustomerAuthController extends Controller
 
         $phone = Countries::normalizePhone($data['phone']);
         $user = User::query()
-            ->where('role', User::ROLE_CUSTOMER)
             ->where('country_code', $data['country_code'])
             ->where('phone', $phone)
             ->first();
+
+        if ($user && ! $user->isCustomer()) {
+            return back()->withErrors([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ]);
+        }
 
         $request->session()->put('customer_auth', [
             'country_code' => $data['country_code'],
@@ -135,6 +141,7 @@ class CustomerAuthController extends Controller
             'city' => ['required', 'string', 'max:80'],
             'birth_month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
+            'gender' => ['nullable', 'in:male,female'],
             'email' => ['nullable', 'email', 'max:255'],
             'interests' => ['nullable', 'array'],
             'interests.*' => ['in:'.implode(',', array_keys(Sectors::all()))],
@@ -142,10 +149,15 @@ class CustomerAuthController extends Controller
         ]);
 
         $user = User::query()
-            ->where('role', User::ROLE_CUSTOMER)
             ->where('country_code', $auth['country_code'])
             ->where('phone', $auth['phone'])
             ->first();
+
+        if ($user && ! $user->isCustomer()) {
+            return redirect()->route('customer.login')->withErrors([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ]);
+        }
 
         $payload = [
             'first_name' => $data['first_name'],
@@ -154,6 +166,7 @@ class CustomerAuthController extends Controller
             'city' => $data['city'],
             'birth_month' => $data['birth_month'] ?? null,
             'birth_day' => $data['birth_day'] ?? null,
+            'gender' => $data['gender'] ?? null,
             'email' => $data['email'] ?? null,
             'interests' => $data['interests'] ?? [],
             'password' => Hash::make($data['pin']),
@@ -165,12 +178,18 @@ class CustomerAuthController extends Controller
         if ($user) {
             $user->update($payload);
         } else {
-            $user = User::create([
-                ...$payload,
-                'country_code' => $auth['country_code'],
-                'phone' => $auth['phone'],
-                'role' => User::ROLE_CUSTOMER,
-            ]);
+            try {
+                $user = User::create([
+                    ...$payload,
+                    'country_code' => $auth['country_code'],
+                    'phone' => $auth['phone'],
+                    'role' => User::ROLE_CUSTOMER,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                return redirect()->route('customer.login')->withErrors([
+                    'phone' => __('loop.phone_already_on_loop'),
+                ]);
+            }
         }
 
         Auth::login($user);

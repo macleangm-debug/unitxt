@@ -26,6 +26,7 @@ use Illuminate\Notifications\Notifiable;
     'birth_date',
     'birth_month',
     'birth_day',
+    'gender',
     'role',
     'business_id',
     'must_change_password',

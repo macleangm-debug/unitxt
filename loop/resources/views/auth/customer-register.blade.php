@@ -40,27 +40,12 @@
 
         <div>
             <p class="loop-label">{{ __('loop.birthday') }}</p>
-            <div class="mt-1 grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-xs text-ink-muted">{{ __('loop.month') }}</label>
-                    <select name="birth_month" class="loop-input">
-                        <option value="">—</option>
-                        @for ($m = 1; $m <= 12; $m++)
-                            <option value="{{ $m }}" @selected(old('birth_month', $existing?->birth_month) == $m)>{{ $m }}</option>
-                        @endfor
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs text-ink-muted">{{ __('loop.day') }}</label>
-                    <select name="birth_day" class="loop-input">
-                        <option value="">—</option>
-                        @for ($d = 1; $d <= 31; $d++)
-                            <option value="{{ $d }}" @selected(old('birth_day', $existing?->birth_day) == $d)>{{ $d }}</option>
-                        @endfor
-                    </select>
-                </div>
+            <div class="mt-1">
+                <x-birthday-fields :month="old('birth_month', $existing?->birth_month)" :day="old('birth_day', $existing?->birth_day)" />
             </div>
         </div>
+
+        <x-gender-field :value="old('gender', $existing?->gender)" />
 
         <div>
             <p class="loop-label">{{ __('loop.interests') }}</p>

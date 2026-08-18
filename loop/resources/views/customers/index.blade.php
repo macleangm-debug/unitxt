@@ -7,27 +7,34 @@
     </x-slot>
 
     @if ($topSpenders->isNotEmpty())
-        <section class="mb-8 rounded-[2rem] border border-ink/8 bg-gradient-to-br from-ink to-ink-soft p-6 text-white">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.best_customers') }}</p>
-            <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.best_customers_title') }}</h2>
-            <p class="mt-1 text-sm text-white/65">{{ __('loop.best_customers_body') }}</p>
-            <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                @foreach ($topSpenders as $i => $customer)
-                    <a href="{{ route('customers.show', $customer) }}" class="rounded-2xl bg-white/10 px-4 py-4 backdrop-blur-sm transition hover:bg-white/15">
-                        <p class="text-xs text-white/50">#{{ $i + 1 }}</p>
-                        <p class="mt-1 font-semibold">{{ $customer->name }}</p>
-                        <p class="mt-2 text-sm text-mint">{{ $business->currency }} {{ number_format($customer->total_spend ?? 0, 0) }}</p>
-                        <p class="text-xs text-white/55">{{ $customer->visits_count ?? 0 }} {{ __('loop.visits') }}</p>
-                    </a>
-                @endforeach
+        <div class="mb-6 grid grid-cols-3 gap-3">
+            <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.customers') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold sm:text-3xl">{{ $memberCount }}</p>
             </div>
-        </section>
+            <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.best_customers') }}</p>
+                <p class="mt-2 font-display text-lg font-semibold sm:text-xl">{{ $topSpenders->first()?->name }}</p>
+            </div>
+            <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.spend') }}</p>
+                <p class="mt-2 font-display text-xl font-semibold sm:text-2xl">{{ number_format($topSpenders->first()?->total_spend ?? 0, 0) }}</p>
+                <p class="mt-0.5 text-[10px] text-ink-muted">{{ $business->currency }}</p>
+            </div>
+        </div>
     @endif
 
-    <div class="mb-4 flex flex-wrap gap-2">
+    <div class="mb-4 flex flex-wrap items-center gap-2">
         @foreach (['spend' => __('loop.sort_by_spend'), 'visits' => __('loop.sort_by_visits'), 'points' => __('loop.sort_by_points')] as $key => $label)
-            <a href="{{ route('customers.index', ['sort' => $key]) }}"
+            <a href="{{ route('customers.index', array_filter(['sort' => $key, 'gender' => $gender])) }}"
                class="rounded-full px-3 py-1.5 text-xs font-semibold {{ $sort === $key ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">
+                {{ $label }}
+            </a>
+        @endforeach
+        <span class="mx-1 hidden h-4 w-px bg-ink/10 sm:inline-block"></span>
+        @foreach (['' => __('loop.gender_all'), 'male' => __('loop.gender_male'), 'female' => __('loop.gender_female')] as $key => $label)
+            <a href="{{ route('customers.index', array_filter(['sort' => $sort, 'gender' => $key])) }}"
+               class="rounded-full px-3 py-1.5 text-xs font-semibold {{ ($gender ?? '') === $key ? 'bg-ink text-white' : 'bg-white text-ink-muted ring-1 ring-ink/10' }}">
                 {{ $label }}
             </a>
         @endforeach
@@ -40,6 +47,9 @@
                     <p class="font-semibold">{{ $customer->name }}</p>
                     <p class="mt-1 text-xs text-ink-muted">
                         {{ $customer->full_phone }}
+                        @if ($customer->gender)
+                            · {{ $customer->gender === 'female' ? __('loop.gender_female') : __('loop.gender_male') }}
+                        @endif
                         · {{ ($customer->visits_count ?? 0) }} {{ __('loop.visits') }}
                         · {{ $business->currency }} {{ number_format($customer->total_spend ?? 0, 0) }}
                     </p>

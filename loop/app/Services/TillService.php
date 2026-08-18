@@ -22,7 +22,7 @@ class TillService
         private readonly PointsService $points,
     ) {}
 
-    public function findAccount(string $countryCode, string $phone): ?User
+    public function findCustomer(string $countryCode, string $phone): ?User
     {
         return User::query()
             ->where('country_code', $countryCode)
@@ -30,25 +30,20 @@ class TillService
             ->first();
     }
 
-    public function findCustomer(string $countryCode, string $phone): ?User
-    {
-        $user = $this->findAccount($countryCode, $phone);
-
-        return $user?->isCustomer() ? $user : null;
-    }
-
     public function registerCustomer(array $data): User
     {
-        $existing = $this->findAccount($data['country_code'], $data['phone']);
+        $existing = $this->findCustomer($data['country_code'], $data['phone']);
 
         if ($existing) {
-            if ($existing->isCustomer()) {
-                return $existing;
-            }
+            $existing->fill(array_filter([
+                'birth_month' => $data['birth_month'] ?? null,
+                'birth_day' => $data['birth_day'] ?? null,
+                'gender' => $data['gender'] ?? null,
+                'email' => $data['email'] ?? null,
+            ], fn ($value) => $value !== null && $value !== ''));
+            $existing->save();
 
-            throw ValidationException::withMessages([
-                'phone' => __('loop.phone_belongs_to_staff'),
-            ]);
+            return $existing;
         }
 
         try {
@@ -61,19 +56,20 @@ class TillService
                 'email' => $data['email'] ?? null,
                 'birth_month' => $data['birth_month'] ?? null,
                 'birth_day' => $data['birth_day'] ?? null,
+                'gender' => $data['gender'] ?? null,
                 'role' => User::ROLE_CUSTOMER,
                 'phone_verified_at' => null,
                 'profile_completed' => false,
                 'is_active' => true,
             ]);
         } catch (UniqueConstraintViolationException) {
-            $again = $this->findAccount($data['country_code'], $data['phone']);
-            if ($again?->isCustomer()) {
+            $again = $this->findCustomer($data['country_code'], $data['phone']);
+            if ($again) {
                 return $again;
             }
 
             throw ValidationException::withMessages([
-                'phone' => __('loop.phone_belongs_to_staff'),
+                'phone' => __('loop.phone_already_on_loop'),
             ]);
         }
     }

@@ -29,23 +29,21 @@
     @keydown.escape.window="menuOpen = false"
     x-effect="document.documentElement.classList.toggle('overflow-hidden', menuOpen)"
 >
-    <div class="loop-shell flex h-14 items-center gap-3 sm:h-16 sm:gap-4">
+    <div class="loop-shell flex h-14 items-center gap-4 sm:h-16 sm:gap-6">
         <a href="/" class="flex shrink-0 items-center gap-2 {{ $brandClass }}">
             <x-loop-logo class="h-8 w-8 sm:h-9 sm:w-9" />
             <span class="font-display text-lg font-semibold tracking-tight sm:text-xl">Loop</span>
         </a>
 
-        <div class="flex-1"></div>
-
         @unless ($slim)
             @if ($actionsHtml)
-                <nav class="loop-top-nav hidden items-center gap-6 md:flex lg:gap-8">
+                <nav class="loop-top-nav hidden items-center gap-5 md:flex lg:gap-6">
                     {!! $actionsHtml !!}
                 </nav>
             @endif
         @endunless
 
-        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2 {{ $actionsHtml && ! $slim ? 'md:ml-4 lg:ml-6' : '' }}">
+        <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <form method="POST" action="{{ route('preference.country') }}">
                 @csrf
                 <select name="country" onchange="this.form.submit()" aria-label="{{ __('loop.country') }}" class="{{ $controlClass }}">

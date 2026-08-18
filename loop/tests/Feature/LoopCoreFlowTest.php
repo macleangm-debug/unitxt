@@ -73,13 +73,19 @@ class LoopCoreFlowTest extends TestCase
             ->post(route('till.register-customer'), [
                 'first_name' => 'Kojo',
                 'last_name' => 'Mensah',
+                'gender' => 'male',
+                'birth_month' => 3,
+                'birth_day' => 14,
             ])
-            ->assertRedirect(route('till.ticket'));
+            ->assertRedirect(route('till.registered'));
 
         $this->assertDatabaseHas('users', [
             'phone' => '713555666',
             'role' => 'customer',
             'first_name' => 'Kojo',
+            'gender' => 'male',
+            'birth_month' => 3,
+            'birth_day' => 14,
         ]);
 
         $this->actingAs($staff)
@@ -163,25 +169,23 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee(__('loop.month'), false)
             ->assertSee(__('loop.day'), false)
             ->assertSee(__('loop.pick_option'), false)
-            ->assertSee('sm:hidden', false)
-            ->assertSee('sm:flex', false)
+            ->assertSee(__('loop.gender'), false)
+            ->assertSee(__('loop.gender_male'), false)
+            ->assertSee(__('loop.gender_female'), false)
+            ->assertSee('name="birth_month"', false)
+            ->assertSee('name="birth_day"', false)
+            ->assertSee('name="gender"', false)
             ->getContent();
 
-        $this->assertStringNotContainsString(
-            'placeholder="'.e(__('loop.month')).'"',
-            $html
-        );
-        $this->assertStringNotContainsString(
-            'placeholder="'.e(__('loop.day')).'"',
-            $html
-        );
-        $this->assertStringContainsString('fixed inset-0 z-[90] sm:hidden', $html);
-        $this->assertStringContainsString('hidden max-h-72 w-full flex-col overflow-hidden rounded-2xl', $html);
+        $this->assertStringContainsString('<select id="birth_month"', $html);
+        $this->assertStringContainsString('<select id="birth_day"', $html);
+        $this->assertStringNotContainsString('name="birth_month" label', $html);
+        $this->assertStringNotContainsString('placeholder="'.e(__('loop.month')).'"', $html);
+        $this->assertStringNotContainsString('placeholder="'.e(__('loop.day')).'"', $html);
         $this->assertStringContainsString('fixed inset-0 z-[80] flex items-center justify-center p-4', $html);
-        $this->assertStringNotContainsString('sm:static', $html);
     }
 
-    public function test_till_does_not_register_an_owner_phone_as_a_member(): void
+    public function test_till_can_serve_a_staff_phone_as_a_member(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();
         $staff = User::factory()->frontDesk()->create([
@@ -189,40 +193,70 @@ class LoopCoreFlowTest extends TestCase
             'business_id' => $business->id,
             'password' => 'password',
         ]);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
 
         $this->actingAs($staff)
-            ->from(route('till.index'))
             ->post(route('till.lookup'), [
                 'shop_id' => $shop->id,
                 'country_code' => $owner->country_code,
                 'phone' => $owner->phone,
                 'channel' => 'in_store',
             ])
-            ->assertRedirect(route('till.index'))
-            ->assertSessionHasErrors('phone');
+            ->assertRedirect(route('till.ticket'));
+
+        $this->actingAs($staff)
+            ->get(route('till.ticket'))
+            ->assertOk()
+            ->assertSee($owner->first_name, false)
+            ->assertDontSee(__('loop.register_customer_heading'), false);
+
+        $this->actingAs($staff)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => $owner->country_code,
+                'phone' => $owner->phone,
+                'channel' => 'in_store',
+                'amount_spent' => 2000,
+            ])
+            ->assertRedirect(route('till.index'));
+
+        $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
+        $this->assertSame(User::ROLE_OWNER, $owner->fresh()->role);
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'customer_id' => $owner->id,
+            'points_balance' => 4,
+        ]);
 
         $this->actingAs($staff)
             ->withSession([
                 'till.ticket' => [
                     'shop_id' => $shop->id,
                     'channel' => 'in_store',
-                    'country_code' => $owner->country_code,
-                    'phone' => $owner->phone,
+                    'country_code' => $staff->country_code,
+                    'phone' => $staff->phone,
                     'customer_id' => null,
                     'needs_register' => true,
                 ],
             ])
-            ->from(route('till.ticket'))
             ->post(route('till.register-customer'), [
                 'first_name' => 'John',
                 'last_name' => 'Doe',
                 'birth_month' => 2,
                 'birth_day' => 16,
             ])
-            ->assertRedirect(route('till.index'))
-            ->assertSessionHasErrors('phone');
+            ->assertRedirect(route('till.registered'));
 
-        $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
+        $this->assertSame(1, User::query()->where('phone', $staff->phone)->count());
+        $this->assertSame(User::ROLE_FRONT_DESK, $staff->fresh()->role);
     }
 
     public function test_standalone_redeem_does_not_require_a_sale(): void
@@ -848,6 +882,7 @@ class LoopCoreFlowTest extends TestCase
             'city' => 'Dar es Salaam',
             'birth_month' => 5,
             'birth_day' => 12,
+            'gender' => 'female',
             'interests' => ['coffee', 'fashion'],
             'pin' => '2468',
             'pin_confirmation' => '2468',
@@ -860,14 +895,37 @@ class LoopCoreFlowTest extends TestCase
             'role' => 'customer',
             'birth_month' => 5,
             'birth_day' => 12,
+            'gender' => 'female',
             'profile_completed' => 1,
         ]);
     }
 
+    public function test_staff_phone_cannot_open_a_second_member_account(): void
+    {
+        [$owner] = $this->seedBusiness();
+
+        $this->from(route('customer.login'))
+            ->post(route('customer.send'), [
+                'country_code' => $owner->country_code,
+                'phone' => $owner->phone,
+            ])
+            ->assertRedirect(route('customer.login'))
+            ->assertSessionHasErrors('phone');
+
+        $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
+        $this->assertSame(User::ROLE_OWNER, $owner->fresh()->role);
+    }
+
     public function test_entry_pages_render(): void
     {
-        $this->get('/')->assertOk();
-        $this->get('/for-business')->assertOk();
+        $this->get('/')->assertOk()
+            ->assertDontSee(__('loop.admin_login'), false)
+            ->assertDontSee(__('loop.staff_login'), false);
+        $this->get('/for-business')->assertOk()
+            ->assertSee(__('loop.register'), false)
+            ->assertSee(__('loop.login'), false)
+            ->assertDontSee(__('loop.staff_login'), false)
+            ->assertDontSee(__('loop.admin_login'), false);
         $this->get('/for-customers')->assertOk();
         $this->get('/discover')->assertOk();
         $this->get('/locale/sw')->assertRedirect();
@@ -1596,6 +1654,7 @@ class LoopCoreFlowTest extends TestCase
             'phone' => '713777001',
             'first_name' => 'Asha',
             'last_name' => 'Mwamba',
+            'gender' => 'female',
         ]);
 
         \App\Models\Membership::create([
@@ -1610,7 +1669,19 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('customers.index'))
             ->assertOk()
+            ->assertSee('Asha')
+            ->assertSee(__('loop.gender_male'), false)
+            ->assertSee(__('loop.gender_female'), false);
+
+        $this->actingAs($owner)
+            ->get(route('customers.index', ['gender' => 'female']))
+            ->assertOk()
             ->assertSee('Asha');
+
+        $this->actingAs($owner)
+            ->get(route('customers.index', ['gender' => 'male']))
+            ->assertOk()
+            ->assertDontSee('Asha');
 
         $this->actingAs($owner)
             ->get(route('customers.show', $customer))

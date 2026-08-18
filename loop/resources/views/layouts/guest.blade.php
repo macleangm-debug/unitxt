@@ -60,7 +60,7 @@
             </div>
         </div>
         <div class="relative flex flex-1 items-center px-4 pb-10 sm:px-8">
-            <div class="mx-auto w-full max-w-md loop-panel px-6 py-7">{{ $slot }}</div>
+            <div class="mx-auto w-full max-w-md loop-panel overflow-visible px-6 py-7">{{ $slot }}</div>
         </div>
     </div>
 </div>

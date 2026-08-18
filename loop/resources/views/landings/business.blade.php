@@ -18,8 +18,9 @@
 
 <x-site-header>
     <x-slot:actions>
-        <a href="{{ route('staff.login') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.staff_login') }}</a>
-        <a href="{{ route('staff.login', ['admin' => 1]) }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.admin_login') }}</a>
+        <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
+        <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.business') }}</a>
+        <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.customer') }}</a>
     </x-slot:actions>
 </x-site-header>
 
@@ -32,8 +33,8 @@
                 <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ $heroTagline ?? __('loop.tagline') }}</p>
                 <p class="mt-5 max-w-lg text-lg text-ink-muted">{{ __('loop.business_hero_body') }}</p>
                 <div class="mt-8 flex flex-wrap gap-3">
-                    <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.cta_business') }}</a>
-                    <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
+                    <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.register') }}</a>
+                    <a href="{{ route('staff.login') }}" class="loop-btn-ghost">{{ __('loop.login') }}</a>
                 </div>
             </div>
             <div class="loop-wallet animate-fade-up-delay p-6 sm:p-8">

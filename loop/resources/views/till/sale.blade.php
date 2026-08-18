@@ -61,7 +61,7 @@
                 action="{{ route('till.register-customer') }}"
                 x-show="step >= 2"
                 x-cloak
-                class="overflow-hidden rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
+                class="overflow-visible rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
                 x-data="{ regStep: 1 }"
             >
                 @csrf
@@ -81,20 +81,8 @@
                 <div class="space-y-4 p-6" x-show="regStep === 2" x-cloak>
                     <h2 class="font-display text-xl font-semibold">{{ __('loop.birthday_short') }}</h2>
                     <p class="text-sm text-ink-muted">{{ __('loop.birthday_premium_hint') }}</p>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <x-sheet-select
-                            name="birth_month"
-                            :label="__('loop.month')"
-                            :options="collect(range(1,12))->mapWithKeys(fn ($m) => [$m => $m])->all()"
-                            :value="old('birth_month', '')"
-                        />
-                        <x-sheet-select
-                            name="birth_day"
-                            :label="__('loop.day')"
-                            :options="collect(range(1,31))->mapWithKeys(fn ($d) => [$d => $d])->all()"
-                            :value="old('birth_day', '')"
-                        />
-                    </div>
+                    <x-birthday-fields :month="old('birth_month', '')" :day="old('birth_day', '')" />
+                    <x-gender-field :value="old('gender', '')" />
                     <div>
                         <label class="loop-label">{{ __('loop.email_optional') }}</label>
                         <input type="email" name="email" value="{{ old('email') }}" class="loop-input">

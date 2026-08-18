@@ -4,6 +4,7 @@
     $currentUrl = url()->current();
     $samePage = $confirmUrl !== '' && rtrim($confirmUrl, '/') === rtrim($currentUrl, '/');
     $ctaIsDone = strcasecmp((string) ($confirm['cta'] ?? ''), (string) __('loop.done')) === 0;
+    $mustContinue = ! empty($confirm['must_continue']);
 @endphp
 
 @if ($confirm)
@@ -13,9 +14,11 @@
         x-show="open"
         x-cloak
         class="fixed inset-0 z-[80] flex items-center justify-center p-4"
-        @keydown.escape.window="open=false"
+        @if (! $mustContinue)
+            @keydown.escape.window="open=false"
+        @endif
     >
-        <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm" @click="open=false"></div>
+        <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm" @if (! $mustContinue) @click="open=false" @endif></div>
         <div class="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-[0_40px_100px_rgba(17,17,20,0.35)] sm:p-10">
             @if (!empty($confirm['celebrate']))
                 <div class="pointer-events-none absolute inset-0 overflow-hidden">
@@ -51,7 +54,7 @@
                 @else
                     <a href="{{ $confirmUrl }}" class="loop-btn mt-8 inline-flex w-full justify-center text-base">{{ $confirm['cta'] }}</a>
                 @endif
-                @unless ($samePage && $ctaIsDone)
+                @unless ($mustContinue || ($samePage && $ctaIsDone))
                     <button type="button" class="mt-4 text-sm font-semibold text-ink-muted hover:text-ink" @click="open=false">{{ __('loop.done') }}</button>
                 @endunless
             </div>

@@ -1,72 +1,82 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.customers') }}</p>
-                <h1 class="mt-1 font-display text-3xl font-semibold">{{ $customer->name }}</h1>
-                <p class="mt-1 text-ink-muted">{{ $customer->full_phone }}</p>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0 max-w-2xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.customers') }}</p>
+                <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $customer->name }}</h1>
+                </div>
+                <p class="mt-2 text-sm text-ink-muted">
+                    {{ $customer->full_phone }}
+                    @if ($customer->gender)
+                        · {{ $customer->gender === 'female' ? __('loop.gender_female') : __('loop.gender_male') }}
+                    @endif
+                </p>
             </div>
-            <a href="{{ route('customers.index') }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+            <a href="{{ route('customers.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
 
-    <div class="grid gap-5 sm:grid-cols-2">
-        <div class="rounded-[1.75rem] bg-gradient-to-br from-mint/25 to-white p-6 ring-1 ring-mint/15">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">{{ __('loop.points') }}</p>
-            <p class="mt-3 font-display text-4xl font-semibold">{{ number_format($points) }}</p>
+    <div class="mt-6 rounded-[1.5rem] border border-ink/10 bg-white px-5 py-5">
+        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.points') }}</p>
+        <p class="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">{{ number_format($points) }} {{ __('loop.pts') }}</p>
+        <p class="mt-2 text-sm text-ink-muted">{{ __('loop.lifetime_points') }}: {{ number_format($lifetime) }}</p>
+    </div>
+
+    <div class="mt-6 grid grid-cols-3 gap-3">
+        <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.sales') }}</p>
+            <p class="mt-2 font-display text-2xl font-semibold sm:text-3xl">{{ $visitCount }}</p>
         </div>
-        <div class="rounded-[1.75rem] bg-ink p-6 text-white">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/55">{{ __('loop.lifetime_points') }}</p>
-            <p class="mt-3 font-display text-4xl font-semibold">{{ number_format($lifetime) }}</p>
+        <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.spend') }}</p>
+            <p class="mt-2 font-display text-xl font-semibold sm:text-2xl">{{ number_format($totalSpend, 0) }}</p>
+            <p class="mt-0.5 text-[10px] text-ink-muted">{{ $business->currency }}</p>
+        </div>
+        <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.shops') }}</p>
+            <p class="mt-2 font-display text-2xl font-semibold sm:text-3xl">{{ $memberships->count() }}</p>
         </div>
     </div>
 
-    <section class="mt-10">
-        <h2 class="font-display text-xl font-semibold">{{ __('loop.wallets') }}</h2>
-        <div class="mt-4 space-y-3">
-            @foreach ($memberships as $membership)
-                <div class="rounded-[1.25rem] border border-ink/8 bg-white/90 px-4 py-3">
-                    <p class="font-semibold">{{ $membership->shop?->name ?? $business->name }}</p>
-                    <p class="text-sm text-ink-muted">{{ number_format($membership->points_balance) }} pts · {{ $membership->member_code }}</p>
+    @if ($visits->isNotEmpty())
+        <section class="mt-8">
+            <div class="mb-4 flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
                 </div>
-            @endforeach
-        </div>
-    </section>
-
-    <section class="mt-10">
-        <h2 class="font-display text-xl font-semibold">{{ __('loop.raffle_wins') }}</h2>
-        <div class="mt-4 space-y-3">
-            @forelse ($raffleWins as $win)
-                <div class="rounded-[1.25rem] border border-ink/8 bg-gradient-to-br from-mint/15 to-white px-4 py-3">
-                    <p class="font-semibold">{{ $win->raffle->name }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">
-                        {{ $win->raffle->prize_name }}
-                        · {{ __('loop.raffle_winner_status_'.$win->status) }}
-                        @if ($win->claim_by)
-                            · {{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}
-                        @endif
-                    </p>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_raffle_wins') }}</p>
-            @endforelse
-        </div>
-    </section>
-
-    <section class="mt-10">
-        <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
-        <div class="mt-4 space-y-3">
-            @forelse ($visits as $visit)
-                <div class="flex items-center justify-between gap-4 rounded-[1.25rem] border border-ink/8 bg-white/90 px-4 py-3">
-                    <div>
-                        <p class="text-sm font-semibold">{{ $visit->shop?->name }}</p>
-                        <p class="text-xs text-ink-muted">{{ $visit->created_at->format('d M Y · H:i') }}</p>
+                <a href="{{ route('transactions.index') }}" class="shrink-0 text-sm font-semibold text-mint-deep">{{ __('loop.view_all') }} →</a>
+            </div>
+            <div class="space-y-3">
+                @foreach ($visits as $visit)
+                    <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold">{{ $visit->shop?->name }}</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">{{ $visit->created_at->format('d M · H:i') }} · +{{ $visit->points_earned }} {{ __('loop.pts') }}</p>
+                        </div>
+                        <p class="shrink-0 font-display text-lg font-semibold">{{ number_format($visit->amount_spent, 0) }}</p>
                     </div>
-                    <p class="font-display text-xl font-semibold">{{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}</p>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_sales') }}</p>
-            @endforelse
-        </div>
-    </section>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if ($raffleWins->isNotEmpty())
+        <section class="mt-8">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.raffle_wins') }}</h2>
+            <div class="mt-4 space-y-3">
+                @foreach ($raffleWins as $win)
+                    <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold">{{ $win->raffle->name }}</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">
+                                {{ $win->raffle->prize_name }}
+                                · {{ __('loop.raffle_winner_status_'.$win->status) }}
+                            </p>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </x-app-layout>
