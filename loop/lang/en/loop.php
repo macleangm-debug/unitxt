@@ -1881,6 +1881,7 @@ return [
     'admin_articles' => 'Stories',
     'admin_articles_blurb' => 'One post, English and Swahili together. Leave country blank for everyone, or pin it to a market.',
     'article_language_help' => 'Do not post twice. Fill English and Swahili on this page — members see the language they picked, with a fallback if one side is empty.',
+    'article_body_help' => 'Blank lines become paragraphs, like a simple WordPress post.',
     'article_title_en' => 'Title (English)',
     'article_title_sw' => 'Title (Swahili)',
     'article_excerpt_en' => 'Short intro (English)',

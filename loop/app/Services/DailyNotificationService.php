@@ -255,6 +255,39 @@ class DailyNotificationService
         return $created;
     }
 
+    /**
+     * Ping the member as soon as an offer is actually redeemable (not merely earned today).
+     */
+    public function notifyCustomerOfferReady(Membership $membership): int
+    {
+        $customer = $membership->customer;
+        if (! $customer?->isCustomer()) {
+            return 0;
+        }
+        if (! NotificationSettings::settings()['customer_in_app']) {
+            return 0;
+        }
+
+        $reward = $membership->nearestReadyReward();
+        if (! $reward) {
+            return 0;
+        }
+
+        return $this->push($customer, $membership->business, 'member_redeem_ready', 'redeem_'.$membership->business_id.'_'.$reward->id, now()->copy()->startOfDay(), [
+            'title_key' => 'loop.notif_member_redeem_title',
+            'body_key' => 'loop.notif_member_redeem_body',
+            'params' => [
+                'shop' => $membership->business->name,
+                'offer' => $reward->name,
+            ],
+            'cta_key' => 'loop.see_rewards',
+            'url' => route('memberships.show', $membership->business),
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+    }
+
     public function generateForAffiliate(User $affiliateUser, ?Carbon $day = null): int
     {
         if (! FeatureFlags::enabled('affiliate_daily_digest') || ! $affiliateUser->isAffiliate()) {

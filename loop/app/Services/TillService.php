@@ -112,7 +112,7 @@ class TillService
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
-        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $rewardId, $limits) {
+        $visit = DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $rewardId, $limits) {
             $existingMembership = Membership::query()
                 ->where('business_id', $business->id)
                 ->where('customer_id', $customer->id)
@@ -266,6 +266,10 @@ class TillService
 
             return $visit->fresh(['customer', 'shop', 'campaign', 'reward', 'membership']);
         });
+
+        $this->notifyIfOfferReady($visit);
+
+        return $visit;
     }
 
     /**
@@ -501,6 +505,22 @@ class TillService
             ->where('business_id', $business->id)
             ->where('type', Campaign::TYPE_BIRTHDAY)
             ->first();
+    }
+
+    private function notifyIfOfferReady(Visit $visit): void
+    {
+        $membership = Membership::query()
+            ->with([
+                'customer',
+                'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            ])
+            ->find($visit->membership_id);
+
+        if (! $membership?->customer) {
+            return;
+        }
+
+        app(DailyNotificationService::class)->notifyCustomerOfferReady($membership);
     }
 
     private function findWelcomeCampaign(Business $business): ?Campaign

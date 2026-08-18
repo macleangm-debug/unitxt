@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Article;
 use App\Models\Business;
+use App\Models\Campaign;
 use App\Models\InAppNotification;
 use App\Models\Membership;
 use App\Models\PointTransaction;
@@ -314,7 +315,51 @@ class LoopMemberExperienceTest extends TestCase
             'title_key' => 'loop.notif_member_redeem_title',
         ]);
         $this->assertSame(0, InAppNotification::query()->where('user_id', $customer->id)->where('type', 'member_offers')->count());
-        unset($owner);
+    }
+
+    public function test_sale_notifies_when_same_day_redeem_is_on_and_stays_quiet_when_off(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        Reward::create([
+            'business_id' => $business->id,
+            'name' => 'Free pour',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713111007',
+            'country' => 'TZ',
+            'profile_completed' => true,
+            'password' => '1234',
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($owner, $shop, $customer, 50000);
+        $this->assertSame(0, InAppNotification::query()->where('user_id', $customer->id)->where('type', 'member_redeem_ready')->count());
+
+        $business->update(['allow_same_day_earn_redeem' => true]);
+        $later = User::factory()->customer()->create([
+            'phone' => '713111008',
+            'country' => 'TZ',
+            'profile_completed' => true,
+            'password' => '1234',
+        ]);
+        app(\App\Services\TillService::class)->recordSale($owner, $shop, $later, 50000);
+
+        $this->assertDatabaseHas('in_app_notifications', [
+            'user_id' => $later->id,
+            'type' => 'member_redeem_ready',
+        ]);
     }
 
     /**

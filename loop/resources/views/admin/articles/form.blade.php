@@ -9,6 +9,7 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin_articles') }}</p>
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ $editing ? __('loop.edit_article') : __('loop.new_article') }}</h1>
                 <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.article_language_help') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.article_body_help') }}</p>
             </div>
         </div>
     </x-slot>

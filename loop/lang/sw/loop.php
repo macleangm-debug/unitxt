@@ -1881,6 +1881,7 @@ return [
     'admin_articles' => 'Habari',
     'admin_articles_blurb' => 'Chapisho moja, Kiingereza na Kiswahili pamoja. Acha nchi wazi kwa wote, au funga soko moja.',
     'article_language_help' => 'Usichapishe mara mbili. Jaza Kiingereza na Kiswahili hapa — mwanachama anaona lugha aliyochagua, na nyingine ikikosa.',
+    'article_body_help' => 'Mstari tupu unakuwa aya, kama chapisho rahisi la WordPress.',
     'article_title_en' => 'Kichwa (Kiingereza)',
     'article_title_sw' => 'Kichwa (Kiswahili)',
     'article_excerpt_en' => 'Utangulizi (Kiingereza)',

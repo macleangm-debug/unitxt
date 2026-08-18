@@ -84,6 +84,16 @@ class Article extends Model
         return $this->localized('body');
     }
 
+    public function bodyHtml(): string
+    {
+        $escaped = e($this->body());
+        $blocks = preg_split("/\n{2,}/", $escaped) ?: [];
+
+        return collect($blocks)
+            ->map(fn (string $block) => '<p class="mb-3 last:mb-0">'.nl2br(trim($block), false).'</p>')
+            ->implode('');
+    }
+
     public function imageUrl(): ?string
     {
         return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;

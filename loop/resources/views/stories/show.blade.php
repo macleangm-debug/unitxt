@@ -20,7 +20,7 @@
             @if ($article->excerpt())
                 <p class="text-lg text-ink-muted">{{ $article->excerpt() }}</p>
             @endif
-            <div class="whitespace-pre-line text-sm leading-relaxed text-ink">{{ $article->body() }}</div>
+            <div class="prose-loop text-sm leading-relaxed text-ink">{!! $article->bodyHtml() !!}</div>
         </div>
     </article>
 

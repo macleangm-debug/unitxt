@@ -25,11 +25,13 @@
                     <x-loop-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" kind="tab">{{ __('loop.home') }}</x-loop-nav-link>
                     <x-loop-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')" kind="tab">{{ __('loop.wallets') }}</x-loop-nav-link>
                     <x-loop-nav-link :href="route('discover')" :active="request()->routeIs('discover*')" kind="tab">{{ __('loop.discover') }}</x-loop-nav-link>
+                    <x-loop-nav-link :href="route('stories.index')" :active="request()->routeIs('stories.*')" kind="tab">{{ __('loop.stories') }}</x-loop-nav-link>
                 </div>
             @else
                 <div class="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto md:flex">
                     @if ($user->isAdmin())
                         <x-loop-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" kind="tab">{{ __('loop.admin') }}</x-loop-nav-link>
+                        <x-loop-nav-link :href="route('admin.articles.index')" :active="request()->routeIs('admin.articles.*')" kind="tab">{{ __('loop.admin_articles') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')" kind="tab">{{ __('loop.admin_reports') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.businesses.index')" :active="request()->routeIs('admin.businesses.*')" kind="tab">{{ __('loop.admin_businesses') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.affiliates.index')" :active="request()->routeIs('admin.affiliates.*')" kind="tab">{{ __('loop.admin_affiliates') }}</x-loop-nav-link>
@@ -171,8 +173,10 @@
                     <x-loop-link :href="route('dashboard')" kind="tab" :current="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-loop-link>
                     <x-loop-link :href="route('memberships.index')" kind="tab" :current="request()->routeIs('memberships.*')">{{ __('loop.wallets') }}</x-loop-link>
                     <x-loop-link :href="route('discover')" kind="tab" :current="request()->routeIs('discover*')">{{ __('loop.discover') }}</x-loop-link>
+                    <x-loop-link :href="route('stories.index')" kind="tab" :current="request()->routeIs('stories.*')">{{ __('loop.stories') }}</x-loop-link>
                 @elseif ($user->isAdmin())
                     <x-loop-link :href="route('admin.dashboard')" kind="tab" :current="request()->routeIs('admin.dashboard')">{{ __('loop.admin') }}</x-loop-link>
+                    <x-loop-link :href="route('admin.articles.index')" kind="tab" :current="request()->routeIs('admin.articles.*')">{{ __('loop.admin_articles') }}</x-loop-link>
                     <x-loop-link :href="route('admin.reports.index')" kind="tab">{{ __('loop.admin_reports') }}</x-loop-link>
                     <x-loop-link :href="route('admin.businesses.index')" kind="tab">{{ __('loop.admin_businesses') }}</x-loop-link>
                     <x-loop-link :href="route('admin.affiliates.index')" kind="tab">{{ __('loop.admin_affiliates') }}</x-loop-link>
