@@ -1370,6 +1370,7 @@ return [
     'customer_registered_body' => ':name is on Loop. Continue to record the sale.',
     'continue_to_sale' => 'Continue to sale',
     'customer_must_register_first' => 'Register this member before recording a sale.',
+    'phone_belongs_to_staff' => 'This number already belongs to a Loop staff or owner account. Use a member’s phone.',
     'logo_required_body' => 'A logo is required — every Loop business needs one before going live.',
     'passwords_must_match' => 'Passwords do not match.',
     'passwords_match' => 'Passwords match.',

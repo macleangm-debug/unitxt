@@ -1370,6 +1370,7 @@ return [
     'customer_registered_body' => ':name sasa yupo Loop. Endelea kurekodi mauzo.',
     'continue_to_sale' => 'Endelea kwa mauzo',
     'customer_must_register_first' => 'Sajili mwanachama kwanza kabla ya kurekodi mauzo.',
+    'phone_belongs_to_staff' => 'Namba hii tayari ni akaunti ya mfanyakazi au mmiliki wa Loop. Tumia namba ya mwanachama.',
     'logo_required_body' => 'Nembo inahitajika — kila biashara ya Loop inahitaji nembo kabla ya kuendelea.',
     'passwords_must_match' => 'Nywila hazifanani.',
     'passwords_match' => 'Nywila zinalingana.',

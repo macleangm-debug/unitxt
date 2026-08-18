@@ -177,6 +177,52 @@ class LoopCoreFlowTest extends TestCase
         );
         $this->assertStringContainsString('fixed inset-0 z-[90] sm:hidden', $html);
         $this->assertStringContainsString('hidden max-h-72 w-full flex-col overflow-hidden rounded-2xl', $html);
+        $this->assertStringContainsString('fixed inset-0 z-[80] flex items-center justify-center p-4', $html);
+        $this->assertStringNotContainsString('sm:static', $html);
+    }
+
+    public function test_till_does_not_register_an_owner_phone_as_a_member(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999003',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+
+        $this->actingAs($staff)
+            ->from(route('till.index'))
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => $owner->country_code,
+                'phone' => $owner->phone,
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.index'))
+            ->assertSessionHasErrors('phone');
+
+        $this->actingAs($staff)
+            ->withSession([
+                'till.ticket' => [
+                    'shop_id' => $shop->id,
+                    'channel' => 'in_store',
+                    'country_code' => $owner->country_code,
+                    'phone' => $owner->phone,
+                    'customer_id' => null,
+                    'needs_register' => true,
+                ],
+            ])
+            ->from(route('till.ticket'))
+            ->post(route('till.register-customer'), [
+                'first_name' => 'John',
+                'last_name' => 'Doe',
+                'birth_month' => 2,
+                'birth_day' => 16,
+            ])
+            ->assertRedirect(route('till.index'))
+            ->assertSessionHasErrors('phone');
+
+        $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
     }
 
     public function test_standalone_redeem_does_not_require_a_sale(): void

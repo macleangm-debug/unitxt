@@ -11,6 +11,7 @@ use App\Models\Shop;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\Countries;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,37 +22,60 @@ class TillService
         private readonly PointsService $points,
     ) {}
 
-    public function findCustomer(string $countryCode, string $phone): ?User
+    public function findAccount(string $countryCode, string $phone): ?User
     {
         return User::query()
-            ->where('role', User::ROLE_CUSTOMER)
             ->where('country_code', $countryCode)
             ->where('phone', $phone)
             ->first();
     }
 
+    public function findCustomer(string $countryCode, string $phone): ?User
+    {
+        $user = $this->findAccount($countryCode, $phone);
+
+        return $user?->isCustomer() ? $user : null;
+    }
+
     public function registerCustomer(array $data): User
     {
-        $existing = $this->findCustomer($data['country_code'], $data['phone']);
+        $existing = $this->findAccount($data['country_code'], $data['phone']);
 
         if ($existing) {
-            return $existing;
+            if ($existing->isCustomer()) {
+                return $existing;
+            }
+
+            throw ValidationException::withMessages([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ]);
         }
 
-        return User::create([
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'country_code' => $data['country_code'],
-            'country' => Countries::fromDial($data['country_code']),
-            'phone' => $data['phone'],
-            'email' => $data['email'] ?? null,
-            'birth_month' => $data['birth_month'] ?? null,
-            'birth_day' => $data['birth_day'] ?? null,
-            'role' => User::ROLE_CUSTOMER,
-            'phone_verified_at' => null,
-            'profile_completed' => false,
-            'is_active' => true,
-        ]);
+        try {
+            return User::create([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'country_code' => $data['country_code'],
+                'country' => Countries::fromDial($data['country_code']),
+                'phone' => $data['phone'],
+                'email' => $data['email'] ?? null,
+                'birth_month' => $data['birth_month'] ?? null,
+                'birth_day' => $data['birth_day'] ?? null,
+                'role' => User::ROLE_CUSTOMER,
+                'phone_verified_at' => null,
+                'profile_completed' => false,
+                'is_active' => true,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            $again = $this->findAccount($data['country_code'], $data['phone']);
+            if ($again?->isCustomer()) {
+                return $again;
+            }
+
+            throw ValidationException::withMessages([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ]);
+        }
     }
 
     public function recordSale(

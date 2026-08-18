@@ -38,21 +38,23 @@
             x-data="{ open: true, step: 1 }"
             class="mx-auto max-w-xl"
         >
-            <div
-                x-show="open && step === 1"
-                x-cloak
-                class="fixed inset-0 z-[80] flex items-end justify-center sm:static sm:z-auto sm:block sm:items-stretch"
-            >
-                <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm sm:hidden"></div>
-                <div class="relative w-full max-w-md rounded-t-[2rem] bg-white p-8 text-center shadow-2xl sm:max-w-none sm:rounded-[2rem] sm:border sm:border-ink/10 sm:shadow-[0_24px_70px_rgba(11,31,42,0.08)]">
-                    <div class="mx-auto mb-1 h-1.5 w-12 rounded-full bg-ink/15 sm:hidden"></div>
-                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
-                    <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
-                    <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
-                    <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.register_this_customer') }}</button>
-                    <a href="{{ route('till.index') }}" class="mt-3 block text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
+            <template x-teleport="body">
+                <div
+                    x-show="open && step === 1"
+                    x-cloak
+                    class="fixed inset-0 z-[80] flex items-center justify-center p-4"
+                    @keydown.escape.window="open = false"
+                >
+                    <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm"></div>
+                    <div class="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_40px_100px_rgba(17,17,20,0.35)] sm:p-10">
+                        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
+                        <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
+                        <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
+                        <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.register_this_customer') }}</button>
+                        <a href="{{ route('till.index') }}" class="mt-3 block text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
+                    </div>
                 </div>
-            </div>
+            </template>
 
             <form
                 method="POST"

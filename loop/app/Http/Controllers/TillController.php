@@ -8,6 +8,7 @@ use App\Support\Confirm;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TillController extends Controller
@@ -61,7 +62,15 @@ class TillController extends Controller
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
         $phone = Countries::normalizePhone($data['phone']);
-        $customer = $till->findCustomer($data['country_code'], $phone);
+        $account = $till->findAccount($data['country_code'], $phone);
+
+        if ($account && ! $account->isCustomer()) {
+            return redirect()->route('till.index')->withErrors([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ])->withInput();
+        }
+
+        $customer = $account?->isCustomer() ? $account : null;
 
         $request->session()->put('till.ticket', [
             'shop_id' => $shop->id,
@@ -182,15 +191,21 @@ class TillController extends Controller
 
         $existing = $till->findCustomer($ticket['country_code'], $ticket['phone']);
         if (! $existing) {
-            $existing = $till->registerCustomer([
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'country_code' => $ticket['country_code'],
-                'phone' => $ticket['phone'],
-                'email' => $data['email'] ?? null,
-                'birth_month' => $data['birth_month'] ?? null,
-                'birth_day' => $data['birth_day'] ?? null,
-            ]);
+            try {
+                $existing = $till->registerCustomer([
+                    'first_name' => $data['first_name'],
+                    'last_name' => $data['last_name'],
+                    'country_code' => $ticket['country_code'],
+                    'phone' => $ticket['phone'],
+                    'email' => $data['email'] ?? null,
+                    'birth_month' => $data['birth_month'] ?? null,
+                    'birth_day' => $data['birth_day'] ?? null,
+                ]);
+            } catch (ValidationException $e) {
+                $request->session()->forget('till.ticket');
+
+                return redirect()->route('till.index')->withErrors($e->errors());
+            }
         }
 
         $ticket['customer_id'] = $existing->id;

@@ -31,6 +31,11 @@
 
     <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
         @csrf
+        @if ($errors->any())
+            <div class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
+                {{ $errors->first() }}
+            </div>
+        @endif
         @if ($shopCount > 1)
             <x-sheet-select
                 name="shop_id"

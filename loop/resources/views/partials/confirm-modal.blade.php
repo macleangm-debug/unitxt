@@ -7,11 +7,12 @@
 @endphp
 
 @if ($confirm)
+    <template x-teleport="body">
     <div
         x-data="{ open: true }"
         x-show="open"
         x-cloak
-        class="fixed inset-0 z-[80] flex items-center justify-center px-4"
+        class="fixed inset-0 z-[80] flex items-center justify-center p-4"
         @keydown.escape.window="open=false"
     >
         <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm" @click="open=false"></div>
@@ -56,4 +57,5 @@
             </div>
         </div>
     </div>
+    </template>
 @endif
