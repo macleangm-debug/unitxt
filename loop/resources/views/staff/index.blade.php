@@ -15,26 +15,58 @@
             <h2 class="font-display text-xl font-semibold">{{ __('loop.your_team') }}</h2>
             <div class="mt-4 space-y-3">
                 @forelse ($staff as $member)
-                    <div class="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-ink/8 bg-white/90 px-5 py-4">
-                        <div>
-                            <p class="font-display text-lg font-semibold">{{ $member->name }}</p>
-                            <p class="mt-1 text-sm text-ink-muted">{{ $member->full_phone }}</p>
-                            @if ($member->assignedShops->isNotEmpty())
-                                <p class="mt-1 text-xs text-ink-muted">{{ $member->assignedShops->pluck('name')->join(', ') }}</p>
-                            @endif
+                    <div class="rounded-[1.5rem] border border-ink/8 bg-white/90 px-5 py-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p class="font-display text-lg font-semibold">{{ $member->name }}</p>
+                                <p class="mt-1 text-sm text-ink-muted">{{ $member->full_phone }}</p>
+                                @if ($member->assignedShops->isNotEmpty())
+                                    <p class="mt-1 text-xs text-ink-muted">{{ $member->assignedShops->pluck('name')->join(', ') }}</p>
+                                @endif
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $member->is_active ? 'bg-mint-soft text-ink' : 'bg-chalk text-ink-muted' }}">
+                                    {{ $member->is_active ? __('loop.active') : __('loop.disabled') }}
+                                </span>
+                                <form method="POST" action="{{ route('staff.toggle', $member) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button class="text-sm font-semibold text-ink-muted hover:text-ink">
+                                        {{ $member->is_active ? __('loop.disable') : __('loop.enable') }}
+                                    </button>
+                                </form>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="rounded-full px-3 py-1 text-xs font-semibold {{ $member->is_active ? 'bg-mint-soft text-ink' : 'bg-chalk text-ink-muted' }}">
-                                {{ $member->is_active ? __('loop.active') : __('loop.disabled') }}
-                            </span>
-                            <form method="POST" action="{{ route('staff.toggle', $member) }}">
+                        @if (($shops ?? collect())->count() > 1 && $member->is_active)
+                            <form method="POST" action="{{ route('staff.shops', $member) }}" class="mt-4 space-y-2 border-t border-ink/8 pt-4">
                                 @csrf
                                 @method('PATCH')
-                                <button class="text-sm font-semibold text-ink-muted hover:text-ink">
-                                    {{ $member->is_active ? __('loop.disable') : __('loop.enable') }}
-                                </button>
+                                <p class="loop-label">{{ __('loop.assign_branches') }}</p>
+                                @foreach ($shops as $shop)
+                                    @php
+                                        $occupant = $staffByShop[$shop->id] ?? null;
+                                        $takenByOther = $occupant && $occupant->id !== $member->id;
+                                    @endphp
+                                    <label class="flex items-center gap-2 text-sm {{ $takenByOther ? 'opacity-60' : '' }}">
+                                        <input
+                                            type="checkbox"
+                                            name="shop_ids[]"
+                                            value="{{ $shop->id }}"
+                                            class="rounded border-ink/20 text-mint focus:ring-mint"
+                                            @checked($member->assignedShops->contains('id', $shop->id))
+                                            @disabled($takenByOther)
+                                        >
+                                        <span>
+                                            {{ $shop->name }}
+                                            @if ($takenByOther)
+                                                <span class="text-xs text-ink-muted">· {{ $occupant->name }}</span>
+                                            @endif
+                                        </span>
+                                    </label>
+                                @endforeach
+                                <button class="text-sm font-semibold text-violet">{{ __('loop.save_branches') }}</button>
                             </form>
-                        </div>
+                        @endif
                     </div>
                 @empty
                     <div class="rounded-[1.5rem] border border-dashed border-ink/15 bg-chalk/40 px-5 py-8 text-center text-sm text-ink-muted">
@@ -49,6 +81,9 @@
             <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.add_front_desk') }}</h2>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.add_front_desk_body') }}</p>
 
+            @if (($shops ?? collect())->count() > 1 && ($freeShopCount ?? 0) < 1)
+                <p class="mt-6 rounded-xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink-muted">{{ __('loop.all_shops_have_staff') }}</p>
+            @else
             <form method="POST" action="{{ route('staff.store') }}" class="mt-6 space-y-4">
                 @csrf
                 <div class="grid gap-3 sm:grid-cols-2">
@@ -108,6 +143,7 @@
                 @endif
                 <button class="loop-btn-mint w-full">{{ __('loop.add_front_desk') }}</button>
             </form>
+            @endif
         </section>
     </div>
 </x-app-layout>

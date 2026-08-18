@@ -117,6 +117,51 @@ class LoopProductPassTest extends TestCase
             ->assertSessionHasErrors('shop_ids');
     }
 
+    public function test_owner_can_reassign_front_desk_branches(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $second = Shop::create([
+            'business_id' => $business->id,
+            'name' => 'Branch B',
+            'city' => 'Dar es Salaam',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->post(route('staff.store'), [
+                'first_name' => 'Neema',
+                'last_name' => 'Desk',
+                'country_code' => '+255',
+                'phone' => '712444011',
+                'password' => 'password',
+                'shop_ids' => [$shop->id, $second->id],
+            ])
+            ->assertRedirect();
+
+        $neema = User::query()->where('phone', '712444011')->first();
+        $this->actingAs($owner)
+            ->patch(route('staff.shops', $neema), ['shop_ids' => [$shop->id]])
+            ->assertRedirect();
+        $this->assertEqualsCanonicalizing([$shop->id], $neema->assignedShops()->pluck('shops.id')->all());
+
+        $this->actingAs($owner)
+            ->post(route('staff.store'), [
+                'first_name' => 'Asha',
+                'last_name' => 'Till',
+                'country_code' => '+255',
+                'phone' => '712444012',
+                'password' => 'password',
+                'shop_ids' => [$second->id],
+            ])
+            ->assertRedirect();
+
+        $asha = User::query()->where('phone', '712444012')->first();
+        $this->actingAs($owner)
+            ->patch(route('staff.shops', $neema), ['shop_ids' => [$shop->id, $second->id]])
+            ->assertSessionHasErrors('shop_ids');
+        $this->assertEqualsCanonicalizing([$second->id], $asha->assignedShops()->pluck('shops.id')->all());
+    }
+
     public function test_kenya_registration_maps_kes_currency(): void
     {
         $this->post('/business/register', [

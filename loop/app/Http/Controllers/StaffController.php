@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Business;
 use App\Models\User;
 use App\Support\Confirm;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -33,6 +36,7 @@ class StaffController extends Controller
             'countries' => Countries::OPTIONS,
             'shops' => $shops,
             'staffByShop' => $staffByShop,
+            'freeShopCount' => $shops->filter(fn ($shop) => empty($staffByShop[$shop->id]))->count(),
         ]);
     }
 
@@ -58,25 +62,17 @@ class StaffController extends Controller
             return back()->withInput()->withErrors(['phone' => 'That phone is already registered on Loop.']);
         }
 
-        $shopIds = $business->shops()
-            ->whereIn('id', $data['shop_ids'] ?? [])
-            ->pluck('id')
-            ->all();
+        $shopIds = $this->ownedShopIds($business, $data['shop_ids'] ?? []);
         if ($shopIds === [] && $shopCount === 1) {
             $shopIds = $business->shops()->where('is_active', true)->pluck('id')->all();
         }
 
-        $taken = \Illuminate\Support\Facades\DB::table('shop_user')
-            ->join('users', 'users.id', '=', 'shop_user.user_id')
-            ->whereIn('shop_user.shop_id', $shopIds)
-            ->where('users.role', User::ROLE_FRONT_DESK)
-            ->where('users.is_active', true)
-            ->pluck('shop_user.shop_id');
+        $taken = $this->takenShopIds($shopIds);
         if ($taken->isNotEmpty()) {
-            $names = $business->shops()->whereIn('id', $taken)->pluck('name')->join(', ');
-
             return back()->withInput()->withErrors([
-                'shop_ids' => __('loop.shop_already_has_staff', ['shops' => $names]),
+                'shop_ids' => __('loop.shop_already_has_staff', [
+                    'shops' => $business->shops()->whereIn('id', $taken)->pluck('name')->join(', '),
+                ]),
             ]);
         }
 
@@ -105,6 +101,43 @@ class StaffController extends Controller
         ));
     }
 
+    public function updateShops(Request $request, User $staff): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness;
+        abort_unless($business && $request->user()->isOwner(), 403);
+        abort_unless($staff->business_id === $business->id && $staff->isFrontDesk(), 404);
+
+        $shopCount = $business->shops()->where('is_active', true)->count();
+        $data = $request->validate([
+            'shop_ids' => $shopCount > 1 ? ['required', 'array', 'min:1'] : ['nullable', 'array'],
+            'shop_ids.*' => ['integer', 'exists:shops,id'],
+        ]);
+
+        $shopIds = $this->ownedShopIds($business, $data['shop_ids'] ?? []);
+        if ($shopIds === [] && $shopCount === 1) {
+            $shopIds = $business->shops()->where('is_active', true)->pluck('id')->all();
+        }
+
+        $taken = $this->takenShopIds($shopIds, $staff->id);
+        if ($taken->isNotEmpty()) {
+            return back()->withInput()->withErrors([
+                'shop_ids' => __('loop.shop_already_has_staff', [
+                    'shops' => $business->shops()->whereIn('id', $taken)->pluck('name')->join(', '),
+                ]),
+            ]);
+        }
+
+        $staff->assignedShops()->sync($shopIds);
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.staff_shops_saved_title'),
+            __('loop.staff_shops_saved_body'),
+            __('loop.done'),
+            route('staff.index'),
+            false,
+        ));
+    }
+
     public function toggle(Request $request, User $staff): RedirectResponse
     {
         $business = $request->user()->ownedBusiness;
@@ -120,5 +153,37 @@ class StaffController extends Controller
             route('staff.index'),
             false,
         ));
+    }
+
+    /**
+     * @param  array<int, mixed>  $shopIds
+     * @return list<int>
+     */
+    private function ownedShopIds(Business $business, array $shopIds): array
+    {
+        return $business->shops()
+            ->where('is_active', true)
+            ->whereIn('id', $shopIds)
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * @param  list<int>  $shopIds
+     * @return Collection<int, int>
+     */
+    private function takenShopIds(array $shopIds, ?int $exceptUserId = null): Collection
+    {
+        $query = DB::table('shop_user')
+            ->join('users', 'users.id', '=', 'shop_user.user_id')
+            ->whereIn('shop_user.shop_id', $shopIds)
+            ->where('users.role', User::ROLE_FRONT_DESK)
+            ->where('users.is_active', true);
+
+        if ($exceptUserId) {
+            $query->where('users.id', '!=', $exceptUserId);
+        }
+
+        return $query->pluck('shop_user.shop_id');
     }
 }

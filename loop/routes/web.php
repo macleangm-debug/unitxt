@@ -204,6 +204,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/offers/{reward}', [RewardController::class, 'show'])->name('rewards.show');
         Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
         Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::patch('/staff/{staff}/shops', [StaffController::class, 'updateShops'])->name('staff.shops');
         Route::patch('/staff/{staff}/toggle', [StaffController::class, 'toggle'])->name('staff.toggle');
     });
 
