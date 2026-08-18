@@ -1723,6 +1723,13 @@ return [
     'wallet_qr_badge' => 'Till',
     'wallet_qr_hint' => 'Show your Loop QR at the till to earn or redeem — no typing your number.',
     'wallet_qr_expand' => 'Expand QR code',
+    'scan_member_qr' => 'Scan member QR',
+    'scan_or_type_phone' => 'Type a number or scan the member wallet QR.',
+    'scan_member_qr_hint' => 'Align the Loop wallet QR inside the frame.',
+    'scanning' => 'Scanning…',
+    'scan_camera_https' => 'Camera needs HTTPS. Type the phone number instead.',
+    'scan_camera_unavailable' => 'Camera unavailable. Type the phone number instead.',
+    'scan_qr_unrecognized' => 'QR not recognized. Try again.',
     'member' => 'Member',
     'lifetime_spend' => 'Lifetime spend',
 ];

@@ -62,14 +62,52 @@
 
         <div>
             <label class="loop-label">{{ __('loop.customer_phone') }}</label>
-            <x-phone-field
-                name="phone"
-                :dial="$defaultDial"
-                hidden-dial-name="country_code"
-                :value="$scanPhone ?? old('phone')"
-                :required="true"
-                :autofocus="empty($scanPhone)"
-            />
+            <div
+                x-data="loopQrScanner({
+                    scanningLabel: @js(__('loop.scanning')),
+                    secureError: @js(__('loop.scan_camera_https')),
+                    cameraError: @js(__('loop.scan_camera_unavailable')),
+                    unrecognized: @js(__('loop.scan_qr_unrecognized')),
+                })"
+                @loop-open-qr-scan.window="open()"
+            >
+                <x-phone-field
+                    name="phone"
+                    :dial="$defaultDial"
+                    hidden-dial-name="country_code"
+                    :value="$scanPhone ?? old('phone')"
+                    :required="true"
+                    :autofocus="empty($scanPhone)"
+                    :scanable="true"
+                />
+                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.scan_or_type_phone') }}</p>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="scanning"
+                        x-cloak
+                        class="fixed inset-0 z-[90] flex flex-col bg-ink"
+                        @keydown.escape.window="close()"
+                    >
+                        <div class="flex items-center justify-between px-4 py-4">
+                            <div class="flex items-center gap-2">
+                                <x-loop-logo class="h-8 w-8" />
+                                <span class="font-display text-lg font-semibold text-white">Loop</span>
+                            </div>
+                            <button type="button" class="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-white" @click="close()">{{ __('loop.close') }}</button>
+                        </div>
+                        <div class="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 pb-10">
+                            <p class="mb-4 text-center text-sm text-white/70">{{ __('loop.scan_member_qr_hint') }}</p>
+                            <div class="relative aspect-square w-full max-w-sm overflow-hidden rounded-[1.75rem] ring-2 ring-lime/60">
+                                <video x-ref="video" class="h-full w-full object-cover" playsinline muted></video>
+                                <div class="pointer-events-none absolute inset-8 rounded-2xl border-2 border-lime/80"></div>
+                            </div>
+                            <p class="mt-4 text-center text-xs text-white/50" x-text="status"></p>
+                            <p x-show="error" class="mt-2 text-center text-sm text-coral" x-text="error"></p>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
         <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
     </form>

@@ -259,6 +259,19 @@ class LoopCoreFlowTest extends TestCase
         $this->assertSame(User::ROLE_FRONT_DESK, $staff->fresh()->role);
     }
 
+    public function test_till_lookup_includes_loop_qr_scanner(): void
+    {
+        [$owner] = $this->seedBusiness();
+
+        $this->actingAs($owner)
+            ->get(route('till.index'))
+            ->assertOk()
+            ->assertSee(__('loop.scan_member_qr'), false)
+            ->assertSee(__('loop.scan_or_type_phone'), false)
+            ->assertSee('loopQrScanner', false)
+            ->assertSee('loop-open-qr-scan', false);
+    }
+
     public function test_standalone_redeem_does_not_require_a_sale(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();

@@ -1723,6 +1723,13 @@ return [
     'wallet_qr_badge' => 'Till',
     'wallet_qr_hint' => 'Onyesha QR yako ya Loop kwenye till kupata pointi au kukomboa — bila kuandika nambari.',
     'wallet_qr_expand' => 'Panua msimbo wa QR',
+    'scan_member_qr' => 'Changanua QR ya mwanachama',
+    'scan_or_type_phone' => 'Andika namba au changanua QR ya pochi.',
+    'scan_member_qr_hint' => 'Weka QR ya pochi ya Loop ndani ya fremu.',
+    'scanning' => 'Inachanganua…',
+    'scan_camera_https' => 'Kamera inahitaji HTTPS. Andika namba ya simu badala yake.',
+    'scan_camera_unavailable' => 'Kamera haipatikani. Andika namba ya simu badala yake.',
+    'scan_qr_unrecognized' => 'QR haijatambulika. Jaribu tena.',
     'member' => 'Mwanachama',
     'lifetime_spend' => 'Matumizi ya maisha',
 ];
