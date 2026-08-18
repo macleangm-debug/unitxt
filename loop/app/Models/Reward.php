@@ -66,6 +66,16 @@ class Reward extends Model
         return $this->stock === null || $this->stock > 0;
     }
 
+    public function isFreeRedeem(): bool
+    {
+        return in_array($this->reward_type, [self::TYPE_FREE_ITEM, self::TYPE_CUSTOM], true);
+    }
+
+    public function needsBill(): bool
+    {
+        return in_array($this->reward_type, [self::TYPE_PERCENT_OFF, self::TYPE_FIXED_OFF], true);
+    }
+
     public function label(): string
     {
         return match ($this->reward_type) {

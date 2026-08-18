@@ -122,6 +122,7 @@ class TillController extends Controller
             : null;
 
         $rewards = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+        $availableOffers = $membership ? $membership->availableRewards() : collect();
         $nextOffer = null;
         if ($membership) {
             $nextOffer = $rewards
@@ -130,9 +131,9 @@ class TillController extends Controller
                 ->first();
         }
 
-        $mode = $request->query('mode', 'sale');
-        if (! in_array($mode, ['sale', 'redeem'], true)) {
-            $mode = 'sale';
+        $errorStep = 1;
+        if ($availableOffers->isNotEmpty() && old('amount_spent')) {
+            $errorStep = 2;
         }
 
         return view('till.sale', [
@@ -144,11 +145,20 @@ class TillController extends Controller
             'customer' => $customer,
             'membership' => $membership,
             'rewards' => $rewards,
+            'availableOffers' => $availableOffers,
+            'offerCards' => $availableOffers->map(fn ($reward) => [
+                'id' => $reward->id,
+                'name' => $reward->name,
+                'type' => $reward->reward_type,
+                'points' => $reward->points_cost,
+                'value' => (float) $reward->reward_value,
+                'label' => $reward->label(),
+                'needs_bill' => $reward->needsBill(),
+            ])->values()->all(),
             'campaign' => $campaign,
             'productPushes' => $productPushes,
             'nextOffer' => $nextOffer,
-            'mode' => $mode,
-            'keep' => $request->boolean('keep'),
+            'initialStep' => $errorStep,
             'needsRegister' => (bool) ($ticket['needs_register'] ?? false) && ! $customer,
             'justRegistered' => (bool) $request->session()->pull('till.just_registered', false),
         ]);
@@ -218,6 +228,7 @@ class TillController extends Controller
             'includes_featured_product' => ['nullable', 'boolean'],
             'featured_campaign_ids' => ['nullable', 'array'],
             'featured_campaign_ids.*' => ['integer'],
+            'reward_id' => ['nullable', 'integer', 'exists:rewards,id'],
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
@@ -240,8 +251,42 @@ class TillController extends Controller
             ]);
         }
 
+        $reward = null;
+        if (! empty($data['reward_id'])) {
+            $reward = $business->rewards()->whereKey((int) $data['reward_id'])->first();
+            if (! $reward) {
+                return back()->withErrors(['reward_id' => __('loop.till_offer_gone')])->withInput();
+            }
+        }
+
+        if ($reward?->isFreeRedeem()) {
+            $redemption = $till->redeemOffer(
+                $request->user(),
+                $shop,
+                $customer,
+                $reward->id,
+            );
+            $request->session()->forget('till.ticket');
+            $body = __('loop.redeem_done_body', [
+                'name' => $customer->name,
+                'offer' => $redemption->reward->name,
+                'points' => $redemption->points_spent,
+            ]);
+
+            return redirect()->route('till.index')->with('confirm', Confirm::make(
+                __('loop.redeem_done_title'),
+                $body,
+                __('loop.next_sale'),
+                route('till.index'),
+            ));
+        }
+
         if ($payWithPoints && ! $business->payWithPointsEnabled()) {
             return back()->withErrors(['pay_with_points' => __('loop.pay_with_points_disabled')])->withInput();
+        }
+
+        if ($reward && $payWithPoints) {
+            return back()->withErrors(['pay_with_points' => __('loop.till_no_pay_points_with_offer')])->withInput();
         }
 
         if ((float) $data['amount_spent'] <= 0 && ! $payWithPoints) {
@@ -258,6 +303,7 @@ class TillController extends Controller
             $payWithPoints,
             $payWithPoints ? ($data['points_to_spend'] ?? null) : null,
             $includesFeatured,
+            $reward?->id,
         );
 
         $body = __('loop.sale_done_body', [
@@ -266,9 +312,13 @@ class TillController extends Controller
         ]);
         if ($visit->points_redeemed > 0) {
             $body .= ' '.__('loop.sale_done_redeemed', ['redeemed' => $visit->points_redeemed]);
-            if ($visit->discount_amount > 0) {
-                $body .= ' ('.$business->currency.' '.number_format((float) $visit->discount_amount, 0).')';
-            }
+        }
+        if ($visit->discount_amount > 0) {
+            $remaining = max(0, (float) $visit->amount_spent - (float) $visit->discount_amount);
+            $body .= ' '.__('loop.till_collect_done', [
+                'currency' => $business->currency,
+                'amount' => number_format($remaining, 0),
+            ]);
         }
         if ($visit->notes) {
             $body .= ' — '.$visit->notes;

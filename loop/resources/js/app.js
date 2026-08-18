@@ -1129,4 +1129,160 @@ Alpine.data('offerWizard', (cfg = {}) => ({
     },
 }));
 
+Alpine.data('tillWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    hasOffers: cfg.hasOffers ?? false,
+    rewardId: cfg.rewardId ?? '',
+    offers: cfg.offers ?? [],
+    amountDisplay: cfg.amountDisplay ?? '',
+    currency: cfg.currency ?? '',
+    amountRequired: cfg.amountRequired ?? '',
+    payWithPoints: cfg.payWithPoints ?? false,
+    pointsToSpend: cfg.pointsToSpend ?? '',
+    balance: cfg.balance ?? 0,
+    rate: cfg.rate ?? 0,
+    maxPercent: cfg.maxPercent ?? 100,
+    saving: false,
+    selectedOffer() {
+        const id = String(this.rewardId || '');
+        if (!id) {
+            return null;
+        }
+
+        return this.offers.find((offer) => String(offer.id) === id) || null;
+    },
+    isFreeItem() {
+        const type = this.selectedOffer()?.type;
+
+        return type === 'free_item' || type === 'custom';
+    },
+    needsAmount() {
+        return !this.isFreeItem();
+    },
+    total() {
+        return this.hasOffers ? 2 : 1;
+    },
+    billStep() {
+        return this.hasOffers ? 2 : 1;
+    },
+    pickOffer(id) {
+        this.rewardId = id === null || id === undefined || id === '' ? '' : String(id);
+        if (this.rewardId) {
+            this.payWithPoints = false;
+        }
+    },
+    formatAmount() {
+        let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
+        const parts = raw.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        this.amountDisplay = parts.join('.');
+    },
+    amountValue() {
+        return parseFloat(String(this.amountDisplay).replace(/,/g, '')) || 0;
+    },
+    discount() {
+        const offer = this.selectedOffer();
+        const amount = this.amountValue();
+        if (!offer || !amount) {
+            return 0;
+        }
+        if (offer.type === 'percent_off') {
+            return Math.round(amount * (Number(offer.value) / 100));
+        }
+        if (offer.type === 'fixed_off') {
+            return Math.min(amount, Math.round(Number(offer.value)));
+        }
+
+        return 0;
+    },
+    remaining() {
+        return Math.max(0, this.amountValue() - this.discount());
+    },
+    maxPointsByPercent() {
+        if (!this.rate || !this.amountValue()) {
+            return this.balance;
+        }
+        const maxCurrency = this.amountValue() * (this.maxPercent / 100);
+
+        return Math.min(this.balance, Math.floor(maxCurrency / this.rate));
+    },
+    pointsValue() {
+        return Math.min(parseInt(this.pointsToSpend || 0, 10) || 0, this.maxPointsByPercent());
+    },
+    pointsDiscount() {
+        return Math.round(this.pointsValue() * this.rate);
+    },
+    go(n) {
+        this.step = n;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    validateStep(stepNum) {
+        if (this.hasOffers && stepNum === 1) {
+            return true;
+        }
+        if (stepNum === this.billStep() && this.needsAmount() && this.amountValue() < 1) {
+            return this.fail(stepNum, this.$refs.amountInput, this.amountRequired);
+        }
+
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        if (this.step < this.total()) {
+            this.go(this.step + 1);
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.hasOffers && this.step < 2) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        if (!this.validateStep(this.billStep())) {
+            event.preventDefault();
+            return;
+        }
+        this.saving = true;
+    },
+}));
+
 Alpine.start();
