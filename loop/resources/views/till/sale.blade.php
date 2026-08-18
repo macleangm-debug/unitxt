@@ -1,4 +1,5 @@
 @php
+    $keep = $keep ?? false;
     $availableOffers = ($customer && $membership) ? $membership->availableRewards() : collect();
     $hasRedeemable = $availableOffers->isNotEmpty();
     $needsRegister = $needsRegister ?? false;
@@ -98,6 +99,7 @@
             </form>
         </div>
     @else
+        <div x-data="{ saveForBigger: {{ $keep ? 'true' : 'false' }} }">
         @if ($customer && $membership)
             <div class="mb-6 grid gap-3 sm:grid-cols-3">
                 <div class="rounded-[1.5rem] bg-gradient-to-br from-ink to-ink-soft p-5 text-white">
@@ -106,22 +108,63 @@
                     <p class="text-xs text-white/55">{{ __('loop.pts') }} · {{ __('loop.one_wallet_hint') }}</p>
                 </div>
                 <div class="loop-panel p-5 sm:col-span-2">
-                    <p class="text-sm font-semibold">{{ __('loop.ready_to_redeem') }}</p>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        @forelse ($availableOffers as $reward)
-                            <span class="rounded-xl bg-mint-soft px-3 py-1.5 text-sm font-semibold text-mint-deep">{{ $reward->name }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</span>
-                        @empty
-                            <div class="w-full rounded-2xl border border-dashed border-coral/40 bg-coral/10 px-4 py-4">
-                                <p class="font-display text-lg font-semibold text-ink">{{ __('loop.none_unlocked') }}</p>
-                                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
-                                @if ($nextOffer)
-                                    <p class="mt-3 text-sm font-semibold text-mint-deep">
-                                        {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
-                                    </p>
-                                @endif
+                    @if ($hasRedeemable && $mode !== 'redeem')
+                        <div x-show="!saveForBigger">
+                            <p class="font-display text-lg font-semibold">{{ __('loop.ask_redeem_title') }}</p>
+                            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.ask_redeem_body') }}</p>
+                            <p class="mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.ready_now') }}</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach ($availableOffers as $reward)
+                                    <span class="rounded-xl bg-mint-soft px-3 py-1.5 text-sm font-semibold text-mint-deep">{{ $reward->name }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</span>
+                                @endforeach
                             </div>
-                        @endforelse
-                    </div>
+                            @if ($nextOffer)
+                                <p class="mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.bigger_later') }}</p>
+                                <p class="mt-1 text-sm font-semibold text-mint-deep">
+                                    {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                                </p>
+                            @endif
+                            <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                                <a href="{{ route('till.ticket', ['mode' => 'redeem']) }}" class="loop-btn-mint text-center">{{ __('loop.want_to_redeem') }}</a>
+                                <button type="button" class="loop-btn-ghost" @click="saveForBigger = true">{{ __('loop.keep_earning') }}</button>
+                            </div>
+                            <p class="mt-2 text-xs text-ink-muted">{{ __('loop.keep_earning_body') }}</p>
+                        </div>
+                        <div x-show="saveForBigger" x-cloak>
+                            <p class="font-semibold text-mint-deep">
+                                @if ($nextOffer)
+                                    {{ __('loop.save_for_bigger_banner', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                                @else
+                                    {{ __('loop.save_for_bigger_banner_plain') }}
+                                @endif
+                            </p>
+                            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.keep_earning_body') }}</p>
+                            <a href="{{ route('till.ticket', ['mode' => 'redeem']) }}" class="mt-3 inline-block text-sm font-semibold text-mint-deep underline">{{ __('loop.want_to_redeem') }}</a>
+                        </div>
+                    @elseif ($hasRedeemable)
+                        <p class="text-sm font-semibold">{{ __('loop.ready_to_redeem') }}</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @foreach ($availableOffers as $reward)
+                                <span class="rounded-xl bg-mint-soft px-3 py-1.5 text-sm font-semibold text-mint-deep">{{ $reward->name }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</span>
+                            @endforeach
+                        </div>
+                        @if ($nextOffer)
+                            <p class="mt-3 text-sm font-semibold text-mint-deep">
+                                {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                            </p>
+                        @endif
+                    @else
+                        <p class="text-sm font-semibold">{{ __('loop.ready_to_redeem') }}</p>
+                        <div class="mt-3 w-full rounded-2xl border border-dashed border-coral/40 bg-coral/10 px-4 py-4">
+                            <p class="font-display text-lg font-semibold text-ink">{{ __('loop.none_unlocked') }}</p>
+                            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
+                            @if ($nextOffer)
+                                <p class="mt-3 text-sm font-semibold text-mint-deep">
+                                    {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                                </p>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif
@@ -175,6 +218,7 @@
                     <x-input-error :messages="$errors->get('reward_id')" class="mt-1" />
                     <button class="loop-btn-mint w-full" name="continue_to_sale" value="1">{{ __('loop.redeem_and_sale') }}</button>
                     <button class="loop-btn-ghost w-full" type="submit">{{ __('loop.redeem_only') }}</button>
+                    <a href="{{ route('till.ticket', ['mode' => 'sale', 'keep' => 1]) }}" class="block text-center text-sm font-semibold text-mint-deep">{{ __('loop.skip_for_bigger') }}</a>
                 @else
                     <p class="rounded-2xl border border-dashed border-ink/15 px-4 py-6 text-sm text-ink-muted">{{ __('loop.none_unlocked_hint') }}</p>
                     <a href="{{ route('till.ticket', ['mode' => 'sale']) }}" class="loop-btn w-full text-center">{{ __('loop.mode_sale') }}</a>
@@ -271,5 +315,6 @@
                 </div>
             </form>
         @endif
+        </div>
     @endif
 </x-app-layout>

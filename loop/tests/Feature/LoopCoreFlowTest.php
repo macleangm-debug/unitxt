@@ -207,6 +207,98 @@ class LoopCoreFlowTest extends TestCase
         $this->assertNull(\App\Models\Redemption::first()->visit_id);
     }
 
+    public function test_till_lets_staff_skip_an_unlocked_offer_for_a_bigger_discount(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712999077',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+        Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Earn',
+            'type' => 'earn',
+            'spend_step' => 1000,
+            'points_per_step' => 2,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create([
+            'phone' => '713555888',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'password' => '1234',
+            'profile_completed' => true,
+        ]);
+        \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+        \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '10% off',
+            'points_cost' => 180,
+            'reward_type' => 'percent_off',
+            'reward_value' => 10,
+            'is_active' => true,
+        ]);
+
+        app(\App\Services\TillService::class)->recordSale($staff, $shop, $customer, 2000);
+        $business->memberships()->where('customer_id', $customer->id)->update(['points_balance' => 120]);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555888',
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.ticket'));
+
+        $this->actingAs($staff)
+            ->get(route('till.ticket'))
+            ->assertOk()
+            ->assertSee(__('loop.ask_redeem_title'), false)
+            ->assertSee(__('loop.keep_earning'), false)
+            ->assertSee(__('loop.want_to_redeem'), false)
+            ->assertSee('5% off', false)
+            ->assertSee(__('loop.points_to_next', ['points' => 60, 'offer' => '10% off']), false)
+            ->assertSee(__('loop.complete_sale'), false);
+
+        $this->actingAs($staff)
+            ->get(route('till.ticket', ['mode' => 'redeem']))
+            ->assertOk()
+            ->assertSee(__('loop.skip_for_bigger'), false)
+            ->assertSee('keep=1', false);
+
+        $this->actingAs($staff)
+            ->get(route('till.ticket', ['mode' => 'sale', 'keep' => 1]))
+            ->assertOk()
+            ->assertSee(__('loop.save_for_bigger_banner', ['points' => 60, 'offer' => '10% off']), false);
+
+        $this->actingAs($staff)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713555888',
+                'channel' => 'in_store',
+                'amount_spent' => 3000,
+            ])
+            ->assertRedirect(route('till.index'));
+
+        $this->assertDatabaseCount('redemptions', 0);
+        $this->assertDatabaseHas('memberships', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'points_balance' => 126, // 120 + 6 from 3000 spend
+        ]);
+    }
+
     public function test_owner_settings_and_campaign_detail(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();

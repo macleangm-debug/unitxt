@@ -148,6 +148,7 @@ class TillController extends Controller
             'productPushes' => $productPushes,
             'nextOffer' => $nextOffer,
             'mode' => $mode,
+            'keep' => $request->boolean('keep'),
             'needsRegister' => (bool) ($ticket['needs_register'] ?? false) && ! $customer,
             'justRegistered' => (bool) $request->session()->pull('till.just_registered', false),
         ]);
