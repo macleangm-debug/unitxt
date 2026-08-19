@@ -124,6 +124,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/articles/{article}', [AdminArticleController::class, 'update'])->name('articles.update');
         Route::delete('/articles/{article}', [AdminArticleController::class, 'destroy'])->name('articles.destroy');
         Route::get('/affiliates', [AdminAffiliateController::class, 'index'])->name('affiliates.index');
+        Route::get('/affiliates/create', [AdminAffiliateController::class, 'create'])->name('affiliates.create');
+        Route::post('/affiliates', [AdminAffiliateController::class, 'store'])->name('affiliates.store');
         Route::put('/affiliates/settings', [AdminAffiliateController::class, 'updateSettings'])->name('affiliates.settings');
         Route::get('/affiliates/{affiliate}', [AdminAffiliateController::class, 'show'])->name('affiliates.show');
         Route::post('/affiliates/{affiliate}/decide', [AdminAffiliateController::class, 'decide'])->name('affiliates.decide');
@@ -156,6 +158,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/notifications', [AdminSettingsHubController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/marketing', [AdminSettingsHubController::class, 'updateMarketing'])->name('settings.marketing');
         Route::put('/settings/plans/{plan}', [AdminSettingsHubController::class, 'updatePlan'])->name('settings.plans.update');
+        Route::post('/settings/plans/clone-country', [AdminSettingsHubController::class, 'cloneCountryPackages'])->name('settings.plans.clone-country');
     });
 
     Route::get('/payments/{payment}/wait', [PaymentController::class, 'wait'])->name('payments.wait');

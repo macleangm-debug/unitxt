@@ -265,7 +265,7 @@ class Business extends Model
 
     public function effectiveMonthlyPrice(): int
     {
-        $plan = $this->plan ?? Plan::query()->where('key', $this->plan_key)->first();
+        $plan = Plan::locate($this->plan_key ?: \App\Support\Plans::FREE, $this->country);
         $base = (int) ($plan?->price_monthly ?? 0);
 
         if ($base <= 0) {

@@ -1004,3 +1004,434 @@
         animation: none !important;
     }
 }
+
+/* —— Admin console (distinct from member/business/affiliate shells) —— */
+.admin-html,
+.admin-body {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.admin-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.admin-sidebar {
+    width: 16.5rem;
+    flex-shrink: 0;
+    background: #0f172a;
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 0.85rem 1.5rem;
+}
+
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0 0.55rem 1.1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-brand__name {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.admin-brand__role {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #94a3b8;
+}
+
+.admin-nav {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    overflow-y: auto;
+}
+
+.admin-nav__link {
+    display: block;
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.admin-nav__link:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+.admin-nav__link.is-active {
+    background: #1e293b;
+    color: #fff;
+}
+
+.admin-nav__sub {
+    margin: 0.15rem 0 0.4rem 0.55rem;
+    padding-left: 0.65rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+}
+
+.admin-nav__sublink {
+    display: block;
+    border-radius: 0.4rem;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.admin-nav__sublink:hover,
+.admin-nav__sublink.is-active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-topbar {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1.1rem 1.5rem 0.9rem;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-topbar h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.25;
+}
+
+.admin-content {
+    padding: 1.25rem 1.5rem 2.5rem;
+}
+
+.admin-flash {
+    margin-bottom: 1rem;
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #14532d;
+    border-radius: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.875rem;
+}
+
+.admin-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.15rem 1.25rem;
+}
+
+.admin-stat {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1rem 1.1rem;
+}
+
+.admin-stat--emphasis {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #fff;
+}
+
+.admin-stat--emphasis .admin-stat__label,
+.admin-stat--emphasis .admin-stat__hint {
+    color: #94a3b8;
+}
+
+.admin-insight {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left-width: 3px;
+    border-radius: 0.75rem;
+    padding: 1rem 1.1rem;
+}
+
+.admin-insight--mint { border-left-color: #0f766e; }
+.admin-insight--violet { border-left-color: #4338ca; }
+.admin-insight--coral { border-left-color: #e11d48; }
+.admin-insight--ink { border-left-color: #0f172a; }
+
+.admin-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.admin-stat__label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.admin-stat__value {
+    margin-top: 0.35rem;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.admin-stat__hint {
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.admin-subnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 1.1rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-subnav a {
+    padding: 0.55rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.admin-subnav a:hover {
+    color: #0f172a;
+}
+
+.admin-subnav a.is-active {
+    color: #0f172a;
+    border-bottom-color: #0f172a;
+}
+
+.admin-btn,
+.admin-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background: #0f172a;
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.5rem 0.9rem;
+}
+
+.admin-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.5rem;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #0f172a;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.4rem 0.75rem;
+}
+
+.admin-icon-btn {
+    border-radius: 0.5rem;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    padding: 0.3rem 0.55rem;
+    font-size: 1rem;
+}
+
+.admin-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
+}
+
+.admin-table {
+    width: 100%;
+    text-align: left;
+    font-size: 0.875rem;
+}
+
+.admin-table th {
+    background: #f8fafc;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-table td {
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.admin-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.admin-pager__size label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.admin-pager__size select {
+    border: 1px solid #cbd5e1;
+    border-radius: 0.4rem;
+    padding: 0.25rem 0.45rem;
+    background: #fff;
+}
+
+.admin-dl {
+    display: grid;
+    grid-template-columns: minmax(8rem, 14rem) 1fr;
+    gap: 0.45rem 1rem;
+    font-size: 0.875rem;
+}
+
+.admin-dl dt {
+    color: #64748b;
+}
+
+.admin-dl dd {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.admin-lock__bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    margin-bottom: 0.85rem;
+}
+
+.admin-lock__readonly {
+    opacity: 0.72;
+    pointer-events: none;
+}
+
+.admin-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.35rem;
+    height: 10rem;
+}
+
+.admin-chart__col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.3rem;
+    height: 100%;
+}
+
+.admin-chart__bar {
+    width: 100%;
+    max-width: 1.6rem;
+    border-radius: 0.2rem 0.2rem 0 0;
+    background: #334155;
+    min-height: 0.2rem;
+}
+
+.admin-chart__label {
+    font-size: 0.65rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.admin-hbar {
+    height: 0.5rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e2e8f0;
+}
+
+.admin-hbar > span {
+    display: block;
+    height: 100%;
+    background: #334155;
+    border-radius: 999px;
+}
+
+.admin-hbar--mint > span {
+    background: #0f766e;
+}
+
+.admin-preview {
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #f8fafc;
+}
+
+.admin-preview__frame {
+    background: #fff;
+    margin: 0.75rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.admin-nav-backdrop {
+    display: none;
+}
+
+@media (max-width: 1023px) {
+    .admin-sidebar {
+        position: fixed;
+        z-index: 50;
+        inset: 0 auto 0 0;
+        transform: translateX(-105%);
+        transition: transform 0.2s ease;
+    }
+    .admin-sidebar.is-open {
+        transform: none;
+    }
+    .admin-nav-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: rgba(15, 23, 42, 0.45);
+    }
+}
+

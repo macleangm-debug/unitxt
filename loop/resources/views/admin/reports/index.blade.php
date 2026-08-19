@@ -14,7 +14,7 @@
     $maxDaily = max(1, (int) collect($dailySales)->max('revenue'));
     $maxSector = max(1, (float) collect($salesBySector)->max('revenue'));
 @endphp
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div>
             <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_reports') }}</h1>
@@ -22,12 +22,10 @@
         </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
-    <div class="loop-admin-tabs" role="tablist">
+    <div class="admin-subnav" role="tablist">
         @foreach ($tabs as $key => $label)
             <a href="{{ route('admin.reports.index', ['tab' => $key]) }}"
-               class="loop-admin-tab {{ $tab === $key ? 'is-active' : '' }}"
+               class="{{ $tab === $key ? 'is-active' : '' }}"
                role="tab"
                aria-selected="{{ $tab === $key ? 'true' : 'false' }}">{{ $label }}</a>
         @endforeach
@@ -35,27 +33,27 @@
 
     @if ($tab === 'overview')
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="loop-panel p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.revenue_all') }}</p>
                 <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($overview['revenue_all']) }}</p>
                 <p class="mt-1 text-xs text-ink-muted">{{ $overview['sales_all'] }} {{ __('loop.sales') }}</p>
             </div>
-            <div class="loop-panel p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.revenue_month') }}</p>
                 <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($overview['revenue_month']) }}</p>
             </div>
-            <div class="loop-panel p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.unique_customers') }}</p>
                 <p class="mt-2 font-display text-2xl font-semibold">{{ $overview['unique_customers'] }}</p>
             </div>
-            <div class="loop-panel p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.paid') }} / {{ __('loop.trialing') }}</p>
                 <p class="mt-2 font-display text-2xl font-semibold">{{ $overview['paid_active'] }} / {{ $overview['trialing'] }}</p>
             </div>
         </div>
 
         <div class="mt-8 grid gap-6 lg:grid-cols-2">
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <div class="mb-4 flex items-end justify-between gap-3">
                     <div>
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.sales_by_sector') }}</h2>
@@ -71,14 +69,14 @@
                                 <p class="font-semibold">{{ $row->sector_label }}</p>
                                 <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
                             </div>
-                            <div class="loop-hbar"><span style="width: {{ $pct }}%"></span></div>
+                            <div class="admin-hbar"><span style="width: {{ $pct }}%"></span></div>
                         </div>
                     @empty
                         <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
                     @endforelse
                 </div>
             </section>
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <div class="mb-4 flex items-end justify-between gap-3">
                     <div>
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.reports_tab_trend') }}</h2>
@@ -86,12 +84,12 @@
                     </div>
                     <a href="{{ route('admin.reports.index', ['tab' => 'trend']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
                 </div>
-                <div class="loop-bar-chart h-32">
+                <div class="admin-chart h-32">
                     @foreach (collect($dailySales)->take(14) as $day)
                         @php $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100)); @endphp
-                        <div class="loop-bar-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }}">
-                            <div class="loop-bar-chart__bar" style="height: {{ $h }}%"></div>
-                            <span class="loop-bar-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
+                        <div class="admin-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }}">
+                            <div class="admin-chart__bar" style="height: {{ $h }}%"></div>
+                            <span class="admin-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
                         </div>
                     @endforeach
                 </div>
@@ -101,7 +99,7 @@
 
     @if ($tab === 'sectors')
         <div class="grid gap-8 lg:grid-cols-2">
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.customers_by_sector') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.customers_by_sector_blurb') }}</p>
                 <div class="mt-4 space-y-2">
@@ -115,7 +113,7 @@
                     @endforelse
                 </div>
             </section>
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.sales_by_sector') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.sales_by_sector_blurb') }}</p>
                 <div class="mt-4 space-y-4">
@@ -129,7 +127,7 @@
                                 </div>
                                 <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
                             </div>
-                            <div class="loop-hbar"><span style="width: {{ $pct }}%"></span></div>
+                            <div class="admin-hbar"><span style="width: {{ $pct }}%"></span></div>
                         </div>
                     @empty
                         <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
@@ -137,6 +135,36 @@
                 </div>
             </section>
         </div>
+        <section class="admin-card mt-6">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold">{{ __('loop.sales_by_sector') }}</h2>
+                <a class="admin-btn-ghost" href="{{ route('admin.reports.export', ['type' => 'sales_by_sector', 'format' => 'csv']) }}">{{ __('loop.export_csv') }}</a>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('loop.sector') }}</th>
+                            <th>{{ __('loop.sales') }}</th>
+                            <th>{{ __('loop.unique_customers') }}</th>
+                            <th>{{ __('loop.revenue') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($salesBySector as $row)
+                            <tr>
+                                <td class="font-semibold">{{ $row->sector_label }}</td>
+                                <td>{{ $row->sales_count }}</td>
+                                <td>{{ $row->unique_customers }}</td>
+                                <td>TZS {{ number_format($row->revenue) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4">{{ __('loop.no_data_yet') }}</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
     @endif
 
     @if ($tab === 'businesses')
@@ -145,8 +173,8 @@
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.customers_by_business_blurb') }}</p>
             <div class="mt-4">
                 <x-admin.empty-state :empty="$customersByBusiness->isEmpty()" :title="__('loop.customers_by_business')">
-                    <div class="loop-table-wrap">
-                        <table class="loop-table">
+                    <div class="admin-table-wrap">
+                        <table class="admin-table">
                             <thead>
                                 <tr>
                                     <th>{{ __('loop.business') }}</th>
@@ -181,20 +209,25 @@
     @endif
 
     @if ($tab === 'trend')
-        <section class="loop-glass p-6">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.last_30_days_sales') }}</h2>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.last_30_days_sales_blurb') }}</p>
-            <div class="mt-6 loop-bar-chart">
+        <section class="admin-card">
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.last_30_days_sales') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.last_30_days_sales_blurb') }}</p>
+                </div>
+                <a class="admin-btn-ghost" href="{{ route('admin.reports.export', ['type' => 'daily_sales', 'format' => 'csv']) }}">{{ __('loop.export_csv') }}</a>
+            </div>
+            <div class="mt-6 admin-chart">
                 @foreach ($dailySales as $day)
                     @php $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100)); @endphp
-                    <div class="loop-bar-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ $day->sales_count }} {{ __('loop.sales') }}">
-                        <div class="loop-bar-chart__bar" style="height: {{ $h }}%"></div>
-                        <span class="loop-bar-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
+                    <div class="admin-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ $day->sales_count }} {{ __('loop.sales') }}">
+                        <div class="admin-chart__bar" style="height: {{ $h }}%"></div>
+                        <span class="admin-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
                     </div>
                 @endforeach
             </div>
-            <div class="mt-6 loop-table-wrap">
-                <table class="loop-table">
+            <div class="mt-6 admin-table-wrap">
+                <table class="admin-table">
                     <thead>
                         <tr>
                             <th>{{ __('loop.day') }}</th>
@@ -217,7 +250,7 @@
     @endif
 
     @if ($tab === 'export')
-        <section class="loop-panel p-6">
+        <section class="admin-card">
             <div>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.export_reports') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.export_reports_blurb') }}</p>
@@ -246,8 +279,8 @@
                     </div>
                     <p class="mt-2 text-xs text-ink-muted">{{ __('loop.export_zip_hint') }}</p>
                 </div>
-                <button class="loop-btn-mint">{{ __('loop.download') }}</button>
+                <button class="admin-btn">{{ __('loop.download') }}</button>
             </form>
         </section>
     @endif
-</x-app-layout>
+</x-admin-layout>

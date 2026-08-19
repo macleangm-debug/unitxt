@@ -38,7 +38,7 @@ class AffiliateController extends Controller
         }
 
         return view('admin.affiliates.index', [
-            'affiliates' => $query->paginate(20)->withQueryString(),
+            'affiliates' => $query->paginate(\App\Support\AdminPagination::perPage($request))->withQueryString(),
             'tab' => $tab,
             'counts' => [
                 'pending' => Affiliate::query()->where('status', 'pending')->count(),
@@ -48,7 +48,42 @@ class AffiliateController extends Controller
                 'all' => Affiliate::query()->count(),
             ],
             'settings' => AffiliateProgram::settings(),
+            'countries' => \App\Support\Countries::enabledOptions(),
         ]);
+    }
+
+    public function create(): View
+    {
+        return view('admin.affiliates.create', [
+            'countries' => \App\Support\Countries::enabledOptions(),
+        ]);
+    }
+
+    public function store(Request $request, AffiliateService $affiliates): RedirectResponse
+    {
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:80'],
+            'last_name' => ['required', 'string', 'max:80'],
+            'country' => ['required', 'string', 'size:2'],
+            'phone' => ['required', 'string', 'max:20'],
+            'city' => ['nullable', 'string', 'max:80'],
+            'email' => ['nullable', 'email', 'max:120'],
+            'password' => ['nullable', 'string', 'min:8'],
+        ]);
+
+        $data['country_code'] = \App\Support\Countries::dial($data['country']);
+        $data['phone'] = preg_replace('/\D+/', '', $data['phone']) ?: $data['phone'];
+
+        $created = $affiliates->createFromAdmin($data, $request->user());
+        $affiliate = $created['affiliate'];
+
+        return redirect()->route('admin.affiliates.show', $affiliate)->with('confirm', Confirm::make(
+            __('loop.affiliate_created_title'),
+            __('loop.affiliate_created_body', ['code' => $affiliate->promo_code]),
+            __('loop.done'),
+            route('admin.affiliates.show', $affiliate),
+            true,
+        ));
     }
 
     public function show(Affiliate $affiliate): View

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
     'key',
+    'country',
     'name',
     'tagline',
     'price_monthly',
@@ -24,6 +25,31 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class Plan extends Model
 {
+    public static function locate(string $key, ?string $country = null): ?self
+    {
+        $country = $country ?: 'TZ';
+
+        return static::query()->where('key', $key)->where('country', $country)->first()
+            ?? static::query()->where('key', $key)->where('country', 'TZ')->first()
+            ?? static::query()->where('key', $key)->orderBy('id')->first();
+    }
+
+    public static function forCountry(?string $country = null)
+    {
+        $country = $country ?: 'TZ';
+        $query = static::query()->where('country', $country)->orderBy('sort_order');
+        if ($query->clone()->exists()) {
+            return $query;
+        }
+
+        return static::query()->where('country', 'TZ')->orderBy('sort_order');
+    }
+
+    public static function countriesInUse(): array
+    {
+        return static::query()->orderBy('country')->distinct()->pluck('country')->filter()->values()->all();
+    }
+
     protected function casts(): array
     {
         return [

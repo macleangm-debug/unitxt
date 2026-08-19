@@ -7,7 +7,7 @@
         'email' => __('loop.integrations_tab_email'),
     ];
 @endphp
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin') }}</p>
@@ -20,32 +20,30 @@
         </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
-    <div class="loop-admin-tabs" role="tablist">
+    <div class="admin-subnav" role="tablist">
         @foreach ($tabs as $key => $label)
             <a href="{{ route('admin.integrations.index', ['tab' => $key]) }}"
-               class="loop-admin-tab {{ $tab === $key ? 'is-active' : '' }}">{{ $label }}</a>
+               class="{{ $tab === $key ? 'is-active' : '' }}">{{ $label }}</a>
         @endforeach
     </div>
 
     @if ($tab === 'overview')
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.psp_health') }}</p>
                 <p class="mt-2 font-display text-xl font-semibold">{{ $payinHealth['configured'] ? __('loop.configured') : __('loop.stub_mode') }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ $payinHealth['message'] }}</p>
             </div>
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.primary_psp') }}</p>
                 <p class="mt-2 font-display text-xl font-semibold uppercase">{{ $settings['payments']['primary'] }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.mode') }}: {{ $settings['payments']['providers']['payin']['mode'] }}</p>
             </div>
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.messaging') }} / {{ __('loop.email') }}</p>
                 <p class="mt-2 text-sm">{{ $settings['messaging']['enabled'] ? __('loop.on') : __('loop.off') }} · {{ $settings['email']['enabled'] ? __('loop.on') : __('loop.off') }}</p>
             </div>
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.payin_balance') }}</p>
                 @if (!empty($payinBalance['stub']))
                     <p class="mt-2 font-display text-xl font-semibold">{{ __('loop.stub_mode') }}</p>
@@ -61,7 +59,7 @@
     @endif
 
     @if ($tab === 'payments')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.psp_settings') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.psp_settings_blurb') }}</p>
             <form method="POST" action="{{ route('admin.integrations.update') }}" class="mt-4">
@@ -99,12 +97,12 @@
                             <input name="payin[webhook_secret]" value="{{ $settings['payments']['providers']['payin']['webhook_secret'] }}" class="loop-input">
                         </div>
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
 
-        <section class="mt-8 loop-glass p-6">
+        <section class="mt-8 admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.payment_flow_title') }}</h2>
             <ol class="mt-4 list-decimal space-y-2 pl-5 text-sm text-ink-muted">
                 <li>{{ __('loop.payment_flow_1') }}</li>
@@ -117,7 +115,7 @@
     @endif
 
     @if ($tab === 'console')
-        <section class="loop-glass p-6">
+        <section class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.payment_console') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.payment_console_blurb') }}</p>
             <form method="POST" action="{{ route('admin.integrations.test-pay') }}" class="mt-5 grid gap-3 sm:grid-cols-4">
@@ -139,7 +137,7 @@
                     <input name="phone" value="714123456" class="loop-input" required>
                 </div>
                 <div class="flex items-end">
-                    <button class="loop-btn-mint w-full">{{ __('loop.run_test_payment') }}</button>
+                    <button class="admin-btn w-full">{{ __('loop.run_test_payment') }}</button>
                 </div>
             </form>
         </section>
@@ -147,8 +145,8 @@
         <section class="mt-8">
             <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.recent_payments') }}</h2>
             <x-admin.empty-state :empty="$recentPayments->isEmpty()" :title="__('loop.recent_payments')">
-                <div class="loop-table-wrap">
-                    <table class="loop-table">
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>{{ __('loop.when') }}</th>
@@ -177,17 +175,17 @@
 
     @if ($tab === 'messaging')
         <div class="mb-6 grid gap-3 sm:grid-cols-3">
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.sms_health') }}</p>
                 <p class="mt-2 font-display text-xl font-semibold">{{ ($smsHealth['configured'] ?? false) ? __('loop.configured') : __('loop.stub_mode') }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ $smsHealth['message'] ?? '' }}</p>
             </div>
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.psp_health') }}</p>
                 <p class="mt-2 font-display text-xl font-semibold">{{ $payinHealth['configured'] ? __('loop.configured') : __('loop.stub_mode') }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ $payinHealth['message'] }}</p>
             </div>
-            <div class="loop-glass p-5">
+            <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.members_by_country') }}</p>
                 @forelse ($membersByCountry ?? [] as $row)
                     <p class="mt-1 text-sm">{{ $row->country ?: '—' }} · {{ $row->members }}</p>
@@ -197,7 +195,7 @@
             </div>
         </div>
 
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.messaging_integration') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.messaging_integration_blurb') }}</p>
             <form method="POST" action="{{ route('admin.integrations.update') }}" class="mt-4">
@@ -230,13 +228,13 @@
                     </div>
                     <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="messaging[business_can_message_customers]" value="1" @checked($settings['messaging']['business_can_message_customers'])> {{ __('loop.biz_message_customers') }}</label>
                     <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="messaging[platform_can_message_businesses]" value="1" @checked($settings['messaging']['platform_can_message_businesses'])> {{ __('loop.platform_message_businesses') }}</label>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-2">
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.test_sms') }}</h2>
                 <form method="POST" action="{{ route('admin.integrations.test-sms') }}" class="mt-4 space-y-3">
                     @csrf
@@ -250,10 +248,10 @@
                         <input name="phone" class="loop-input" placeholder="7XXXXXXXX" required>
                     </div>
                     <textarea name="body" rows="3" class="loop-input" required>{{ __('loop.sms_test_default') }}</textarea>
-                    <button class="loop-btn-mint w-full">{{ __('loop.send_test_sms') }}</button>
+                    <button class="admin-btn w-full">{{ __('loop.send_test_sms') }}</button>
                 </form>
             </section>
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sms_businesses') }}</h2>
                 <form method="POST" action="{{ route('admin.integrations.sms.businesses') }}" class="mt-4 space-y-3">
                     @csrf
@@ -268,19 +266,19 @@
                             <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach
                     </select>
-                    <button class="loop-btn w-full">{{ __('loop.send_to_businesses') }}</button>
+                    <button class="admin-btn w-full">{{ __('loop.send_to_businesses') }}</button>
                 </form>
             </section>
         </div>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-2">
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.starter_sender_ids') }}</h2>
                 <form method="POST" action="{{ route('admin.integrations.sender-ids.store') }}" class="mt-4 grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
                     @csrf
                     <input name="code" maxlength="11" class="loop-input uppercase" placeholder="OFFER" required>
                     <input type="number" name="yearly_fee" class="loop-input" value="15000">
-                    <button class="loop-btn-mint">{{ __('loop.add') }}</button>
+                    <button class="admin-btn">{{ __('loop.add') }}</button>
                 </form>
                 <div class="mt-4 space-y-2">
                     @foreach ($platformSenderIds ?? [] as $starter)
@@ -298,7 +296,7 @@
                     @endforeach
                 </div>
             </section>
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.pending_sender_ids') }}</h2>
                 <div class="mt-4 space-y-2">
                     @forelse ($pendingSenderIds ?? [] as $row)
@@ -315,13 +313,13 @@
         </div>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-2">
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-lg font-semibold">{{ __('loop.subscription_payments') }}</h2>
                 @foreach ($subscriptionPayments ?? [] as $p)
                     <p class="mt-2 text-sm">{{ $p->created_at?->diffForHumans() }} · {{ $p->currency }} {{ number_format($p->amount) }} · {{ $p->status }}</p>
                 @endforeach
             </section>
-            <section class="loop-glass p-6">
+            <section class="admin-card">
                 <h2 class="font-display text-lg font-semibold">{{ __('loop.messaging_payments') }}</h2>
                 @foreach ($messagingPayments ?? [] as $p)
                     <p class="mt-2 text-sm">{{ $p->purpose }} · {{ $p->currency }} {{ number_format($p->amount) }} · {{ $p->status }}</p>
@@ -331,7 +329,7 @@
     @endif
 
     @if ($tab === 'email')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.email_integration') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.email_integration_blurb') }}</p>
             <form method="POST" action="{{ route('admin.integrations.update') }}" class="mt-4">
@@ -350,9 +348,9 @@
                             <input type="email" name="email[from_address]" value="{{ $settings['email']['from_address'] }}" class="loop-input">
                         </div>
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
     @endif
-</x-app-layout>
+</x-admin-layout>

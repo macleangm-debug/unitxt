@@ -25,8 +25,8 @@ class BillingController extends Controller
 
         return view('billing.upgrade', [
             'business' => $business,
-            'plans' => Plan::query()->where('is_public', true)->orderBy('sort_order')->get(),
-            'currentPlan' => Plan::query()->where('key', $business->plan_key)->first(),
+            'plans' => Plan::forCountry($country)->where('is_public', true)->get(),
+            'currentPlan' => Plan::locate($business->plan_key, $country),
             'trialExpired' => $limits->trialExpired($business),
             'caps' => $limits->effectiveCaps($business),
             'daysLeft' => $business->trial_ends_at && $business->trial_ends_at->isFuture()
@@ -51,9 +51,10 @@ class BillingController extends Controller
             'months' => ['nullable', 'integer', 'in:1,3,6,12'],
         ]);
 
-        $plan = Plan::query()->where('key', $data['plan_key'])->where('is_public', true)->firstOrFail();
         $country = strtoupper($data['country']);
         abort_unless(isset(Countries::OPTIONS[$country]), 422);
+        $plan = Plan::locate($data['plan_key'], $country);
+        abort_unless($plan && $plan->is_public, 404);
         $months = (int) ($data['months'] ?? 1);
 
         $monthly = $business->effectiveMonthlyPrice();

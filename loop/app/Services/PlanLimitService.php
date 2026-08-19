@@ -11,9 +11,7 @@ class PlanLimitService
 {
     public function planFor(Business $business): ?Plan
     {
-        return $business->relationLoaded('plan')
-            ? $business->plan
-            : Plan::query()->where('key', $business->plan_key ?: Plans::FREE)->first();
+        return Plan::locate($business->plan_key ?: Plans::FREE, $business->country);
     }
 
     /**

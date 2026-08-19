@@ -1,19 +1,17 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div>
                 <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_articles') }}</h1>
                 <p class="mt-1 text-ink-muted">{{ __('loop.admin_articles_blurb') }}</p>
             </div>
-            <a href="{{ route('admin.articles.create') }}" class="loop-btn-mint">{{ __('loop.new_article') }}</a>
+            <a href="{{ route('admin.articles.create') }}" class="admin-btn">{{ __('loop.new_article') }}</a>
         </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
     <x-admin.empty-state :empty="$articles->isEmpty()" :title="__('loop.no_articles_yet')">
-        <div class="loop-table-wrap">
-            <table class="loop-table">
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>{{ __('loop.stories') }}</th>
@@ -45,6 +43,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-4">{{ $articles->links() }}</div>
+        <div class="mt-4">
+            <x-admin.table-pager :paginator="$articles" />
+        </div>
     </x-admin.empty-state>
-</x-app-layout>
+</x-admin-layout>

@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -6,11 +6,9 @@
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.affiliate_performance') }}</h1>
                 <p class="mt-1 text-ink-muted">{{ __('loop.affiliate_performance_blurb') }}</p>
             </div>
-            <a href="{{ route('admin.affiliates.index', ['tab' => 'performance']) }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+            <a href="{{ route('admin.affiliates.index', ['tab' => 'performance']) }}" class="admin-btn-ghost !py-2">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
-
-    @include('admin.partials.nav')
 
     <div class="mb-4 rounded-2xl border border-violet/20 bg-violet-soft/50 px-4 py-3 text-sm">
         <p class="font-semibold">{{ __('loop.affiliate_kpi_banner') }}</p>
@@ -18,20 +16,20 @@
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.affiliate_tab_active') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $totals['active'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.month_signups') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $totals['month_signups'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.month_paying') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $totals['month_paying'] }}</p>
             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.kpi_target') }}: {{ $totals['target'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.commission_earned') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($totals['commission']) }}</p>
         </div>
@@ -39,8 +37,8 @@
 
     <section class="mt-8">
         <x-admin.empty-state :empty="$affiliates->isEmpty()" :title="__('loop.affiliate_performance')">
-            <div class="loop-table-wrap">
-                <table class="loop-table">
+            <div class="admin-table-wrap">
+                <table class="admin-table">
                     <thead>
                         <tr>
                             <th>{{ __('loop.name') }}</th>
@@ -78,4 +76,4 @@
             <div class="mt-4">{{ $affiliates->links() }}</div>
         </x-admin.empty-state>
     </section>
-</x-app-layout>
+</x-admin-layout>

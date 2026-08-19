@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -6,34 +6,32 @@
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.admin_customers_title') }}</h1>
                 <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.admin_customers_blurb') }}</p>
             </div>
-            <a href="{{ route('admin.dashboard') }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+            <a href="{{ route('admin.dashboard') }}" class="admin-btn-ghost !py-2">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
     <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.admin_customers_total') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ number_format($totals['customers']) }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.admin_customers_active_month') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ number_format($totals['active_month']) }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.admin_customers_avg_shops') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $totals['avg_shops'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.admin_customers_month_gmv') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($totals['month_gmv']) }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.admin_customers_memberships') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ number_format($totals['memberships']) }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.admin_customers_scouts') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ number_format($totals['scouts']) }}</p>
         </div>
@@ -44,7 +42,7 @@
             <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.customers_by_sector') }}</h2>
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach ($bySector as $row)
-                    <div class="loop-glass p-4">
+                    <div class="admin-card">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ $row->sector_label ?? $row->sector }}</p>
                         <p class="mt-2 font-display text-2xl font-semibold">{{ number_format($row->unique_customers) }}</p>
                     </div>
@@ -54,8 +52,8 @@
     @endif
 
     <x-admin.empty-state :empty="$customers->isEmpty()" :title="__('loop.admin_customers_title')">
-        <div class="loop-table-wrap">
-            <table class="loop-table">
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>{{ __('loop.customer') }}</th>
@@ -82,6 +80,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-4">{{ $customers->links() }}</div>
+        <div class="mt-4">
+            <x-admin.table-pager :paginator="$customers" />
+        </div>
     </x-admin.empty-state>
-</x-app-layout>
+</x-admin-layout>

@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -6,7 +6,7 @@
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ $affiliate->name }}</h1>
                 <p class="mt-1 text-ink-muted">{{ $affiliate->full_phone }} · {{ __('loop.affiliate_status_'.$affiliate->status) }}</p>
             </div>
-            <a href="{{ route('admin.affiliates.index') }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+            <a href="{{ route('admin.affiliates.index') }}" class="admin-btn-ghost !py-2">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
 
@@ -42,8 +42,8 @@
                         <input type="hidden" name="decision" :value="decision">
                     </form>
                     <div class="grid gap-3 sm:grid-cols-2">
-                        <button type="button" class="loop-btn-mint w-full" @click="decision='approved'; open=true">{{ __('loop.approve') }}</button>
-                        <button type="button" class="loop-btn-ghost w-full" @click="decision='rejected'; open=true">{{ __('loop.reject') }}</button>
+                        <button type="button" class="admin-btn w-full" @click="decision='approved'; open=true">{{ __('loop.approve') }}</button>
+                        <button type="button" class="admin-btn-ghost w-full" @click="decision='rejected'; open=true">{{ __('loop.reject') }}</button>
                     </div>
 
                     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -51,7 +51,7 @@
                         <div class="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
                             <p class="font-display text-2xl font-semibold" x-text="decision==='approved' ? @js(__('loop.confirm_approve_title')) : @js(__('loop.confirm_reject_title'))"></p>
                             <p class="mt-2 text-sm text-ink-muted" x-text="decision==='approved' ? @js(__('loop.confirm_approve_body')) : @js(__('loop.confirm_reject_body'))"></p>
-                            <button type="submit" form="affiliate-decide-form" class="loop-btn-mint mt-6 w-full" x-text="decision==='approved' ? @js(__('loop.approve')) : @js(__('loop.reject'))"></button>
+                            <button type="submit" form="affiliate-decide-form" class="admin-btn mt-6 w-full" x-text="decision==='approved' ? @js(__('loop.approve')) : @js(__('loop.reject'))"></button>
                             <button type="button" class="mt-3 text-sm font-semibold text-ink-muted" @click="open=false">{{ __('loop.cancel') }}</button>
                         </div>
                     </div>
@@ -78,4 +78,4 @@
             @endforelse
         </div>
     </section>
-</x-app-layout>
+</x-admin-layout>

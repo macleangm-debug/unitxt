@@ -16,7 +16,7 @@ class ArticleController extends Controller
     public function index(): View
     {
         return view('admin.articles.index', [
-            'articles' => Article::query()->latest('updated_at')->paginate(20),
+            'articles' => Article::query()->latest('updated_at')->paginate(\App\Support\AdminPagination::perPage(request()))->withQueryString(),
         ]);
     }
 

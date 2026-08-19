@@ -124,12 +124,11 @@ class Plans
      *
      * @return \Illuminate\Support\Collection<int, \App\Models\Plan>
      */
-    public static function publicPlans()
+    public static function publicPlans(?string $country = null)
     {
         if (\Illuminate\Support\Facades\Schema::hasTable('plans')) {
-            $plans = \App\Models\Plan::query()
+            $plans = \App\Models\Plan::forCountry($country)
                 ->where('is_public', true)
-                ->orderBy('sort_order')
                 ->get();
 
             if ($plans->isNotEmpty()) {

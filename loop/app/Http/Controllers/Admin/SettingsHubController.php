@@ -24,19 +24,62 @@ use Illuminate\View\View;
 
 class SettingsHubController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $country = strtoupper((string) $request->query('country', 'TZ'));
+        if (! isset(\App\Support\Countries::OPTIONS[$country])) {
+            $country = 'TZ';
+        }
+
+        $plans = Plan::query()->where('country', $country)->orderBy('sort_order')->get();
+        if ($plans->isEmpty()) {
+            $plans = Plan::query()->where('country', 'TZ')->orderBy('sort_order')->get();
+        }
+
+        $billing = BillingSettings::settings();
+        $growth = GrowthSettings::settings();
+        $referral = ReferralProgram::settings();
+        $affiliate = AffiliateProgram::settings();
+        $featureFlags = FeatureFlags::settings();
+
+        $settingsSummary = [
+            __('loop.settings_tab_packages') => __('loop.settings_summary_packages', [
+                'count' => $plans->count(),
+                'country' => \App\Support\Countries::OPTIONS[$country]['name'] ?? $country,
+            ]),
+            __('loop.settings_tab_billing') => __('loop.settings_summary_billing', [
+                'days' => $billing['trial_days'],
+                'members' => $billing['free_max_members'],
+                'block' => $billing['block_till_when_trial_ends'] ? __('loop.on') : __('loop.off'),
+            ]),
+            __('loop.settings_tab_growth') => __('loop.settings_summary_growth', [
+                'raffle' => $growth['raffle_min_members'],
+                'banners' => $growth['banner_max_count'],
+            ]),
+            __('loop.settings_tab_referrals') => __('loop.settings_summary_referrals', [
+                'goal' => $referral['goal_count'],
+                'days' => $referral['referrer_extra_days_per_referral'],
+            ]),
+            __('loop.settings_tab_affiliates') => __('loop.settings_summary_affiliates', [
+                'commission' => $affiliate['commission_percent'],
+                'enabled' => $affiliate['enabled'] ? __('loop.on') : __('loop.off'),
+            ]),
+        ];
+
         return view('admin.settings.index', [
-            'billing' => BillingSettings::settings(),
-            'growth' => GrowthSettings::settings(),
-            'referral' => ReferralProgram::settings(),
-            'affiliate' => AffiliateProgram::settings(),
+            'billing' => $billing,
+            'growth' => $growth,
+            'referral' => $referral,
+            'affiliate' => $affiliate,
             'salesVisibility' => SalesVisibility::settings(),
             'platformUrl' => PlatformUrl::settings(),
-            'featureFlags' => FeatureFlags::settings(),
+            'featureFlags' => $featureFlags,
             'featureCatalog' => FeatureFlags::catalog(),
             'sectors' => Sectors::list(),
-            'plans' => Plan::query()->orderBy('sort_order')->get(),
+            'plans' => $plans,
+            'planCountry' => $country,
+            'planCountries' => Plan::countriesInUse(),
+            'settingsSummary' => $settingsSummary,
             'countries' => CountrySettings::settings(),
             'notifications' => NotificationSettings::settings(),
             'marketing' => MarketingSettings::settings(),
@@ -362,13 +405,69 @@ class SettingsHubController extends Controller
             'features' => $features,
         ]);
 
+        $params = ['tab' => 'packages'];
+        if (($plan->country ?: 'TZ') !== 'TZ') {
+            $params['country'] = $plan->country;
+        }
+
         return redirect()
-            ->route('admin.settings', ['tab' => 'packages'])
+            ->route('admin.settings', $params)
             ->with('confirm', Confirm::make(
                 __('loop.admin_plan_saved_title'),
                 __('loop.admin_plan_saved', ['name' => $plan->name]),
                 __('loop.done'),
-                route('admin.settings', ['tab' => 'packages']),
+                route('admin.settings', $params),
+                false,
+            ));
+    }
+
+    public function cloneCountryPackages(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'string', 'size:2'],
+            'to' => ['required', 'string', 'size:2', 'different:from'],
+        ]);
+
+        if (! isset(\App\Support\Countries::OPTIONS[$data['to']])) {
+            abort(422);
+        }
+
+        $source = Plan::query()->where('country', $data['from'])->orderBy('sort_order')->get();
+        if ($source->isEmpty()) {
+            $source = Plan::query()->where('country', 'TZ')->orderBy('sort_order')->get();
+        }
+
+        $currency = \App\Support\Countries::currency($data['to']);
+
+        foreach ($source as $plan) {
+            Plan::query()->updateOrCreate(
+                ['key' => $plan->key, 'country' => $data['to']],
+                [
+                    'name' => $plan->name,
+                    'tagline' => $plan->tagline,
+                    'price_monthly' => $plan->price_monthly,
+                    'currency' => $currency,
+                    'max_shops' => $plan->max_shops,
+                    'max_members' => $plan->max_members,
+                    'max_monthly_visits' => $plan->max_monthly_visits,
+                    'max_product_pushes' => $plan->max_product_pushes,
+                    'max_offers' => $plan->max_offers,
+                    'has_raffles' => $plan->has_raffles,
+                    'has_sms' => $plan->has_sms,
+                    'is_public' => $plan->is_public,
+                    'sort_order' => $plan->sort_order,
+                    'features' => $plan->features,
+                ]
+            );
+        }
+
+        return redirect()
+            ->route('admin.settings', ['tab' => 'packages', 'country' => $data['to']])
+            ->with('confirm', Confirm::make(
+                __('loop.packages_cloned_title'),
+                __('loop.packages_cloned_body', ['country' => \App\Support\Countries::OPTIONS[$data['to']]['name']]),
+                __('loop.done'),
+                route('admin.settings', ['tab' => 'packages', 'country' => $data['to']]),
                 false,
             ));
     }

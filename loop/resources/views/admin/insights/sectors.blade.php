@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -6,23 +6,21 @@
                 <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.sectors_insight_title') }}</h1>
                 <p class="mt-1 text-ink-muted">{{ __('loop.sectors_insight_blurb') }}</p>
             </div>
-            <a href="{{ route('admin.dashboard', ['tab' => 'sectors']) }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+            <a href="{{ route('admin.dashboard', ['tab' => 'sectors']) }}" class="admin-btn-ghost !py-2">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
     <div class="grid gap-3 sm:grid-cols-3">
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.configured_sectors') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $sectorCount }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.best_sector_gmv') }}</p>
             <p class="mt-2 font-display text-xl font-semibold">{{ $topGmv->sector_label ?? '—' }}</p>
             <p class="mt-1 text-xs text-ink-muted">TZS {{ number_format((float) ($topGmv->revenue ?? 0)) }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.best_sector_businesses') }}</p>
             <p class="mt-2 font-display text-xl font-semibold">{{ $topBiz->sector_label ?? '—' }}</p>
             <p class="mt-1 text-xs text-ink-muted">{{ (int) ($topBiz->businesses ?? 0) }} {{ __('loop.admin_businesses') }}</p>
@@ -33,8 +31,8 @@
         <section>
             <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.best_sector_gmv') }}</h2>
             <x-admin.empty-state :empty="$salesBySector->isEmpty()" :title="__('loop.best_sector_gmv')">
-                <div class="loop-table-wrap">
-                    <table class="loop-table">
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -63,8 +61,8 @@
         <section>
             <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.best_sector_businesses') }}</h2>
             <x-admin.empty-state :empty="$businessesBySector->isEmpty()" :title="__('loop.best_sector_businesses')">
-                <div class="loop-table-wrap">
-                    <table class="loop-table">
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -90,4 +88,4 @@
             </x-admin.empty-state>
         </section>
     </div>
-</x-app-layout>
+</x-admin-layout>

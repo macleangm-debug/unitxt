@@ -1611,4 +1611,41 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
     },
 }));
 
+Alpine.data('articlePreview', (cfg = {}) => ({
+    lang: 'en',
+    title_en: cfg.title_en || '',
+    title_sw: cfg.title_sw || '',
+    excerpt_en: cfg.excerpt_en || '',
+    excerpt_sw: cfg.excerpt_sw || '',
+    body_en: cfg.body_en || '',
+    body_sw: cfg.body_sw || '',
+    image: cfg.image || '',
+    title() {
+        const primary = this.lang === 'sw' ? this.title_sw : this.title_en;
+        const fallback = this.lang === 'sw' ? this.title_en : this.title_sw;
+        return primary || fallback || '';
+    },
+    excerpt() {
+        const primary = this.lang === 'sw' ? this.excerpt_sw : this.excerpt_en;
+        const fallback = this.lang === 'sw' ? this.excerpt_en : this.excerpt_sw;
+        return primary || fallback || '';
+    },
+    bodyHtml() {
+        const primary = this.lang === 'sw' ? this.body_sw : this.body_en;
+        const fallback = this.lang === 'sw' ? this.body_en : this.body_sw;
+        const raw = String(primary || fallback || '').trim();
+        if (! raw) {
+            return '';
+        }
+        return raw.split(/\n{2,}/).map((block) => {
+            const safe = block
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            return `<p class="mb-3 last:mb-0">${safe}</p>`;
+        }).join('');
+    },
+}));
+
 Alpine.start();

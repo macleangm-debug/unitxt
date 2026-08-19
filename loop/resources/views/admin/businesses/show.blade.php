@@ -1,4 +1,4 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -10,38 +10,37 @@
                     · {{ $business->owner?->full_phone }}
                 </p>
             </div>
-            <a href="{{ route('admin.businesses.index') }}" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
+            <a href="{{ route('admin.businesses.index') }}" class="admin-btn-ghost !py-2">{{ __('loop.back') }}</a>
         </div>
     </x-slot>
-
-    @include('admin.partials.nav')
 
     @if ($abuseFlag)
         <p class="mb-4 rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium">{{ __('loop.admin_multi_branch_flag') }}</p>
     @endif
 
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.revenue_all') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($revenue) }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.revenue_month') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($revenueMonth) }}</p>
             <p class="mt-1 text-xs text-ink-muted">{{ $salesMonth }} {{ __('loop.sales') }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs text-ink-muted">{{ __('loop.members') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $business->memberships_count }}</p>
         </div>
-        <div class="loop-stat">
-            <p class="text-xs text-ink-muted">{{ __('loop.shops') }} / {{ __('loop.campaigns') }} / {{ __('loop.offers') }}</p>
-            <p class="mt-2 font-display text-2xl font-semibold">{{ $business->shops_count }} / {{ $business->campaigns_count }} / {{ $business->rewards_count }}</p>
+        <div class="admin-stat">
+            <p class="text-xs text-ink-muted">{{ __('loop.admin_roles') }}</p>
+            <p class="mt-2 font-display text-2xl font-semibold">{{ $roleCounts['owner'] + $roleCounts['front_desk'] }}</p>
+            <p class="mt-1 text-xs text-ink-muted">{{ $roleCounts['owner'] }} {{ __('loop.owner') }} · {{ $roleCounts['front_desk'] }} {{ __('loop.front_desk') }}</p>
         </div>
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-2">
-        <form method="POST" action="{{ route('admin.businesses.update', $business) }}" class="loop-glass space-y-4 p-6">
+        <form method="POST" action="{{ route('admin.businesses.update', $business) }}" class="admin-card space-y-4">
             @csrf
             @method('PATCH')
             <h2 class="font-display text-xl font-semibold">{{ __('loop.manage_business') }}</h2>
@@ -67,10 +66,10 @@
                 {{ __('loop.active') }}
             </label>
             <p class="text-xs text-ink-muted">{{ __('loop.ref_code') }}: <span class="font-semibold text-ink">{{ $business->referral_code }}</span> · {{ $business->referrals_made_count }} {{ __('loop.referrals') }}</p>
-            <button class="loop-btn-mint w-full">{{ __('loop.save') }}</button>
+            <button class="admin-btn w-full">{{ __('loop.save') }}</button>
         </form>
 
-        <section class="loop-glass p-6">
+        <section class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.sector_peers') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.sector_peers_blurb', ['sector' => \App\Support\Sectors::label($business->sector, $business->sector_other)]) }}</p>
             <div class="mt-4 space-y-2">
@@ -93,10 +92,11 @@
         </section>
     </div>
 
+    @if ($recentVisits->isNotEmpty())
     <section class="mt-8">
         <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
-        <div class="loop-table-wrap">
-            <table class="loop-table">
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>{{ __('loop.when') }}</th>
@@ -106,18 +106,17 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($recentVisits as $visit)
+                    @foreach ($recentVisits as $visit)
                         <tr>
                             <td>{{ $visit->created_at?->diffForHumans() }}</td>
                             <td>{{ $visit->customer?->name ?? '—' }}</td>
                             <td>{{ $visit->shop?->name ?? '—' }}</td>
                             <td>TZS {{ number_format($visit->amount_spent) }}</td>
                         </tr>
-                    @empty
-                        <tr><td colspan="4" class="py-6 text-ink-muted">{{ __('loop.no_sales_yet') }}</td></tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
     </section>
-</x-app-layout>
+    @endif
+</x-admin-layout>

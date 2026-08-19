@@ -10,6 +10,7 @@ use App\Models\PaymentIntent;
 use App\Services\AdminReportService;
 use App\Support\AffiliateProgram;
 use App\Support\Sectors;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class InsightController extends Controller
@@ -108,9 +109,10 @@ class InsightController extends Controller
         ]);
     }
 
-    public function customers(): View
+    public function customers(Request $request): View
     {
         $monthStart = now()->copy()->startOfMonth();
+        $perPage = \App\Support\AdminPagination::perPage($request, 25);
 
         $customers = \App\Models\User::query()
             ->where('role', 'customer')
@@ -122,7 +124,8 @@ class InsightController extends Controller
             ->withSum('visits as lifetime_spend', 'amount_spent')
             ->withSum(['visits as month_spend' => fn ($q) => $q->where('created_at', '>=', $monthStart)], 'amount_spent')
             ->latest()
-            ->paginate(40);
+            ->paginate($perPage)
+            ->withQueryString();
 
         $totals = [
             'customers' => \App\Models\User::query()->where('role', 'customer')->count(),

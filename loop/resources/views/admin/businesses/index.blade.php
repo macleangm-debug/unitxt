@@ -1,19 +1,24 @@
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_businesses') }}</h1>
         <p class="mt-1 text-ink-muted">{{ __('loop.admin_businesses_blurb') }}</p>
     </x-slot>
 
-    @include('admin.partials.nav')
+    <div class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <x-admin.stat :label="__('loop.admin_businesses')" :value="$summary['total']" />
+        <x-admin.stat :label="__('loop.live')" :value="$summary['live']" />
+        <x-admin.stat :label="__('loop.members')" :value="number_format($summary['members'])" />
+        <x-admin.stat :label="__('loop.sales')" :value="number_format($summary['sales'])" />
+    </div>
 
     <form method="GET" class="mb-6 flex flex-wrap gap-2">
         <input type="search" name="q" value="{{ $q }}" placeholder="{{ __('loop.search_businesses') }}" class="loop-input max-w-md !mt-0">
-        <button class="loop-btn-mint !py-2.5">{{ __('loop.apply') }}</button>
+        <button class="admin-btn !py-2.5">{{ __('loop.apply') }}</button>
     </form>
 
     <x-admin.empty-state :empty="$businesses->isEmpty()" :title="__('loop.admin_businesses')">
-        <div class="loop-table-wrap">
-            <table class="loop-table">
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>{{ __('loop.business') }}</th>
@@ -56,6 +61,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-6">{{ $businesses->links() }}</div>
+        <div class="mt-6">
+            <x-admin.table-pager :paginator="$businesses" />
+        </div>
     </x-admin.empty-state>
-</x-app-layout>
+</x-admin-layout>

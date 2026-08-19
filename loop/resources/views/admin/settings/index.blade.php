@@ -22,71 +22,134 @@
     ];
 @endphp
 
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.source_of_truth') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.admin_settings_hub') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.admin_settings_hub_blurb') }}</p>
-            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.settings_hub_and_integrations') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('loop.source_of_truth') }}</p>
+            <h1 class="mt-1">{{ __('loop.admin_settings_hub') }}</h1>
+            <p class="mt-1 text-sm text-slate-500">{{ __('loop.admin_settings_hub_blurb') }}</p>
         </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
-    <div class="loop-admin-tabs" role="tablist">
-        @foreach ($tabs as $key => $label)
-            <a href="{{ route('admin.settings', ['tab' => $key]) }}"
-               class="loop-admin-tab {{ $tab === $key ? 'is-active' : '' }}"
-               role="tab"
-               aria-selected="{{ $tab === $key ? 'true' : 'false' }}">{{ $label }}</a>
-        @endforeach
-    </div>
-
     @if ($tab === 'overview')
-        <section class="loop-glass p-6">
-            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_hub_quick') }}</h2>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_hub_quick_blurb') }}</p>
-            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach ([
-                    'packages' => [__('loop.settings_tab_packages'), __('loop.settings_tab_packages_blurb')],
-                    'billing' => [__('loop.settings_tab_billing'), __('loop.billing_trial_settings_blurb')],
-                    'growth' => [__('loop.settings_tab_growth'), __('loop.growth_banners_settings_blurb')],
-                    'marketing' => [__('loop.settings_tab_marketing'), __('loop.settings_tab_marketing_blurb')],
-                    'platform' => [__('loop.settings_tab_platform'), __('loop.admin_base_url_blurb')],
-                    'sectors' => [__('loop.settings_tab_sectors'), __('loop.admin_sectors_blurb')],
-                    'countries' => [__('loop.settings_tab_countries'), __('loop.settings_tab_countries_blurb')],
-                    'visibility' => [__('loop.settings_tab_visibility'), __('loop.admin_sales_visibility_blurb')],
-                    'referrals' => [__('loop.settings_tab_referrals'), __('loop.settings_tab_referrals_blurb')],
-                    'affiliates' => [__('loop.settings_tab_affiliates'), __('loop.settings_tab_affiliates_blurb')],
-                    'notifications' => [__('loop.settings_tab_notifications'), __('loop.settings_tab_notifications_blurb')],
-                    'product' => [__('loop.settings_tab_product'), __('loop.admin_product_updates_blurb')],
-                    'links' => [__('loop.settings_tab_links'), __('loop.settings_tab_links_blurb')],
-                ] as $key => [$title, $blurb])
-                    <a href="{{ route('admin.settings', ['tab' => $key]) }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30 hover:bg-white">
-                        <p class="font-semibold">{{ $title }}</p>
-                        <p class="mt-1 text-xs text-ink-muted">{{ $blurb }}</p>
-                    </a>
+        <section class="admin-card">
+            <h2 class="text-lg font-semibold">{{ __('loop.settings_snapshot_title') }}</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ __('loop.settings_snapshot_blurb') }}</p>
+            <dl class="admin-dl mt-5">
+                @foreach ($settingsSummary as $label => $copy)
+                    <dt>{{ $label }}</dt>
+                    <dd>{{ $copy }}</dd>
                 @endforeach
-                <a href="{{ route('admin.integrations.index') }}" class="rounded-2xl border border-ink/8 bg-white/70 p-4 transition hover:border-violet/30 hover:bg-white">
-                    <p class="font-semibold">{{ __('loop.integrations_hub') }}</p>
-                    <p class="mt-1 text-xs text-ink-muted">{{ __('loop.integrations_hub_blurb') }}</p>
-                </a>
+            </dl>
+        </section>
+        <section class="admin-card mt-5">
+            <h2 class="text-lg font-semibold">{{ __('loop.settings_hub_quick') }}</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ __('loop.settings_hub_quick_blurb') }}</p>
+            <div class="admin-table-wrap mt-4">
+                <table class="admin-table">
+                    <tbody>
+                        @foreach ([
+                            'packages' => [__('loop.settings_tab_packages'), __('loop.settings_tab_packages_blurb')],
+                            'billing' => [__('loop.settings_tab_billing'), __('loop.billing_trial_settings_blurb')],
+                            'growth' => [__('loop.settings_tab_growth'), __('loop.growth_banners_settings_blurb')],
+                            'marketing' => [__('loop.settings_tab_marketing'), __('loop.settings_tab_marketing_blurb')],
+                            'platform' => [__('loop.settings_tab_platform'), __('loop.admin_base_url_blurb')],
+                            'sectors' => [__('loop.settings_tab_sectors'), __('loop.admin_sectors_blurb')],
+                            'countries' => [__('loop.settings_tab_countries'), __('loop.settings_tab_countries_blurb')],
+                            'visibility' => [__('loop.settings_tab_visibility'), __('loop.admin_sales_visibility_blurb')],
+                            'referrals' => [__('loop.settings_tab_referrals'), __('loop.settings_tab_referrals_blurb')],
+                            'affiliates' => [__('loop.settings_tab_affiliates'), __('loop.settings_tab_affiliates_blurb')],
+                            'notifications' => [__('loop.settings_tab_notifications'), __('loop.settings_tab_notifications_blurb')],
+                            'product' => [__('loop.settings_tab_product'), __('loop.admin_product_updates_blurb')],
+                            'links' => [__('loop.settings_tab_links'), __('loop.settings_tab_links_blurb')],
+                        ] as $key => [$title, $blurb])
+                            <tr>
+                                <td>
+                                    <p class="font-semibold">{{ $title }}</p>
+                                    <p class="text-xs text-slate-500">{{ $blurb }}</p>
+                                </td>
+                                <td class="text-right whitespace-nowrap">
+                                    <a href="{{ route('admin.settings', ['tab' => $key]) }}" class="admin-link">{{ __('loop.view') }}</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        <tr>
+                            <td>
+                                <p class="font-semibold">{{ __('loop.integrations_hub') }}</p>
+                                <p class="text-xs text-slate-500">{{ __('loop.integrations_hub_blurb') }}</p>
+                            </td>
+                            <td class="text-right whitespace-nowrap">
+                                <a href="{{ route('admin.integrations.index') }}" class="admin-link">{{ __('loop.view') }}</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
     @endif
 
     @if ($tab === 'packages')
         <section class="space-y-5">
-            <div class="loop-glass p-6">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_packages') }}</h2>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_packages_edit_blurb') }}</p>
+            <div class="admin-card">
+                <h2 class="text-lg font-semibold">{{ __('loop.settings_tab_packages') }}</h2>
+                <p class="mt-1 text-sm text-slate-500">{{ __('loop.settings_tab_packages_edit_blurb') }}</p>
+                <form method="GET" class="mt-4 flex flex-wrap items-end gap-3">
+                    <input type="hidden" name="tab" value="packages">
+                    <div>
+                        <label class="loop-label">{{ __('loop.country') }}</label>
+                        <select name="country" class="loop-input !mt-1" onchange="this.form.submit()">
+                            @foreach ($countryCatalog as $code => $meta)
+                                <option value="{{ $code }}" @selected($planCountry === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </form>
+                <form method="POST" action="{{ route('admin.settings.plans.clone-country') }}" class="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-200 pt-4">
+                    @csrf
+                    <input type="hidden" name="from" value="{{ $planCountry }}">
+                    <div>
+                        <label class="loop-label">{{ __('loop.add_country_packages') }}</label>
+                        <select name="to" class="loop-input !mt-1">
+                            @foreach ($countryCatalog as $code => $meta)
+                                @if ($code !== $planCountry)
+                                    <option value="{{ $code }}">{{ $meta['flag'] }} {{ $meta['name'] }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+                    <button class="admin-btn">{{ __('loop.copy_packages_to_country') }}</button>
+                    <p class="w-full text-xs text-slate-500">{{ __('loop.copy_packages_hint') }}</p>
+                </form>
             </div>
             @forelse ($plans as $plan)
-                <form method="POST" action="{{ route('admin.settings.plans.update', $plan) }}" class="loop-glass space-y-4 p-6">
+                <form method="POST" action="{{ route('admin.settings.plans.update', $plan) }}" class="admin-card space-y-4">
                     @csrf
                     @method('PUT')
                     <x-admin.settings-lock>
+                        <x-slot:summary>
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $plan->key }} · {{ $plan->country }}</p>
+                                    <h3 class="mt-1 text-lg font-semibold">{{ $plan->name }}</h3>
+                                    <p class="mt-1 text-sm text-slate-500">{{ $plan->tagline }}</p>
+                                </div>
+                                <p class="text-lg font-semibold">{{ $plan->priceLabel() }}</p>
+                            </div>
+                            <dl class="admin-dl mt-4">
+                                <dt>{{ __('loop.max_shops') }}</dt>
+                                <dd>{{ $plan->max_shops ?? __('loop.unlimited') }}</dd>
+                                <dt>{{ __('loop.max_members') }}</dt>
+                                <dd>{{ $plan->max_members ?? __('loop.unlimited') }}</dd>
+                                <dt>{{ __('loop.max_offers') }}</dt>
+                                <dd>{{ $plan->max_offers ?? __('loop.unlimited') }}</dd>
+                                <dt>{{ __('loop.plan_includes_sms') }}</dt>
+                                <dd>{{ $plan->has_sms ? __('loop.on') : __('loop.off') }}</dd>
+                                <dt>{{ __('loop.plan_includes_raffles') }}</dt>
+                                <dd>{{ $plan->has_raffles ? __('loop.on') : __('loop.off') }}</dd>
+                                <dt>{{ __('loop.show_on_pricing') }}</dt>
+                                <dd>{{ $plan->is_public ? __('loop.on') : __('loop.off') }}</dd>
+                            </dl>
+                        </x-slot>
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ $plan->key }}</p>
@@ -152,7 +215,7 @@
                                 <p class="mt-1 text-xs text-ink-muted">{{ __('loop.plan_features_help') }}</p>
                             </div>
                         </div>
-                        <button class="loop-btn-mint">{{ __('loop.save_package') }}</button>
+                        <button class="admin-btn">{{ __('loop.save_package') }}</button>
                     </x-admin.settings-lock>
                 </form>
             @empty
@@ -162,7 +225,7 @@
     @endif
 
     @if ($tab === 'billing')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.billing_trial_settings') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.billing_trial_settings_blurb') }}</p>
             <p class="mt-2 text-xs text-ink-muted">{{ __('loop.billing_front_sync_hint') }}</p>
@@ -170,6 +233,22 @@
                 @csrf
                 @method('PUT')
                 <x-admin.settings-lock>
+                    <x-slot:summary>
+                        <dl class="admin-dl">
+                            <dt>{{ __('loop.trial_days') }}</dt>
+                            <dd>{{ $billing['trial_days'] }}</dd>
+                            <dt>{{ __('loop.free_max_shops') }}</dt>
+                            <dd>{{ $billing['free_max_shops'] }}</dd>
+                            <dt>{{ __('loop.free_max_members') }}</dt>
+                            <dd>{{ $billing['free_max_members'] }}</dd>
+                            <dt>{{ __('loop.free_max_monthly_visits') }}</dt>
+                            <dd>{{ $billing['free_max_monthly_visits'] }}</dd>
+                            <dt>{{ __('loop.free_max_offers') }}</dt>
+                            <dd>{{ $billing['free_max_offers'] }}</dd>
+                            <dt>{{ __('loop.block_till_when_trial_ends') }}</dt>
+                            <dd>{{ $billing['block_till_when_trial_ends'] ? __('loop.on') : __('loop.off') }}</dd>
+                        </dl>
+                    </x-slot>
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="loop-label">{{ __('loop.trial_days') }}</label>
@@ -216,14 +295,14 @@
                             <span class="mt-1 block text-ink-muted">{{ __('loop.block_till_when_trial_ends_help') }}</span>
                         </span>
                     </label>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
     @endif
 
     @if ($tab === 'growth')
-        <form method="POST" action="{{ route('admin.settings.growth') }}" class="loop-glass space-y-5 p-6">
+        <form method="POST" action="{{ route('admin.settings.growth') }}" class="admin-card space-y-5">
             @csrf
             @method('PUT')
             <div>
@@ -231,6 +310,20 @@
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.growth_banners_settings_blurb') }}</p>
             </div>
             <x-admin.settings-lock>
+                <x-slot:summary>
+                    <dl class="admin-dl">
+                        <dt>{{ __('loop.raffle_min_members') }}</dt>
+                        <dd>{{ $growth['raffle_min_members'] }}</dd>
+                        <dt>{{ __('loop.raffle_max_winners_percent') }}</dt>
+                        <dd>{{ $growth['raffle_max_winners_percent'] }}%</dd>
+                        <dt>{{ __('loop.banner_max_count') }}</dt>
+                        <dd>{{ $growth['banner_max_count'] }}</dd>
+                        <dt>{{ __('loop.banner_member_milestones') }}</dt>
+                        <dd>{{ implode(', ', $growth['banner_member_milestones'] ?? []) }}</dd>
+                        <dt>{{ __('loop.onboarding_celebrate') }}</dt>
+                        <dd>{{ ! empty($growth['onboarding_celebrate']) ? __('loop.on') : __('loop.off') }}</dd>
+                    </dl>
+                </x-slot>
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.admin_section_raffles') }}</p>
                     <div class="mt-3 grid gap-4 sm:grid-cols-2">
@@ -296,13 +389,13 @@
                         </label>
                     @endforeach
                 </div>
-                <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                <button class="admin-btn">{{ __('loop.save') }}</button>
             </x-admin.settings-lock>
         </form>
     @endif
 
     @if ($tab === 'platform')
-        <form method="POST" action="{{ route('admin.settings.base-url') }}" class="loop-glass space-y-5 p-6">
+        <form method="POST" action="{{ route('admin.settings.base-url') }}" class="admin-card space-y-5">
             @csrf
             @method('PUT')
             <div>
@@ -315,13 +408,13 @@
                     <input type="url" name="base_url" value="{{ old('base_url', $platformUrl['base_url']) }}" class="loop-input" placeholder="https://loop.example.com" required>
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.base_url_help') }}</p>
                 </div>
-                <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                <button class="admin-btn">{{ __('loop.save') }}</button>
             </x-admin.settings-lock>
         </form>
     @endif
 
     @if ($tab === 'sectors')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sectors') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_sectors_blurb') }}</p>
             <form method="POST" action="{{ route('admin.settings.sectors') }}" class="mt-4">
@@ -344,14 +437,14 @@
                             </div>
                         @endforeach
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
     @endif
 
     @if ($tab === 'countries')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_countries') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_countries_blurb') }}</p>
             <form method="POST" action="{{ route('admin.settings.countries') }}" class="mt-4">
@@ -366,14 +459,14 @@
                             </label>
                         @endforeach
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
     @endif
 
     @if ($tab === 'marketing')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_marketing') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_marketing_blurb') }}</p>
             <form method="POST" action="{{ route('admin.settings.marketing') }}" class="mt-4">
@@ -402,14 +495,14 @@
                         <label class="loop-label">{{ __('loop.holiday_message_text') }}</label>
                         <textarea name="holiday_message_text" rows="2" class="loop-input">{{ old('holiday_message_text', $marketing['holiday_message_text']) }}</textarea>
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
     @endif
 
     @if ($tab === 'notifications')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_notifications') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_notifications_blurb') }}</p>
             <form method="POST" action="{{ route('admin.settings.notifications') }}" class="mt-4">
@@ -443,14 +536,14 @@
                             <input type="number" min="0" max="23" name="quiet_hours_end" value="{{ old('quiet_hours_end', $notifications['quiet_hours_end']) }}" class="loop-input">
                         </div>
                     </div>
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
     @endif
 
     @if ($tab === 'visibility')
-        <form method="POST" action="{{ route('admin.settings.sales-visibility') }}" class="loop-glass space-y-5 p-6">
+        <form method="POST" action="{{ route('admin.settings.sales-visibility') }}" class="admin-card space-y-5">
             @csrf
             @method('PUT')
             <div>
@@ -472,13 +565,13 @@
                         <span class="mt-1 block text-ink-muted">{{ __('loop.front_desk_see_sales_help') }}</span>
                     </span>
                 </label>
-                <button class="loop-btn-mint">{{ __('loop.save') }}</button>
+                <button class="admin-btn">{{ __('loop.save') }}</button>
             </x-admin.settings-lock>
         </form>
     @endif
 
     @if ($tab === 'referrals')
-        <form method="POST" action="{{ route('admin.settings.referrals') }}" class="loop-glass space-y-5 p-6">
+        <form method="POST" action="{{ route('admin.settings.referrals') }}" class="admin-card space-y-5">
             @csrf
             @method('PUT')
             <div>
@@ -514,15 +607,15 @@
                 <input type="hidden" name="referrer_months_per_referral" value="0">
                 <input type="hidden" name="referred_bonus_months" value="0">
                 <div class="flex flex-wrap gap-3">
-                    <button class="loop-btn-mint">{{ __('loop.save') }}</button>
-                    <a href="{{ route('admin.referrals.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
+                    <button class="admin-btn">{{ __('loop.save') }}</button>
+                    <a href="{{ route('admin.referrals.index') }}" class="admin-btn-ghost !py-2.5">{{ __('loop.referral_progress_title') }} →</a>
                 </div>
             </x-admin.settings-lock>
         </form>
     @endif
 
     @if ($tab === 'affiliates')
-        <div class="loop-glass p-6">
+        <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.affiliate_program_settings') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_affiliates_blurb') }}</p>
             <p class="mt-2 rounded-2xl bg-violet-soft/50 px-4 py-3 text-sm text-ink">{{ __('loop.affiliate_kpi_governed') }} — {{ __('loop.monthly_paying_target') }}: {{ $affiliate['monthly_paying_business_target'] }}</p>
@@ -589,9 +682,9 @@
                         <label class="flex items-center gap-2"><input type="checkbox" name="require_tax_id" value="1" @checked(old('require_tax_id', $affiliate['require_tax_id']))> {{ __('loop.require_tax_id') }}</label>
                     </div>
                     <div class="flex flex-wrap gap-3">
-                        <button class="loop-btn-mint">{{ __('loop.save') }}</button>
-                        <a href="{{ route('admin.insights.affiliate-performance') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.affiliate_performance') }} →</a>
-                        <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="loop-btn-ghost !py-2.5">{{ __('loop.affiliate_applications_queue') }} →</a>
+                        <button class="admin-btn">{{ __('loop.save') }}</button>
+                        <a href="{{ route('admin.insights.affiliate-performance') }}" class="admin-btn-ghost !py-2.5">{{ __('loop.affiliate_performance') }} →</a>
+                        <a href="{{ route('admin.affiliates.index', ['tab' => 'applications']) }}" class="admin-btn-ghost !py-2.5">{{ __('loop.affiliate_applications_queue') }} →</a>
                     </div>
                 </x-admin.settings-lock>
             </form>
@@ -599,7 +692,7 @@
     @endif
 
     @if ($tab === 'product')
-        <form method="POST" action="{{ route('admin.settings.feature-flags') }}" class="loop-glass space-y-5 p-6">
+        <form method="POST" action="{{ route('admin.settings.feature-flags') }}" class="admin-card space-y-5">
             @csrf
             @method('PUT')
             <div>
@@ -621,13 +714,13 @@
                         </label>
                     @endforeach
                 </div>
-                <button class="loop-btn-mint">{{ __('loop.save_product_updates') }}</button>
+                <button class="admin-btn">{{ __('loop.save_product_updates') }}</button>
             </x-admin.settings-lock>
         </form>
     @endif
 
     @if ($tab === 'links')
-        <section class="loop-glass p-6">
+        <section class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_links') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_links_blurb') }}</p>
             <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -662,4 +755,4 @@
             </div>
         </section>
     @endif
-</x-app-layout>
+</x-admin-layout>
