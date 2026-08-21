@@ -46,11 +46,14 @@
         <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <form method="POST" action="{{ route('preference.country') }}">
                 @csrf
-                <select name="country" onchange="this.form.submit()" aria-label="{{ __('loop.country') }}" class="{{ $controlClass }}">
-                    @foreach (\App\Support\Countries::enabledOptions() as $code => $meta)
-                        <option value="{{ $code }}" @selected(session('preferred_country', 'TZ') === $code)>{{ $meta['flag'] }} {{ $code }}</option>
-                    @endforeach
-                </select>
+                <x-sheet-select
+                    name="country"
+                    :options="collect(\App\Support\Countries::enabledOptions())->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$code)])->all()"
+                    :value="session('preferred_country', 'TZ')"
+                    :autosubmit="true"
+                    :placeholder="__('loop.country')"
+                    trigger-class="{{ $controlClass }} flex items-center justify-between gap-1"
+                />
             </form>
 
             <div class="{{ $langWrap }}">

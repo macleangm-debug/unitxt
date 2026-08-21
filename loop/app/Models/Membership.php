@@ -73,60 +73,68 @@ class Membership extends Model
     }
 
     /**
-     * Points that may unlock an offer right now.
-     * Default: today's earn does not count, so a member cannot buy their way
-     * into a redeem on the same visit/day. Businesses can opt in.
+     * Points that may unlock an offer at Till right now.
+     * The member's current balance is what the till can spend.
+     * Same-ticket earn cannot be spent until the sale is recorded — lookup
+     * always sees the balance from earlier visits, including earlier today.
      */
     public function redeemablePoints(): int
     {
-        $balance = (int) $this->points_balance;
-        if ($this->business?->allow_same_day_earn_redeem) {
-            return $balance;
+        return (int) $this->points_balance;
+    }
+
+    /**
+     * Whether this membership can spend this offer at Till right now.
+     * Campaign type that earned the points (earn, product push, birthday,
+     * welcome, streak) does not matter — the balance is one pool.
+     */
+    public function canRedeemReward(Reward $reward): bool
+    {
+        if (! $reward->isAvailable()) {
+            return false;
+        }
+        if ((int) $reward->points_cost > $this->redeemablePoints()) {
+            return false;
+        }
+        if ($reward->max_redemptions_per_member) {
+            $used = $this->redemptions()->where('reward_id', $reward->id)->count();
+            if ($used >= $reward->max_redemptions_per_member) {
+                return false;
+            }
         }
 
-        $earnedToday = (int) $this->visits()->whereDate('created_at', today())->sum('points_earned');
+        return true;
+    }
 
-        return max(0, $balance - $earnedToday);
+    public function catalogRewards()
+    {
+        if ($this->relationLoaded('business') && $this->business->relationLoaded('rewards')) {
+            return $this->business->rewards->where('is_active', true)->sortBy('points_cost')->values();
+        }
+
+        return $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
     }
 
     public function availableRewards()
     {
-        $balance = $this->redeemablePoints();
-
-        return $this->business->rewards()
-            ->where('is_active', true)
-            ->where('points_cost', '<=', $balance)
-            ->orderBy('points_cost')
-            ->get()
-            ->filter(fn (Reward $reward) => $reward->isAvailable());
+        return $this->catalogRewards()
+            ->filter(fn (Reward $reward) => $this->canRedeemReward($reward))
+            ->values();
     }
 
     public function nextReward(): ?Reward
     {
-        $rewards = $this->relationLoaded('business') && $this->business->relationLoaded('rewards')
-            ? $this->business->rewards
-            : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
-
         $balance = $this->redeemablePoints();
 
-        return $rewards
-            ->filter(fn (Reward $reward) => $reward->points_cost > $balance)
+        return $this->catalogRewards()
+            ->filter(fn (Reward $reward) => $reward->isAvailable() && $reward->points_cost > $balance)
             ->sortBy('points_cost')
             ->first();
     }
 
     public function nearestReadyReward(): ?Reward
     {
-        $rewards = $this->relationLoaded('business') && $this->business->relationLoaded('rewards')
-            ? $this->business->rewards
-            : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
-
-        $balance = $this->redeemablePoints();
-
-        return $rewards
-            ->filter(fn (Reward $reward) => $reward->points_cost <= $balance)
-            ->sortBy('points_cost')
-            ->first();
+        return $this->availableRewards()->sortBy('points_cost')->first();
     }
 
     /**

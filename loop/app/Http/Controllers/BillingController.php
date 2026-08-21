@@ -21,13 +21,29 @@ class BillingController extends Controller
 
         $limits->syncTrialStatus($business->fresh());
         $business = $business->fresh();
+        $access = app(\App\Services\LoopAccess::class);
+        $phase = $access->phase($business);
+        $momentum = $access->momentum($business);
         $country = session('preferred_country', $business->country ?? 'TZ');
+        $monthly = $business->effectiveMonthlyPrice();
+        $growth = Plan::locate('growth', $country);
+        $quoteMonthly = $monthly > 0 ? $monthly : (int) ($growth?->price_monthly ?? 0);
+        $quotes = [];
+        foreach (array_keys(BillingSettings::intervalDiscounts()) as $months) {
+            $quotes[$months] = BillingSettings::quote($quoteMonthly, (int) $months);
+        }
 
         return view('billing.upgrade', [
             'business' => $business,
             'plans' => Plan::forCountry($country)->where('is_public', true)->get(),
             'currentPlan' => Plan::locate($business->plan_key, $country),
             'trialExpired' => $limits->trialExpired($business),
+            'phase' => $phase,
+            'paused' => $phase === \App\Services\LoopAccess::PHASE_PAUSED,
+            'grace' => $phase === \App\Services\LoopAccess::PHASE_GRACE,
+            'graceDaysLeft' => $access->graceDaysLeft($business),
+            'momentum' => $momentum,
+            'quotes' => $quotes,
             'caps' => $limits->effectiveCaps($business),
             'daysLeft' => $business->trial_ends_at && $business->trial_ends_at->isFuture()
                 ? (int) now()->diffInDays($business->trial_ends_at)
@@ -64,13 +80,7 @@ class BillingController extends Controller
         $amount = BillingSettings::amountForMonths($monthly, $months);
 
         if ($amount <= 0) {
-            $business->update([
-                'plan_key' => $plan->key,
-                'billing_status' => 'active',
-                'trial_ends_at' => null,
-                'plan_interval_months' => $months,
-                'plan_renews_at' => now()->addMonths($months),
-            ]);
+            app(\App\Services\LoopAccess::class)->activate($business, $plan->key, $months, $monthly);
 
             return redirect()->route('billing.show')->with('confirm', Confirm::make(
                 __('loop.plan_activated_title', ['plan' => $plan->name]),

@@ -103,8 +103,8 @@
             {{-- 1 · Type --}}
             <div data-step="1" x-show="step === 1" class="space-y-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">1 · {{ __('loop.section_offer_type') }}</p>
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.choose_offer_type') }}</h2>
-                <p class="text-sm text-ink-muted">{{ __('loop.choose_offer_type_body_short') }}</p>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.offer_give_title') }}</h2>
+                <p class="text-sm text-ink-muted">{{ __('loop.offer_give_body') }}</p>
                 <button type="button" x-ref="pickAnchor" class="sr-only" tabindex="-1">{{ __('loop.pick_required') }}</button>
 
                 @if ($earnCampaign)

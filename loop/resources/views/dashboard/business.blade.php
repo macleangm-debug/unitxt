@@ -22,38 +22,111 @@
                     <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $business->name }}</h1>
                     <p class="mt-1 text-sm text-white/60">{{ $business->sectorLabel() }} · {{ $business->city }} · {{ $business->currency }}</p>
                 </div>
-                <a href="{{ route('till.index') }}" class="loop-btn-lime">{{ __('loop.open_sale') }}</a>
+                <a href="{{ ! empty($paused) ? route('billing.show') : route('till.index') }}" class="loop-btn-lime">
+                    {{ ! empty($paused) ? __('loop.reactivate_loop') : __('loop.open_sale') }}
+                </a>
             </div>
         </div>
     </x-slot>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.shops') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $shopCount }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.today') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $todayVisits }}</p>
-            <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($todaySpend, 0) }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.members') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $memberCount }}</p>
-        </div>
-        <div class="loop-stat">
-            <p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $visitCount }}</p>
-            <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($totalSpend ?? 0, 0) }}</p>
-        </div>
-    </div>
-
-    @if ($isOwner && !empty($salesTip))
-        <section class="mt-6 rounded-[1.5rem] border border-violet/15 bg-violet-soft/40 px-5 py-4">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.sales_tips') }}</p>
-            <h2 class="mt-1 font-display text-lg font-semibold">{{ __($salesTip['title_key']) }}</h2>
-            <p class="mt-1 text-sm text-ink-muted">{{ __($salesTip['body_key']) }}</p>
+    @if ($isOwner && ! empty($paused) && ! empty($momentum))
+        <section class="mb-6 rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-5">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-coral">Loop</p>
+            <h2 class="mt-2 font-display text-2xl font-semibold">{{ __('loop.loop_momentum_paused') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.loop_customers_connected', ['count' => number_format($momentum['members'])]) }}</p>
+            <x-loop-pause-facts :business="$business" :momentum="$momentum" />
+            <p class="mt-4 text-sm font-semibold">{{ __('loop.loop_paused_safe') }}</p>
+            <a href="{{ route('billing.show') }}" class="loop-btn mt-5 inline-flex">{{ __('loop.reactivate_loop') }}</a>
         </section>
+    @endif
+
+    @if ($isOwner && ! empty($pulse) && empty($paused))
+        @if (! empty($pulse['milestone']))
+            <section class="mb-6 rounded-[1.5rem] bg-ink px-5 py-5 text-white">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">Loop</p>
+                <h2 class="mt-2 font-display text-2xl font-semibold">{{ $pulse['milestone']['title'] }}</h2>
+                <p class="mt-1 text-sm text-white/65">{{ $pulse['milestone']['body'] }}</p>
+            </section>
+        @endif
+
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ __('loop.pulse_what_happened') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold leading-snug">
+                    <x-count-up :value="$pulse['today_visits']" class="font-display" /> {{ $pulse['happened'] }}
+                </p>
+                @if (! empty($pulse['happened_returning']))
+                    <p class="mt-1 text-sm text-ink-muted">{{ $pulse['happened_returning'] }}</p>
+                @endif
+                <p class="mt-1 text-xs text-ink-muted">{{ $business->currency }} <x-count-up :value="$todaySpend" /></p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ __('loop.pulse_what_happening') }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold leading-snug">
+                    <x-count-up :value="$pulse['redeemable']" class="font-display" /> {{ $pulse['happening'] }}
+                </p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ $pulse['reason_to_return'] }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold leading-snug">
+                    <x-count-up :value="$memberCount" class="font-display" />
+                </p>
+                @if (! empty($pulse['campaign_return_line']))
+                    <p class="mt-1 text-xs text-ink-muted">{{ $pulse['campaign_return_line'] }}</p>
+                @endif
+            </div>
+        </div>
+
+        @if (! empty($pulse['needs']) || ! empty($pulse['next']))
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                @if (! empty($pulse['needs']))
+                    <div class="loop-stat">
+                        <p class="text-sm text-ink-muted">{{ __('loop.pulse_what_needs') }}</p>
+                        <p class="mt-2 font-display text-xl font-semibold leading-snug">{{ $pulse['needs']['title'] }}</p>
+                        <p class="mt-1 text-sm text-ink-muted">{{ $pulse['needs']['body'] }}</p>
+                    </div>
+                @endif
+                <div class="loop-stat">
+                    <p class="text-sm text-ink-muted">{{ __('loop.pulse_what_next') }}</p>
+                    <p class="mt-2 font-display text-xl font-semibold leading-snug">{{ $pulse['next']['title'] }}</p>
+                    <a href="{{ $pulse['next']['url'] }}" class="loop-btn-mint mt-4 inline-flex">{{ $pulse['next']['cta'] }}</a>
+                </div>
+            </div>
+        @endif
+
+        @if (! empty($pulse['money_line']))
+            <p class="mt-4 rounded-[1.25rem] border border-ink/8 bg-white/80 px-4 py-3 text-sm font-medium">{{ $pulse['money_line'] }}</p>
+        @endif
+
+        @if (! empty($pulse['suggestion']))
+            <section class="mt-4 rounded-[1.5rem] border border-violet/15 bg-violet-soft/40 px-5 py-4">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.pulse_something_you_could') }}</p>
+                <h2 class="mt-1 font-display text-lg font-semibold">{{ $pulse['suggestion']['title'] }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ $pulse['suggestion']['body'] }}</p>
+                <a href="{{ $pulse['suggestion']['url'] }}" class="mt-3 inline-flex text-sm font-semibold text-violet">{{ $pulse['suggestion']['cta'] }} →</a>
+            </section>
+        @endif
+    @else
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ __('loop.shops') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold"><x-count-up :value="$shopCount" /></p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ __('loop.today') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold"><x-count-up :value="$todayVisits" /></p>
+                <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($todaySpend, 0) }}</p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ __('loop.members') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold"><x-count-up :value="$memberCount" /></p>
+            </div>
+            <div class="loop-stat">
+                <p class="text-sm text-ink-muted">{{ __('loop.sales') }}</p>
+                <p class="mt-2 font-display text-3xl font-semibold"><x-count-up :value="$visitCount" /></p>
+                <p class="text-xs text-ink-muted">{{ $business->currency }} {{ number_format($totalSpend ?? 0, 0) }}</p>
+            </div>
+        </div>
     @endif
 
     @if ($isOwner && $referralProgress)
@@ -68,7 +141,9 @@
                         'days' => $referralProgress['program']['referrer_extra_days_per_referral'] ?? 3,
                     ]) }}</p>
                 </div>
+                @if (\App\Support\MarketingSettings::settings()['show_referral_cta'])
                 <a href="{{ route('settings.referrals') }}" class="loop-btn-lime !py-2">{{ __('loop.invite_businesses') }}</a>
+                @endif
             </div>
 
             <div class="relative mt-5">

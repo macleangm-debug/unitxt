@@ -16,6 +16,13 @@
         <div class="mb-4 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink">{{ $errors->first('plan') }}</div>
     @endif
 
+    @if ((int) $business->branch_count > $shops->count())
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet/20 bg-violet-soft/40 px-4 py-3 text-sm text-ink">
+            <p>{{ __('loop.setup_other_locations_banner', ['count' => (int) $business->branch_count]) }}</p>
+            <a href="{{ route('shops.create') }}" class="font-semibold text-violet">{{ __('loop.add_shop') }} →</a>
+        </div>
+    @endif
+
     <div class="grid gap-4">
         @forelse ($shops as $shop)
             <a href="{{ route('shops.show', $shop) }}" class="loop-panel flex flex-wrap items-center justify-between gap-4 p-5 transition hover:-translate-y-0.5 hover:bg-white">

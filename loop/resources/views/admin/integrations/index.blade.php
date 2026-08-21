@@ -121,12 +121,13 @@
             <form method="POST" action="{{ route('admin.integrations.test-pay') }}" class="mt-5 grid gap-3 sm:grid-cols-4">
                 @csrf
                 <div>
-                    <label class="loop-label">{{ __('loop.country') }}</label>
-                    <select name="country" class="loop-input">
-                        @foreach (\App\Support\Countries::enabledOptions() as $code => $meta)
-                            <option value="{{ $code }}">{{ $meta['flag'] }} {{ $code }} · {{ $meta['currency'] }}</option>
-                        @endforeach
-                    </select>
+                    <x-sheet-select
+                        name="country"
+                        :label="__('loop.country')"
+                        :options="collect(\App\Support\Countries::enabledOptions())->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$code.' · '.$meta['currency'])])->all()"
+                        value="TZ"
+                        :required="true"
+                    />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.amount') }}</label>
@@ -239,12 +240,13 @@
                 <form method="POST" action="{{ route('admin.integrations.test-sms') }}" class="mt-4 space-y-3">
                     @csrf
                     <input name="sender" maxlength="11" class="loop-input" value="LOOP" placeholder="LOOP">
-                    <div class="grid grid-cols-[8rem_1fr] gap-2">
-                        <select name="country" class="loop-input">
-                            @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
-                                <option value="{{ $code }}" @selected($code === 'TZ')>{{ $meta['flag'] }} {{ $code }}</option>
-                            @endforeach
-                        </select>
+                    <div class="grid grid-cols-[9rem_1fr] gap-2">
+                        <x-sheet-select
+                            name="country"
+                            :options="collect(\App\Support\Countries::enabledOptions())->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$code)])->all()"
+                            value="TZ"
+                            :required="true"
+                        />
                         <input name="phone" class="loop-input" placeholder="7XXXXXXXX" required>
                     </div>
                     <textarea name="body" rows="3" class="loop-input" required>{{ __('loop.sms_test_default') }}</textarea>
@@ -260,12 +262,12 @@
                             <option value="{{ $template->key }}">{{ $template->name }}</option>
                         @endforeach
                     </select>
-                    <select name="sector" class="loop-input">
-                        <option value="">{{ __('loop.all_sectors') }}</option>
-                        @foreach ($sectors ?? [] as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
+                    <x-sheet-select
+                        name="sector"
+                        :options="$sectorOptions ?? \App\Support\Sectors::sheetOptions()"
+                        :value="old('sector', '')"
+                        :placeholder="__('loop.all_sectors')"
+                    />
                     <button class="admin-btn w-full">{{ __('loop.send_to_businesses') }}</button>
                 </form>
             </section>

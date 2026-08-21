@@ -63,20 +63,12 @@ class PlanLimitService
             return true;
         }
 
-        if ($this->trialExpired($business) && ! Plans::isPaidPlan($business->plan_key)) {
-            return false;
-        }
-
-        if ($this->trialExpired($business) && $business->billing_status === 'past_due') {
-            return false;
-        }
-
-        return true;
+        return ! app(LoopAccess::class)->isPaused($business);
     }
 
     public function trialExpiredMessage(): string
     {
-        return __('loop.trial_expired_till');
+        return __('loop.loop_paused_till');
     }
 
     public function canAddShop(Business $business): bool
@@ -214,17 +206,7 @@ class PlanLimitService
 
     public function syncTrialStatus(Business $business): void
     {
-        if (! $this->trialExpired($business)) {
-            return;
-        }
-
-        if (Plans::isPaidPlan($business->plan_key) && $business->billing_status === 'active') {
-            return;
-        }
-
-        if ($business->billing_status !== 'past_due') {
-            $business->update(['billing_status' => 'past_due']);
-        }
+        app(LoopAccess::class)->sync($business);
     }
 
     public function rafflesEnabled(Business $business): bool
@@ -245,6 +227,10 @@ class PlanLimitService
 
     public function smsEnabled(Business $business): bool
     {
+        if (app(LoopAccess::class)->isPaused($business)) {
+            return false;
+        }
+
         if (! \App\Support\FeatureFlags::enabled('sms_messaging')) {
             return false;
         }

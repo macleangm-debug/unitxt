@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AffiliateController as AdminAffiliateController;
 use App\Http\Controllers\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Admin\BusinessController as AdminBusinessController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ExceptionHitController as AdminExceptionHitController;
 use App\Http\Controllers\Admin\InsightController as AdminInsightController;
 use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
@@ -36,19 +37,23 @@ use App\Http\Controllers\PricingController;
 use App\Http\Controllers\RaffleController;
 use App\Http\Controllers\ReferralHubController;
 use App\Http\Controllers\RewardController;
+use App\Http\Controllers\SectorSearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StoryController;
 use App\Http\Controllers\TillController;
 use App\Http\Controllers\TransactionController;
+use App\Models\Article;
 use App\Models\Plan;
 use App\Support\MarketingSettings;
 use App\Support\Plans;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('welcome', [
+        'landingStories' => Article::forLanding(auth()->user()),
+    ]);
 })->name('home');
 
 Route::get('/for-business', function () {
@@ -60,7 +65,9 @@ Route::get('/for-business', function () {
     ]);
 })->name('landing.business');
 
-Route::get('/for-customers', fn () => view('landings.customer'))->name('landing.customer');
+Route::get('/for-customers', fn () => view('landings.customer', [
+    'landingStories' => Article::forLanding(auth()->user()),
+]))->name('landing.customer');
 Route::get('/affiliates', [AffiliateLandingController::class, 'index'])->name('affiliates.landing');
 Route::get('/affiliates/apply', [AffiliateLandingController::class, 'applyForm'])->name('affiliates.apply');
 Route::post('/affiliates/apply', [AffiliateLandingController::class, 'apply'])->name('affiliates.apply.store');
@@ -69,10 +76,13 @@ Route::post('/affiliates/status', [AffiliateLandingController::class, 'statusLoo
 Route::get('/pricing', PricingController::class)->name('pricing');
 Route::get('/locale/{locale}', [PreferenceController::class, 'locale'])->name('locale');
 Route::post('/preference/country', [PreferenceController::class, 'country'])->name('preference.country');
+Route::post('/sector-search/miss', [SectorSearchController::class, 'miss'])->middleware('throttle:20,1')->name('sector-search.miss');
 Route::post('/webhooks/payin', [PaymentController::class, 'payinWebhook'])->name('payments.webhook.payin');
 
 Route::get('/discover', DiscoverController::class)->name('discover');
 Route::get('/discover/{business:slug}', [DiscoverController::class, 'show'])->name('discover.show');
+Route::get('/stories', [StoryController::class, 'index'])->name('stories.index');
+Route::get('/stories/{article:slug}', [StoryController::class, 'show'])->name('stories.show');
 
 Route::middleware('guest')->group(function () {
     Route::get('/business/register', [BusinessRegisterController::class, 'create'])->name('business.register');
@@ -80,6 +90,14 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/staff/login', [StaffSessionController::class, 'create'])->name('staff.login');
     Route::post('/staff/login', [StaffSessionController::class, 'store']);
+
+    Route::get('/login', function () {
+        if (request()->boolean('admin')) {
+            return redirect()->route('staff.login', ['admin' => 1]);
+        }
+
+        return redirect()->route('home');
+    })->name('login');
 
     Route::get('/affiliate/login', [AffiliateAuthController::class, 'loginForm'])->name('affiliate.login');
     Route::post('/affiliate/login', [AffiliateAuthController::class, 'login']);
@@ -102,8 +120,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
-    Route::get('/stories', [StoryController::class, 'index'])->name('stories.index');
-    Route::get('/stories/{article:slug}', [StoryController::class, 'show'])->name('stories.show');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
@@ -137,6 +153,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/insights/affiliate-performance', [AdminInsightController::class, 'affiliatePerformance'])->name('insights.affiliate-performance');
         Route::get('/insights/customers', [AdminInsightController::class, 'customers'])->name('insights.customers');
         Route::get('/integrations', [AdminIntegrationController::class, 'index'])->name('integrations.index');
+        Route::get('/errors', [AdminExceptionHitController::class, 'index'])->name('errors.index');
+        Route::get('/errors/preview', [AdminExceptionHitController::class, 'preview'])->name('errors.preview');
+        Route::get('/errors/{hit}', [AdminExceptionHitController::class, 'show'])->name('errors.show');
+        Route::post('/errors/{hit}/resolve', [AdminExceptionHitController::class, 'resolve'])->name('errors.resolve');
         Route::put('/integrations', [AdminIntegrationController::class, 'update'])->name('integrations.update');
         Route::post('/integrations/test-pay', [AdminIntegrationController::class, 'testPay'])->name('integrations.test-pay');
         Route::post('/integrations/test-sms', [AdminIntegrationController::class, 'testSms'])->name('integrations.test-sms');
@@ -172,6 +192,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/promo', [AffiliateDashboardController::class, 'updatePromo'])->name('promo.update');
         Route::get('/payout', [AffiliateDashboardController::class, 'payoutForm'])->name('payout');
         Route::put('/payout', [AffiliateDashboardController::class, 'updatePayout'])->name('payout.update');
+        Route::get('/withdraw', [AffiliateDashboardController::class, 'withdrawForm'])->name('withdraw');
+        Route::post('/withdraw', [AffiliateDashboardController::class, 'withdraw'])->name('withdraw.store');
     });
 
     Route::middleware('role:owner')->group(function () {
@@ -201,6 +223,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/raffles', [RaffleController::class, 'store'])->name('raffles.store');
         Route::get('/raffles/{raffle}', [RaffleController::class, 'show'])->name('raffles.show');
         Route::get('/raffles/{raffle}/live', [RaffleController::class, 'live'])->name('raffles.live');
+        Route::get('/raffles/{raffle}/display', [RaffleController::class, 'display'])->name('raffles.display');
+        Route::get('/raffles/{raffle}/board', [RaffleController::class, 'board'])->name('raffles.board');
         Route::post('/raffles/{raffle}/draw', [RaffleController::class, 'draw'])->name('raffles.draw');
         Route::post('/raffles/{raffle}/winners/{winner}/contact', [RaffleController::class, 'contact'])->name('raffles.contact');
         Route::post('/raffles/{raffle}/winners/{winner}/claim', [RaffleController::class, 'claim'])->name('raffles.claim');
@@ -230,12 +254,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/sale/registered', [TillController::class, 'registered'])->name('till.registered');
         Route::post('/sale/register-customer', [TillController::class, 'registerCustomer'])->name('till.register-customer');
         Route::post('/sale', [TillController::class, 'store'])->name('till.store');
+        Route::post('/sale/{visit}/undo', [TillController::class, 'undo'])->name('till.undo');
         Route::post('/sale/redeem', [TillController::class, 'redeem'])->name('till.redeem');
     });
 
     Route::middleware('role:customer')->group(function () {
         Route::get('/wallets', [MembershipController::class, 'index'])->name('memberships.index');
         Route::get('/wallets/{business:slug}', [MembershipController::class, 'show'])->name('memberships.show');
+        Route::post('/wallets/{business:slug}/want-loop-back', [MembershipController::class, 'wantBack'])->name('memberships.want-back');
         Route::get('/wallet/qr.svg', CustomerWalletQrController::class)->name('customer.wallet-qr');
         Route::post('/invite-business', [BusinessInviteController::class, 'store'])->name('business-invites.store');
     });

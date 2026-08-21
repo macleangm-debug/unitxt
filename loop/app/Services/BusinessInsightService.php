@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\Visit;
+use App\Support\FeatureFlags;
 use App\Support\GrowthSettings;
 use Illuminate\Support\Carbon;
 
@@ -91,7 +92,8 @@ class BusinessInsightService
 
         $minRaffle = GrowthSettings::raffleMinMembers();
         if (
-            $settings['banner_show_raffle_unlock']
+            FeatureFlags::enabled('raffles')
+            && $settings['banner_show_raffle_unlock']
             && $memberCount >= $minRaffle
             && $business->raffles()->doesntExist()
         ) {
@@ -106,7 +108,7 @@ class BusinessInsightService
             ];
         }
 
-        if ($settings['banner_show_member_milestones']) {
+        if ($settings['banner_show_member_milestones'] && FeatureFlags::enabled('content_studio')) {
             foreach ($settings['banner_member_milestones'] as $milestone) {
                 $milestone = (int) $milestone;
                 if ($milestone > 0 && $memberCount >= $milestone && $memberCount < $milestone + 5) {

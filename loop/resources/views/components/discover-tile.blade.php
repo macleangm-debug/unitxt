@@ -4,6 +4,7 @@
     'showPoints' => false,
     'carousel' => false,
     'footnote' => null,
+    'headline' => null,
 ])
 
 @php
@@ -52,8 +53,13 @@
             @endif
         </div>
         <div class="p-3">
-            <p class="truncate text-sm font-semibold">{{ $business->name }}</p>
-            <p class="truncate text-[11px] text-ink-muted">{{ $sectorLabel }}@if($city) · {{ $city }}@endif</p>
+            @if ($headline)
+                <p class="truncate font-display text-sm font-semibold">{{ $headline }}</p>
+                <p class="truncate text-[11px] text-ink-muted">{{ $business->name }}</p>
+            @else
+                <p class="truncate text-sm font-semibold">{{ $business->name }}</p>
+                <p class="truncate text-[11px] text-ink-muted">{{ $sectorLabel }}@if($city) · {{ $city }}@endif</p>
+            @endif
             @if ($footnote)
                 <p class="mt-1 truncate text-[11px] font-medium text-violet">{{ $footnote }}</p>
             @elseif ($campaign)

@@ -1,6 +1,5 @@
 <x-app-layout>
     @php
-        $shareLink = \App\Support\PlatformUrl::route('business.register', ['scout' => auth()->id()]);
         $phoneLabel = auth()->user()->full_phone ?? auth()->user()->phone;
         $customerName = auth()->user()->name ?: __('loop.member');
         $pointsEarned = (int) ($pointsEarned ?? 0);
@@ -26,6 +25,16 @@
                     </div>
 
                     <div class="mt-6">
+                        @if ($featuredRedeem ?? null)
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.youve_got_something') }}</p>
+                            <p class="mt-2 font-display text-[clamp(1.85rem,7vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">{{ $featuredRedeem['reward']->name }}</p>
+                            <p class="mt-1 text-sm text-white/65">{{ $featuredRedeem['business']->name }}</p>
+                            <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="loop-btn-lime mt-4 inline-flex">{{ __('loop.show_at_till') }}</a>
+                            <p class="mt-4 font-display text-2xl font-semibold text-white/80">
+                                <span class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})" x-text="formatted()">{{ number_format($totalPoints) }}</span>
+                                <span class="text-sm font-medium uppercase tracking-[0.16em] text-white/45">{{ __('loop.pts') }}</span>
+                            </p>
+                        @else
                         <div class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})">
                             <template x-if="earned">
                                 <span class="loop-points-float" x-text="'+' + earned"></span>
@@ -41,13 +50,14 @@
                                 {{ trans_choice('loop.offer_ready_badge', $redeemables->count(), ['count' => $redeemables->count()]) }}
                             </a>
                         @endif
+                        @endif
                     </div>
                 </div>
 
                 <x-wallet-qr :size="120" class="shrink-0" />
             </div>
 
-            @if ($redeemables->isNotEmpty())
+            @if (($featuredRedeem ?? null) === null && $redeemables->isNotEmpty())
                 <div class="mt-6">
                     <a href="#ready" class="loop-btn-lime w-full sm:w-auto">{{ __('loop.see_rewards') }}</a>
                 </div>
@@ -75,52 +85,7 @@
         </div>
     @endif
 
-    @if ($featuredStory ?? null)
-        <section class="mb-10">
-            <x-section-heading
-                :eyebrow="__('loop.stories')"
-                :title="__('loop.stories_title')"
-                :blurb="__('loop.stories_blurb')"
-                :href="route('stories.index')"
-                :link="__('loop.more_stories').' →'"
-                class="mb-5"
-            />
-            <a href="{{ route('stories.show', $featuredStory) }}" class="block overflow-hidden rounded-[1.75rem] border border-white/55 bg-white/75 shadow-[0_12px_40px_rgba(17,17,20,0.06)]">
-                @if ($featuredStory->imageUrl())
-                    <img src="{{ $featuredStory->imageUrl() }}" alt="" class="h-48 w-full object-cover sm:h-56">
-                @else
-                    <span class="flex h-36 w-full items-center justify-center bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 font-display text-5xl font-semibold text-lime">
-                        {{ mb_substr($featuredStory->title(), 0, 1) }}
-                    </span>
-                @endif
-                <span class="block p-5">
-                    <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ $featuredStory->country ? $featuredStory->countryLabel() : __('loop.story_general') }}</span>
-                    <span class="mt-1 block font-display text-2xl font-semibold">{{ $featuredStory->title() }}</span>
-                    <span class="mt-2 block text-sm text-ink-muted">{{ $featuredStory->excerpt() }}</span>
-                </span>
-            </a>
-            @if (($moreStories ?? collect())->isNotEmpty())
-                <div class="mt-3 space-y-2">
-                    @foreach ($moreStories as $story)
-                        <a href="{{ route('stories.show', $story) }}" class="flex items-center gap-3 rounded-[1.25rem] border border-ink/8 bg-white/70 px-3 py-2.5">
-                            @if ($story->imageUrl())
-                                <img src="{{ $story->imageUrl() }}" alt="" class="h-12 w-12 rounded-xl object-cover">
-                            @else
-                                <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-display text-lg font-semibold text-lime">{{ mb_substr($story->title(), 0, 1) }}</span>
-                            @endif
-                            <span class="min-w-0">
-                                <span class="block truncate text-sm font-semibold">{{ $story->title() }}</span>
-                                <span class="block truncate text-xs text-ink-muted">{{ $story->excerpt() }}</span>
-                            </span>
-                        </a>
-                    @endforeach
-                </div>
-            @endif
-        </section>
-    @endif
-
-    {{-- Ready to redeem — only when something is unlocked --}}
-    @if ($featuredRedeem || $redeemables->isNotEmpty())
+    @if (($featuredRedeem ?? null) === null && $redeemables->isNotEmpty())
         <section
             id="ready"
             class="mb-10 scroll-mt-24"
@@ -186,7 +151,10 @@
                         if ($target) {
                             $footnote = ($progress['ready'] ?? false)
                                 ? __('loop.reward_unlocked')
-                                : __('loop.pts_to_unlock', ['points' => $progress['needed']]);
+                                : __('loop.pts_to_unlock_named', [
+                                    'points' => $progress['needed'],
+                                    'offer' => $target->name,
+                                ]);
                         }
                     @endphp
                     <x-discover-tile
@@ -220,6 +188,26 @@
         @endif
     </section>
 
+    @if (($recent ?? collect())->isNotEmpty())
+        <section class="mb-10">
+            <x-section-heading
+                :eyebrow="__('loop.activity')"
+                :title="__('loop.recent')"
+                class="mb-5"
+            />
+            <div class="space-y-2">
+                @foreach ($recent as $row)
+                    <div class="flex items-center justify-between rounded-[1.25rem] border border-ink/8 bg-white/80 px-4 py-3">
+                        <p class="text-sm font-semibold">{{ $row->shop_name }}</p>
+                        <p class="font-display text-sm font-semibold {{ $row->points >= 0 ? 'text-mint-deep' : 'text-coral' }}">
+                            {{ $row->points >= 0 ? '+' : '' }}{{ $row->points }}
+                        </p>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     {{-- Where offers work — browse-tile carousel --}}
     <section class="mb-10">
         <x-section-heading
@@ -235,6 +223,7 @@
                 @foreach ($topShops as $business)
                     @php
                         $cheapest = $business->rewards->first();
+                        $headline = $cheapest?->name;
                         $footnote = $cheapest
                             ? __('loop.from_points', ['points' => $cheapest->points_cost])
                             : null;
@@ -245,6 +234,7 @@
                         :points="$memberPoints"
                         :show-points="$memberPoints !== null"
                         :carousel="true"
+                        :headline="$headline"
                         :footnote="$footnote"
                         data-loop-card
                     />
@@ -289,49 +279,10 @@
     @endif
 
     {{-- Scout as social share --}}
-    <section
-        x-data="{ open: false, copied: false }"
-        class="mb-4 rounded-[1.5rem] bg-ink px-5 py-6 text-white sm:px-7"
-    >
+    <section class="mb-4 rounded-[1.5rem] bg-ink px-5 py-6 text-white sm:px-7">
         <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">Loop</p>
         <h2 class="mt-2 font-display text-2xl font-semibold tracking-tight">{{ __('loop.know_a_shop_title') }}</h2>
         <p class="mt-2 max-w-md text-sm text-white/65">{{ __('loop.know_a_shop_body') }}</p>
-        <button type="button" class="loop-btn-lime mt-6" @click="open = true">{{ __('loop.share_loop') }}</button>
-
-        <div
-            x-show="open"
-            x-cloak
-            class="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-6"
-            @keydown.escape.window="open = false"
-        >
-            <div class="absolute inset-0" @click="open = false"></div>
-            <div class="relative w-full max-w-md rounded-t-[1.5rem] bg-white p-5 text-ink sm:rounded-[1.5rem] sm:p-6" @click.stop>
-                <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15 sm:hidden"></div>
-                <h3 class="font-display text-xl font-semibold">{{ __('loop.share_loop_sheet_title') }}</h3>
-                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.share_loop_sheet_body') }}</p>
-
-                <form method="POST" action="{{ route('business-invites.store') }}" class="mt-5 space-y-3">
-                    @csrf
-                    <input type="hidden" name="city" value="{{ auth()->user()->city }}">
-                    <input type="hidden" name="country_code" value="{{ \App\Support\Countries::dial(auth()->user()->country ?? 'TZ') }}">
-                    <input type="hidden" name="business_name" value="{{ __('loop.a_shop_you_love') }}">
-                    <button name="share_via" value="whatsapp" class="loop-btn w-full">{{ __('loop.share_on_whatsapp') }}</button>
-                    <button name="share_via" value="sms" class="loop-btn-ghost w-full">{{ __('loop.share_by_sms') }}</button>
-                </form>
-
-                <button
-                    type="button"
-                    class="loop-btn-ghost mt-3 w-full"
-                    @click="
-                        navigator.clipboard.writeText(@js($shareLink));
-                        copied = true;
-                        setTimeout(() => copied = false, 1800);
-                    "
-                    x-text="copied ? @js(__('loop.link_copied')) : @js(__('loop.copy_link'))"
-                ></button>
-
-                <button type="button" class="mt-4 w-full py-2 text-sm font-semibold text-ink-muted" @click="open = false">{{ __('loop.close') }}</button>
-            </div>
-        </div>
+        <x-invite-business />
     </section>
 </x-app-layout>

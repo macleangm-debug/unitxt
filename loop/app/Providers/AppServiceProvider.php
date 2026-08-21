@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\ExceptionHit;
 use App\Routing\RelativeUrlGenerator;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -37,6 +39,14 @@ class AppServiceProvider extends ServiceProvider
         // Keep built CSS/JS host-relative so tunnels/domains still style pages
         // even when APP_URL / Base URL point elsewhere.
         Vite::createAssetPathsUsing(fn (string $path, $secure = null) => '/'.ltrim($path, '/'));
+
+        View::composer('layouts.admin', function ($view) {
+            $inbox = \App\Support\AdminInbox::items();
+            $view->with('openExceptionHits', ExceptionHit::openCount());
+            $view->with('pendingAffiliateApps', \App\Models\Affiliate::query()->where('status', 'pending')->count());
+            $view->with('adminInbox', $inbox);
+            $view->with('adminInboxCount', count($inbox));
+        });
 
         // Request-host URL root is applied in UseRequestRootUrl middleware
         // (after TrustProxies), not here — boot() runs too early for X-Forwarded-*.

@@ -19,22 +19,23 @@
                 <input name="last_name" value="{{ old('last_name') }}" class="loop-input" required>
             </div>
         </div>
-        <div>
-            <label class="loop-label">{{ __('loop.country') }}</label>
-            <select name="country" class="loop-input">
-                @foreach ($countries as $code => $meta)
-                    <option value="{{ $code }}" @selected(old('country', 'TZ') === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
-                @endforeach
-            </select>
-        </div>
+        <x-sheet-select
+            name="country"
+            :label="__('loop.country')"
+            :options="collect($countries)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])])->all()"
+            :value="old('country', 'TZ')"
+            :required="true"
+        />
         <div>
             <label class="loop-label">{{ __('loop.phone') }}</label>
-            <input name="phone" value="{{ old('phone') }}" class="loop-input" required inputmode="tel">
+            <input name="phone" value="{{ old('phone') }}" class="loop-input" required inputmode="numeric" pattern="[0-9]*">
         </div>
-        <div>
-            <label class="loop-label">{{ __('loop.city') }}</label>
-            <input name="city" value="{{ old('city') }}" class="loop-input">
-        </div>
+        <x-city-sheet-select
+            name="city"
+            :label="__('loop.city')"
+            :value="old('city')"
+            country-field="country"
+        />
         <div>
             <label class="loop-label">{{ __('loop.temp_password') }}</label>
             <input type="password" name="password" class="loop-input" autocomplete="off">

@@ -24,10 +24,10 @@ class LoopProductPassTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee($business->currency, false)
-            ->assertSee(__('loop.sales'))
+            ->assertSee(__('loop.pulse_what_happened'))
             ->assertDontSee(__('loop.performance'), false)
             ->assertSee(__('loop.notifications'))
-            ->assertSee('bg-coral', false);
+            ->assertSee(__('loop.create_next_offer'));
 
         app(\App\Services\DailyNotificationService::class)->generateForBusiness($business->fresh());
         $this->assertGreaterThanOrEqual(2, InAppNotification::query()->where('user_id', $owner->id)->count());
@@ -68,7 +68,8 @@ class LoopProductPassTest extends TestCase
             ->assertOk()
             ->assertSee(__('loop.selling_at'))
             ->assertSee('Main')
-            ->assertSee(__('loop.look_up'));
+            ->assertSee(__('loop.whos_buying'))
+            ->assertSee(__('loop.continue'));
 
         $this->actingAs($owner)
             ->post(route('till.lookup'), [
@@ -303,7 +304,7 @@ class LoopProductPassTest extends TestCase
         $this->assertStringNotContainsString("persistKey: 'loop.offerWizard.create',\"", $html);
     }
 
-    public function test_same_day_earn_does_not_unlock_redeem_by_default(): void
+    public function test_till_shows_earned_offers_on_the_next_ticket(): void
     {
         [$owner, $business, $shop] = $this->seedBusiness();
         \App\Models\Campaign::create([
@@ -325,12 +326,24 @@ class LoopProductPassTest extends TestCase
             'is_active' => true,
         ]);
         $customer = User::factory()->customer()->create(['phone' => '713777009']);
+        $newCustomer = User::factory()->customer()->create(['phone' => '713777010']);
+
+        $this->actingAs($owner)
+            ->post(route('till.store'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713777010',
+                'channel' => 'in_store',
+                'amount_spent' => 50000,
+                'reward_id' => $offer->id,
+            ])
+            ->assertSessionHasErrors('reward_id');
 
         app(\App\Services\TillService::class)->recordSale($owner, $shop, $customer, 50000);
         $membership = $business->memberships()->where('customer_id', $customer->id)->first();
         $this->assertSame(100, (int) $membership->points_balance);
-        $this->assertSame(0, $membership->redeemablePoints());
-        $this->assertTrue($membership->availableRewards()->isEmpty());
+        $this->assertSame(100, $membership->redeemablePoints());
+        $this->assertTrue($membership->availableRewards()->contains('id', $offer->id));
 
         $this->actingAs($owner)
             ->post(route('till.lookup'), [
@@ -342,6 +355,11 @@ class LoopProductPassTest extends TestCase
             ->assertRedirect(route('till.ticket'));
 
         $this->actingAs($owner)
+            ->get(route('till.ticket'))
+            ->assertOk()
+            ->assertSee('Free drink', false);
+
+        $this->actingAs($owner)
             ->post(route('till.store'), [
                 'shop_id' => $shop->id,
                 'country_code' => '+255',
@@ -350,15 +368,226 @@ class LoopProductPassTest extends TestCase
                 'amount_spent' => 0,
                 'reward_id' => $offer->id,
             ])
-            ->assertSessionHasErrors('reward_id');
+            ->assertRedirect();
 
-        $business->update(['allow_same_day_earn_redeem' => true]);
-        $this->assertSame(100, $membership->fresh()->redeemablePoints());
+        $this->assertSame(0, (int) $membership->fresh()->points_balance);
+        $this->assertNotNull($newCustomer->fresh());
+    }
 
-        $business->update(['allow_same_day_earn_redeem' => false]);
-        $this->travel(1)->day();
-        $this->assertSame(100, $membership->fresh()->redeemablePoints());
-        $this->assertTrue($membership->fresh()->availableRewards()->contains('id', $offer->id));
+    public function test_product_push_bonus_unlocks_every_offer_type_on_the_next_ticket(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Models\Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Featured mocha',
+            'type' => 'product_push',
+            'bonus_points' => 100,
+            'featured_product_name' => 'Mocha',
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $percent = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '5% off anything',
+            'points_cost' => 100,
+            'reward_type' => 'percent_off',
+            'reward_value' => 5,
+            'is_active' => true,
+        ]);
+        $fixed = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => '2k off the bill',
+            'points_cost' => 100,
+            'reward_type' => 'fixed_off',
+            'reward_value' => 2000,
+            'is_active' => true,
+        ]);
+        $free = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => 'Free pastry',
+            'product_name' => 'Pastry',
+            'points_cost' => 100,
+            'reward_type' => 'free_item',
+            'reward_value' => 0,
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create(['phone' => '713777011']);
+
+        $without = app(\App\Services\TillService::class)->recordSale(
+            $owner, $shop, $customer, 5000, null, 'in_store', false, null, false
+        );
+        $this->assertSame(0, $without->points_earned);
+
+        $with = app(\App\Services\TillService::class)->recordSale(
+            $owner, $shop, $customer, 5000, null, 'in_store', false, null, true
+        );
+        $this->assertSame(100, $with->points_earned);
+
+        $membership = $business->memberships()->where('customer_id', $customer->id)->first();
+        $this->assertSame(100, (int) $membership->points_balance);
+        $this->assertSame(100, $membership->redeemablePoints());
+        $this->assertTrue($membership->availableRewards()->contains('id', $percent->id));
+        $this->assertTrue($membership->availableRewards()->contains('id', $fixed->id));
+        $this->assertTrue($membership->availableRewards()->contains('id', $free->id));
+
+        $this->actingAs($owner)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713777011',
+                'channel' => 'in_store',
+            ])
+            ->assertRedirect(route('till.ticket'));
+
+        $this->actingAs($owner)
+            ->get(route('till.ticket'))
+            ->assertOk()
+            ->assertSee('5% off anything', false)
+            ->assertSee('2k off the bill', false)
+            ->assertSee('Free pastry', false)
+            ->assertSee('Mocha', false);
+    }
+
+    public function test_welcome_bonus_unlocks_offers_the_same_way_as_earn(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        \App\Models\Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Welcome',
+            'type' => 'welcome',
+            'bonus_points' => 150,
+            'starts_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $offer = \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => 'Welcome drink',
+            'product_name' => 'Latte',
+            'points_cost' => 150,
+            'reward_type' => 'free_item',
+            'reward_value' => 0,
+            'is_active' => true,
+        ]);
+        $customer = User::factory()->customer()->create(['phone' => '713777012']);
+
+        app(\App\Services\TillService::class)->recordSale($owner, $shop, $customer, 1000);
+        $membership = $business->memberships()->where('customer_id', $customer->id)->first();
+        $this->assertSame(150, (int) $membership->points_balance);
+        $this->assertTrue($membership->availableRewards()->contains('id', $offer->id));
+    }
+
+    public function test_content_studio_keeps_canned_copy_and_reads_live_offers(): void
+    {
+        [$owner, $business] = $this->seedBusiness();
+        \App\Models\Reward::create([
+            'business_id' => $business->id,
+            'name' => 'Free coffee',
+            'product_name' => 'Coffee',
+            'points_cost' => 100,
+            'reward_type' => 'free_item',
+            'reward_value' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('content-studio.index'))
+            ->assertOk()
+            ->assertSee(__('loop.studio_make_something'), false)
+            ->assertSee('We’re on Loop — earn points every visit.', false)
+            ->assertSee('Your phone is your loyalty card.', false)
+            ->assertSee(__('loop.studio_look_plain'), false)
+            ->assertSee(__('loop.studio_look_photo'), false)
+            ->assertSee(__('loop.save_image'), false)
+            ->assertSee('Free coffee is waiting on Loop', false);
+
+        $this->actingAs($owner)
+            ->get(route('content-studio.index', ['about' => 'offer']))
+            ->assertOk()
+            ->assertSee('Free coffee is waiting on Loop', false);
+    }
+
+    public function test_raffle_public_display_hides_phone_and_notifies_the_winner(): void
+    {
+        \App\Models\PlatformSetting::putValue(\App\Support\GrowthSettings::KEY, [
+            ...\App\Support\GrowthSettings::defaults(),
+            'raffle_min_members' => 2,
+            'raffle_max_winners_percent' => 30,
+        ]);
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $business->update(['plan_key' => 'growth', 'billing_status' => 'active']);
+        $owner->unsetRelation('ownedBusiness');
+
+        $customers = [];
+        foreach (['713777201', '713777202'] as $phone) {
+            $customer = User::factory()->customer()->create([
+                'phone' => $phone,
+                'first_name' => 'Amina',
+                'last_name' => 'Mwamba',
+                'profile_completed' => true,
+            ]);
+            \App\Models\Membership::create([
+                'business_id' => $business->id,
+                'shop_id' => $shop->id,
+                'customer_id' => $customer->id,
+                'points_balance' => 10,
+                'lifetime_points' => 10,
+                'joined_at' => now(),
+                'member_code' => 'LP-'.$phone,
+            ]);
+            $customers[] = $customer;
+        }
+
+        $this->actingAs($owner)
+            ->post(route('raffles.store'), [
+                'name' => 'Friday Loop Draw',
+                'prize_name' => 'Free coffee',
+                'prize_type' => 'free_item',
+                'winners_count' => 1,
+                'frequency' => 'once',
+                'draw_at' => now()->addDay()->format('Y-m-d'),
+                'claim_days' => 7,
+            ])
+            ->assertRedirect();
+
+        $raffle = $business->raffles()->first();
+        $this->assertNotNull($raffle);
+
+        $this->actingAs($owner)
+            ->get(route('raffles.index'))
+            ->assertOk()
+            ->assertSee('Friday Loop Draw', false)
+            ->assertSee(__('loop.start_draw'), false)
+            ->assertSee(__('loop.members_are_in', ['count' => 2]), false);
+
+        $this->actingAs($owner)
+            ->post(route('raffles.draw', $raffle))
+            ->assertRedirect(route('raffles.live', $raffle));
+
+        $winner = $raffle->fresh()->winners()->with('customer')->first();
+        $this->assertNotNull($winner);
+
+        $this->actingAs($owner)
+            ->get(route('raffles.display', $raffle))
+            ->assertOk()
+            ->assertSee('Friday Loop Draw', false)
+            ->assertDontSee($winner->customer->full_phone, false)
+            ->assertDontSee('713777201', false)
+            ->assertDontSee('713777202', false);
+
+        $json = $this->actingAs($owner)
+            ->getJson(route('raffles.board', $raffle))
+            ->assertOk()
+            ->json();
+
+        $this->assertSame($winner->publicName(), $json['latest']['name'] ?? null);
+        $this->assertArrayNotHasKey('phone', $json['latest'] ?? []);
+        $this->assertStringNotContainsString('713777201', json_encode($json));
+        $this->assertStringNotContainsString('713777202', json_encode($json));
+
+        $this->assertDatabaseHas('in_app_notifications', [
+            'user_id' => $winner->customer_id,
+            'type' => 'member_raffle_won',
+        ]);
     }
 
     private function seedBusiness(): array

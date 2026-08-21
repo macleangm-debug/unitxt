@@ -1,6 +1,6 @@
 @php
     $tab = request('tab', 'overview');
-    $allowed = ['overview', 'packages', 'billing', 'growth', 'marketing', 'platform', 'sectors', 'countries', 'visibility', 'referrals', 'affiliates', 'notifications', 'product', 'links'];
+    $allowed = ['overview', 'packages', 'billing', 'growth', 'marketing', 'platform', 'sectors', 'countries', 'language', 'visibility', 'referrals', 'affiliates', 'notifications', 'product', 'health', 'links'];
     if (! in_array($tab, $allowed, true)) {
         $tab = 'overview';
     }
@@ -13,11 +13,13 @@
         'platform' => __('loop.settings_tab_platform'),
         'sectors' => __('loop.settings_tab_sectors'),
         'countries' => __('loop.settings_tab_countries'),
+        'language' => __('loop.settings_tab_language'),
         'visibility' => __('loop.settings_tab_visibility'),
         'referrals' => __('loop.settings_tab_referrals'),
         'affiliates' => __('loop.settings_tab_affiliates'),
         'notifications' => __('loop.settings_tab_notifications'),
         'product' => __('loop.settings_tab_product'),
+        'health' => __('loop.settings_tab_health'),
         'links' => __('loop.settings_tab_links'),
     ];
 @endphp
@@ -56,11 +58,13 @@
                             'platform' => [__('loop.settings_tab_platform'), __('loop.admin_base_url_blurb')],
                             'sectors' => [__('loop.settings_tab_sectors'), __('loop.admin_sectors_blurb')],
                             'countries' => [__('loop.settings_tab_countries'), __('loop.settings_tab_countries_blurb')],
+                            'language' => [__('loop.settings_tab_language'), __('loop.settings_tab_language_blurb')],
                             'visibility' => [__('loop.settings_tab_visibility'), __('loop.admin_sales_visibility_blurb')],
                             'referrals' => [__('loop.settings_tab_referrals'), __('loop.settings_tab_referrals_blurb')],
                             'affiliates' => [__('loop.settings_tab_affiliates'), __('loop.settings_tab_affiliates_blurb')],
                             'notifications' => [__('loop.settings_tab_notifications'), __('loop.settings_tab_notifications_blurb')],
                             'product' => [__('loop.settings_tab_product'), __('loop.admin_product_updates_blurb')],
+                            'health' => [__('loop.settings_tab_health'), __('loop.settings_tab_health_blurb')],
                             'links' => [__('loop.settings_tab_links'), __('loop.settings_tab_links_blurb')],
                         ] as $key => [$title, $blurb])
                             <tr>
@@ -93,29 +97,29 @@
             <div class="admin-card">
                 <h2 class="text-lg font-semibold">{{ __('loop.settings_tab_packages') }}</h2>
                 <p class="mt-1 text-sm text-slate-500">{{ __('loop.settings_tab_packages_edit_blurb') }}</p>
+                <x-admin.used-by :items="[__('loop.used_by_packages')]" />
                 <form method="GET" class="mt-4 flex flex-wrap items-end gap-3">
                     <input type="hidden" name="tab" value="packages">
                     <div>
-                        <label class="loop-label">{{ __('loop.country') }}</label>
-                        <select name="country" class="loop-input !mt-1" onchange="this.form.submit()">
-                            @foreach ($countryCatalog as $code => $meta)
-                                <option value="{{ $code }}" @selected($planCountry === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
-                            @endforeach
-                        </select>
+                        <x-sheet-select
+                            name="country"
+                            :label="__('loop.country')"
+                            :options="collect($countryCatalog)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])])->all()"
+                            :value="$planCountry"
+                            :autosubmit="true"
+                        />
                     </div>
                 </form>
                 <form method="POST" action="{{ route('admin.settings.plans.clone-country') }}" class="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-200 pt-4">
                     @csrf
                     <input type="hidden" name="from" value="{{ $planCountry }}">
                     <div>
-                        <label class="loop-label">{{ __('loop.add_country_packages') }}</label>
-                        <select name="to" class="loop-input !mt-1">
-                            @foreach ($countryCatalog as $code => $meta)
-                                @if ($code !== $planCountry)
-                                    <option value="{{ $code }}">{{ $meta['flag'] }} {{ $meta['name'] }}</option>
-                                @endif
-                            @endforeach
-                        </select>
+                        <x-sheet-select
+                            name="to"
+                            :label="__('loop.add_country_packages')"
+                            :options="collect($countryCatalog)->reject(fn ($meta, $code) => $code === $planCountry)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])])->all()"
+                            :value="collect($countryCatalog)->keys()->first(fn ($code) => $code !== $planCountry)"
+                        />
                     </div>
                     <button class="admin-btn">{{ __('loop.copy_packages_to_country') }}</button>
                     <p class="w-full text-xs text-slate-500">{{ __('loop.copy_packages_hint') }}</p>
@@ -228,6 +232,7 @@
         <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.billing_trial_settings') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.billing_trial_settings_blurb') }}</p>
+            <x-admin.used-by :items="[__('loop.used_by_billing')]" />
             <p class="mt-2 text-xs text-ink-muted">{{ __('loop.billing_front_sync_hint') }}</p>
             <form method="POST" action="{{ route('admin.settings.billing') }}" class="mt-4">
                 @csrf
@@ -237,6 +242,8 @@
                         <dl class="admin-dl">
                             <dt>{{ __('loop.trial_days') }}</dt>
                             <dd>{{ $billing['trial_days'] }}</dd>
+                            <dt>{{ __('loop.grace_days') }}</dt>
+                            <dd>{{ $billing['grace_days'] }}</dd>
                             <dt>{{ __('loop.free_max_shops') }}</dt>
                             <dd>{{ $billing['free_max_shops'] }}</dd>
                             <dt>{{ __('loop.free_max_members') }}</dt>
@@ -253,6 +260,11 @@
                         <div>
                             <label class="loop-label">{{ __('loop.trial_days') }}</label>
                             <input type="number" min="1" max="90" name="trial_days" value="{{ old('trial_days', $billing['trial_days']) }}" class="loop-input" required>
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.grace_days') }}</label>
+                            <input type="number" min="0" max="30" name="grace_days" value="{{ old('grace_days', $billing['grace_days'] ?? 7) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.grace_days_help') }}</p>
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.free_max_shops') }}</label>
@@ -331,6 +343,7 @@
                             <label class="loop-label">{{ __('loop.raffle_min_members') }}</label>
                             <input type="number" min="10" name="raffle_min_members" value="{{ old('raffle_min_members', $growth['raffle_min_members']) }}" class="loop-input" required>
                             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.raffle_min_members_help') }}</p>
+                            <x-admin.used-by :items="[__('loop.used_by_raffle_min')]" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.raffle_max_winners_percent') }}</label>
@@ -407,6 +420,7 @@
                     <label class="loop-label">{{ __('loop.base_url_field') }}</label>
                     <input type="url" name="base_url" value="{{ old('base_url', $platformUrl['base_url']) }}" class="loop-input" placeholder="https://loop.example.com" required>
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.base_url_help') }}</p>
+                    <x-admin.used-by :items="[__('loop.used_by_platform_url')]" />
                 </div>
                 <button class="admin-btn">{{ __('loop.save') }}</button>
             </x-admin.settings-lock>
@@ -417,6 +431,23 @@
         <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sectors') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_sectors_blurb') }}</p>
+            <x-admin.used-by :items="[__('loop.used_by_sectors')]" />
+
+            <div class="mt-6 rounded-2xl border border-ink/10 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.sector_search_misses') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.sector_search_misses_blurb') }}</p>
+                <div class="mt-3 space-y-2">
+                    @forelse ($sectorMisses ?? [] as $miss)
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <p class="font-semibold">{{ $miss->query }}</p>
+                            <p class="tabular-nums text-ink-muted">{{ $miss->hits }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm text-ink-muted">{{ __('loop.sector_search_misses_empty') }}</p>
+                    @endforelse
+                </div>
+            </div>
+
             <form method="POST" action="{{ route('admin.settings.sectors') }}" class="mt-4">
                 @csrf
                 @method('PUT')
@@ -426,14 +457,46 @@
                         <div class="mt-3 grid gap-2 sm:grid-cols-2">
                             <input name="new_key" class="loop-input" placeholder="{{ __('loop.sector_key_placeholder') }}">
                             <input name="new_label" class="loop-input" placeholder="{{ __('loop.sector_label_placeholder') }}">
+                            <select name="new_category" class="loop-input">
+                                @foreach ($sectorCategories ?? \App\Support\Sectors::CATEGORIES as $catKey => $catLabel)
+                                    <option value="{{ $catKey }}">{{ $catLabel }}</option>
+                                @endforeach
+                            </select>
+                            <input name="new_aliases" class="loop-input" placeholder="{{ __('loop.sector_aliases_placeholder') }}">
                         </div>
                     </div>
-                    <div class="space-y-3">
-                        @foreach ($sectors as $i => $sector)
-                            <div class="grid gap-2 sm:grid-cols-[140px_1fr]">
-                                <input type="hidden" name="sectors[{{ $i }}][key]" value="{{ $sector['key'] }}">
-                                <input value="{{ $sector['key'] }}" class="loop-input !bg-chalk text-sm" disabled>
-                                <input name="sectors[{{ $i }}][label]" value="{{ old('sectors.'.$i.'.label', $sector['label']) }}" class="loop-input" required>
+                    @php
+                        $groupedSectors = collect($sectors)->groupBy(fn ($row) => $row['category'] ?? 'other');
+                    @endphp
+                    <div class="space-y-6">
+                        @foreach ($groupedSectors as $catKey => $rows)
+                            <div>
+                                <p class="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-violet">{{ \App\Support\Sectors::categoryLabel($catKey) }}</p>
+                                <div class="space-y-3">
+                                    @foreach ($rows as $sector)
+                                        @php $i = collect($sectors)->search(fn ($row) => $row['key'] === $sector['key']); @endphp
+                                        <div class="rounded-2xl border border-ink/10 p-3">
+                                            <input type="hidden" name="sectors[{{ $i }}][key]" value="{{ $sector['key'] }}">
+                                            <input type="hidden" name="sectors[{{ $i }}][featured]" value="0">
+                                            <div class="grid gap-2 sm:grid-cols-[140px_1fr_8rem]">
+                                                <input value="{{ $sector['key'] }}" class="loop-input !bg-chalk text-sm" disabled>
+                                                <input name="sectors[{{ $i }}][label]" value="{{ old('sectors.'.$i.'.label', $sector['label']) }}" class="loop-input" required>
+                                                <select name="sectors[{{ $i }}][category]" class="loop-input">
+                                                    @foreach ($sectorCategories ?? \App\Support\Sectors::CATEGORIES as $optionKey => $optionLabel)
+                                                        <option value="{{ $optionKey }}" @selected(($sector['category'] ?? 'other') === $optionKey)>{{ $optionLabel }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="mt-2 flex flex-wrap items-center gap-3">
+                                                <input name="sectors[{{ $i }}][aliases]" value="{{ old('sectors.'.$i.'.aliases', $sector['aliases'] ?? '') }}" class="loop-input min-w-[12rem] flex-1" placeholder="{{ __('loop.sector_aliases_placeholder') }}">
+                                                <label class="flex items-center gap-2 text-sm font-semibold">
+                                                    <input type="checkbox" name="sectors[{{ $i }}][featured]" value="1" @checked(! empty($sector['featured']))>
+                                                    {{ __('loop.sector_featured') }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
                             </div>
                         @endforeach
                     </div>
@@ -447,6 +510,7 @@
         <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_countries') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_countries_blurb') }}</p>
+            <x-admin.used-by :items="[__('loop.used_by_countries')]" />
             <form method="POST" action="{{ route('admin.settings.countries') }}" class="mt-4">
                 @csrf
                 @method('PUT')
@@ -462,6 +526,48 @@
                     <button class="admin-btn">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
+        </div>
+    @endif
+
+    @if ($tab === 'language')
+        <div class="admin-card">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_language') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_language_blurb') }}</p>
+            <x-admin.used-by :items="[__('loop.used_by_language')]" />
+
+            <div class="mt-5 rounded-2xl border border-ink/10 bg-chalk/40 px-4 py-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.console_language') }}</p>
+                <p class="mt-2 text-sm text-ink">{{ __('loop.console_language_help') }}</p>
+                <div class="mt-3">
+                    <x-admin.locale-switch />
+                </div>
+                <p class="mt-3 text-sm text-ink-muted">
+                    {{ __('loop.console_language_now', ['lang' => app()->getLocale() === 'sw' ? __('loop.lang_swahili') : __('loop.lang_english')]) }}
+                </p>
+            </div>
+
+            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-ink/10 px-4 py-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">EN</p>
+                    <p class="mt-1 font-semibold">{{ __('loop.lang_english') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.lang_english_help') }}</p>
+                </div>
+                <div class="rounded-2xl border border-ink/10 px-4 py-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">SW</p>
+                    <p class="mt-1 font-semibold">{{ __('loop.lang_swahili') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.lang_swahili_help') }}</p>
+                </div>
+            </div>
+
+            <div class="mt-5 space-y-3 text-sm text-ink">
+                <p class="font-semibold">{{ __('loop.language_where_title') }}</p>
+                <ul class="list-disc space-y-2 pl-5 text-ink-muted">
+                    <li>{{ __('loop.language_where_apps') }}</li>
+                    <li>{{ __('loop.language_where_default') }}</li>
+                    <li>{{ __('loop.language_where_articles') }}</li>
+                </ul>
+            </div>
+            <a href="{{ route('admin.articles.index') }}" class="admin-btn-ghost mt-5 inline-flex">{{ __('loop.language_edit_articles') }}</a>
         </div>
     @endif
 
@@ -491,6 +597,7 @@
                         <label class="flex items-center gap-2"><input type="checkbox" name="launch_banner_enabled" value="1" @checked(old('launch_banner_enabled', $marketing['launch_banner_enabled']))> {{ __('loop.launch_banner_enabled') }}</label>
                         <label class="flex items-center gap-2"><input type="checkbox" name="holiday_message_enabled" value="1" @checked(old('holiday_message_enabled', $marketing['holiday_message_enabled']))> {{ __('loop.holiday_message_enabled') }}</label>
                     </div>
+                    <x-admin.used-by :items="[__('loop.used_by_marketing_ctas')]" />
                     <div>
                         <label class="loop-label">{{ __('loop.holiday_message_text') }}</label>
                         <textarea name="holiday_message_text" rows="2" class="loop-input">{{ old('holiday_message_text', $marketing['holiday_message_text']) }}</textarea>
@@ -505,6 +612,7 @@
         <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_notifications') }}</h2>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_notifications_blurb') }}</p>
+            <x-admin.used-by :items="[__('loop.used_by_notifications')]" />
             <form method="POST" action="{{ route('admin.settings.notifications') }}" class="mt-4">
                 @csrf
                 @method('PUT')
@@ -534,6 +642,7 @@
                         <div>
                             <label class="loop-label">{{ __('loop.quiet_hours_end') }}</label>
                             <input type="number" min="0" max="23" name="quiet_hours_end" value="{{ old('quiet_hours_end', $notifications['quiet_hours_end']) }}" class="loop-input">
+                            <x-admin.policy-note :body="__('loop.quiet_hours_enforced_note')" />
                         </div>
                     </div>
                     <button class="admin-btn">{{ __('loop.save') }}</button>
@@ -549,6 +658,7 @@
             <div>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_sales_visibility') }}</h2>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.admin_sales_visibility_blurb') }}</p>
+                <x-admin.used-by :items="[__('loop.used_by_visibility')]" />
             </div>
             <x-admin.settings-lock>
                 <label class="flex items-start gap-3 text-sm">
@@ -576,7 +686,9 @@
             @method('PUT')
             <div>
                 <h2 class="font-display text-xl font-semibold">{{ __('loop.admin_referral_program') }}</h2>
+                <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.admin_referrals_program_kind') }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_referrals_blurb') }}</p>
+                <x-admin.used-by :items="[__('loop.used_by_referrals')]" />
             </div>
             <div class="rounded-2xl bg-mint-soft/50 p-4 text-sm text-ink">
                 <p class="font-semibold">{{ __('loop.admin_referral_both_sides') }}</p>
@@ -617,8 +729,10 @@
     @if ($tab === 'affiliates')
         <div class="admin-card">
             <h2 class="font-display text-xl font-semibold">{{ __('loop.affiliate_program_settings') }}</h2>
+            <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.admin_affiliates_program_kind') }}</p>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_affiliates_blurb') }}</p>
             <p class="mt-2 rounded-2xl bg-violet-soft/50 px-4 py-3 text-sm text-ink">{{ __('loop.affiliate_kpi_governed') }} — {{ __('loop.monthly_paying_target') }}: {{ $affiliate['monthly_paying_business_target'] }}</p>
+            <x-admin.policy-note :body="__('loop.commission_basis_note')" />
             <form method="POST" action="{{ route('admin.settings.affiliates') }}" class="mt-4">
                 @csrf
                 @method('PUT')
@@ -627,10 +741,12 @@
                         <div>
                             <label class="loop-label">{{ __('loop.commission_percent') }}</label>
                             <input type="number" min="1" max="50" name="commission_percent" value="{{ old('commission_percent', $affiliate['commission_percent']) }}" class="loop-input" required>
+                            <x-admin.used-by :items="[__('loop.used_by_affiliate_commission')]" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.referred_discount_percent') }}</label>
                             <input type="number" min="0" max="50" name="referred_discount_percent" value="{{ old('referred_discount_percent', $affiliate['referred_discount_percent']) }}" class="loop-input" required>
+                            <x-admin.used-by :items="[__('loop.used_by_affiliate_discount')]" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.attribution_months') }}</label>
@@ -639,10 +755,12 @@
                         <div>
                             <label class="loop-label">{{ __('loop.cookie_days') }}</label>
                             <input type="number" min="1" max="365" name="cookie_days" value="{{ old('cookie_days', $affiliate['cookie_days']) }}" class="loop-input" required>
+                            <x-admin.used-by :items="[__('loop.used_by_cookie_days')]" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.pin_length') }}</label>
                             <input type="number" min="4" max="6" name="pin_length" value="{{ old('pin_length', $affiliate['pin_length']) }}" class="loop-input" required>
+                            <x-admin.used-by :items="[__('loop.used_by_affiliate_pin')]" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.monthly_paying_target') }}</label>
@@ -651,6 +769,7 @@
                         <div>
                             <label class="loop-label">{{ __('loop.min_payout_amount') }}</label>
                             <input type="number" min="0" name="min_payout_amount" value="{{ old('min_payout_amount', $affiliate['min_payout_amount']) }}" class="loop-input" required>
+                            <x-admin.policy-note :body="__('loop.policy_only_payouts')" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.payout_schedule') }}</label>
@@ -659,10 +778,12 @@
                                     <option value="{{ $sched }}" @selected(old('payout_schedule', $affiliate['payout_schedule']) === $sched)>{{ __("loop.payout_$sched") }}</option>
                                 @endforeach
                             </select>
+                            <x-admin.policy-note :body="__('loop.policy_only_payouts')" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.tax_withholding_percent') }}</label>
                             <input type="number" min="0" max="40" name="tax_withholding_percent" value="{{ old('tax_withholding_percent', $affiliate['tax_withholding_percent']) }}" class="loop-input">
+                            <x-admin.policy-note :body="__('loop.policy_only_payouts')" />
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.fraud_hold_days') }}</label>
@@ -681,6 +802,8 @@
                         <label class="flex items-center gap-2"><input type="checkbox" name="block_self_referral" value="1" @checked(old('block_self_referral', $affiliate['block_self_referral']))> {{ __('loop.block_self_referral') }}</label>
                         <label class="flex items-center gap-2"><input type="checkbox" name="require_tax_id" value="1" @checked(old('require_tax_id', $affiliate['require_tax_id']))> {{ __('loop.require_tax_id') }}</label>
                     </div>
+                    <x-admin.used-by :items="[__('loop.used_by_self_referral')]" />
+                    <x-admin.policy-note :body="__('loop.policy_only_tax_id')" />
                     <div class="flex flex-wrap gap-3">
                         <button class="admin-btn">{{ __('loop.save') }}</button>
                         <a href="{{ route('admin.insights.affiliate-performance') }}" class="admin-btn-ghost !py-2.5">{{ __('loop.affiliate_performance') }} →</a>
@@ -709,6 +832,9 @@
                             <span>
                                 <span class="block font-semibold">{{ __('loop.feature_'.$key.'_title') }}</span>
                                 <span class="mt-1 block text-xs text-ink-muted">{{ __('loop.feature_'.$key.'_body') }}</span>
+                                @if (__('loop.feature_'.$key.'_used_by') !== 'loop.feature_'.$key.'_used_by')
+                                    <span class="mt-2 block text-xs text-ink-muted"><span class="font-semibold text-ink">{{ __('loop.used_by') }}:</span> {{ __('loop.feature_'.$key.'_used_by') }}</span>
+                                @endif
                                 <span class="mt-2 inline-block rounded-lg bg-chalk px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{{ __('loop.feature_cat_'.$feature['category']) }}</span>
                             </span>
                         </label>
@@ -717,6 +843,70 @@
                 <button class="admin-btn">{{ __('loop.save_product_updates') }}</button>
             </x-admin.settings-lock>
         </form>
+    @endif
+
+    @if ($tab === 'health')
+        <section class="admin-card">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_health_title') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_health_blurb') }}</p>
+            <div class="mt-5 space-y-3">
+                @foreach ($healthChecks as $check)
+                    <div class="flex items-start justify-between gap-4 rounded-2xl border border-ink/8 px-4 py-3">
+                        <div>
+                            <p class="font-semibold">{{ $check['label'] }}</p>
+                            <p class="mt-1 text-sm text-ink-muted">{{ $check['detail'] }}</p>
+                        </div>
+                        <span class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide {{ $check['status'] === 'ok' ? 'bg-mint-soft text-mint-deep' : ($check['status'] === 'off' ? 'bg-chalk text-ink-muted' : 'bg-coral/15 text-coral') }}">
+                            {{ $check['status'] === 'ok' ? '✓' : ($check['status'] === 'off' ? __('loop.off') : '⚠') }}
+                            {{ $check['status'] === 'ok' ? __('loop.health_connected') : ($check['status'] === 'off' ? __('loop.health_paused') : __('loop.health_warn')) }}
+                        </span>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+        <section class="admin-card mt-5">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_audit_title') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_audit_blurb') }}</p>
+            <div class="admin-table-wrap mt-4">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('loop.when') }}</th>
+                            <th>{{ __('loop.who') }}</th>
+                            <th>{{ __('loop.setting') }}</th>
+                            <th>{{ __('loop.what_changed') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($recentAudits as $audit)
+                            @php
+                                $old = is_array($audit->old_value) ? $audit->old_value : [];
+                                $new = is_array($audit->new_value) ? $audit->new_value : [];
+                                $keys = array_unique(array_merge(array_keys($old), array_keys($new)));
+                                $changed = [];
+                                foreach ($keys as $field) {
+                                    if (($old[$field] ?? null) != ($new[$field] ?? null)) {
+                                        $from = is_bool($old[$field] ?? null) ? (($old[$field] ?? false) ? __('loop.on') : __('loop.off')) : (is_array($old[$field] ?? null) ? json_encode($old[$field]) : (string) ($old[$field] ?? '—'));
+                                        $to = is_bool($new[$field] ?? null) ? (($new[$field] ?? false) ? __('loop.on') : __('loop.off')) : (is_array($new[$field] ?? null) ? json_encode($new[$field]) : (string) ($new[$field] ?? '—'));
+                                        $changed[] = $field.': '.$from.' → '.$to;
+                                    }
+                                }
+                            @endphp
+                            <tr>
+                                <td class="whitespace-nowrap">{{ $audit->created_at?->timezone(config('app.timezone'))->format('d M Y H:i') }}</td>
+                                <td>{{ $audit->user?->name ?? __('loop.system') }}</td>
+                                <td>{{ $audit->setting_key }}</td>
+                                <td class="text-xs text-ink-muted">{{ $changed !== [] ? implode(' · ', array_slice($changed, 0, 6)) : __('loop.no_field_diff') }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="text-ink-muted">{{ __('loop.no_setting_audits') }}</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
     @endif
 
     @if ($tab === 'links')

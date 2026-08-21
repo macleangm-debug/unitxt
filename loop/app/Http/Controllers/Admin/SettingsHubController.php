@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Models\SettingAudit;
 use App\Support\AffiliateProgram;
 use App\Support\BillingSettings;
 use App\Support\Confirm;
@@ -18,6 +19,7 @@ use App\Support\PlatformUrl;
 use App\Support\ReferralProgram;
 use App\Support\SalesVisibility;
 use App\Support\Sectors;
+use App\Support\SettingsHealth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -49,6 +51,7 @@ class SettingsHubController extends Controller
             ]),
             __('loop.settings_tab_billing') => __('loop.settings_summary_billing', [
                 'days' => $billing['trial_days'],
+                'grace' => $billing['grace_days'],
                 'members' => $billing['free_max_members'],
                 'block' => $billing['block_till_when_trial_ends'] ? __('loop.on') : __('loop.off'),
             ]),
@@ -64,6 +67,9 @@ class SettingsHubController extends Controller
                 'commission' => $affiliate['commission_percent'],
                 'enabled' => $affiliate['enabled'] ? __('loop.on') : __('loop.off'),
             ]),
+            __('loop.settings_tab_language') => __('loop.settings_summary_language', [
+                'lang' => strtoupper(app()->getLocale()),
+            ]),
         ];
 
         return view('admin.settings.index', [
@@ -76,6 +82,8 @@ class SettingsHubController extends Controller
             'featureFlags' => $featureFlags,
             'featureCatalog' => FeatureFlags::catalog(),
             'sectors' => Sectors::list(),
+            'sectorCategories' => Sectors::CATEGORIES,
+            'sectorMisses' => \App\Models\SectorSearchMiss::query()->orderByDesc('hits')->limit(40)->get(),
             'plans' => $plans,
             'planCountry' => $country,
             'planCountries' => Plan::countriesInUse(),
@@ -84,6 +92,8 @@ class SettingsHubController extends Controller
             'notifications' => NotificationSettings::settings(),
             'marketing' => MarketingSettings::settings(),
             'countryCatalog' => \App\Support\Countries::OPTIONS,
+            'healthChecks' => SettingsHealth::checks(),
+            'recentAudits' => SettingAudit::query()->with('user')->latest()->limit(30)->get(),
         ]);
     }
 
@@ -91,6 +101,7 @@ class SettingsHubController extends Controller
     {
         $data = $request->validate([
             'trial_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'grace_days' => ['nullable', 'integer', 'min:0', 'max:30'],
             'free_max_shops' => ['required', 'integer', 'min:1', 'max:5'],
             'free_max_members' => ['required', 'integer', 'min:1', 'max:500'],
             'free_max_monthly_visits' => ['required', 'integer', 'min:1', 'max:500'],
@@ -105,6 +116,7 @@ class SettingsHubController extends Controller
         $normalized = BillingSettings::normalizeInput([
             ...$data,
             'block_till_when_trial_ends' => $request->boolean('block_till_when_trial_ends'),
+            'grace_days' => $data['grace_days'] ?? BillingSettings::settings()['grace_days'],
             'discount_months_3' => $data['discount_months_3'] ?? 8,
             'discount_months_6' => $data['discount_months_6'] ?? 15,
             'discount_months_12' => $data['discount_months_12'] ?? 25,
@@ -189,15 +201,26 @@ class SettingsHubController extends Controller
             'sectors' => ['required', 'array', 'min:1'],
             'sectors.*.key' => ['required', 'string', 'max:40'],
             'sectors.*.label' => ['required', 'string', 'max:80'],
+            'sectors.*.category' => ['nullable', 'string', 'max:40'],
+            'sectors.*.aliases' => ['nullable', 'string', 'max:400'],
+            'sectors.*.featured' => ['sometimes', 'boolean'],
+            'sectors.*.short' => ['nullable', 'string', 'max:40'],
             'new_key' => ['nullable', 'string', 'max:40'],
             'new_label' => ['nullable', 'string', 'max:80'],
+            'new_category' => ['nullable', 'string', 'max:40'],
+            'new_aliases' => ['nullable', 'string', 'max:400'],
         ]);
 
         $rows = $data['sectors'];
+        foreach ($rows as $i => $row) {
+            $rows[$i]['featured'] = $request->boolean("sectors.$i.featured");
+        }
         if (filled($data['new_key'] ?? null) && filled($data['new_label'] ?? null)) {
             $rows[] = [
                 'key' => $data['new_key'],
                 'label' => $data['new_label'],
+                'category' => $data['new_category'] ?? 'other',
+                'aliases' => $data['new_aliases'] ?? '',
             ];
         }
 

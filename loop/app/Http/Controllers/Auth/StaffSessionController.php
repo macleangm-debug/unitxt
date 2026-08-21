@@ -17,7 +17,7 @@ class StaffSessionController extends Controller
     public function create(): View
     {
         return view('auth.staff-login', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::authOptions(),
         ]);
     }
 
@@ -38,11 +38,15 @@ class StaffSessionController extends Controller
             ->first();
 
         if (! $user || ! $user->is_active || ! $user->password || ! Hash::check($data['password'], $user->password)) {
-            return back()->withInput($request->only('country_code', 'phone'))->with('confirm', Confirm::make(
+            $login = $request->boolean('admin')
+                ? route('staff.login', ['admin' => 1])
+                : route('staff.login');
+
+            return redirect()->to($login)->withInput($request->only('country_code', 'phone', 'admin'))->with('confirm', Confirm::make(
                 __('loop.login_failed_title'),
                 __('loop.login_failed_body'),
                 __('loop.try_again'),
-                route('staff.login'),
+                $login,
                 false,
             ));
         }

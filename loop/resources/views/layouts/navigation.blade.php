@@ -38,10 +38,8 @@
                         <x-loop-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings*') || request()->routeIs('admin.referrals.*') || request()->routeIs('admin.plans.*')" kind="tab">{{ __('loop.admin_settings_hub') }}</x-loop-nav-link>
                     @elseif ($user->isAffiliate())
                         <x-loop-nav-link :href="route('affiliate.dashboard')" :active="request()->routeIs('affiliate.dashboard') || request()->routeIs('affiliate.setup')" kind="tab">{{ __('loop.home') }}</x-loop-nav-link>
-                        <x-nav-link :href="route('affiliate.dashboard').'#share'" :active="false">{{ __('loop.affiliate_nav_share') }}</x-nav-link>
-                        <x-nav-link :href="route('affiliate.dashboard').'#referrals'" :active="false">{{ __('loop.affiliate_nav_referrals') }}</x-nav-link>
-                        <x-loop-nav-link :href="route('affiliate.payout')" :active="request()->routeIs('affiliate.payout')" kind="tab">{{ __('loop.payout_settings') }}</x-loop-nav-link>
-                        <x-loop-nav-link :href="route('affiliates.landing')" :active="request()->routeIs('affiliates.landing')" kind="push">{{ __('loop.affiliate_nav_how') }}</x-loop-nav-link>
+                        <x-loop-nav-link :href="route('affiliate.dashboard').'#referrals'" :active="request()->routeIs('affiliate.dashboard')" kind="tab">{{ __('loop.affiliate_nav_referrals') }}</x-loop-nav-link>
+                        <x-loop-nav-link :href="route('affiliate.withdraw')" :active="request()->routeIs('affiliate.withdraw') || request()->routeIs('affiliate.payout')" kind="tab">{{ __('loop.withdraw') }}</x-loop-nav-link>
                     @else
                         <x-loop-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" kind="tab">{{ __('loop.home') }}</x-loop-nav-link>
                         @if ($user->isStaff())
@@ -183,10 +181,8 @@
                     <x-loop-link :href="route('admin.settings')" kind="tab">{{ __('loop.admin_settings_hub') }}</x-loop-link>
                 @elseif ($user->isAffiliate())
                     <x-loop-link :href="route('affiliate.dashboard')" kind="tab" :current="request()->routeIs('affiliate.dashboard') || request()->routeIs('affiliate.setup')">{{ __('loop.home') }}</x-loop-link>
-                    <a href="{{ route('affiliate.dashboard') }}#share">{{ __('loop.affiliate_nav_share') }}</a>
-                    <a href="{{ route('affiliate.dashboard') }}#referrals">{{ __('loop.affiliate_nav_referrals') }}</a>
-                    <x-loop-link :href="route('affiliate.payout')" kind="tab" :current="request()->routeIs('affiliate.payout')">{{ __('loop.payout_settings') }}</x-loop-link>
-                    <x-loop-link :href="route('affiliates.landing')" kind="push">{{ __('loop.affiliate_nav_how') }}</x-loop-link>
+                    <x-loop-link :href="route('affiliate.dashboard').'#referrals'" kind="tab">{{ __('loop.affiliate_nav_referrals') }}</x-loop-link>
+                    <x-loop-link :href="route('affiliate.withdraw')" kind="tab" :current="request()->routeIs('affiliate.withdraw') || request()->routeIs('affiliate.payout')">{{ __('loop.withdraw') }}</x-loop-link>
                 @else
                     <x-loop-link :href="route('dashboard')" kind="tab" :current="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-loop-link>
                     @if ($user->isStaff())

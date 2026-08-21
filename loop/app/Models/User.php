@@ -78,6 +78,62 @@ class User extends Authenticatable
         return $this->country_code.' '.$this->phone;
     }
 
+    public function hasKnownName(): bool
+    {
+        return filled($this->first_name);
+    }
+
+    public function hasBirthday(): bool
+    {
+        return filled($this->birth_month) && filled($this->birth_day);
+    }
+
+    public function hasGender(): bool
+    {
+        return filled($this->gender);
+    }
+
+    public function hasInterests(): bool
+    {
+        return filled($this->interests);
+    }
+
+    /**
+     * Fill member profile fields without wiping values Loop already knows.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function mergeMemberProfile(array $data): void
+    {
+        $assign = [];
+
+        foreach (['first_name', 'last_name', 'country', 'city', 'email', 'gender'] as $key) {
+            if (! array_key_exists($key, $data)) {
+                continue;
+            }
+            $value = $data[$key];
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $assign[$key] = $value;
+        }
+
+        foreach (['birth_month', 'birth_day'] as $key) {
+            if (! array_key_exists($key, $data) || $data[$key] === null || $data[$key] === '') {
+                continue;
+            }
+            $assign[$key] = $data[$key];
+        }
+
+        if (array_key_exists('interests', $data) && is_array($data['interests']) && $data['interests'] !== []) {
+            $assign['interests'] = array_values($data['interests']);
+        }
+
+        if ($assign !== []) {
+            $this->fill($assign);
+        }
+    }
+
     public function isOwner(): bool
     {
         return $this->role === self::ROLE_OWNER;

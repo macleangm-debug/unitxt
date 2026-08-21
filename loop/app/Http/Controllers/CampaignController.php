@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Services\PlanLimitService;
 use App\Support\CampaignTemplates;
 use App\Support\Confirm;
+use App\Support\FeatureFlags;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -131,6 +132,7 @@ class CampaignController extends Controller
         ]);
 
         $type = $data['type'];
+        abort_unless(FeatureFlags::allowsCampaignType($type), 403);
 
         if ($type === 'earn') {
             $request->validate([
@@ -272,6 +274,9 @@ class CampaignController extends Controller
         $business = $campaign->business;
 
         $type = (string) $request->input('type', $campaign->type);
+        if ($type !== $campaign->type) {
+            abort_unless(FeatureFlags::allowsCampaignType($type), 403);
+        }
         $isEarn = $type === 'earn';
         $isBonus = in_array($type, ['birthday', 'welcome', 'streak'], true);
 

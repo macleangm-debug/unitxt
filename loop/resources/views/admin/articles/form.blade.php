@@ -70,13 +70,12 @@
 
         <div class="grid gap-4 sm:grid-cols-2">
             <div>
-                <label class="loop-label">{{ __('loop.article_country') }}</label>
-                <select name="country" class="loop-input">
-                    <option value="">{{ __('loop.all_countries') }}</option>
-                    @foreach ($countries as $code => $meta)
-                        <option value="{{ $code }}" @selected(old('country', $article->country) === $code)>{{ $meta['flag'] }} {{ $meta['name'] }}</option>
-                    @endforeach
-                </select>
+                <x-sheet-select
+                    name="country"
+                    :label="__('loop.article_country')"
+                    :options="collect(['' => __('loop.all_countries')])->union(collect($countries)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])]))->all()"
+                    :value="old('country', $article->country)"
+                />
             </div>
             <div>
                 <label class="loop-label">{{ __('loop.article_image') }}</label>

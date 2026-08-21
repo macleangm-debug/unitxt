@@ -20,7 +20,7 @@
                         <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
                     @endforeach
                 </select>
-                <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="tel" autocomplete="off">
+                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="off">
             </div>
             <x-input-error :messages="$errors->get('phone')" class="mt-1" />
         </div>

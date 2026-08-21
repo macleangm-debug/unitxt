@@ -16,7 +16,7 @@ class GeoLocale
     public static function detectCountry(Request $request): ?string
     {
         $fromSession = $request->session()->get('preferred_country');
-        if (is_string($fromSession) && isset(Countries::OPTIONS[$fromSession])) {
+        if (is_string($fromSession) && Countries::isEnabled($fromSession)) {
             return $fromSession;
         }
 
@@ -26,7 +26,7 @@ class GeoLocale
 
         if (is_string($header)) {
             $code = strtoupper(trim($header));
-            if (isset(Countries::OPTIONS[$code])) {
+            if (Countries::isEnabled($code)) {
                 return $code;
             }
         }
@@ -40,7 +40,7 @@ class GeoLocale
                 if ($json) {
                     $data = json_decode($json, true);
                     $code = strtoupper((string) ($data['countryCode'] ?? ''));
-                    if (($data['status'] ?? null) === 'success' && isset(Countries::OPTIONS[$code])) {
+                    if (($data['status'] ?? null) === 'success' && Countries::isEnabled($code)) {
                         return $code;
                     }
                 }
@@ -49,7 +49,7 @@ class GeoLocale
             }
         }
 
-        return 'TZ';
+        return Countries::snapToEnabled('TZ');
     }
 
     public static function defaultLocaleForCountry(?string $country): string

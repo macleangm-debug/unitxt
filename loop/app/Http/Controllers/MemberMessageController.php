@@ -10,6 +10,7 @@ use App\Services\MessagingService;
 use App\Services\Payments\PaymentService;
 use App\Support\Confirm;
 use App\Support\Countries;
+use App\Support\FeatureFlags;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -38,6 +39,7 @@ class MemberMessageController extends Controller
             'dial' => Countries::dial($business->country ?: 'TZ'),
             'country' => $business->country ?: 'TZ',
             'currency' => $business->currency ?: 'TZS',
+            'platformOff' => ! FeatureFlags::enabled('sms_messaging'),
         ]);
     }
 
@@ -45,6 +47,7 @@ class MemberMessageController extends Controller
     {
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
+        abort_unless(FeatureFlags::enabled('sms_messaging'), 403);
         abort_unless($messaging->countrySupported($business->country), 403);
 
         $data = $request->validate([
@@ -70,6 +73,7 @@ class MemberMessageController extends Controller
     {
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
+        abort_unless(FeatureFlags::enabled('sms_messaging'), 403);
         abort_unless($messaging->countrySupported($business->country), 403);
 
         $data = $request->validate([

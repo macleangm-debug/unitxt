@@ -115,6 +115,9 @@ class CampaignTemplates
             if (in_array($key, $excludeKeys, true)) {
                 continue;
             }
+            if (! FeatureFlags::allowsCampaignType($template['type'])) {
+                continue;
+            }
             $groups[$template['intention']][$key] = self::localized($key);
         }
 
@@ -191,6 +194,9 @@ class CampaignTemplates
         foreach (self::BONUS_KEYS as $key) {
             $template = self::localized($key);
             if (! $template) {
+                continue;
+            }
+            if (! FeatureFlags::allowsCampaignType($template['type'])) {
                 continue;
             }
             if ($template['type'] === 'product_push' && ! $canAddProductPush) {

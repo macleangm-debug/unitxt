@@ -14,16 +14,15 @@
         @csrf
         @method('PATCH')
 
-        <div class="flex items-center gap-4 rounded-2xl bg-chalk/70 p-4">
-            @if ($business->logoUrl())
-                <img src="{{ $business->logoUrl() }}" alt="" class="h-16 w-16 rounded-2xl object-cover">
-            @else
-                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-ink font-display text-xl text-mint">{{ mb_substr($business->name, 0, 1) }}</div>
-            @endif
-            <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold">{{ __('loop.business_logo') }}</p>
-                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.shared_logo_hint') }}</p>
-                <input type="file" name="logo" accept="image/*" class="loop-input mt-2">
+        <div>
+            <p class="loop-label">{{ __('loop.business_logo') }}</p>
+            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.shared_logo_hint') }}</p>
+            <div class="mt-4">
+                <x-logo-placeholder
+                    name="logo"
+                    :preview="$business->logoUrl()"
+                    :hint="__('loop.logo_square_hint')"
+                />
             </div>
         </div>
 
@@ -32,8 +31,12 @@
             <input name="name" value="{{ old('name', $business->name) }}" class="loop-input" required>
         </div>
         <div>
-            <label class="loop-label">{{ __('loop.city') }}</label>
-            <input name="city" value="{{ old('city', $business->city) }}" class="loop-input">
+            <x-city-sheet-select
+                name="city"
+                :label="__('loop.city')"
+                :value="old('city', $business->city)"
+                :country="$business->country ?? 'TZ'"
+            />
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
             <div>

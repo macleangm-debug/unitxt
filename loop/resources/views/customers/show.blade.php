@@ -8,6 +8,9 @@
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">
                     {{ $customer->full_phone }}
+                    @if ($customer->hasBirthday())
+                        · {{ __('loop.birthday') }} {{ $customer->birth_day }}/{{ $customer->birth_month }}
+                    @endif
                     @if ($customer->gender)
                         · {{ $customer->gender === 'female' ? __('loop.gender_female') : __('loop.gender_male') }}
                     @endif
@@ -74,6 +77,10 @@
                             <p class="mt-0.5 text-xs text-ink-muted">
                                 {{ $win->raffle->prize_name }}
                                 · {{ __('loop.raffle_winner_status_'.$win->status) }}
+                                · {{ $win->claimHeadline() }}
+                                @if ($win->claim_by)
+                                    · {{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}
+                                @endif
                             </p>
                         </div>
                     </div>

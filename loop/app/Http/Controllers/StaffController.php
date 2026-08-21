@@ -33,7 +33,7 @@ class StaffController extends Controller
         return view('staff.index', [
             'business' => $business,
             'staff' => $business->frontDeskStaff()->with('assignedShops')->latest()->get(),
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::formOptions($business->country),
             'shops' => $shops,
             'staffByShop' => $staffByShop,
             'freeShopCount' => $shops->filter(fn ($shop) => empty($staffByShop[$shop->id]))->count(),

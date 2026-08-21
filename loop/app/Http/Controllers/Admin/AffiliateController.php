@@ -64,7 +64,7 @@ class AffiliateController extends Controller
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
-            'country' => ['required', 'string', 'size:2'],
+            'country' => ['required', \App\Support\Countries::enabledRule()],
             'phone' => ['required', 'string', 'max:20'],
             'city' => ['nullable', 'string', 'max:80'],
             'email' => ['nullable', 'email', 'max:120'],
@@ -82,7 +82,7 @@ class AffiliateController extends Controller
             __('loop.affiliate_created_body', ['code' => $affiliate->promo_code]),
             __('loop.done'),
             route('admin.affiliates.show', $affiliate),
-            true,
+            false,
         ));
     }
 
@@ -102,15 +102,21 @@ class AffiliateController extends Controller
         ]);
 
         $affiliates->decide($affiliate, $request->user(), $data['decision'], $data['decision_note'] ?? null);
+        $approved = $data['decision'] === 'approved';
 
         return redirect()->route('admin.affiliates.show', $affiliate)->with('confirm', Confirm::make(
-            $data['decision'] === 'approved' ? __('loop.affiliate_approved_title') : __('loop.affiliate_rejected_title'),
-            $data['decision'] === 'approved'
-                ? __('loop.affiliate_approved_body', ['code' => $affiliate->fresh()->promo_code])
-                : __('loop.affiliate_rejected_body'),
+            $approved ? __('loop.affiliate_approved_title') : __('loop.affiliate_rejected_title'),
+            $approved ? __('loop.affiliate_approved_body') : __('loop.affiliate_rejected_body'),
             __('loop.done'),
-            route('admin.affiliates.index'),
-            $data['decision'] === 'approved',
+            route('admin.affiliates.show', $affiliate),
+            false,
+            $approved ? [
+                'steps' => [
+                    __('loop.affiliate_approved_step_1'),
+                    __('loop.affiliate_approved_step_2'),
+                    __('loop.affiliate_approved_step_3'),
+                ],
+            ] : [],
         ));
     }
 

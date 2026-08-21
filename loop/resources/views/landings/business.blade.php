@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="loop-no-skeleton">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Loop — {{ __('loop.with_your_phone') }}</title>
+    @include('partials.head-boot')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
 <div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
@@ -18,7 +18,9 @@
 
 <x-site-header>
     <x-slot:actions>
+        @if (\App\Support\AffiliateProgram::isEnabled() && \App\Support\MarketingSettings::settings()['show_affiliate_cta'])
         <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
+        @endif
         <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.business') }}</a>
         <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.customer') }}</a>
     </x-slot:actions>
@@ -92,5 +94,6 @@
 <x-site-footer />
 <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
+<x-page-skeleton variant="public" />
 </body>
 </html>

@@ -1,5 +1,5 @@
-<x-app-layout>
-    <x-slot name="header">
+<x-story-page :title="$article->title()">
+    <x-slot:header>
         <div class="flex items-start gap-3">
             <x-back-icon :href="route('stories.index')" />
             <div>
@@ -10,7 +10,7 @@
                 @endif
             </div>
         </div>
-    </x-slot>
+    </x-slot:header>
 
     <article class="overflow-hidden rounded-[1.75rem] border border-white/55 bg-white/75 shadow-[0_12px_40px_rgba(17,17,20,0.05)]">
         @if ($article->imageUrl())
@@ -50,4 +50,4 @@
             </div>
         </section>
     @endif
-</x-app-layout>
+</x-story-page>

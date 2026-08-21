@@ -37,7 +37,7 @@ class ShopController extends Controller
         return view('shops.create', [
             'business' => $business,
             'cities' => Countries::cities($business->country),
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::formOptions($business->country),
             'defaultDial' => Countries::dial($business->country),
         ]);
     }
@@ -100,7 +100,7 @@ class ShopController extends Controller
             'shop' => $shop,
             'business' => $shop->business,
             'cities' => Countries::cities($shop->business->country),
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::formOptions($shop->business->country),
             'dial' => $dial,
             'localPhone' => $local,
         ]);

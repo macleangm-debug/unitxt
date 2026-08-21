@@ -18,6 +18,7 @@
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div>
                 <h1>{{ __('loop.admin_affiliates') }}</h1>
+                <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.admin_affiliates_program_kind') }}</p>
                 <p class="mt-1 text-sm text-slate-500">{{ __('loop.admin_affiliates_blurb') }}</p>
             </div>
             <a href="{{ route('admin.affiliates.create') }}" class="admin-btn">{{ __('loop.create_affiliate') }}</a>

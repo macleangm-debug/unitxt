@@ -96,7 +96,7 @@ class BusinessController extends Controller
     {
         $data = $request->validate([
             'plan_key' => ['required', 'string', 'max:40'],
-            'billing_status' => ['required', 'in:trialing,active,past_due,free,suspended'],
+            'billing_status' => ['required', 'in:trialing,active,past_due,free,paused,suspended'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 

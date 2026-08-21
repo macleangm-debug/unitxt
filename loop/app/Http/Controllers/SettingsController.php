@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -23,6 +24,9 @@ class SettingsController extends Controller
             'referralCredits' => (int) $business->referral_credit_days,
             'planKey' => $business->plan_key,
             'billingStatus' => $business->billing_status,
+            'studioEnabled' => FeatureFlags::enabled('content_studio'),
+            'rafflesEnabled' => FeatureFlags::enabled('raffles'),
+            'smsEnabled' => FeatureFlags::enabled('sms_messaging'),
         ]);
     }
 }

@@ -9,10 +9,13 @@
     $ready = method_exists($membership, 'availableRewards')
         ? $membership->availableRewards()->count()
         : 0;
+    $next = method_exists($membership, 'nextReward') ? $membership->nextReward() : null;
+    $needed = $next ? ($membership->progressTo($next)['needed'] ?? 0) : 0;
     $logoUrl = $business->logoUrl();
     $href = route('memberships.show', $business);
     $width = $carousel ? 'w-[17.5rem] shrink-0' : 'w-full';
     $morphId = 'business-'.$business->id;
+    $pausedHere = app(\App\Services\LoopAccess::class)->isPaused($business);
 @endphp
 
 <article
@@ -60,11 +63,17 @@
                 @click="$store.loopNav.go($el.href, $event, { morph: $refs.logo })"
             >
                 <p class="font-display text-[2.65rem] font-semibold leading-none tracking-tight text-lime">
-                    {{ number_format($membership->points_balance) }}
+                    <x-count-up :value="$membership->points_balance" class="font-display text-[2.65rem] font-semibold text-lime" />
                 </p>
                 <p class="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">{{ __('loop.pts') }}</p>
-                @if ($ready > 0)
+                @if ($ready > 0 && empty($pausedHere))
                     <p class="mt-2 text-xs font-semibold text-lime/90">{{ __('loop.offers_ready_count', ['count' => $ready]) }}</p>
+                @elseif ($next && $needed > 0 && empty($pausedHere))
+                    <p class="mt-2 text-xs font-semibold text-lime/90">{{ __('loop.pts_to_unlock_named', ['points' => $needed, 'offer' => $next->name]) }}</p>
+                @endif
+                @if ($pausedHere)
+                    <p class="mt-2 text-xs font-semibold text-white/80">{{ __('loop.member_paused_title') }}</p>
+                    <p class="mt-1 text-xs text-white/55">{{ __('loop.member_paused_points', ['points' => number_format($membership->points_balance)]) }}</p>
                 @endif
             </a>
 

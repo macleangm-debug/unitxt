@@ -6,12 +6,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="notifications=(), push=()">
     <title>{{ $title ?? config('app.name', 'Loop') }}</title>
+    @include('partials.head-boot')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans" x-data="loopPageMotion()">
+<x-page-skeleton variant="app" />
 @php $isCustomer = auth()->user()?->isCustomer(); @endphp
 <div @class(['min-h-screen', 'pb-nav md:pb-0' => $isCustomer])>
     @include('layouts.navigation')

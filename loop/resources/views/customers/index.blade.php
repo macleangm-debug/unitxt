@@ -63,7 +63,11 @@
                 </div>
             </a>
         @empty
-            <div class="loop-panel p-8 text-center text-sm text-ink-muted">{{ __('loop.no_customers_yet') }}</div>
+            <div class="loop-panel p-8 text-center">
+                <p class="font-display text-lg font-semibold">{{ __('loop.empty_customers_title') }}</p>
+                <p class="mt-2 text-sm text-ink-muted">{{ __('loop.empty_customers_body') }}</p>
+                <a href="{{ route('till.index') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.open_sale') }}</a>
+            </div>
         @endforelse
     </div>
 

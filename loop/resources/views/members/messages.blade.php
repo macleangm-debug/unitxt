@@ -10,7 +10,13 @@
         </div>
     </x-slot>
 
-    @if (! $countrySupported)
+    @if (! empty($platformOff))
+        <div class="rounded-[1.5rem] border border-ink/10 bg-ink px-5 py-6 text-white">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint">{{ __('loop.feature_paused') }}</p>
+            <p class="mt-2 font-display text-xl font-semibold">{{ __('loop.feature_paused_sms_title') }}</p>
+            <p class="mt-2 text-sm text-white/70">{{ __('loop.feature_paused_sms_body') }}</p>
+        </div>
+    @elseif (! $countrySupported)
         <div class="rounded-[1.5rem] border border-ink/10 bg-chalk/60 px-5 py-6">
             <p class="font-display text-xl font-semibold">{{ __('loop.sms_country_unsupported_title') }}</p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.sms_country_unsupported') }}</p>
@@ -168,22 +174,22 @@
                 </section>
             </div>
         </div>
+    @endif
 
-        @if ($broadcasts->isNotEmpty())
-            <section class="mt-10">
-                <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.recent_broadcasts') }}</h2>
-                <div class="divide-y divide-ink/10">
-                    @foreach ($broadcasts as $row)
-                        <div class="flex items-center justify-between py-3 text-sm">
-                            <div>
-                                <p class="font-semibold">{{ $row->sender_code }} · {{ $row->status }}</p>
-                                <p class="text-ink-muted">{{ \Illuminate\Support\Str::limit($row->body, 80) }}</p>
-                            </div>
-                            <p>{{ $row->recipient_count }} · {{ $row->currency }} {{ number_format($row->cost) }}</p>
+    @if ($broadcasts->isNotEmpty())
+        <section class="mt-10">
+            <h2 class="mb-3 font-display text-xl font-semibold">{{ __('loop.recent_broadcasts') }}</h2>
+            <div class="divide-y divide-ink/10">
+                @foreach ($broadcasts as $row)
+                    <div class="flex items-center justify-between py-3 text-sm">
+                        <div>
+                            <p class="font-semibold">{{ $row->sender_code }} · {{ $row->status }}</p>
+                            <p class="text-ink-muted">{{ \Illuminate\Support\Str::limit($row->body, 80) }}</p>
                         </div>
-                    @endforeach
-                </div>
-            </section>
-        @endif
+                        <p>{{ $row->recipient_count }} · {{ $row->currency }} {{ number_format($row->cost) }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </section>
     @endif
 </x-app-layout>

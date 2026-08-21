@@ -8,7 +8,7 @@
     @endphp
 
     {{-- Business wallet hero — same language as customer home --}}
-    <section class="loop-wallet relative mb-8 overflow-hidden px-5 py-7 sm:px-8 sm:py-9">
+    <section class="loop-wallet relative mb-8 overflow-hidden px-5 py-7 sm:px-8 sm:py-9" x-data>
         <div class="loop-orb loop-orb--a"></div>
         <div class="loop-orb loop-orb--b"></div>
         <div class="loop-orb loop-orb--c"></div>
@@ -44,21 +44,49 @@
                     </div>
 
                     <div class="mt-7">
-                        <div x-data="loopCountUp({{ $points }})">
-                            <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">
+                        @php
+                            $readyReward = $rewards->first(fn ($r) => ($membership->progressTo($r)['ready'] ?? false));
+                        @endphp
+                        @if (! empty($paused))
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.member_paused_title') }}</p>
+                            <p class="mt-2 font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime">
                                 {{ number_format($points) }}
                             </p>
-                        </div>
-                        <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
-                        <p class="mt-2 text-sm text-white/70">{{ __('loop.at_this_shop_balance') }}</p>
+                            <p class="mt-2 text-sm text-white/70">{{ __('loop.member_paused_points', ['points' => number_format($points)]) }}</p>
+                            @if ($readyReward)
+                                <p class="mt-3 text-sm text-white/80">{{ __('loop.member_paused_reward', ['reward' => $readyReward->name, 'name' => $business->name]) }}</p>
+                            @endif
+                            <x-want-loop-back :business="$business" :wanted-back="$wantedBack ?? false" />
+                        @elseif ($readyReward)
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.youve_got_something') }}</p>
+                            <p class="mt-2 font-display text-[clamp(1.85rem,7vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">{{ $readyReward->name }}</p>
+                            <p class="mt-4 font-display text-2xl font-semibold text-white/80">
+                                <x-count-up :value="$points" class="font-display" />
+                                <span class="text-sm font-medium uppercase tracking-[0.16em] text-white/45">{{ __('loop.pts') }}</span>
+                            </p>
+                        @else
+                            <div x-data="loopCountUp({{ $points }})">
+                                <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">
+                                    {{ number_format($points) }}
+                                </p>
+                            </div>
+                            <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
+                            <p class="mt-2 text-sm text-white/70">{{ __('loop.at_this_shop_balance') }}</p>
+                        @endif
                     </div>
                 </div>
 
-                <x-wallet-qr :size="112" class="shrink-0" />
+                <div x-ref="qrBox" class="shrink-0">
+                    <x-wallet-qr :size="112" />
+                </div>
             </div>
 
             <div class="mt-6 flex flex-wrap gap-3">
-                <a href="#offers" class="loop-btn-lime">{{ __('loop.see_rewards') }}</a>
+                @if ($readyCount > 0)
+                    <button type="button" class="loop-btn-lime" @click="$refs.qrBox.querySelector('button')?.click()">{{ __('loop.show_at_till') }}</button>
+                @else
+                    <a href="#offers" class="loop-btn-lime">{{ __('loop.see_rewards') }}</a>
+                @endif
                 @if ($business->hotline)
                     <a
                         href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}"
@@ -82,10 +110,7 @@
                 <div class="space-y-3 border-t border-ink/5 px-5 py-4 sm:px-6">
                     @foreach ($raffleWins as $win)
                         @php
-                            $daysLeft = $win->claim_by && $win->status !== 'claimed' && $win->claim_by->isFuture()
-                                ? (int) now()->startOfDay()->diffInDays($win->claim_by->copy()->startOfDay())
-                                : null;
-                            $expired = $win->claim_by && $win->status !== 'claimed' && $win->claim_by->isPast();
+                            $expired = $win->status !== 'claimed' && $win->daysUntilClaim() !== null && $win->daysUntilClaim() < 0;
                         @endphp
                         <div class="rounded-2xl bg-white px-4 py-3.5 ring-1 ring-ink/5">
                             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -93,12 +118,10 @@
                                     <p class="font-display text-lg font-semibold">{{ $win->raffle->prize_name }}</p>
                                     <p class="mt-0.5 text-sm text-ink-muted">{{ $win->raffle->name }} · {{ __('loop.raffle_winner_status_'.$win->status) }}</p>
                                 </div>
-                                @if ($daysLeft !== null)
-                                    <span class="rounded-xl bg-ink px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-lime">
-                                        {{ trans_choice('loop.days_left', $daysLeft, ['count' => $daysLeft]) }}
+                                @if ($win->status !== 'claimed')
+                                    <span class="rounded-xl px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] {{ $expired ? 'bg-coral/15 text-coral' : 'bg-ink text-lime' }}">
+                                        {{ $win->claimHeadline() }}
                                     </span>
-                                @elseif ($expired)
-                                    <span class="rounded-xl bg-coral/15 px-3 py-1.5 text-xs font-semibold text-coral">{{ __('loop.claim_expired') }}</span>
                                 @endif
                             </div>
                             @if ($win->claim_by && $win->status !== 'claimed')

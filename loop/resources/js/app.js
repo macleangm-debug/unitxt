@@ -31,11 +31,138 @@ window.Alpine = Alpine;
         });
     };
 
+    const numericKind = (el) => {
+        if (! (el instanceof HTMLInputElement) || el.disabled || el.readOnly || el.type === 'hidden') {
+            return null;
+        }
+        if (el.dataset.numeric === 'off') {
+            return null;
+        }
+        const name = (el.name || '').toLowerCase();
+        const mode = (el.getAttribute('inputmode') || '').toLowerCase();
+        if (name === 'pin' || name === 'pin_confirmation') {
+            return 'digits';
+        }
+        if (name === 'phone' || name === 'payout_phone' || mode === 'tel') {
+            return 'phone';
+        }
+        if (mode === 'decimal' || (el.step && String(el.step).includes('.'))) {
+            return 'decimal';
+        }
+        if (el.type === 'number') {
+            return 'digits';
+        }
+        if (mode === 'numeric' || el.dataset.numeric) {
+            return el.dataset.numeric === 'decimal' ? 'decimal' : 'amount';
+        }
+
+        return null;
+    };
+
+    const allowedRe = {
+        digits: /[0-9]/,
+        phone: /[0-9+]/,
+        decimal: /[0-9.]/,
+        amount: /[0-9.,]/,
+    };
+
+    const sanitizeNumeric = (value, kind) => {
+        const raw = String(value || '');
+        if (kind === 'phone') {
+            return raw.replace(/[^\d+]/g, '');
+        }
+        if (kind === 'decimal') {
+            const next = raw.replace(/[^\d.]/g, '');
+            const parts = next.split('.');
+
+            return parts.shift() + (parts.length ? '.' + parts.join('') : '');
+        }
+        if (kind === 'amount') {
+            return raw.replace(/[^\d,]/g, '');
+        }
+
+        return raw.replace(/\D+/g, '');
+    };
+
+    const lockNumericEntry = () => {
+        document.querySelectorAll('input[name="phone"], input[name="payout_phone"]').forEach((el) => {
+            if (! el.getAttribute('inputmode')) {
+                el.setAttribute('inputmode', 'numeric');
+            }
+            if (! el.getAttribute('pattern')) {
+                el.setAttribute('pattern', '[0-9]*');
+            }
+        });
+        document.querySelectorAll('input[name="pin"], input[name="pin_confirmation"]').forEach((el) => {
+            el.setAttribute('inputmode', 'numeric');
+            el.setAttribute('pattern', '[0-9]*');
+            if (el.type === 'password') {
+                el.type = 'text';
+                el.classList.add('loop-secret');
+            }
+        });
+        document.querySelectorAll('input[type="number"]').forEach((el) => {
+            if (! el.getAttribute('inputmode')) {
+                const decimal = el.step && String(el.step).includes('.');
+                el.setAttribute('inputmode', decimal ? 'decimal' : 'numeric');
+            }
+        });
+    };
+
+    const onNumericBeforeInput = (event) => {
+        const el = event.target;
+        const kind = numericKind(el);
+        if (! kind || ! event.data) {
+            return;
+        }
+        const allowed = [...event.data].every((ch) => allowedRe[kind].test(ch));
+        if (! allowed) {
+            event.preventDefault();
+        }
+    };
+
+    const onNumericInput = (event) => {
+        const el = event.target;
+        const kind = numericKind(el);
+        if (! kind) {
+            return;
+        }
+        const next = sanitizeNumeric(el.value, kind);
+        if (next !== el.value) {
+            el.value = next;
+        }
+    };
+
+    const onNumericPaste = (event) => {
+        const el = event.target;
+        const kind = numericKind(el);
+        if (! kind) {
+            return;
+        }
+        const text = event.clipboardData?.getData('text') || '';
+        const cleaned = sanitizeNumeric(text, kind);
+        if (cleaned === text) {
+            return;
+        }
+        event.preventDefault();
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        el.value = sanitizeNumeric(el.value.slice(0, start) + cleaned + el.value.slice(end), kind);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', hardenCredentials);
+        document.addEventListener('DOMContentLoaded', () => {
+            hardenCredentials();
+            lockNumericEntry();
+        });
     } else {
         hardenCredentials();
+        lockNumericEntry();
     }
+    document.addEventListener('beforeinput', onNumericBeforeInput);
+    document.addEventListener('input', onNumericInput);
+    document.addEventListener('paste', onNumericPaste);
 })();
 
 const prefersReducedMotion = () =>
@@ -46,9 +173,39 @@ const supportsViewTransitions = () => 'startViewTransition' in document;
 const sameOriginUrl = (url) => {
     try {
         const next = new URL(url, window.location.href);
+        if (next.protocol !== 'http:' && next.protocol !== 'https:') {
+            return null;
+        }
         return next.origin === window.location.origin ? next : null;
     } catch (_) {
         return null;
+    }
+};
+
+const showLoopSkeleton = () => {
+    const root = document.documentElement;
+    root.classList.add('loop-js');
+    root.classList.remove('loop-ready');
+    document.body?.setAttribute('aria-busy', 'true');
+    try {
+        sessionStorage.setItem('loopNavPending', '1');
+    } catch (_) {
+        /* ignore */
+    }
+};
+
+const markLoopReady = () => {
+    const root = document.documentElement;
+    if (root.classList.contains('loop-ready')) {
+        return;
+    }
+    root.classList.add('loop-ready');
+    root.classList.remove('loop-nav-pending');
+    document.body?.removeAttribute('aria-busy');
+    try {
+        sessionStorage.removeItem('loopNavPending');
+    } catch (_) {
+        /* ignore */
     }
 };
 
@@ -76,8 +233,14 @@ const isHashOnlyNav = (url) => {
 Alpine.store('loopNav', {
     transitioning: false,
     morphing: false,
+    navigating: false,
     kind: 'fade',
     go(url, event, options = {}) {
+        if (this.navigating) {
+            event?.preventDefault();
+            return;
+        }
+
         if (
             event &&
             (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button === 1)
@@ -90,7 +253,13 @@ Alpine.store('loopNav', {
             return;
         }
 
+        // Public/guest pages opt out: native navigation, no skeleton flash.
+        if (document.documentElement.classList.contains('loop-no-skeleton')) {
+            return;
+        }
+
         if (prefersReducedMotion()) {
+            showLoopSkeleton();
             return;
         }
 
@@ -171,10 +340,11 @@ Alpine.store('loopNav', {
 
         this.kind = kind;
         this.morphing = usedMorph || kind === 'morph';
+        this.navigating = true;
         document.documentElement.dataset.loopNav = kind;
         sessionStorage.setItem('loopNavKind', kind);
 
-        // Navigate immediately — a veil or delayed fade hid copy on slow preview loads.
+        showLoopSkeleton();
         this.transitioning = false;
         window.location.href = next.href;
     },
@@ -523,18 +693,20 @@ Alpine.data('loopQrScanner', (cfg = {}) => ({
 }));
 
 /**
- * Count points 0 → target with ease-out (~700–900ms).
+ * Count from → target with ease-out (~700–900ms).
+ * Default from is 0 (heroes). Pass startFrom for 340 → 364 till moments.
  * Optional earnedDelta shows a floating +N after settle.
  */
-Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0) => ({
-    display: 0,
+Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0, startFrom = 0) => ({
+    display: Number(startFrom) || 0,
     earned: null,
     ripple: false,
     init() {
         const goal = Number(target) || 0;
+        const from = Number(startFrom) || 0;
         const earned = Number(earnedDelta) || 0;
 
-        if (prefersReducedMotion() || goal <= 0) {
+        if (prefersReducedMotion() || goal === from || (from === 0 && goal <= 0)) {
             this.display = goal;
             if (earned > 0) {
                 this.flashEarned(earned);
@@ -546,7 +718,7 @@ Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0) => ({
         const tick = (now) => {
             const t = Math.min(1, (now - start) / duration);
             const eased = 1 - Math.pow(1 - t, 3);
-            this.display = Math.round(goal * eased);
+            this.display = Math.round(from + (goal - from) * eased);
             if (t < 1) {
                 requestAnimationFrame(tick);
             } else {
@@ -1357,7 +1529,7 @@ Alpine.data('tillWizard', (cfg = {}) => ({
         return this.isFreeItem() && this.amountValue() >= 1;
     },
     showFeatured() {
-        return !this.isFreeItem() || this.hasExtraPurchase();
+        return true;
     },
     submitLabel() {
         const name = this.selectedOffer()?.name || '';
@@ -1467,7 +1639,7 @@ Alpine.data('tillWizard', (cfg = {}) => ({
 }));
 
 Alpine.data('billingPayConfirm', (cfg = {}) => ({
-    months: 1,
+    months: Number(cfg.months || 1),
     open: false,
     form: null,
     title: '',
@@ -1502,9 +1674,50 @@ Alpine.data('memberMessageWizard', (cfg = {}) => ({
     memberCount: cfg.memberCount || 0,
 }));
 
+Alpine.data('affiliateApplyWizard', (cfg = {}) => ({
+    step: Number(cfg.step) || 1,
+    country: cfg.country || 'TZ',
+    dials: cfg.dials || {},
+    go(n) {
+        this.step = Math.max(1, Math.min(3, Number(n) || 1));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(this.step + 1);
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        const fields = root.querySelectorAll('input, select, textarea');
+        for (const el of fields) {
+            if (el.disabled) {
+                continue;
+            }
+            if (el.type === 'hidden' && ! el.hasAttribute('required')) {
+                continue;
+            }
+            if (typeof el.reportValidity === 'function' && !el.reportValidity()) {
+                el.focus();
+                return false;
+            }
+        }
+        return true;
+    },
+}));
+
 Alpine.data('memberRegisterWizard', (cfg = {}) => ({
     step: cfg.step ?? 1,
     persistKey: 'loop.memberRegister',
+    maxStep: cfg.total ?? 3,
     init() {
         let saved = null;
         try {
@@ -1520,7 +1733,7 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
             if (saved && saved.step) {
                 this.step = saved.step;
             }
-            if (urlStep >= 1 && urlStep <= 3) {
+            if (urlStep >= 1 && urlStep <= this.maxStep) {
                 this.step = urlStep;
             }
         }
@@ -1540,10 +1753,10 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
         } catch (e) {}
     },
     totalSteps() {
-        return 3;
+        return this.maxStep;
     },
     go(n) {
-        this.step = Math.max(1, Math.min(3, parseInt(n, 10) || 1));
+        this.step = Math.max(1, Math.min(this.maxStep, parseInt(n, 10) || 1));
         this.syncUrl();
         this.persist();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1566,7 +1779,7 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
         if (!this.validateStep(this.step)) {
             return;
         }
-        this.go(Math.min(3, this.step + 1));
+        this.go(Math.min(this.maxStep, this.step + 1));
     },
     validateStep(stepNum) {
         const form = this.$refs.form;
@@ -1584,25 +1797,23 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
                 return false;
             }
         }
-        if (stepNum === 3) {
-            const pin = form.querySelector('[name="pin"]');
-            const confirm = form.querySelector('[name="pin_confirmation"]');
-            if (pin && confirm && pin.value !== confirm.value) {
-                confirm.setCustomValidity(confirm.validationMessage || 'PIN');
-                confirm.reportValidity();
-                confirm.setCustomValidity('');
-                return false;
-            }
+        const pin = root.querySelector('[name="pin"]');
+        const confirm = root.querySelector('[name="pin_confirmation"]');
+        if (pin && confirm && pin.value !== confirm.value) {
+            confirm.setCustomValidity(confirm.validationMessage || 'PIN');
+            confirm.reportValidity();
+            confirm.setCustomValidity('');
+            return false;
         }
         return true;
     },
     submitForm(event) {
-        if (this.step !== 3) {
+        if (this.step !== this.maxStep) {
             event.preventDefault();
             this.next();
             return;
         }
-        if (!this.validateStep(3)) {
+        if (!this.validateStep(this.step)) {
             event.preventDefault();
         }
         try {
@@ -1648,4 +1859,557 @@ Alpine.data('articlePreview', (cfg = {}) => ({
     },
 }));
 
+document.addEventListener('click', (event) => {
+    const anchor = event.target.closest?.('a[href]');
+    if (! anchor || event.defaultPrevented) {
+        return;
+    }
+    if (anchor.hasAttribute('download') || (anchor.target && anchor.target !== '_self')) {
+        return;
+    }
+    Alpine.store('loopNav').go(anchor.href, event, {
+        kind: anchor.dataset.loopNavKind || 'fade',
+    });
+});
+
+document.addEventListener('submit', (event) => {
+    if (event.defaultPrevented) {
+        return;
+    }
+    const form = event.target;
+    if (! (form instanceof HTMLFormElement) || (form.target && form.target !== '_self')) {
+        return;
+    }
+    if (form.hasAttribute('data-loop-no-skeleton') || form.closest('[data-loop-no-skeleton]')) {
+        return;
+    }
+    if (document.documentElement.classList.contains('loop-no-skeleton')) {
+        return;
+    }
+    showLoopSkeleton();
+});
+
+Alpine.data('phoneCountryField', (cfg = {}) => ({
+    country: cfg.country || 'TZ',
+    countries: cfg.countries || {},
+    get dial() {
+        return this.countries[this.country] || '+255';
+    },
+}));
+
+Alpine.data('logoPlaceholder', (cfg = {}) => ({
+    preview: cfg.preview || '',
+    posX: 50,
+    posY: 50,
+    zoom: 100,
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startPosX: 50,
+    startPosY: 50,
+    baked: false,
+    openPicker() {
+        this.$refs.input.value = '';
+        this.$refs.input.click();
+    },
+    pick(event) {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        this.baked = false;
+        const reader = new FileReader();
+        reader.onload = () => {
+            this.preview = String(reader.result || '');
+            this.posX = 50;
+            this.posY = 50;
+            this.zoom = 100;
+            this.$dispatch('logo-picked');
+        };
+        reader.readAsDataURL(file);
+    },
+    imgStyle() {
+        const z = Math.max(1, Number(this.zoom) / 100);
+        return `object-position: ${this.posX}% ${this.posY}%; transform: scale(${z}); transform-origin: ${this.posX}% ${this.posY}%;`;
+    },
+    onDown(event) {
+        if (!this.preview) {
+            return;
+        }
+        event.preventDefault();
+        this.dragging = true;
+        this.startX = event.clientX;
+        this.startY = event.clientY;
+        this.startPosX = this.posX;
+        this.startPosY = this.posY;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    onMove(event) {
+        if (!this.dragging) {
+            return;
+        }
+        const box = this.$refs.frame.getBoundingClientRect();
+        if (!box.width || !box.height) {
+            return;
+        }
+        this.posX = Math.min(100, Math.max(0, this.startPosX - ((event.clientX - this.startX) / box.width) * 100));
+        this.posY = Math.min(100, Math.max(0, this.startPosY - ((event.clientY - this.startY) / box.height) * 100));
+    },
+    onUp() {
+        this.dragging = false;
+    },
+    init() {
+        const form = this.$el.closest('form');
+        form?.addEventListener('submit', async (event) => {
+            if (this.baked || !this.$refs.input?.files?.[0]) {
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            await this.exportCrop();
+            this.baked = true;
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        }, true);
+    },
+    loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    },
+    async exportCrop() {
+        if (!this.preview) {
+            return;
+        }
+        const img = await this.loadImage(this.preview);
+        const size = 800;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const zoom = Math.max(1, Number(this.zoom) / 100);
+        const scale = Math.max(size / img.width, size / img.height) * zoom;
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (size - dw) * ((Number(this.posX) || 50) / 100);
+        const dy = (size - dh) * ((Number(this.posY) || 50) / 100);
+        ctx.drawImage(img, dx, dy, dw, dh);
+        const blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+        if (!blob) {
+            return;
+        }
+        const file = new File([blob], 'logo.png', { type: 'image/png' });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        this.$refs.input.files = transfer.files;
+    },
+}));
+
+Alpine.data('contentStudio', (cfg = {}) => ({
+    topic: cfg.topic || 'loop',
+    copyKey: cfg.copyKey || 'now_on_loop',
+    lang: cfg.lang || 'en',
+    copiesByTopic: cfg.copiesByTopic || {},
+    designs: cfg.designs || [],
+    design: cfg.design || 'mint_card',
+    look: 'plain',
+    photoUrl: '',
+    photoX: 50,
+    photoY: 50,
+    editOpen: false,
+    saving: false,
+    businessName: cfg.businessName || '',
+    hotline: cfg.hotline || '',
+    logoUrl: cfg.logoUrl || '',
+    emptyHints: cfg.emptyHints || {},
+    setTopic(key) {
+        this.topic = key;
+        const copies = this.topicCopies();
+        this.copyKey = copies[0]?.key || this.copyKey;
+    },
+    topicCopies() {
+        return this.copiesByTopic[this.topic] || [];
+    },
+    selectedCopy() {
+        return this.topicCopies().find((row) => row.key === this.copyKey) || this.topicCopies()[0] || null;
+    },
+    copyPosition() {
+        const copies = this.topicCopies();
+        if (!copies.length) {
+            return '';
+        }
+        const index = Math.max(0, copies.findIndex((row) => row.key === this.copyKey));
+
+        return (index + 1) + ' / ' + copies.length;
+    },
+    headline() {
+        const copy = this.selectedCopy();
+        if (!copy) {
+            return this.businessName;
+        }
+        return copy[this.lang] || copy.en || '';
+    },
+    supportLine() {
+        const copy = this.selectedCopy();
+        if (!copy) {
+            return '';
+        }
+        return copy['support_' + this.lang] || copy.support_en || '';
+    },
+    currentDesign() {
+        return this.designs.find((row) => row.key === this.design) || this.designs[0] || {};
+    },
+    cardToneClass() {
+        if (this.look === 'photo' && this.photoUrl) {
+            return 'bg-ink text-white';
+        }
+        const map = {
+            mint_card: 'bg-gradient-to-br from-mint to-mint-deep text-ink',
+            ink_bold: 'bg-ink text-white',
+            coral_pop: 'bg-gradient-to-br from-coral to-[#ff8f75] text-ink',
+            cream_soft: 'bg-[#F7F3EA] text-ink ring-1 ring-ink/10',
+        };
+        return map[this.design] || map.mint_card;
+    },
+    onPhoto(event) {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            this.photoUrl = String(reader.result || '');
+            this.look = 'photo';
+            this.photoX = 50;
+            this.photoY = 50;
+        };
+        reader.readAsDataURL(file);
+    },
+    onPhotoDown(event) {
+        if (this.look !== 'photo' || !this.photoUrl) {
+            return;
+        }
+        event.preventDefault();
+        this._drag = {
+            x: event.clientX,
+            y: event.clientY,
+            posX: this.photoX,
+            posY: this.photoY,
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    onPhotoMove(event) {
+        if (!this._drag) {
+            return;
+        }
+        const box = event.currentTarget.getBoundingClientRect();
+        this.photoX = Math.min(100, Math.max(0, this._drag.posX - ((event.clientX - this._drag.x) / box.width) * 100));
+        this.photoY = Math.min(100, Math.max(0, this._drag.posY - ((event.clientY - this._drag.y) / box.height) * 100));
+    },
+    onPhotoUp() {
+        this._drag = null;
+    },
+    tryAnother() {
+        const copies = this.topicCopies();
+        if (copies.length > 1) {
+            const index = copies.findIndex((row) => row.key === this.copyKey);
+            this.copyKey = copies[(index + 1) % copies.length].key;
+            return;
+        }
+        const di = this.designs.findIndex((row) => row.key === this.design);
+        if (this.designs.length) {
+            this.design = this.designs[(di + 1) % this.designs.length].key;
+        }
+    },
+    async saveImage() {
+        this.saving = true;
+        try {
+            const blob = await this.renderPng();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (this.businessName || 'loop') + '-loop.png';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {}
+        this.saving = false;
+    },
+    async shareCard() {
+        const text = [this.headline(), this.supportLine(), this.businessName + ' on Loop'].filter(Boolean).join(' — ');
+        try {
+            const blob = await this.renderPng();
+            const file = new File([blob], 'loop.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: this.businessName, text, files: [file] });
+                return;
+            }
+            if (navigator.share) {
+                await navigator.share({ title: this.businessName, text });
+                return;
+            }
+        } catch (e) {}
+        try {
+            await navigator.clipboard.writeText(text);
+            alert(cfg.copiedLabel);
+        } catch (e) {}
+    },
+    loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    },
+    coverDraw(ctx, img, size, focusY, focusX = 50) {
+        const scale = Math.max(size / img.width, size / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (size - dw) * ((Number(focusX) || 50) / 100);
+        const dy = (size - dh) * ((Number(focusY) || 50) / 100);
+        ctx.drawImage(img, dx, dy, dw, dh);
+    },
+    wrapLines(ctx, text, maxWidth) {
+        const words = String(text || '').split(/\s+/);
+        const lines = [];
+        let line = '';
+        words.forEach((word) => {
+            const next = line ? line + ' ' + word : word;
+            if (ctx.measureText(next).width > maxWidth && line) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = next;
+            }
+        });
+        if (line) {
+            lines.push(line);
+        }
+        return lines;
+    },
+    async renderPng() {
+        const size = 1080;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const design = this.currentDesign();
+        const photoMode = this.look === 'photo' && this.photoUrl;
+        if (photoMode) {
+            ctx.fillStyle = '#0B1F2A';
+            ctx.fillRect(0, 0, size, size);
+            try {
+                const img = await this.loadImage(this.photoUrl);
+                ctx.save();
+                ctx.filter = 'grayscale(0.42) contrast(1.08) brightness(0.62) saturate(0.55)';
+                this.coverDraw(ctx, img, size, this.photoY, this.photoX);
+                ctx.restore();
+            } catch (e) {}
+            const overlay = ctx.createLinearGradient(0, 0, 0, size);
+            overlay.addColorStop(0, 'rgba(11,31,42,0.28)');
+            overlay.addColorStop(0.4, 'rgba(11,31,42,0.18)');
+            overlay.addColorStop(1, 'rgba(11,31,42,0.78)');
+            ctx.fillStyle = overlay;
+            ctx.fillRect(0, 0, size, size);
+        } else {
+            const grad = ctx.createLinearGradient(0, 0, size, size);
+            grad.addColorStop(0, design.from || '#2DD4A8');
+            grad.addColorStop(1, design.to || '#0F6B56');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+        }
+        const ink = photoMode ? '#FFFFFF' : (design.ink || '#0B1F2A');
+        ctx.fillStyle = ink;
+        ctx.textBaseline = 'top';
+        let x = 72;
+        let y = 72;
+        if (this.logoUrl) {
+            try {
+                const logo = await this.loadImage(this.logoUrl);
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(x, y, 88, 88, 24);
+                ctx.clip();
+                this.coverDrawLogo(ctx, logo, x, y, 88);
+                ctx.restore();
+            } catch (e) {}
+            ctx.font = '700 36px Sora, sans-serif';
+            ctx.fillText(this.businessName, x + 108, y + 24);
+        } else {
+            ctx.font = '700 40px Sora, sans-serif';
+            ctx.fillText(this.businessName, x, y + 20);
+        }
+        ctx.font = '700 28px Sora, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.globalAlpha = 0.85;
+        ctx.fillText('LOOP', size - 72, y + 32);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+        const headline = this.headline();
+        ctx.font = '700 72px Sora, sans-serif';
+        const lines = this.wrapLines(ctx, headline, size - 144);
+        let hy = 390;
+        lines.slice(0, 5).forEach((line) => {
+            ctx.fillText(line, x, hy);
+            hy += 86;
+        });
+        const support = this.supportLine();
+        if (support) {
+            ctx.globalAlpha = 0.82;
+            ctx.font = '500 32px DM Sans, sans-serif';
+            ctx.fillText(support, x, hy + 12);
+            ctx.globalAlpha = 1;
+        }
+        if (this.hotline) {
+            ctx.font = '600 32px DM Sans, sans-serif';
+            ctx.fillText(this.hotline, x, size - 110);
+        }
+        return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
+    },
+    coverDrawLogo(ctx, img, x, y, size) {
+        const scale = Math.max(size / img.width, size / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        ctx.drawImage(img, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
+    },
+}));
+
+Alpine.data('raffleControl', (cfg = {}) => ({
+    winnerId: cfg.winnerId || 0,
+    spinning: false,
+    shown: '',
+    timer: null,
+    init() {
+        if (cfg.playReveal && this.winnerId) {
+            this.theatre();
+        }
+    },
+    theatre() {
+        this.spinning = true;
+        let i = 0;
+        const max = Math.max(10, Number(cfg.eligible) || 10);
+        this.timer = setInterval(() => {
+            this.shown = String(1 + Math.floor(Math.random() * max)).padStart(3, '0');
+            i += 1;
+            if (i > 22) {
+                clearInterval(this.timer);
+                this.spinning = false;
+            }
+        }, 70);
+    },
+    signalCalling() {
+        try {
+            new BroadcastChannel('loop-raffle').postMessage({ type: 'calling' });
+        } catch (e) {}
+    },
+}));
+
+Alpine.data('raffleStage', (cfg = {}) => ({
+    boardUrl: cfg.boardUrl,
+    name: cfg.name || '',
+    prize: cfg.prize || '',
+    business: cfg.business || '',
+    eligible: cfg.eligible || 0,
+    winnersCount: cfg.winnersCount || 1,
+    drawn: 0,
+    callingLabel: cfg.callingLabel || '',
+    phase: 'idle',
+    shown: '000',
+    winnerName: '',
+    winnerTag: '',
+    seenId: 0,
+    ready: false,
+    timer: null,
+    init() {
+        this.poll();
+        setInterval(() => this.poll(), 1400);
+        try {
+            const channel = new BroadcastChannel('loop-raffle');
+            channel.addEventListener('message', (event) => {
+                if (event.data?.type === 'calling' && this.phase === 'winner') {
+                    this.phase = 'calling';
+                }
+            });
+        } catch (e) {}
+    },
+    membersLine() {
+        return (cfg.membersLabel || '').replace(String(cfg.eligible ?? ''), String(this.eligible));
+    },
+    winnerSlot() {
+        const n = Math.min(this.drawn + (this.drawn < this.winnersCount ? 1 : 0), this.winnersCount) || 1;
+        return n + ' / ' + this.winnersCount;
+    },
+    async poll() {
+        if (!this.boardUrl) {
+            return;
+        }
+        try {
+            const response = await fetch(this.boardUrl, { headers: { Accept: 'application/json' } });
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            this.name = data.name;
+            this.prize = data.prize;
+            this.business = data.business;
+            this.eligible = data.eligible;
+            this.winnersCount = data.winners_count;
+            this.drawn = data.drawn;
+            const latest = data.latest;
+            if (!this.ready) {
+                this.ready = true;
+                if (latest) {
+                    this.seenId = latest.id;
+                    this.showWinner(latest);
+                }
+                return;
+            }
+            if (latest && latest.id !== this.seenId) {
+                this.seenId = latest.id;
+                this.animateTo(latest);
+            }
+        } catch (e) {}
+    },
+    showWinner(latest) {
+        this.winnerName = latest.name;
+        this.winnerTag = latest.tag;
+        this.prize = latest.prize || this.prize;
+        this.phase = 'winner';
+    },
+    animateTo(latest) {
+        this.phase = 'spin';
+        let i = 0;
+        const max = Math.max(10, Number(this.eligible) || 10);
+        clearInterval(this.timer);
+        this.timer = setInterval(() => {
+            this.shown = String(1 + Math.floor(Math.random() * max)).padStart(3, '0');
+            i += 1;
+            const hold = i > 26;
+            if (hold) {
+                clearInterval(this.timer);
+                setTimeout(() => this.showWinner(latest), 420);
+            }
+        }, 65);
+    },
+}));
+
 Alpine.start();
+
+document.body?.setAttribute('aria-busy', 'true');
+requestAnimationFrame(() => {
+    requestAnimationFrame(markLoopReady);
+});
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        Alpine.store('loopNav').navigating = false;
+        markLoopReady();
+    }
+});
+setTimeout(markLoopReady, 700);

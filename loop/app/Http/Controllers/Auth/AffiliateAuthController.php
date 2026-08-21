@@ -12,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AffiliateAuthController extends Controller
@@ -20,7 +20,7 @@ class AffiliateAuthController extends Controller
     public function loginForm(): View
     {
         return view('auth.affiliate-login', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::authOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
             'pinLength' => AffiliateProgram::pinLength(),
         ]);
@@ -32,9 +32,7 @@ class AffiliateAuthController extends Controller
         $data = $request->validate([
             'country_code' => ['required', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
-            'method' => ['required', 'in:pin,password'],
-            'pin' => ['nullable', 'required_if:method,pin', 'digits:'.$pinLength],
-            'password' => ['nullable', 'required_if:method,password', 'string'],
+            'pin' => ['required', 'digits:'.$pinLength],
         ]);
 
         $phone = Countries::normalizePhone($data['phone']);
@@ -45,14 +43,7 @@ class AffiliateAuthController extends Controller
             ->where('is_active', true)
             ->first();
 
-        $ok = false;
-        if ($user) {
-            if ($data['method'] === 'pin') {
-                $ok = $user->pin_hash && Hash::check($data['pin'], $user->pin_hash);
-            } else {
-                $ok = $user->password && Hash::check($data['password'], $user->password);
-            }
-        }
+        $ok = $user && $user->pin_hash && Hash::check($data['pin'], $user->pin_hash);
 
         if (! $ok) {
             return back()->withInput()->with('confirm', Confirm::make(
@@ -91,7 +82,7 @@ class AffiliateAuthController extends Controller
         }
 
         return view('auth.affiliate-activate', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::authOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
             'pinLength' => AffiliateProgram::pinLength(),
             'affiliate' => $affiliate?->canActivate() ? $affiliate : null,
@@ -142,7 +133,6 @@ class AffiliateAuthController extends Controller
         $data = $request->validate([
             'country_code' => ['required', 'string', 'max:8'],
             'phone' => ['required', 'string', 'max:32'],
-            'password' => ['required', 'confirmed', Password::defaults()],
             'pin' => ['required', 'digits:'.$pinLength, 'confirmed'],
         ]);
 
@@ -153,7 +143,7 @@ class AffiliateAuthController extends Controller
             return back()->withErrors(['phone' => __('loop.affiliate_cannot_activate')]);
         }
 
-        $user = $affiliates->activate($affiliate, $data['password'], $data['pin']);
+        $user = $affiliates->activate($affiliate, Str::password(20), $data['pin']);
         Auth::login($user);
         $request->session()->regenerate();
 

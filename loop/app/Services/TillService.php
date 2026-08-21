@@ -35,12 +35,15 @@ class TillService
         $existing = $this->findCustomer($data['country_code'], $data['phone']);
 
         if ($existing) {
-            $existing->fill(array_filter([
+            $existing->mergeMemberProfile([
+                'first_name' => $data['first_name'] ?? null,
+                'last_name' => $data['last_name'] ?? null,
                 'birth_month' => $data['birth_month'] ?? null,
                 'birth_day' => $data['birth_day'] ?? null,
                 'gender' => $data['gender'] ?? null,
                 'email' => $data['email'] ?? null,
-            ], fn ($value) => $value !== null && $value !== ''));
+                'city' => $data['city'] ?? null,
+            ]);
             $existing->save();
 
             return $existing;
@@ -49,9 +52,10 @@ class TillService
         try {
             return User::create([
                 'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
+                'last_name' => $data['last_name'] ?? '',
                 'country_code' => $data['country_code'],
                 'country' => Countries::fromDial($data['country_code']),
+                'city' => $data['city'] ?? null,
                 'phone' => $data['phone'],
                 'email' => $data['email'] ?? null,
                 'birth_month' => $data['birth_month'] ?? null,
@@ -108,7 +112,7 @@ class TillService
             throw ValidationException::withMessages(['plan' => $limits->visitLimitMessage($business)]);
         }
 
-        if ($amountSpent <= 0 && ! $applyPointsAsPayment) {
+        if ($amountSpent <= 0 && ! $applyPointsAsPayment && ! $rewardId) {
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
@@ -325,7 +329,7 @@ class TillService
     {
         $reward = $this->assertOfferAvailable($business, $membership, $rewardId);
 
-        if ($amountSpent <= 0) {
+        if ($amountSpent <= 0 && $reward->needsBill()) {
             throw ValidationException::withMessages(['amount_spent' => __('loop.amount_required')]);
         }
 
@@ -505,6 +509,83 @@ class TillService
             ->where('business_id', $business->id)
             ->where('type', Campaign::TYPE_BIRTHDAY)
             ->first();
+    }
+
+    public function undoSale(User $staff, Visit $visit): Visit
+    {
+        $business = $staff->workplace();
+        if (! $business || $visit->business_id !== $business->id) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_undo_forbidden')]);
+        }
+        if (! $staff->isOwner() && (int) $visit->recorded_by !== (int) $staff->id) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_undo_forbidden')]);
+        }
+
+        $raw = Visit::withoutGlobalScope('not_undone')->find($visit->id) ?? $visit;
+        if ($raw->undone_at) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_already_undone')]);
+        }
+        if ($raw->created_at->lt(now()->subMinutes(5))) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_undo_expired')]);
+        }
+
+        return DB::transaction(function () use ($raw) {
+            $membership = Membership::query()->lockForUpdate()->find($raw->membership_id);
+            if ($membership) {
+                $redemptions = Redemption::query()->where('visit_id', $raw->id)->get();
+                foreach ($redemptions as $redemption) {
+                    if ($redemption->reward && $redemption->reward->stock !== null) {
+                        $redemption->reward->increment('stock');
+                    }
+                    $redemption->delete();
+                }
+
+                \App\Models\PointTransaction::query()->where('visit_id', $raw->id)->delete();
+
+                $membership->points_balance = max(
+                    0,
+                    (int) $membership->points_balance - (int) $raw->points_earned + (int) $raw->points_redeemed
+                );
+                $membership->lifetime_points = max(0, (int) $membership->lifetime_points - (int) $raw->points_earned);
+                $membership->save();
+            }
+
+            $raw->undone_at = now();
+            $raw->save();
+
+            return $raw;
+        });
+    }
+
+    /**
+     * @return array{reward: ?Reward, when: string|null}
+     */
+    public function unlockAfterSale(Visit $visit): array
+    {
+        $membership = Membership::query()
+            ->with(['business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost')])
+            ->find($visit->membership_id);
+
+        if (! $membership) {
+            return ['reward' => null, 'when' => null];
+        }
+
+        $ready = $membership->nearestReadyReward();
+        if ($ready) {
+            return ['reward' => $ready, 'when' => 'now'];
+        }
+
+        $balance = (int) $membership->points_balance;
+        $pending = $membership->business->rewards
+            ->filter(fn ($reward) => $reward->is_active && $reward->points_cost <= $balance)
+            ->sortBy('points_cost')
+            ->first();
+
+        if ($pending) {
+            return ['reward' => $pending, 'when' => 'tomorrow'];
+        }
+
+        return ['reward' => null, 'when' => null];
     }
 
     private function notifyIfOfferReady(Visit $visit): void

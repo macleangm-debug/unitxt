@@ -6,8 +6,8 @@ use App\Support\Countries;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -96,7 +96,12 @@ class Article extends Model
 
     public function imageUrl(): ?string
     {
-        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
+        if (blank($this->image_path)) {
+            return null;
+        }
+
+        // Always relative so Cloudflare / tunnel hosts still load the file.
+        return '/storage/'.ltrim($this->image_path, '/');
     }
 
     public function countryLabel(): string
@@ -126,6 +131,15 @@ class Article extends Model
             ->where(function (Builder $inner) use ($country) {
                 $inner->whereNull('country')->orWhere('country', $country);
             });
+    }
+
+    public static function forLanding(?User $user = null, int $limit = 3): EloquentCollection
+    {
+        return static::query()
+            ->visibleTo($user)
+            ->orderByDesc('published_at')
+            ->take($limit)
+            ->get();
     }
 
     public static function uniqueSlug(string $source, ?int $ignoreId = null): string

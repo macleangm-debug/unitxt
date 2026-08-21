@@ -10,7 +10,7 @@
             <div class="loop-orb loop-orb--b "></div>
             <div class="relative">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
-                <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.sale') }}</h1>
+                <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.whos_buying') }}</h1>
                 <p class="mt-1 text-sm text-white/60">{{ __('loop.sale_blurb_short') }}</p>
                 @if (! empty($scanPhone))
                     <p class="mt-2 text-sm font-semibold text-lime">{{ __('loop.wallet_qr_scanned') }}</p>
@@ -19,12 +19,12 @@
         </div>
     </x-slot>
 
-    @if (! empty($tillLocked))
+    @if (! empty($loopPaused))
         <div class="mb-6 max-w-xl rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-4">
-            <p class="font-display text-lg font-semibold">{{ __('loop.till_locked_title') }}</p>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_locked_body') }}</p>
+            <p class="font-display text-lg font-semibold">{{ __('loop.loop_paused_till_title') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_paused_body') }}</p>
             @if (! empty($isOwner))
-                <a href="{{ route('billing.show') }}" class="mt-4 inline-flex rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">{{ __('loop.upgrade_now') }}</a>
+                <a href="{{ route('billing.show') }}" class="mt-4 inline-flex rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">{{ __('loop.reactivate_loop') }}</a>
             @endif
         </div>
     @endif
@@ -34,7 +34,7 @@
             <p class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm">{{ __('loop.till_needs_shop') }}</p>
         </div>
     @elseif (! empty($needsBranchPick))
-        <div class="loop-panel mx-auto max-w-xl space-y-3 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
+        <div class="loop-panel mx-auto max-w-xl space-y-3 p-6">
             <div>
                 <p class="loop-label">{{ __('loop.choose_branch') }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.choose_branch_first_blurb') }}</p>
@@ -54,7 +54,7 @@
             @endforeach
         </div>
     @else
-    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
+    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6">
         @csrf
         @if ($errors->any())
             <div class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
@@ -73,19 +73,7 @@
             </div>
 
         <div>
-            <label class="loop-label">{{ __('loop.channel') }}</label>
-            <div class="mt-2 grid grid-cols-2 gap-3">
-                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
-                    <input type="radio" name="channel" value="in_store" class="sr-only" checked> {{ __('loop.in_store') }}
-                </label>
-                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
-                    <input type="radio" name="channel" value="phone_order" class="sr-only"> {{ __('loop.phone_order') }}
-                </label>
-            </div>
-        </div>
-
-        <div>
-            <label class="loop-label">{{ __('loop.customer_phone') }}</label>
+            <p class="loop-label">{{ __('loop.enter_phone_or_scan') }}</p>
             <div
                 x-data="loopQrScanner({
                     scanningLabel: @js(__('loop.scanning')),
@@ -105,6 +93,17 @@
                     :scanable="true"
                 />
                 <p class="mt-2 text-xs text-ink-muted">{{ __('loop.scan_or_type_phone') }}</p>
+                <details class="mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-ink-muted">{{ __('loop.phone_order') }} / {{ __('loop.in_store') }}</summary>
+                    <div class="mt-2 grid grid-cols-2 gap-3">
+                        <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
+                            <input type="radio" name="channel" value="in_store" class="sr-only" @checked(($channel ?? 'in_store') !== 'phone_order')> {{ __('loop.in_store') }}
+                        </label>
+                        <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
+                            <input type="radio" name="channel" value="phone_order" class="sr-only" @checked(($channel ?? 'in_store') === 'phone_order')> {{ __('loop.phone_order') }}
+                        </label>
+                    </div>
+                </details>
 
                 <template x-teleport="body">
                     <div
@@ -133,7 +132,7 @@
                 </template>
             </div>
         </div>
-        <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
+        <button class="loop-btn w-full">{{ __('loop.continue') }}</button>
     </form>
     @endif
 

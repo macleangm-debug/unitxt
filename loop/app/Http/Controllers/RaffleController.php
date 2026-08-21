@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Raffle;
 use App\Services\RaffleService;
 use App\Support\Confirm;
+use App\Support\FeatureFlags;
 use App\Support\GrowthSettings;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -21,12 +23,16 @@ class RaffleController extends Controller
         $min = GrowthSettings::raffleMinMembers();
         $planAllows = app(\App\Services\PlanLimitService::class)->rafflesEnabled($business);
 
+        $raffles = $business->raffles()->withCount(['winners as drawn_count'])->latest()->get();
+
         return view('raffles.index', [
             'business' => $business,
-            'raffles' => $business->raffles()->withCount('winners')->latest()->get(),
+            'raffles' => $raffles,
             'unlocked' => $planAllows && $memberCount >= $min,
             'planLocked' => ! $planAllows,
+            'platformOff' => ! FeatureFlags::enabled('raffles'),
             'memberCount' => $memberCount,
+            'eligibleCount' => $memberCount,
             'minMembers' => $min,
             'reminders' => $business->raffles()
                 ->where('status', 'scheduled')
@@ -42,7 +48,11 @@ class RaffleController extends Controller
         abort_unless($business && $request->user()->isOwner(), 403);
 
         $memberCount = $business->uniqueMemberCount();
+        abort_unless(FeatureFlags::enabled('raffles'), 403);
         abort_unless(app(\App\Services\PlanLimitService::class)->rafflesEnabled($business), 403);
+        if (app(\App\Services\LoopAccess::class)->isPaused($business)) {
+            return redirect()->route('billing.show')->with('status', __('loop.loop_paused_safe'));
+        }
         if ($memberCount < GrowthSettings::raffleMinMembers()) {
             return redirect()->route('raffles.index')
                 ->withErrors(['raffle' => __('loop.raffle_locked_body', [
@@ -68,7 +78,9 @@ class RaffleController extends Controller
         abort_unless($business && $request->user()->isOwner(), 403);
 
         $memberCount = $business->uniqueMemberCount();
+        abort_unless(FeatureFlags::enabled('raffles'), 403);
         abort_unless(app(\App\Services\PlanLimitService::class)->rafflesEnabled($business), 403);
+        abort_unless(! app(\App\Services\LoopAccess::class)->isPaused($business), 403);
         abort_unless($memberCount >= GrowthSettings::raffleMinMembers(), 403);
 
         $maxWinners = GrowthSettings::maxWinnersForMembers($memberCount);
@@ -112,7 +124,7 @@ class RaffleController extends Controller
 
         return view('raffles.show', [
             'business' => $raffle->business,
-            'raffle' => $raffle->load(['winners.customer']),
+            'raffle' => $raffle->load(['winners.customer', 'winners.membership']),
             'eligibleCount' => app(RaffleService::class)->eligibleCustomers($raffle->business)->count(),
         ]);
     }
@@ -121,17 +133,26 @@ class RaffleController extends Controller
     {
         $this->authorizeRaffle($request, $raffle);
 
+        $raffle->load(['winners.customer', 'winners.membership', 'business']);
+
         return view('raffles.live', [
             'business' => $raffle->business,
-            'raffle' => $raffle->load(['winners.customer']),
+            'raffle' => $raffle,
             'remaining' => $raffle->remainingWinnerSlots(),
+            'eligibleCount' => app(RaffleService::class)->eligibleCustomers($raffle->business)->count(),
+            'drawnWinnerId' => (int) $request->session()->get('drawn_winner_id', 0),
         ]);
     }
 
     public function draw(Request $request, Raffle $raffle, RaffleService $raffles): RedirectResponse
     {
         $this->authorizeRaffle($request, $raffle);
+        abort_unless(FeatureFlags::enabled('raffles'), 403);
+        abort_unless(! app(\App\Services\LoopAccess::class)->isPaused($raffle->business), 403);
         $winner = $raffles->drawNext($raffle, $request->user());
+        app(\App\Services\DailyNotificationService::class)->notifyRaffleWinner(
+            $winner->load(['customer', 'raffle.business', 'membership'])
+        );
 
         return redirect()->route('raffles.live', $raffle)->with([
             'drawn_winner_id' => $winner->id,
@@ -169,6 +190,9 @@ class RaffleController extends Controller
         $this->authorizeRaffle($request, $raffle);
         abort_unless($winner->raffle_id === $raffle->id, 404);
         $raffles->markClaimed($winner);
+        app(\App\Services\DailyNotificationService::class)->notifyRaffleClaimed(
+            $winner->load(['customer', 'raffle.business', 'membership'])
+        );
 
         return back()->with('confirm', Confirm::make(
             __('loop.raffle_claimed_title'),
@@ -177,6 +201,40 @@ class RaffleController extends Controller
             route('raffles.show', $raffle),
             false,
         ));
+    }
+
+    public function display(Request $request, Raffle $raffle): View
+    {
+        $this->authorizeRaffle($request, $raffle);
+        $raffle->load(['business']);
+
+        return view('raffles.display', [
+            'business' => $raffle->business,
+            'raffle' => $raffle,
+            'eligibleCount' => $raffle->business->uniqueMemberCount(),
+            'boardUrl' => route('raffles.board', $raffle),
+        ]);
+    }
+
+    public function board(Request $request, Raffle $raffle, RaffleService $raffles): JsonResponse
+    {
+        $this->authorizeRaffle($request, $raffle);
+        $raffle->load(['winners.customer', 'winners.membership', 'business']);
+        $latest = $raffle->winners->sortByDesc('draw_order')->first();
+
+        return response()->json([
+            'name' => $raffle->name,
+            'prize' => $raffle->prize_name,
+            'business' => $raffle->business->name,
+            'eligible' => $raffles->eligibleCustomers($raffle->business)->count(),
+            'winners_count' => (int) $raffle->winners_count,
+            'drawn' => $raffle->winners->count(),
+            'remaining' => $raffle->remainingWinnerSlots(),
+            'status' => $raffle->status,
+            'latest' => $latest ? array_merge($latest->publicBoard(), [
+                'prize' => $raffle->prize_name,
+            ]) : null,
+        ]);
     }
 
     private function authorizeRaffle(Request $request, Raffle $raffle): void

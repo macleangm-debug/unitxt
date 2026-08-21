@@ -6,14 +6,19 @@
     'required' => false,
     'countryField' => 'country',
     'country' => null,
+    'allowEmpty' => false,
+    'emptyLabel' => null,
+    'autosubmit' => false,
 ])
 
 @php
     $fieldId = 'city-'.\Illuminate\Support\Str::slug($name);
+    $emptyLabel = $emptyLabel ?? __('loop.all_cities');
     $citiesByCountry = collect(\App\Support\Countries::OPTIONS)
         ->mapWithKeys(fn ($meta, $code) => [$code => $meta['cities'] ?? []])
         ->all();
     $fixedCountry = $country;
+    $staticCities = array_values(array_filter($cities, fn ($city) => is_string($city) && $city !== ''));
 @endphp
 
 <div
@@ -22,16 +27,27 @@
         value: @js(old($name, $value)),
         country: @js($fixedCountry ?: session('preferred_country', 'TZ')),
         citiesByCountry: @js($citiesByCountry),
+        staticCities: @js($staticCities),
         fixedCountry: @js($fixedCountry),
+        allowEmpty: @js((bool) $allowEmpty),
+        emptyLabel: @js($emptyLabel),
+        autosubmit: @js((bool) $autosubmit),
         q: '',
         get cities() {
-            if (this.fixedCountry) return this.citiesByCountry[this.fixedCountry] || [];
-            return this.citiesByCountry[this.country] || [];
+            const list = this.staticCities.length
+                ? this.staticCities
+                : (this.fixedCountry
+                    ? (this.citiesByCountry[this.fixedCountry] || [])
+                    : (this.citiesByCountry[this.country] || []));
+            return this.allowEmpty ? ['', ...list] : list;
         },
         get filtered() {
             const q = this.q.trim().toLowerCase();
             if (!q) return this.cities;
-            return this.cities.filter(c => c.toLowerCase().includes(q));
+            return this.cities.filter((c) => this.labelFor(c).toLowerCase().includes(q));
+        },
+        labelFor(city) {
+            return city === '' ? this.emptyLabel : city;
         },
         syncCountry() {
             if (this.fixedCountry) {
@@ -46,60 +62,49 @@
             this.open = false;
             this.q = '';
             this.$dispatch('city-picked', { city });
+            this.$dispatch('sheet-selected', { name: '{{ $name }}', value: city });
+            if (this.autosubmit) {
+                this.$nextTick(() => this.$root.closest('form')?.requestSubmit());
+            }
         }
     }"
     x-init="
         syncCountry();
         const form = $el.closest('form');
+        form?.addEventListener('sheet-selected', (e) => {
+            if (e.detail?.name !== '{{ $countryField }}') return;
+            country = e.detail.value || '';
+            if (!cities.includes(value)) value = allowEmpty ? '' : '';
+        });
         form?.querySelector('[name={{ $countryField }}]')?.addEventListener('change', () => {
             syncCountry();
             if (!cities.includes(value)) value = '';
         });
     "
+    x-effect="if (open) { syncCountry(); $nextTick(() => $refs.search?.focus()) }"
     class="relative"
+    @keydown.escape.window="open = false"
 >
     @if ($label)
         <label class="loop-label" for="{{ $fieldId }}">{{ $label }}</label>
     @endif
     <input type="hidden" name="{{ $name }}" :value="value" @if($required) required @endif>
     <button type="button" id="{{ $fieldId }}" @click="syncCountry(); open = true" class="loop-input flex w-full items-center justify-between text-left">
-        <span x-text="value || '{{ __('loop.pick_city') }}'" :class="value ? 'text-ink' : 'text-ink-muted'"></span>
-        <span class="text-mint-deep">▾</span>
+        <span x-text="value ? value : (allowEmpty ? emptyLabel : '{{ __('loop.pick_city') }}')" :class="value ? 'text-ink' : 'text-ink-muted'"></span>
+        <span class="ml-2 shrink-0 text-violet">▾</span>
     </button>
 
-    {{-- Desktop popover --}}
-    <div
-        x-show="open"
-        x-cloak
-        @keydown.escape.window="open=false"
-        class="absolute z-30 mt-2 hidden max-h-72 w-full flex-col overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-[0_24px_60px_rgba(11,31,42,0.16)] sm:flex"
-    >
-        <div class="border-b border-ink/5 p-3">
-            <input type="search" x-model="q" placeholder="{{ __('loop.search_city') }}" class="loop-input !py-2 text-sm" @click.stop>
-        </div>
-        <div class="overflow-y-auto p-2">
-            <template x-for="city in filtered" :key="city">
-                <button type="button" class="flex w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium hover:bg-mint-soft" :class="city === value ? 'bg-mint/20 font-semibold' : ''" @click="pick(city)" x-text="city"></button>
-            </template>
-            <p x-show="filtered.length === 0" class="px-3 py-4 text-sm text-ink-muted">{{ __('loop.no_cities') }}</p>
-        </div>
-    </div>
-
-    {{-- Mobile bottom sheet --}}
-    <div x-show="open" x-cloak class="fixed inset-0 z-40 sm:hidden" @keydown.escape.window="open=false">
-        <div class="absolute inset-0 bg-ink/40" @click="open=false"></div>
-        <div class="absolute inset-x-0 bottom-0 max-h-[75vh] overflow-hidden rounded-t-3xl bg-white shadow-2xl" @click.stop>
-            <div class="mx-auto mt-3 h-1 w-10 rounded-full bg-ink/15"></div>
-            <div class="border-b border-ink/5 p-4">
-                <p class="font-display text-base font-semibold">{{ $label ?? __('loop.city') }}</p>
-                <input type="search" x-model="q" placeholder="{{ __('loop.search_city') }}" class="loop-input mt-3 !py-2 text-sm">
-            </div>
-            <div class="max-h-[50vh] overflow-y-auto p-2 pb-8">
-                <template x-for="city in filtered" :key="city">
-                    <button type="button" class="flex w-full rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-mint-soft" :class="city === value ? 'bg-mint/20 font-semibold' : ''" @click="pick(city)" x-text="city"></button>
-                </template>
-                <p x-show="filtered.length === 0" class="px-3 py-4 text-sm text-ink-muted">{{ __('loop.no_cities') }}</p>
-            </div>
-        </div>
-    </div>
+    <x-picker-layer :title="$label ?? __('loop.city')" :search-placeholder="__('loop.search_city')">
+        <template x-for="city in filtered" :key="'city-'+(city || 'all')">
+            <button
+                type="button"
+                class="loop-picker-option"
+                :class="{ 'is-selected': city === value }"
+                @click="pick(city)"
+            >
+                <span x-text="labelFor(city)"></span>
+            </button>
+        </template>
+        <p x-show="filtered.length === 0" class="px-4 py-6 text-sm text-ink-muted">{{ __('loop.no_cities') }}</p>
+    </x-picker-layer>
 </div>

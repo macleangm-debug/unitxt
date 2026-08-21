@@ -52,7 +52,7 @@ class AdminReportService
             // Loop subscriptions (package state — not yet Mobile Money cash)
             'trialing' => Business::query()->where('billing_status', 'trialing')->count(),
             'past_due' => Business::query()->where('billing_status', 'past_due')->count(),
-            'suspended' => Business::query()->where('billing_status', 'suspended')->count(),
+            'suspended' => Business::query()->whereIn('billing_status', ['paused', 'suspended'])->count(),
             'free_lane' => Business::query()->where('billing_status', 'free')->count(),
             'paid_active' => Business::query()
                 ->where('billing_status', 'active')

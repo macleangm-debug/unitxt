@@ -218,11 +218,20 @@ class AffiliateService
             return null;
         }
 
+        $settings = AffiliateProgram::settings();
+        if (! empty($settings['block_self_referral'])) {
+            $owner = $business->owner;
+            if ($owner
+                && $owner->country_code === $affiliate->country_code
+                && $owner->phone === $affiliate->phone) {
+                return null;
+            }
+        }
+
         if ($business->referred_by_affiliate_id || $business->referred_by_business_id) {
             return null;
         }
 
-        $settings = AffiliateProgram::settings();
         $planAmount = (int) (Plan::locate($business->plan_key, $business->country)?->price_monthly ?? 0);
         $math = AffiliateProgram::commissionOn($planAmount);
 

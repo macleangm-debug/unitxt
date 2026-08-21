@@ -55,7 +55,7 @@
             <div>
                 <label class="loop-label">{{ __('loop.billing_status') }}</label>
                 <select name="billing_status" class="loop-input">
-                    @foreach (['trialing', 'active', 'free', 'past_due', 'suspended'] as $status)
+                    @foreach (['trialing', 'active', 'free', 'past_due', 'paused', 'suspended'] as $status)
                         <option value="{{ $status }}" @selected($business->billing_status === $status)>{{ $status }}</option>
                     @endforeach
                 </select>

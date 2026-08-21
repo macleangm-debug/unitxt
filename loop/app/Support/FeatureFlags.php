@@ -79,4 +79,19 @@ class FeatureFlags
 
         return (bool) ($settings[$key] ?? false);
     }
+
+    /**
+     * Whether owners may create a campaign of this type. Existing campaigns
+     * keep running when the flag is off.
+     */
+    public static function allowsCampaignType(string $type): bool
+    {
+        return match ($type) {
+            'birthday' => self::enabled('birthday_campaigns'),
+            'welcome' => self::enabled('welcome_campaigns'),
+            'streak' => self::enabled('streak_campaigns'),
+            'product_push' => self::enabled('featured_product'),
+            default => true,
+        };
+    }
 }

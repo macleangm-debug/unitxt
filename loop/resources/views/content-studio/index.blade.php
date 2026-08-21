@@ -1,92 +1,91 @@
+@php
+    $cardLogo = $business->logoUrl();
+@endphp
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex items-start gap-3">
+        <div class="hidden lg:flex items-start gap-3">
             <x-back-icon :href="route('settings')" />
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
-                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.content_studio') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.content_studio_blurb') }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.content_studio') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.studio_make_something') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.studio_make_something_blurb') }}</p>
             </div>
         </div>
     </x-slot>
 
-    <div x-data="{
-        design: 'mint_card',
-        copyKey: @js($copies[0]['key'] ?? 'now_on_loop'),
-        lang: @js($locale === 'sw' ? 'sw' : 'en'),
-        copies: @js(collect($copies)->keyBy('key')),
-        text() { return this.copies[this.copyKey]?.[this.lang] || ''; }
-    }" class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-        <div class="space-y-5">
-            <section>
-                <p class="loop-label">{{ __('loop.studio_language') }}</p>
-                <div class="mt-2 flex gap-2">
-                    <button type="button" class="rounded-full px-3 py-1.5 text-xs font-semibold" :class="lang==='en' ? 'bg-ink text-white' : 'bg-white ring-1 ring-ink/10'" @click="lang='en'">EN</button>
-                    <button type="button" class="rounded-full px-3 py-1.5 text-xs font-semibold" :class="lang==='sw' ? 'bg-ink text-white' : 'bg-white ring-1 ring-ink/10'" @click="lang='sw'">SW</button>
-                </div>
-            </section>
+    @if (app(\App\Services\LoopAccess::class)->isPaused($business))
+        <div class="mb-5 rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-4">
+            <p class="font-semibold">{{ __('loop.loop_paused_studio') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.loop_paused_safe') }}</p>
+            <a href="{{ route('billing.show') }}" class="mt-3 inline-flex text-sm font-semibold text-violet">{{ __('loop.reactivate_loop') }} →</a>
+        </div>
+    @endif
 
-            <section>
-                <p class="loop-label">{{ __('loop.studio_copy') }}</p>
-                <div class="mt-2 space-y-2">
-                    @foreach ($copies as $copy)
-                        <label class="flex cursor-pointer gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
-                            <input type="radio" class="mt-1" name="copy" value="{{ $copy['key'] }}" x-model="copyKey">
-                            <span class="text-sm">{{ $locale === 'sw' ? $copy['sw'] : $copy['en'] }}</span>
-                        </label>
-                    @endforeach
-                </div>
-            </section>
+    <div
+        class="loop-studio"
+        x-data="contentStudio({
+            topic: @js($initialTopic),
+            copyKey: @js($initialCopyKey),
+            lang: @js($locale === 'sw' ? 'sw' : 'en'),
+            copiesByTopic: @js($copiesByTopic),
+            designs: @js($designs),
+            design: 'mint_card',
+            look: 'plain',
+            businessName: @js($business->name),
+            hotline: @js($business->hotline),
+            logoUrl: @js($cardLogo),
+            emptyHints: @js($emptyHints),
+            saveLabel: @js(__('loop.save_image')),
+            shareLabel: @js(__('loop.share_creative')),
+            copiedLabel: @js(__('loop.copied')),
+        })"
+    >
+        <input type="file" accept="image/*" class="hidden" x-ref="photoInput" @change="onPhoto($event)">
 
-            <section>
-                <p class="loop-label">{{ __('loop.studio_design') }}</p>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                    @foreach ($designs as $d)
-                        <button type="button" class="rounded-2xl border px-3 py-3 text-left text-sm font-semibold"
-                                :class="design==='{{ $d['key'] }}' ? 'border-mint bg-mint-soft/40' : 'border-ink/10 bg-white'"
-                                @click="design='{{ $d['key'] }}'">{{ $d['name'] }}</button>
-                    @endforeach
+        {{-- Mobile: poster first, choices live in the sheet --}}
+        <div class="lg:hidden">
+            <div class="mb-3 flex items-center gap-3">
+                <x-back-icon :href="route('settings')" class="!h-9 !w-9" />
+                <div class="min-w-0">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.content_studio') }}</p>
+                    <h1 class="truncate font-display text-lg font-semibold leading-tight">{{ __('loop.studio_make_something') }}</h1>
                 </div>
-            </section>
-
-            <div class="flex flex-wrap gap-3">
-                <button type="button" class="loop-btn-mint" @click="
-                    const node = document.getElementById('studio-card');
-                    if (!node) return;
-                    // Simple download via SVG foreignObject fallback: open print dialog
-                    window.print();
-                ">{{ __('loop.download_creative') }}</button>
-                <button type="button" class="loop-btn-ghost" @click="
-                    const text = text() + ' — ' + @js($business->name) + ' on Loop';
-                    if (navigator.share) { navigator.share({ title: @js($business->name), text }); }
-                    else { navigator.clipboard.writeText(text); alert(@js(__('loop.copied'))); }
-                ">{{ __('loop.share_creative') }}</button>
+            </div>
+            <div class="mx-auto max-w-[20.5rem]">
+                @include('content-studio.partials.card')
             </div>
         </div>
 
-        <div class="flex items-start justify-center">
-            <div id="studio-card" class="relative w-full max-w-md overflow-hidden rounded-[2rem] p-8 shadow-[0_30px_80px_rgba(11,31,42,0.18)]"
-                 :class="{
-                    'bg-gradient-to-br from-mint to-mint-deep text-ink': design==='mint_card',
-                    'bg-ink text-white': design==='ink_bold',
-                    'bg-gradient-to-br from-coral to-[#ff8f75] text-ink': design==='coral_pop',
-                    'bg-[#F7F3EA] text-ink ring-1 ring-ink/10': design==='cream_soft'
-                 }">
-                <div class="flex items-center gap-3">
-                    @if ($business->logoUrl())
-                        <img src="{{ $business->logoUrl() }}" alt="" class="h-14 w-14 rounded-2xl object-cover">
-                    @else
-                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 font-display text-xl font-semibold">{{ mb_substr($business->name,0,1) }}</div>
-                    @endif
-                    <div>
-                        <p class="font-display text-xl font-semibold">{{ $business->name }}</p>
-                        <p class="text-xs opacity-70">Loop</p>
-                    </div>
+        {{-- Desktop split --}}
+        <div class="hidden lg:grid lg:grid-cols-[0.92fr_1.08fr] lg:gap-10 lg:items-start">
+            <div class="space-y-6">
+                @include('content-studio.partials.controls')
+            </div>
+            <div class="sticky top-6">
+                @include('content-studio.partials.card')
+                <div class="mt-5 flex gap-3">
+                    <button type="button" class="loop-btn-mint flex-1" @click="shareCard()">{{ __('loop.share_creative') }}</button>
+                    <button type="button" class="loop-btn-ghost flex-1" @click="saveImage()" :disabled="saving">
+                        <span x-show="!saving">{{ __('loop.save_image') }}</span>
+                        <span x-show="saving" x-cloak>{{ __('loop.saving') }}</span>
+                    </button>
                 </div>
-                <p class="mt-10 font-display text-3xl font-semibold leading-tight" x-text="text()"></p>
-                @if ($business->hotline)
-                    <p class="mt-8 text-sm font-semibold opacity-80">{{ $business->hotline }}</p>
-                @endif
+            </div>
+        </div>
+
+        {{-- Mobile dock --}}
+        <div class="lg:hidden sticky bottom-0 z-20 -mx-4 mt-4 border-t border-ink/10 bg-chalk/95 px-4 py-3 backdrop-blur" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" class="loop-btn-ghost" @click="editOpen = true">{{ __('loop.studio_edit') }}</button>
+                <button type="button" class="loop-btn-mint" @click="shareCard()">{{ __('loop.share_creative') }}</button>
+            </div>
+        </div>
+
+        {{-- Mobile edit sheet: compact pickers, poster stays in view --}}
+        <div x-show="editOpen" x-cloak class="fixed inset-0 z-40 lg:hidden" @keydown.escape.window="editOpen = false">
+            <div class="absolute inset-0 bg-ink/35" @click="editOpen = false"></div>
+            <div class="loop-studio-sheet absolute inset-x-0 bottom-0 rounded-t-[1.75rem] bg-white p-4 shadow-[0_-18px_50px_rgba(11,31,42,0.18)]" @click.stop>
+                @include('content-studio.partials.sheet')
             </div>
         </div>
     </div>

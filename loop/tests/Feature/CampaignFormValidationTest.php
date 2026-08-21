@@ -319,7 +319,7 @@ class CampaignFormValidationTest extends TestCase
         $this->assertSame(2, $campaign->fresh()->points_per_step);
     }
 
-    public function test_onboarding_campaign_requires_spend_and_points(): void
+    public function test_onboarding_campaign_requires_typical_spend(): void
     {
         $owner = User::factory()->owner()->create(['phone' => '712888101']);
         $business = Business::create([
@@ -330,7 +330,7 @@ class CampaignFormValidationTest extends TestCase
             'country' => 'TZ',
             'currency' => 'TZS',
             'city' => 'Dar es Salaam',
-            'logo_path' => 'business-logos/demo.png',
+            'logo_path' => 'business-logos/onboard.png',
             'onboarding_completed_at' => null,
         ]);
         $owner->update(['business_id' => $business->id]);
@@ -346,9 +346,21 @@ class CampaignFormValidationTest extends TestCase
                 'template' => 'everyday_earn',
                 'name' => 'Onboard Cafe Points',
             ])
-            ->assertSessionHasErrors(['spend_step', 'points_per_step']);
+            ->assertSessionHasErrors(['typical_spend']);
 
         $this->assertDatabaseCount('campaigns', 0);
+
+        $this->actingAs($owner)
+            ->post(route('onboarding.campaign'), [
+                'typical_spend' => 10000,
+            ])
+            ->assertRedirect(route('onboarding.show', ['step' => 3]));
+
+        $this->assertDatabaseHas('campaigns', [
+            'business_id' => $business->id,
+            'spend_step' => 10000,
+            'points_per_step' => 1,
+        ]);
     }
 
     /**

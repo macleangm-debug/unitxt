@@ -26,7 +26,24 @@ class AdminConsoleTest extends TestCase
             ->assertSee('admin-sidebar', false)
             ->assertSee('admin-console', false)
             ->assertSee(__('loop.admin_console'), false)
-            ->assertDontSee('loop-admin-tabs', false);
+            ->assertDontSee('loop-admin-tabs', false)
+            ->assertSee('admin-bell', false)
+            ->assertDontSee('admin-alert', false)
+            ->assertSee('>EN</a>', false)
+            ->assertSee('>SW</a>', false);
+
+        $this->actingAs($admin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('admin.settings', ['tab' => 'language']))
+            ->assertOk()
+            ->assertSee(__('loop.settings_tab_language'), false)
+            ->assertSee(__('loop.console_language'), false)
+            ->assertSee(__('loop.lang_swahili'), false);
+
+        $this->actingAs($admin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('locale', ['locale' => 'sw', 'return' => '/admin']))
+            ->assertRedirect('/admin');
     }
 
     public function test_members_table_paginates_with_a_chosen_page_size(): void

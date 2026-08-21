@@ -42,22 +42,22 @@
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div class="admin-stat admin-stat--emphasis">
                 <p class="admin-stat__label">{{ __('loop.estimated_mrr') }}</p>
-                <p class="admin-stat__value">TZS {{ number_format($estimated_mrr) }}</p>
+                <p class="admin-stat__value">TZS <x-count-up :value="$estimated_mrr" /></p>
                 <p class="admin-stat__hint">{{ __('loop.estimated_mrr_blurb') }}</p>
             </div>
             <div class="admin-stat">
                 <p class="admin-stat__label">{{ __('loop.till_gmv_month') }}</p>
-                <p class="admin-stat__value">TZS {{ number_format($revenue_month) }}</p>
+                <p class="admin-stat__value">TZS <x-count-up :value="$revenue_month" /></p>
                 <p class="admin-stat__hint">{{ $sales_month }} {{ __('loop.till_sales') }} · {{ __('loop.avg_ticket') }} TZS {{ number_format($avg_ticket_month) }}</p>
             </div>
             <div class="admin-stat">
                 <p class="admin-stat__label">{{ __('loop.paid_subscribers') }}</p>
-                <p class="admin-stat__value">{{ $paid_active }}</p>
+                <p class="admin-stat__value"><x-count-up :value="$paid_active" /></p>
                 <p class="admin-stat__hint">{{ $trialing }} {{ __('loop.trialing') }} · {{ $trial_conversion_pct }}% {{ __('loop.trial_conversion') }}</p>
             </div>
             <div class="admin-stat">
                 <p class="admin-stat__label">{{ __('loop.admin_businesses') }}</p>
-                <p class="admin-stat__value">{{ $active_businesses }}</p>
+                <p class="admin-stat__value"><x-count-up :value="$active_businesses" /></p>
                 <p class="admin-stat__hint">+{{ $businesses_new_14d }} {{ __('loop.last_14_days') }} · {{ $unique_customers }} {{ __('loop.customers') }}</p>
             </div>
         </div>

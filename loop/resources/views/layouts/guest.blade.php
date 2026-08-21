@@ -1,18 +1,19 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="loop-no-skeleton">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Permissions-Policy" content="notifications=(), push=()">
     <title>{{ config('app.name', 'Loop') }}</title>
+    @include('partials.head-boot')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink antialiased">
-<div class="min-h-screen md:grid md:grid-cols-2">
+<x-page-skeleton variant="guest" />
+<div class="loop-guest-split min-h-screen md:grid md:grid-cols-2">
     <aside class="relative hidden overflow-hidden bg-ink md:flex md:flex-col md:justify-between md:p-10 lg:p-12">
         <div class="pointer-events-none absolute -left-10 top-20 h-64 w-64 rounded-full bg-violet/40 blur-3xl"></div>
         <div class="pointer-events-none absolute bottom-10 right-0 h-72 w-72 rounded-full bg-lime/25 blur-3xl"></div>
@@ -47,11 +48,14 @@
             <div class="ml-auto flex items-center gap-2">
                 <form method="POST" action="{{ route('preference.country') }}">
                     @csrf
-                    <select name="country" onchange="this.form.submit()" class="rounded-xl border border-ink/10 bg-white px-2.5 py-1.5 text-xs font-semibold">
-                        @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
-                            <option value="{{ $code }}" @selected(session('preferred_country', 'TZ') === $code)>{{ $meta['flag'] }} {{ $code }}</option>
-                        @endforeach
-                    </select>
+                    <x-sheet-select
+                        name="country"
+                        :options="collect(\App\Support\Countries::enabledOptions())->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$code)])->all()"
+                        :value="session('preferred_country', 'TZ')"
+                        :autosubmit="true"
+                        :placeholder="__('loop.country')"
+                        trigger-class="rounded-xl border border-ink/10 bg-white px-2.5 py-1.5 text-xs font-semibold flex items-center justify-between gap-1"
+                    />
                 </form>
                 <div class="flex rounded-xl border border-ink/10 bg-white p-0.5 text-xs font-semibold">
                     <a href="{{ route('locale', 'en') }}" class="rounded-lg px-2 py-1 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}">EN</a>
@@ -60,7 +64,7 @@
             </div>
         </div>
         <div class="relative flex flex-1 items-center px-4 pb-10 sm:px-8">
-            <div class="mx-auto w-full max-w-md loop-panel overflow-visible px-6 py-7">{{ $slot }}</div>
+            <div class="loop-guest-card mx-auto w-full max-w-md loop-panel overflow-visible px-6 py-7">{{ $slot }}</div>
         </div>
     </div>
 </div>

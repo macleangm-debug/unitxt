@@ -12,6 +12,7 @@ use App\Services\Messaging\SmsClient;
 use App\Support\Countries;
 use App\Support\FeatureFlags;
 use App\Support\IntegrationSettings;
+use App\Support\NotificationPolicy;
 use Illuminate\Support\Collection;
 
 class MessagingService
@@ -154,6 +155,24 @@ class MessagingService
 
     public function deliver(MessageBroadcast $broadcast, array $phones): MessageBroadcast
     {
+        if (! NotificationPolicy::smsEnabled(NotificationPolicy::AUDIENCE_CUSTOMER)) {
+            $broadcast->update([
+                'status' => MessageBroadcast::STATUS_FAILED,
+                'recipient_count' => 0,
+            ]);
+
+            return $broadcast->fresh();
+        }
+
+        if (NotificationPolicy::inQuietHours()) {
+            $broadcast->update([
+                'status' => MessageBroadcast::STATUS_QUEUED,
+                'recipient_count' => count($phones),
+            ]);
+
+            return $broadcast->fresh();
+        }
+
         $result = $this->sms->send((string) $broadcast->sender_code, $phones, $broadcast->body);
 
         $broadcast->update([

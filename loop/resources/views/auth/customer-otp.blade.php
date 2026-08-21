@@ -10,7 +10,7 @@
         @endif
         <div>
             <label class="loop-label">6-digit code</label>
-            <input name="code" class="loop-input text-center text-2xl tracking-[0.4em]" maxlength="6" required autofocus>
+            <input name="code" class="loop-input text-center text-2xl tracking-[0.4em]" maxlength="6" required autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
             <x-input-error :messages="$errors->get('code')" class="mt-1" />
             <x-input-error :messages="$errors->get('phone')" class="mt-1" />
         </div>

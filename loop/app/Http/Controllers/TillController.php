@@ -22,6 +22,7 @@ class TillController extends Controller
         }
 
         $tillLocked = $business ? ! $limits->canUseTill($business) : false;
+        $loopPaused = $business ? app(\App\Services\LoopAccess::class)->isPaused($business) : false;
         $isOwner = $request->user()->isOwner();
 
         $scanDial = null;
@@ -59,16 +60,18 @@ class TillController extends Controller
             'shops' => $shops,
             'activeShop' => $activeShop,
             'needsBranchPick' => $shops->count() > 1 && ! $activeShop,
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::formOptions($business?->country),
             'recent' => ($isOwner && $business)
                 ? $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get()
                 : collect(),
             'showRecent' => $isOwner,
             'tillLocked' => $tillLocked,
+            'loopPaused' => $loopPaused,
             'isOwner' => $isOwner,
             'scanDial' => $scanDial,
             'scanPhone' => $scanPhone,
             'scanQuery' => $scan !== '' ? $scan : null,
+            'channel' => $request->session()->get('till.channel', 'in_store'),
         ]);
     }
 
@@ -117,6 +120,7 @@ class TillController extends Controller
         $shop = $business->shops()->whereKey($shopId)->firstOrFail();
         abort_unless($request->user()->canAccessShop($shop), 403);
         $request->session()->put('till.shop_id', $shop->id);
+        $request->session()->put('till.channel', $data['channel']);
         $phone = Countries::normalizePhone($data['phone']);
         $customer = $till->findCustomer($data['country_code'], $phone);
 
@@ -180,18 +184,14 @@ class TillController extends Controller
 
         $rewards = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
         $availableOffers = $membership ? $membership->availableRewards() : collect();
-        $nextOffer = null;
-        if ($membership) {
-            $nextOffer = $rewards
-                ->filter(fn ($r) => $r->points_cost > $membership->points_balance)
-                ->sortBy('points_cost')
-                ->first();
-        }
+        $nextOffer = $membership?->nextReward();
 
         $errorStep = 1;
         if ($availableOffers->isNotEmpty() && old('amount_spent')) {
             $errorStep = 2;
         }
+
+        $loopPaused = app(\App\Services\LoopAccess::class)->isPaused($business);
 
         return view('till.sale', [
             'business' => $business,
@@ -217,6 +217,7 @@ class TillController extends Controller
             'nextOffer' => $nextOffer,
             'initialStep' => $errorStep,
             'needsRegister' => (bool) ($ticket['needs_register'] ?? false) && ! $customer,
+            'loopPaused' => $loopPaused,
         ]);
     }
 
@@ -234,37 +235,38 @@ class TillController extends Controller
     {
         $business = $request->user()->workplace();
         abort_unless($business && $request->user()->canUseTill(), 403);
+        abort_unless(! app(\App\Services\LoopAccess::class)->isPaused($business), 403);
 
         $ticket = $request->session()->get('till.ticket');
         abort_unless(is_array($ticket), 403);
 
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
-            'last_name' => ['required', 'string', 'max:80'],
+            'last_name' => ['nullable', 'string', 'max:80'],
             'birth_month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'gender' => ['nullable', 'in:male,female'],
             'email' => ['nullable', 'email', 'max:255'],
         ]);
 
-        $existing = $till->findCustomer($ticket['country_code'], $ticket['phone']);
-        if (! $existing) {
-            try {
-                $existing = $till->registerCustomer([
-                    'first_name' => $data['first_name'],
-                    'last_name' => $data['last_name'],
-                    'country_code' => $ticket['country_code'],
-                    'phone' => $ticket['phone'],
-                    'email' => $data['email'] ?? null,
-                    'birth_month' => $data['birth_month'] ?? null,
-                    'birth_day' => $data['birth_day'] ?? null,
-                    'gender' => $data['gender'] ?? null,
-                ]);
-            } catch (ValidationException $e) {
-                $request->session()->forget('till.ticket');
+        $shop = $business->shops()->whereKey($ticket['shop_id'] ?? null)->first();
 
-                return redirect()->route('till.index')->withErrors($e->errors());
-            }
+        try {
+            $existing = $till->registerCustomer([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'] ?? '',
+                'country_code' => $ticket['country_code'],
+                'phone' => $ticket['phone'],
+                'email' => $data['email'] ?? null,
+                'birth_month' => $data['birth_month'] ?? null,
+                'birth_day' => $data['birth_day'] ?? null,
+                'gender' => $data['gender'] ?? null,
+                'city' => $shop?->city,
+            ]);
+        } catch (ValidationException $e) {
+            $request->session()->forget('till.ticket');
+
+            return redirect()->route('till.index')->withErrors($e->errors());
         }
 
         $ticket['customer_id'] = $existing->id;
@@ -335,8 +337,9 @@ class TillController extends Controller
         }
 
         $amount = (float) $data['amount_spent'];
+        $hasFeatured = $featuredIds !== [] || $includesFeatured === true;
 
-        if ($reward?->isFreeRedeem() && $amount <= 0) {
+        if ($reward?->isFreeRedeem() && $amount <= 0 && ! $hasFeatured && ! $payWithPoints) {
             try {
                 $redemption = $till->redeemOffer(
                     $request->user(),
@@ -348,18 +351,22 @@ class TillController extends Controller
                 return back()->withInput()->withErrors($e->errors());
             }
             $request->session()->forget('till.ticket');
-            $body = __('loop.redeem_done_body', [
-                'name' => $customer->name,
-                'offer' => $redemption->reward->name,
-                'points' => $redemption->points_spent,
-            ]);
+            $balance = (int) ($redemption->membership?->fresh()?->points_balance ?? 0);
 
-            return redirect()->route('till.index')->with('confirm', Confirm::make(
-                __('loop.redeem_done_title'),
-                $body,
-                __('loop.next_sale'),
-                route('till.index'),
-            ));
+            return $this->saleMoment($request, $customer, $business, [
+                'title' => __('loop.redeem_done_title'),
+                'body' => __('loop.redeem_done_body', [
+                    'name' => $customer->name,
+                    'offer' => $redemption->reward->name,
+                    'points' => $redemption->points_spent,
+                ]),
+                'earned' => 0,
+                'from' => $balance + (int) $redemption->points_spent,
+                'to' => $balance,
+                'unlock' => $redemption->reward?->name,
+                'unlock_when' => 'now',
+                'visit' => null,
+            ]);
         }
 
         if ($payWithPoints && ! $business->payWithPointsEnabled()) {
@@ -370,7 +377,7 @@ class TillController extends Controller
             return back()->withErrors(['pay_with_points' => __('loop.till_no_pay_points_with_offer')])->withInput();
         }
 
-        if ($amount <= 0 && ! $payWithPoints) {
+        if ($amount <= 0 && ! $payWithPoints && ! ($reward?->isFreeRedeem() && $hasFeatured)) {
             return back()->withErrors(['amount_spent' => __('loop.amount_required')])->withInput();
         }
 
@@ -387,45 +394,38 @@ class TillController extends Controller
             $reward?->id,
         );
 
-        $applied = $visit->reward;
-        if ($applied?->isFreeRedeem()) {
-            $title = __('loop.till_gave_and_sale_title');
-            $body = __('loop.till_gave_and_sale_body', [
-                'name' => $visit->customer->name,
-                'offer' => $applied->name,
-                'currency' => $business->currency,
-                'amount' => number_format((float) $visit->amount_spent, 0),
-                'earned' => $visit->points_earned,
-            ]);
-        } else {
-            $title = __('loop.sale_done_title');
-            $body = __('loop.sale_done_body', [
-                'name' => $visit->customer->name,
-                'earned' => $visit->points_earned,
-            ]);
-            if ($visit->points_redeemed > 0) {
-                $body .= ' '.__('loop.sale_done_redeemed', ['redeemed' => $visit->points_redeemed]);
-            }
-            if ($visit->discount_amount > 0) {
-                $remaining = max(0, (float) $visit->amount_spent - (float) $visit->discount_amount);
-                $body .= ' '.__('loop.till_collect_done', [
-                    'currency' => $business->currency,
-                    'amount' => number_format($remaining, 0),
-                ]);
-            }
-        }
-        if ($visit->notes) {
-            $body .= ' — '.$visit->notes;
-        }
+        $visit = $visit->fresh(['customer', 'membership', 'reward']);
+        $to = (int) ($visit->membership?->points_balance ?? 0);
+        $from = max(0, $to - (int) $visit->points_earned + (int) $visit->points_redeemed);
+        $unlock = $till->unlockAfterSale($visit);
 
         $request->session()->forget('till.ticket');
 
-        return redirect()->route('till.index')->with('confirm', Confirm::make(
-            $title,
-            $body,
-            __('loop.next_sale'),
-            route('till.index'),
-        ));
+        return $this->saleMoment($request, $customer, $business, [
+            'title' => __('loop.sale_done_title'),
+            'body' => __('loop.sale_done_body', [
+                'name' => $visit->customer->name,
+                'earned' => $visit->points_earned,
+            ]),
+            'earned' => (int) $visit->points_earned,
+            'from' => $from,
+            'to' => $to,
+            'amount' => $business->currency.' '.number_format((float) $visit->amount_spent, 0),
+            'unlock' => $unlock['reward']?->name,
+            'unlock_when' => $unlock['when'],
+            'visit' => $visit,
+        ]);
+    }
+
+    public function undo(Request $request, \App\Models\Visit $visit, TillService $till): RedirectResponse
+    {
+        try {
+            $till->undoSale($request->user(), $visit);
+        } catch (ValidationException $e) {
+            return redirect()->route('till.index')->withErrors($e->errors());
+        }
+
+        return redirect()->route('till.index')->with('status', __('loop.sale_undone'));
     }
 
     public function redeem(Request $request, TillService $till): RedirectResponse
@@ -495,6 +495,37 @@ class TillController extends Controller
             $body,
             __('loop.next_sale'),
             route('till.index'),
+        ));
+    }
+
+    /**
+     * @param  array{title: string, body: string, earned: int, from: int, to: int, amount?: string, unlock?: ?string, unlock_when?: ?string, visit: ?\App\Models\Visit}  $moment
+     */
+    private function saleMoment(Request $request, $customer, $business, array $moment): RedirectResponse
+    {
+        $visit = $moment['visit'] ?? null;
+        $extra = [
+            'loop_moment' => [
+                'name' => $customer->name,
+                'from' => (int) $moment['from'],
+                'to' => (int) $moment['to'],
+                'earned' => (int) $moment['earned'],
+                'amount' => $moment['amount'] ?? null,
+                'unlock' => $moment['unlock'] ?? null,
+                'unlock_when' => $moment['unlock_when'] ?? null,
+            ],
+        ];
+        if ($visit) {
+            $extra['undo_url'] = route('till.undo', $visit);
+        }
+
+        return redirect()->route('till.index')->with('confirm', Confirm::make(
+            $moment['title'],
+            $moment['body'],
+            __('loop.next_customer'),
+            route('till.index'),
+            true,
+            $extra,
         ));
     }
 }

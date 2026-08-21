@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="loop-no-skeleton">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Loop — {{ __('loop.customer_landing_title') }}</title>
+    @include('partials.head-boot')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
 <div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
@@ -18,6 +18,7 @@
 
     <x-site-header>
         <x-slot:actions>
+            <a href="{{ route('stories.index') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.stories') }}</a>
             <a href="{{ route('discover') }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.browse_campaigns') }}</a>
             <a href="{{ route('customer.login') }}" class="text-sm font-semibold text-violet hover:text-ink">{{ __('loop.cta_customer') }}</a>
         </x-slot:actions>
@@ -113,10 +114,13 @@
                 </div>
             </div>
         </section>
+
+        @include('stories.partials.landing')
     </main>
 
     <x-site-footer />
     <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
+<x-page-skeleton variant="public" />
 </body>
 </html>

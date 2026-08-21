@@ -4,13 +4,25 @@
             <x-back-icon :href="route('settings')" />
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.billing') }}</p>
-                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.upgrade_title') }}</h1>
-                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.upgrade_blurb') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">
+                    {{ ! empty($paused) ? __('loop.upgrade_title_paused') : __('loop.upgrade_title') }}
+                </h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">
+                    {{ ! empty($paused) ? __('loop.upgrade_blurb_paused') : __('loop.upgrade_blurb') }}
+                </p>
             </div>
         </div>
     </x-slot>
 
-    @if ($trialExpired)
+    @if (! empty($paused) || ! empty($grace))
+        <div class="mb-6 rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-5">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-coral">{{ __('loop.billing_protect_title') }}</p>
+            <p class="mt-2 font-display text-2xl font-semibold">{{ __('loop.loop_paused_named', ['name' => $business->name]) }}</p>
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.loop_customers_connected', ['count' => number_format($momentum['members'])]) }}</p>
+            <x-loop-pause-facts :business="$business" :momentum="$momentum" />
+            <p class="mt-4 text-sm font-semibold">{{ __('loop.loop_paused_safe') }}</p>
+        </div>
+    @elseif ($trialExpired)
         <div class="mb-6 rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-4">
             <p class="font-display text-lg font-semibold">{{ __('loop.trial_ended_title') }}</p>
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.trial_ended_body') }}</p>
@@ -26,6 +38,9 @@
             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.on_paid_plan_body') }}</p>
             @if ($business->plan_renews_at)
                 <p class="mt-1 text-xs text-ink-muted">{{ __('loop.renews_on', ['date' => $business->plan_renews_at->format('d M Y')]) }}</p>
+            @endif
+            @if ($business->price_locked_until?->isFuture())
+                <p class="mt-1 text-xs text-mint-deep">{{ __('loop.price_locked_until', ['date' => $business->price_locked_until->format('d M Y')]) }}</p>
             @endif
         </div>
     @endif
@@ -56,6 +71,7 @@
     <div
         class="space-y-6"
         x-data="billingPayConfirm({
+            months: {{ ! empty($paused) || ! empty($grace) ? 12 : 1 }},
             discounts: @js($intervals),
             monthsLabel: @js(__('loop.months')),
             confirmTitle: @js(__('loop.confirm_plan_title')),
@@ -67,10 +83,20 @@
             <p class="loop-label">{{ __('loop.pay_for_months') }}</p>
             <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 @foreach ($intervals as $months => $discount)
+                    @php $quote = $quotes[$months] ?? null; @endphp
                     <label class="cursor-pointer rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm has-[:checked]:border-mint has-[:checked]:bg-mint-soft/40">
-                        <input type="radio" class="sr-only" name="interval_ui" value="{{ $months }}" x-model.number="months" @checked($months === 1)>
+                        <input type="radio" class="sr-only" name="interval_ui" value="{{ $months }}" x-model.number="months" @checked($months === ($paused || $grace ? 12 : 1))>
                         <span class="font-semibold">{{ $months }} {{ __('loop.months') }}</span>
-                        @if ($discount > 0)
+                        @if ($months === 12)
+                            <span class="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.interval_best_value') }}</span>
+                        @endif
+                        @if ($quote && $quote['save'] > 0)
+                            <span class="mt-1 block text-xs text-ink-muted line-through">{{ $currency }} {{ number_format($quote['full']) }}</span>
+                            <span class="block text-sm font-semibold">{{ $currency }} {{ number_format($quote['amount']) }}</span>
+                            <span class="mt-0.5 block text-xs text-mint-deep">{{ __('loop.interval_save_money', ['currency' => $currency, 'amount' => number_format($quote['save'])]) }}</span>
+                        @elseif ($quote)
+                            <span class="mt-1 block text-sm font-semibold">{{ $currency }} {{ number_format($quote['amount']) }}</span>
+                        @elseif ($discount > 0)
                             <span class="mt-1 block text-xs text-mint-deep">-{{ $discount }}%</span>
                         @endif
                     </label>
@@ -93,6 +119,9 @@
                     <p class="mt-1 text-sm text-ink-muted">{{ $plan->tagline }}</p>
                     <p class="mt-4 font-display text-3xl font-semibold" x-text="priceLabel({{ (int) $plan->price_monthly }}, @js($plan->currency ?: $currency))"></p>
                     <p class="text-xs text-ink-muted">{{ __('loop.billed_upfront') }}</p>
+                    @if ($plan->key === 'growth')
+                        <p class="mt-2 text-xs font-semibold text-mint-deep">{{ __('loop.price_lock_12') }}</p>
+                    @endif
                     <ul class="mt-4 flex-1 space-y-2 text-sm text-ink-muted">
                         @foreach ($plan->features ?? [] as $feature)
                             <li>✓ {{ $feature }}</li>
@@ -114,7 +143,7 @@
                                 </div>
                                 <p class="mt-1 text-xs text-ink-muted">{{ __('loop.pay_with_phone_help', ['currency' => $plan->currency ?: $currency]) }}</p>
                             </div>
-                            <button class="loop-btn-mint w-full">{{ __('loop.pay_and_activate', ['plan' => $plan->name]) }}</button>
+                            <button class="loop-btn-mint w-full">{{ ! empty($paused) ? __('loop.reactivate_loop') : __('loop.pay_and_activate', ['plan' => $plan->name]) }}</button>
                         </form>
                     @endif
                 </div>

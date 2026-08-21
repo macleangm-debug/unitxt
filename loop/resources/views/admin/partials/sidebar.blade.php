@@ -9,6 +9,7 @@
         ['route' => 'admin.referrals.index', 'match' => 'admin.referrals.*', 'label' => __('loop.admin_referrals')],
         ['route' => 'admin.settings', 'match' => ['admin.settings*', 'admin.plans.*'], 'label' => __('loop.admin_settings_hub')],
         ['route' => 'admin.integrations.index', 'match' => 'admin.integrations.*', 'label' => __('loop.integrations_hub')],
+        ['route' => 'admin.errors.index', 'match' => 'admin.errors.*', 'label' => __('loop.admin_errors')],
     ];
     $settingsOpen = request()->routeIs('admin.settings*') || request()->routeIs('admin.plans.*');
     $settingsItems = [
@@ -20,11 +21,13 @@
         'platform' => __('loop.settings_tab_platform'),
         'sectors' => __('loop.settings_tab_sectors'),
         'countries' => __('loop.settings_tab_countries'),
+        'language' => __('loop.settings_tab_language'),
         'visibility' => __('loop.settings_tab_visibility'),
         'referrals' => __('loop.settings_tab_referrals'),
         'affiliates' => __('loop.settings_tab_affiliates'),
         'notifications' => __('loop.settings_tab_notifications'),
         'product' => __('loop.settings_tab_product'),
+        'health' => __('loop.settings_tab_health'),
     ];
     $settingsTab = request('tab', 'overview');
 @endphp
@@ -51,7 +54,12 @@
                 $active = collect($matches)->contains(fn ($pattern) => request()->routeIs($pattern));
             @endphp
             <a href="{{ route($item['route']) }}" class="admin-nav__link {{ $active ? 'is-active' : '' }}" @click="navOpen = false">
-                {{ $item['label'] }}
+                <span>{{ $item['label'] }}</span>
+                @if ($item['route'] === 'admin.errors.index' && ($openExceptionHits ?? 0) > 0)
+                    <span class="admin-nav__badge">{{ $openExceptionHits }}</span>
+                @elseif ($item['route'] === 'admin.affiliates.index' && ($pendingAffiliateApps ?? 0) > 0)
+                    <span class="admin-nav__badge">{{ $pendingAffiliateApps }}</span>
+                @endif
             </a>
             @if ($item['route'] === 'admin.settings' && $settingsOpen)
                 <div class="admin-nav__sub">

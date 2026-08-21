@@ -21,7 +21,7 @@
         x-data="{
             step: {{ $errors->any() ? max(1, (int) old('step', 4)) : 1 }},
             country: @js(old('country', $preferredCountry)),
-            dials: @js(collect(\App\Support\Countries::OPTIONS)->mapWithKeys(fn ($m, $c) => [$c => $m['dial']])->all()),
+            dials: @js(collect(\App\Support\Countries::enabledOptions())->mapWithKeys(fn ($m, $c) => [$c => $m['dial']])->all()),
             password: '',
             passwordConfirm: '',
             get dial() { return this.dials[this.country] || '+255'; },
@@ -33,7 +33,7 @@
                 this.step = 4;
             }
         }"
-        class="mx-auto w-full max-w-md"
+        class="loop-guest-card mx-auto w-full max-w-md"
         @sheet-selected.window="if ($event.detail.name === 'country') { country = $event.detail.value }"
     >
         <p class="mb-6 text-xs font-semibold text-ink-muted">{{ __('loop.step') }} <span x-text="step"></span>/4</p>
@@ -41,7 +41,7 @@
         <h1 class="font-display text-2xl font-semibold">{{ __('loop.cta_business') }}</h1>
         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.grow_with_phone') }}</p>
 
-        <form method="POST" action="{{ route('business.register') }}" class="mt-6 space-y-4" autocomplete="off">
+        <form method="POST" action="{{ route('business.register') }}" class="mt-6 space-y-4" autocomplete="off" data-loop-no-skeleton>
             @csrf
             <input type="hidden" name="step" :value="step">
 
@@ -114,23 +114,12 @@
                     <input name="business_name" value="{{ old('business_name') }}" class="loop-input" required>
                     <x-input-error :messages="$errors->get('business_name')" class="mt-1" />
                 </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.sector') }}</label>
-                    <x-sheet-select
-                        name="sector"
-                        :options="$sectors"
-                        :value="old('sector', 'coffee')"
-                        :required="true"
-                        :placeholder="__('loop.sector')"
-                    />
-                    <div id="other-sector-box" class="mt-3 {{ old('sector') === 'other' ? '' : 'hidden' }}"
-                         x-data
-                         @sheet-selected.window="if ($event.detail.name === 'sector') { $el.classList.toggle('hidden', $event.detail.value !== 'other') }">
-                        <label class="loop-label">{{ __('loop.other_sector') }}</label>
-                        <input name="sector_other" value="{{ old('sector_other') }}" class="loop-input">
-                        <x-input-error :messages="$errors->get('sector_other')" class="mt-1" />
-                    </div>
-                </div>
+                <x-sector-picker
+                    name="sector"
+                    :value="old('sector')"
+                    :required="true"
+                    :other-value="old('sector_other')"
+                />
                 <div>
                     <label class="loop-label">{{ __('loop.hotline') }}</label>
                     <x-phone-field
@@ -142,14 +131,34 @@
                     />
                     <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
                 </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.referral_code') }} ({{ __('loop.optional') }})</label>
-                    <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234">
-                    @if (!empty($referrerBusiness))
-                        <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
-                    @elseif (!empty($referrerAffiliate))
-                        <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by_affiliate') }}</p>
-                    @endif
+                <div
+                    class="rounded-2xl border-2 border-violet bg-violet-soft/50 px-4 py-4"
+                    x-data="{ open: {{ filled(old('referral_code', $referralCode ?? '')) ? 'true' : 'false' }} }"
+                >
+                    <button
+                        type="button"
+                        class="flex w-full items-center justify-between gap-3 text-left"
+                        @click="open = !open"
+                        :aria-expanded="open.toString()"
+                    >
+                        <span>
+                            <span class="block font-display text-base font-semibold text-ink">{{ __('loop.were_you_invited') }}</span>
+                            <span class="mt-1 block text-xs text-ink-muted" x-show="!open">{{ __('loop.were_you_invited_body') }}</span>
+                        </span>
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet text-sm font-bold text-white" x-text="open ? '−' : '+'"></span>
+                    </button>
+                    <div class="mt-4" x-show="open" x-cloak>
+                        <label class="loop-label">{{ __('loop.referral_code') }}</label>
+                        <input name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" class="loop-input uppercase" placeholder="ABCD1234" autocomplete="off">
+                        @if (!empty($referrerBusiness))
+                            <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by', ['name' => $referrerBusiness->name]) }}</p>
+                        @elseif (!empty($referrerAffiliate))
+                            <p class="mt-1 text-xs font-medium text-mint-deep">{{ __('loop.referred_by_affiliate') }}</p>
+                        @else
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_code_hint') }}</p>
+                        @endif
+                        <x-input-error :messages="$errors->get('referral_code')" class="mt-1" />
+                    </div>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>

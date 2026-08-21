@@ -109,9 +109,9 @@ class CampaignOfferUiTest extends TestCase
 
     public function test_swahili_offer_type_titles(): void
     {
-        $this->assertSame('Punguzo la Asilimia', trans('loop.offer_type_percent_off_title', [], 'sw'));
-        $this->assertSame('Punguzo la Kiasi', trans('loop.offer_type_fixed_off_title', [], 'sw'));
-        $this->assertSame('Bidhaa ya Bure', trans('loop.offer_type_free_item_title', [], 'sw'));
+        $this->assertSame('Punguzo', trans('loop.offer_type_percent_off_title', [], 'sw'));
+        $this->assertSame('Punguzo la pesa', trans('loop.offer_type_fixed_off_title', [], 'sw'));
+        $this->assertSame('Kitu bure', trans('loop.offer_type_free_item_title', [], 'sw'));
     }
 
     public function test_new_offer_shows_type_cards_inside_wizard(): void
@@ -121,10 +121,10 @@ class CampaignOfferUiTest extends TestCase
         $this->actingAs($owner)
             ->get(route('rewards.create'))
             ->assertOk()
-            ->assertSee(__('loop.choose_offer_type'), false)
+            ->assertSee(__('loop.offer_give_title'), false)
             ->assertSee('offerWizard', false)
             ->assertSee(__('loop.offer_type_percent_off_title'), false)
-            ->assertSee(__('loop.choose_offer_type_body_short'), false)
+            ->assertSee(__('loop.offer_give_body'), false)
             ->assertSee(__('loop.offer_type_percent_off_body'), false)
             ->assertDontSee('href="'.route('rewards.create', ['type' => 'percent_off']).'"', false);
     }

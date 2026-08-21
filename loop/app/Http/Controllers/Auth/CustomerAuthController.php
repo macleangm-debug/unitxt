@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CustomerAuthController extends Controller
@@ -19,7 +20,7 @@ class CustomerAuthController extends Controller
     public function create(): View
     {
         return view('auth.customer-phone', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::authOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
         ]);
     }
@@ -96,11 +97,18 @@ class CustomerAuthController extends Controller
             ));
         }
 
-        Auth::login($user);
-        $request->session()->forget('customer_auth');
-        $request->session()->regenerate();
+        if ($user->profile_completed) {
+            Auth::login($user);
+            $request->session()->forget('customer_auth');
+            $request->session()->regenerate();
 
-        return redirect()->route($user->profile_completed ? 'dashboard' : 'customer.register');
+            return redirect()->route('dashboard');
+        }
+
+        $auth['pin_verified'] = true;
+        $request->session()->put('customer_auth', $auth);
+
+        return redirect()->route('customer.register');
     }
 
     public function registerForm(Request $request): View|RedirectResponse
@@ -110,20 +118,26 @@ class CustomerAuthController extends Controller
             return redirect()->route('customer.login');
         }
 
-        $country = $auth['country'] ?? 'TZ';
-        $existing = User::query()
-            ->where('role', User::ROLE_CUSTOMER)
-            ->where('country_code', $auth['country_code'])
-            ->where('phone', $auth['phone'])
-            ->first();
+        $existing = $this->pendingCustomer($auth);
+        if ($existing && ! $existing->isCustomer()) {
+            return redirect()->route('customer.login')->withErrors([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ]);
+        }
+
+        $country = $existing?->country ?: ($auth['country'] ?? 'TZ');
 
         return view('auth.customer-register', [
             'auth' => $auth,
             'existing' => $existing,
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::authOptions(),
             'country' => $country,
             'cities' => Countries::cities($country),
             'sectors' => Sectors::all(),
+            'needsPin' => empty($auth['has_pin']) && empty($auth['pin_verified']) && ! $existing?->password,
+            'knownName' => (bool) $existing?->hasKnownName(),
+            'knownBirthday' => (bool) $existing?->hasBirthday(),
+            'knownGender' => (bool) $existing?->hasGender(),
         ]);
     }
 
@@ -134,10 +148,19 @@ class CustomerAuthController extends Controller
             return redirect()->route('customer.login');
         }
 
+        $user = $this->pendingCustomer($auth);
+        if ($user && ! $user->isCustomer()) {
+            return redirect()->route('customer.login')->withErrors([
+                'phone' => __('loop.phone_belongs_to_staff'),
+            ]);
+        }
+
+        $needsPin = empty($auth['has_pin']) && empty($auth['pin_verified']) && ! $user?->password;
+
         $data = $request->validate([
-            'first_name' => ['required', 'string', 'max:80'],
-            'last_name' => ['required', 'string', 'max:80'],
-            'country' => ['required', 'in:'.implode(',', array_keys(Countries::OPTIONS))],
+            'first_name' => [Rule::requiredIf(! $user?->hasKnownName()), 'nullable', 'string', 'max:80'],
+            'last_name' => ['nullable', 'string', 'max:80'],
+            'country' => ['required', Countries::authRule()],
             'city' => ['required', 'string', 'max:80'],
             'birth_month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'birth_day' => ['nullable', 'integer', 'min:1', 'max:31'],
@@ -145,23 +168,12 @@ class CustomerAuthController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'interests' => ['nullable', 'array'],
             'interests.*' => ['in:'.implode(',', array_keys(Sectors::all()))],
-            'pin' => ['required', 'digits_between:4,6', 'confirmed'],
+            'pin' => [$needsPin ? 'required' : 'nullable', 'digits_between:4,6', 'confirmed'],
         ]);
 
-        $user = User::query()
-            ->where('country_code', $auth['country_code'])
-            ->where('phone', $auth['phone'])
-            ->first();
-
-        if ($user && ! $user->isCustomer()) {
-            return redirect()->route('customer.login')->withErrors([
-                'phone' => __('loop.phone_belongs_to_staff'),
-            ]);
-        }
-
         $payload = [
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
+            'first_name' => $data['first_name'] ?? $user?->first_name,
+            'last_name' => $data['last_name'] ?? null,
             'country' => $data['country'],
             'city' => $data['city'],
             'birth_month' => $data['birth_month'] ?? null,
@@ -169,18 +181,33 @@ class CustomerAuthController extends Controller
             'gender' => $data['gender'] ?? null,
             'email' => $data['email'] ?? null,
             'interests' => $data['interests'] ?? [],
-            'password' => Hash::make($data['pin']),
-            'phone_verified_at' => now(),
-            'profile_completed' => true,
-            'is_active' => true,
         ];
 
         if ($user) {
-            $user->update($payload);
+            $user->mergeMemberProfile($payload);
+            if ($needsPin && ! empty($data['pin'])) {
+                $user->password = $data['pin'];
+            }
+            $user->phone_verified_at = $user->phone_verified_at ?? now();
+            $user->profile_completed = true;
+            $user->is_active = true;
+            $user->save();
         } else {
             try {
                 $user = User::create([
-                    ...$payload,
+                    'first_name' => $payload['first_name'],
+                    'last_name' => $payload['last_name'] ?? '',
+                    'country' => $payload['country'],
+                    'city' => $payload['city'],
+                    'birth_month' => $payload['birth_month'],
+                    'birth_day' => $payload['birth_day'],
+                    'gender' => $payload['gender'],
+                    'email' => $payload['email'],
+                    'interests' => $payload['interests'] ?: [],
+                    'password' => $data['pin'],
+                    'phone_verified_at' => now(),
+                    'profile_completed' => true,
+                    'is_active' => true,
                     'country_code' => $auth['country_code'],
                     'phone' => $auth['phone'],
                     'role' => User::ROLE_CUSTOMER,
@@ -199,5 +226,16 @@ class CustomerAuthController extends Controller
         $request->session()->flash('show_welcome', true);
 
         return redirect()->route('dashboard');
+    }
+
+    /**
+     * @param  array{country_code: string, phone: string}  $auth
+     */
+    private function pendingCustomer(array $auth): ?User
+    {
+        return User::query()
+            ->where('country_code', $auth['country_code'])
+            ->where('phone', $auth['phone'])
+            ->first();
     }
 }

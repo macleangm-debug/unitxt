@@ -33,7 +33,24 @@
         </div>
     </x-slot>
 
-    @if ($needsRegister)
+    @if (! empty($loopPaused))
+        <div class="mx-auto max-w-xl rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-5">
+            <p class="font-display text-2xl font-semibold">{{ __('loop.loop_paused_till_title') }}</p>
+            @if ($customer && $membership)
+                <p class="mt-3 text-sm font-semibold">{{ __('loop.till_paused_customer', [
+                    'name' => $customer->first_name ?: $customer->name,
+                    'points' => number_format($membership->points_balance),
+                ]) }}</p>
+            @elseif ($customer)
+                <p class="mt-3 text-sm font-semibold">{{ $customer->first_name ?: $customer->name }}</p>
+            @endif
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.till_paused_body') }}</p>
+            @if (auth()->user()?->isOwner())
+                <a href="{{ route('billing.show') }}" class="loop-btn mt-5 inline-flex">{{ __('loop.reactivate_loop') }}</a>
+            @endif
+            <a href="{{ route('till.index') }}" class="mt-4 block text-sm font-semibold text-ink-muted">{{ __('loop.back') }}</a>
+        </div>
+    @elseif ($needsRegister)
         <div
             x-data="{ open: true, step: 1 }"
             class="mx-auto max-w-xl"
@@ -50,7 +67,7 @@
                         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
                         <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
                         <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
-                        <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.register_this_customer') }}</button>
+                        <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.add_and_continue') }}</button>
                         <a href="{{ route('till.index') }}" class="mt-3 block text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
                     </div>
                 </div>
@@ -62,34 +79,34 @@
                 x-show="step >= 2"
                 x-cloak
                 class="overflow-visible rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
-                x-data="{ regStep: 1 }"
+                x-data="{ regStep: {{ $errors->hasAny(['birth_month', 'birth_day', 'gender', 'email']) ? 2 : 1 }} }"
             >
                 @csrf
                 <div class="space-y-4 p-6" x-show="regStep === 1">
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.register_customer_heading') }}</h2>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.first_name') }}</h2>
                     <div>
                         <label class="loop-label">{{ __('loop.first_name') }}</label>
-                        <input name="first_name" value="{{ old('first_name') }}" class="loop-input text-lg" required>
+                        <input name="first_name" value="{{ old('first_name') }}" class="loop-input text-lg" required autofocus autocomplete="given-name">
                     </div>
                     <div>
-                        <label class="loop-label">{{ __('loop.last_name') }}</label>
-                        <input name="last_name" value="{{ old('last_name') }}" class="loop-input text-lg" required>
+                        <label class="loop-label">{{ __('loop.last_name') }} ({{ __('loop.optional') }})</label>
+                        <input name="last_name" value="{{ old('last_name') }}" class="loop-input text-lg" autocomplete="family-name">
                     </div>
-                    <button type="button" class="loop-btn w-full" @click="regStep = 2">{{ __('loop.next') }}</button>
+                    <button type="button" class="loop-btn w-full" @click="regStep = 2">{{ __('loop.continue') }}</button>
+                    <a href="{{ route('till.index') }}" class="block text-center text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
                 </div>
 
                 <div class="space-y-4 p-6" x-show="regStep === 2" x-cloak>
-                    <h2 class="font-display text-xl font-semibold">{{ __('loop.birthday_short') }}</h2>
-                    <p class="text-sm text-ink-muted">{{ __('loop.birthday_premium_hint') }}</p>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.birthday') }}</h2>
                     <x-birthday-fields :month="old('birth_month', '')" :day="old('birth_day', '')" />
                     <x-gender-field :value="old('gender', '')" />
                     <div>
                         <label class="loop-label">{{ __('loop.email_optional') }}</label>
-                        <input type="email" name="email" value="{{ old('email') }}" class="loop-input">
+                        <input type="email" name="email" value="{{ old('email') }}" class="loop-input" autocomplete="email">
                     </div>
                     <div class="flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="regStep = 1">{{ __('loop.back') }}</button>
-                        <button class="loop-btn flex-1">{{ __('loop.finish_registration') }}</button>
+                        <button class="loop-btn flex-1">{{ __('loop.add_and_continue') }}</button>
                     </div>
                 </div>
             </form>
@@ -117,14 +134,22 @@
             })"
         >
             @if ($customer && $membership)
-                <div class="mb-4 flex items-end justify-between gap-4 rounded-[1.5rem] bg-gradient-to-br from-ink to-ink-soft px-5 py-4 text-white">
-                    <div>
-                        <p class="text-xs text-white/70">{{ __('loop.balance') }}</p>
-                        <p class="mt-1 font-display text-4xl font-semibold">{{ $membership->points_balance }} <span class="text-lg font-medium text-white/60">{{ __('loop.pts') }}</span></p>
+                <div class="mb-4 rounded-[1.5rem] bg-gradient-to-br from-ink to-ink-soft px-5 py-4 text-white">
+                    <div class="flex items-end justify-between gap-4">
+                        <div>
+                            <p class="font-display text-2xl font-semibold">{{ $customer->name }}</p>
+                            <p class="mt-1 font-display text-4xl font-semibold text-lime">
+                                <x-count-up :value="$membership->points_balance" />
+                                <span class="text-lg font-medium text-white/60">{{ __('loop.pts') }}</span>
+                            </p>
+                        </div>
                     </div>
-                    @if (! $hasRedeemable && $nextOffer)
-                        <p class="max-w-[12rem] text-right text-sm font-semibold text-lime">
-                            {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                    @if ($hasRedeemable)
+                        @php $readyOffer = $availableOffers->first(); @endphp
+                        <p class="mt-3 text-sm font-semibold text-lime">🎁 {{ $readyOffer?->name }} · {{ __('loop.offer_available') }}</p>
+                    @elseif ($nextOffer)
+                        <p class="mt-3 text-sm font-semibold text-lime">
+                            {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->redeemablePoints()), 'offer' => $nextOffer->name]) }}
                         </p>
                     @endif
                 </div>
@@ -223,7 +248,7 @@
                     </div>
 
                     @if (($productPushes ?? collect())->isNotEmpty())
-                        <div x-show="showFeatured()" class="space-y-2">
+                        <div class="space-y-2">
                             <p class="text-xs text-ink-muted">{{ __('loop.auto_bonuses_till_hint') }}</p>
                             @foreach ($productPushes as $push)
                                 <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-violet/25 bg-violet-soft/40 px-4 py-3">

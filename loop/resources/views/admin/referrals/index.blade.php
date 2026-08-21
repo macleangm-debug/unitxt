@@ -7,6 +7,7 @@
 <x-admin-layout>
     <x-slot name="header">
         <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_referrals') }}</h1>
+        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.admin_referrals_program_kind') }}</p>
         <p class="mt-1 text-ink-muted">{{ __('loop.admin_referrals_blurb') }}</p>
     </x-slot>
 

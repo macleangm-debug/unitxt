@@ -22,7 +22,7 @@ class LoopMemberExperienceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_new_member_register_is_a_three_step_wizard(): void
+    public function test_new_member_register_collects_profile_interests_and_pin(): void
     {
         $this->post(route('customer.send'), [
             'country_code' => '+255',
@@ -34,9 +34,162 @@ class LoopMemberExperienceTest extends TestCase
             ->assertSee('memberRegisterWizard', false)
             ->assertSee(__('loop.member_intro'), false)
             ->assertSee(__('loop.interests'), false)
+            ->assertSee(__('loop.what_are_you_interested_in'), false)
             ->assertSee(__('loop.create_pin'), false)
+            ->assertSee(__('loop.youre_on_loop'), false)
+            ->assertSee('total: 3', false)
+            ->assertSee('name="birth_month"', false)
+            ->assertSee('name="gender"', false)
+            ->assertSee('name="interests[]"', false)
             ->assertSee(__('loop.member_intro_blurb'), false)
-            ->assertSee(__('loop.member_pin_blurb'), false);
+            ->assertSee(__('loop.member_pin_blurb'), false)
+            ->assertSee('loop-secret', false)
+            ->assertSee('inputmode="numeric"', false)
+            ->assertDontSee('type="password"', false);
+    }
+
+    public function test_till_member_is_recognized_and_not_asked_for_known_details(): void
+    {
+        [$owner, $business, $shop] = $this->seedBusiness();
+        $staff = User::factory()->frontDesk()->create([
+            'phone' => '712444001',
+            'business_id' => $business->id,
+            'password' => 'password',
+        ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.lookup'), [
+                'shop_id' => $shop->id,
+                'country_code' => '+255',
+                'phone' => '713444555',
+                'channel' => 'in_store',
+            ]);
+
+        $this->actingAs($staff)
+            ->post(route('till.register-customer'), [
+                'first_name' => 'Asha',
+                'birth_month' => 5,
+                'birth_day' => 14,
+                'gender' => 'female',
+            ])
+            ->assertRedirect(route('till.registered'));
+
+        $this->post(route('logout'));
+
+        $memberId = User::query()->where('phone', '713444555')->value('id');
+
+        $this->post(route('customer.send'), [
+            'country_code' => '+255',
+            'phone' => '713444555',
+        ])->assertRedirect(route('customer.register'));
+
+        $this->get(route('customer.register'))
+            ->assertOk()
+            ->assertSee(__('loop.member_hi', ['name' => 'Asha']), false)
+            ->assertSee(__('loop.member_details_ready'), false)
+            ->assertSee(__('loop.gender_female'), false)
+            ->assertSee('type="hidden" name="first_name"', false)
+            ->assertDontSee('autocomplete="given-name"', false)
+            ->assertSee('name="interests[]"', false)
+            ->assertSee(__('loop.create_pin'), false);
+
+        $this->post(route('customer.register.store'), [
+            'first_name' => 'Asha',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'birth_month' => 5,
+            'birth_day' => 14,
+            'gender' => 'female',
+            'interests' => ['coffee', 'fashion'],
+            'pin' => '2468',
+            'pin_confirmation' => '2468',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticated();
+        $this->assertSame(1, User::query()->where('phone', '713444555')->count());
+        $this->assertDatabaseHas('users', [
+            'id' => $memberId,
+            'phone' => '713444555',
+            'first_name' => 'Asha',
+            'birth_month' => 5,
+            'birth_day' => 14,
+            'gender' => 'female',
+            'profile_completed' => 1,
+        ]);
+        $this->assertEqualsCanonicalizing(
+            ['coffee', 'fashion'],
+            User::query()->find($memberId)->interests
+        );
+    }
+
+    public function test_completing_a_known_member_does_not_wipe_stored_profile_fields(): void
+    {
+        $customer = User::factory()->customer()->create([
+            'phone' => '713666111',
+            'first_name' => 'Neema',
+            'birth_month' => 8,
+            'birth_day' => 20,
+            'gender' => 'female',
+            'interests' => ['beauty'],
+            'city' => 'Arusha',
+            'profile_completed' => false,
+        ]);
+
+        $this->post(route('customer.send'), [
+            'country_code' => '+255',
+            'phone' => '713666111',
+        ])->assertRedirect(route('customer.register'));
+
+        $this->post(route('customer.register.store'), [
+            'country' => 'TZ',
+            'city' => 'Arusha',
+            'pin' => '1357',
+            'pin_confirmation' => '1357',
+        ])->assertRedirect(route('dashboard'));
+
+        $customer->refresh();
+        $this->assertSame('Neema', $customer->first_name);
+        $this->assertSame(8, (int) $customer->birth_month);
+        $this->assertSame(20, (int) $customer->birth_day);
+        $this->assertSame('female', $customer->gender);
+        $this->assertSame(['beauty'], $customer->interests);
+        $this->assertTrue($customer->profile_completed);
+    }
+
+    public function test_member_with_pin_and_incomplete_profile_finishes_without_a_new_pin(): void
+    {
+        User::factory()->customer()->create([
+            'phone' => '713777222',
+            'first_name' => 'Asha',
+            'password' => '1234',
+            'profile_completed' => false,
+        ]);
+
+        $this->post(route('customer.send'), [
+            'country_code' => '+255',
+            'phone' => '713777222',
+        ])->assertRedirect(route('customer.pin'));
+
+        $this->post(route('customer.pin.verify'), [
+            'pin' => '1234',
+        ])->assertRedirect(route('customer.register'));
+
+        $this->assertGuest();
+
+        $this->get(route('customer.register'))
+            ->assertOk()
+            ->assertSee(__('loop.member_hi', ['name' => 'Asha']), false)
+            ->assertDontSee(__('loop.create_pin'), false)
+            ->assertSee('total: 2', false);
+
+        $this->post(route('customer.register.store'), [
+            'first_name' => 'Asha',
+            'country' => 'TZ',
+            'city' => 'Dar es Salaam',
+            'interests' => ['coffee'],
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticated();
     }
 
     public function test_member_home_shows_business_cards_and_offer_badge(): void
@@ -72,7 +225,9 @@ class LoopMemberExperienceTest extends TestCase
             ->assertSee('Harbor Beans', false)
             ->assertSee('Coffee', false)
             ->assertSee('right-3 top-3', false)
-            ->assertSee(trans_choice('loop.offer_ready_badge', 1, ['count' => 1]), false)
+            ->assertSee(__('loop.youve_got_something'), false)
+            ->assertSee('Free pour', false)
+            ->assertSee(__('loop.show_at_till'), false)
             ->assertDontSee(__('loop.explore_nearby'), false)
             ->assertSee('172 pts', false)
             ->assertDontSee('absolute left-3 bottom-3', false);
@@ -185,6 +340,37 @@ class LoopMemberExperienceTest extends TestCase
 
         $tzStory = Article::query()->where('country', 'TZ')->first();
         $general = Article::query()->whereNull('country')->first();
+
+        $this->post(route('logout'));
+
+        $this->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
+            ->get(route('home'))
+            ->assertOk()
+            ->assertSee($tzStory->title_en, false)
+            ->assertSee($general->title_en, false);
+
+        $this->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
+            ->get(route('landing.customer'))
+            ->assertOk()
+            ->assertSee($tzStory->title_en, false);
+
+        $this->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
+            ->get(route('stories.index'))
+            ->assertOk()
+            ->assertSee($tzStory->title_en, false)
+            ->assertSee($general->title_en, false);
+
+        $this->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
+            ->get(route('stories.show', $tzStory))
+            ->assertOk()
+            ->assertSee($tzStory->body_en, false);
+
+        $this->withSession(['locale' => 'en', 'preferred_country' => 'KE'])
+            ->get(route('home'))
+            ->assertOk()
+            ->assertDontSee($tzStory->title_en, false)
+            ->assertSee($general->title_en, false);
+
         $tz = User::factory()->customer()->create([
             'phone' => '713111004',
             'country' => 'TZ',
@@ -200,10 +386,16 @@ class LoopMemberExperienceTest extends TestCase
 
         $this->actingAs($tz)
             ->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
-            ->get(route('dashboard'))
+            ->get(route('stories.index'))
             ->assertOk()
             ->assertSee($tzStory->title_en, false)
             ->assertSee($general->title_en, false);
+
+        $this->actingAs($tz)
+            ->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee($tzStory->title_en, false);
 
         $this->actingAs($tz)
             ->withSession(['locale' => 'en', 'preferred_country' => 'TZ'])
@@ -216,7 +408,6 @@ class LoopMemberExperienceTest extends TestCase
             ->withSession(['locale' => 'en', 'preferred_country' => 'KE'])
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee($general->title_en, false)
             ->assertDontSee($tzStory->title_en, false);
 
         $this->actingAs($ke)

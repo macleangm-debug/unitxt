@@ -56,6 +56,11 @@ class DashboardController extends Controller
             $salesTip = $user->isOwner()
                 ? app(\App\Services\SalesTipService::class)->tipFor($business)
                 : null;
+            $pulse = $user->isOwner()
+                ? app(\App\Services\OwnerPulseService::class)->for($business)
+                : null;
+            $access = app(\App\Services\LoopAccess::class);
+            $phase = $user->isOwner() ? $access->phase($business) : null;
 
             return view('dashboard.business', [
                 'business' => $business,
@@ -78,6 +83,10 @@ class DashboardController extends Controller
                     : null,
                 'subscriptionBanner' => $user->isOwner() ? $business->subscriptionBanner() : null,
                 'salesTip' => $salesTip,
+                'pulse' => $pulse,
+                'phase' => $phase,
+                'paused' => $phase === \App\Services\LoopAccess::PHASE_PAUSED,
+                'momentum' => $user->isOwner() ? $access->momentum($business) : null,
                 'trialExpired' => $user->isOwner() && $limits->trialExpired($business),
                 'trialDaysLeft' => ($user->isOwner() && $business->trial_ends_at && $business->trial_ends_at->isFuture())
                     ? (int) now()->diffInDays($business->trial_ends_at)
@@ -106,13 +115,11 @@ class DashboardController extends Controller
 
         $redeemables = $memberships
             ->flatMap(function (Membership $membership) {
-                return $membership->business->rewards
-                    ->filter(fn ($reward) => $reward->points_cost <= $membership->redeemablePoints())
-                    ->map(fn ($reward) => [
-                        'membership' => $membership,
-                        'business' => $membership->business,
-                        'reward' => $reward,
-                    ]);
+                return $membership->availableRewards()->map(fn ($reward) => [
+                    'membership' => $membership,
+                    'business' => $membership->business,
+                    'reward' => $reward,
+                ]);
             })
             ->take(8)
             ->values();
@@ -192,6 +199,14 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        $recent = $memberships->flatMap(function (Membership $membership) {
+            return $membership->groupedActivity(6)->map(function ($row) use ($membership) {
+                $row->shop_name = $membership->business->name;
+
+                return $row;
+            });
+        })->sortByDesc('created_at')->take(5)->values();
+
         return view('dashboard.customer', [
             'memberships' => $memberships,
             'grouped' => $memberships->groupBy(fn ($m) => $m->business->sector),
@@ -199,7 +214,8 @@ class DashboardController extends Controller
             'totalPoints' => $memberships->sum('points_balance'),
             'pointsEarned' => (int) $request->session()->pull('points_earned_flash', 0),
             'redeemables' => $redeemables,
-            'featuredRedeem' => $redeemables->count() === 1 ? $redeemables->first() : null,
+            'featuredRedeem' => $redeemables->first(),
+            'recent' => $recent,
             'topShops' => $topShops,
             'otherShops' => $otherShops,
             'discover' => $topShops,

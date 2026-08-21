@@ -12,7 +12,10 @@
             <ul class="mt-4 space-y-2.5 text-sm text-white/75">
                 <li><a href="{{ route('landing.business') }}" class="hover:text-white">{{ __('loop.business') }}</a></li>
                 <li><a href="{{ route('landing.customer') }}" class="hover:text-white">{{ __('loop.customer') }}</a></li>
+                <li><a href="{{ route('stories.index') }}" class="hover:text-white">{{ __('loop.stories') }}</a></li>
+                @if (\App\Support\AffiliateProgram::isEnabled() && \App\Support\MarketingSettings::settings()['show_affiliate_cta'])
                 <li><a href="{{ route('affiliates.landing') }}" class="hover:text-white">{{ __('loop.affiliates') }}</a></li>
+                @endif
                 <li><a href="{{ route('landing.business') }}#pricing" class="hover:text-white">{{ __('loop.footer_pricing') }}</a></li>
                 <li><a href="{{ route('discover') }}" class="hover:text-white">{{ __('loop.browse_campaigns') }}</a></li>
                 <li><a href="/#how" class="hover:text-white">{{ __('loop.footer_how') }}</a></li>
@@ -38,7 +41,7 @@
         <div class="loop-shell flex flex-wrap items-center justify-between gap-3 py-5 text-xs text-white/45">
             <span>© {{ date('Y') }} Loop</span>
             <div class="flex gap-2">
-                @foreach (\App\Support\Countries::OPTIONS as $meta)
+                @foreach (\App\Support\Countries::enabledOptions() as $meta)
                     <span title="{{ $meta['name'] }}">{{ $meta['flag'] }}</span>
                 @endforeach
             </div>

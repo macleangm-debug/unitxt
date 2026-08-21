@@ -24,7 +24,7 @@ class ArticleController extends Controller
     {
         return view('admin.articles.form', [
             'article' => new Article(['audience' => Article::AUDIENCE_MEMBERS]),
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::formOptions(),
         ]);
     }
 
@@ -45,7 +45,7 @@ class ArticleController extends Controller
     {
         return view('admin.articles.form', [
             'article' => $article,
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::formOptions($article->country),
         ]);
     }
 
@@ -90,7 +90,7 @@ class ArticleController extends Controller
             'excerpt_sw' => ['nullable', 'string', 'max:400'],
             'body_en' => ['nullable', 'string'],
             'body_sw' => ['nullable', 'string'],
-            'country' => ['nullable', 'in:'.implode(',', array_keys(Countries::OPTIONS))],
+            'country' => ['nullable', Countries::formRule($article->country)],
             'audience' => ['nullable', 'in:members,owners,all'],
             'image' => ['nullable', 'image', 'max:4096'],
             'published' => ['nullable', 'boolean'],

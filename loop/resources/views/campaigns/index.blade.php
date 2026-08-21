@@ -90,8 +90,9 @@
                 </a>
             @empty
                 <div class="loop-panel p-8 text-center">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.no_offers_yet_hint') }}</p>
-                    <a href="{{ route('rewards.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.add_offer') }}</a>
+                    <p class="font-display text-lg font-semibold">{{ __('loop.empty_offers_title') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.empty_offers_body') }}</p>
+                    <a href="{{ route('rewards.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.create_next_offer') }}</a>
                 </div>
             @endforelse
         </div>
@@ -116,9 +117,9 @@
                 </a>
             @empty
                 <div class="loop-panel p-8 text-center">
-                    <p class="font-display text-lg font-semibold">{{ __('loop.no_campaigns_yet') }}</p>
-                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.how_they_earn_body') }}</p>
-                    <a href="{{ route('campaigns.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.new_campaign') }}</a>
+                    <p class="font-display text-lg font-semibold">{{ __('loop.empty_campaigns_title') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.empty_campaigns_body') }}</p>
+                    <a href="{{ route('campaigns.create') }}" class="loop-btn-mint mt-5 inline-flex">{{ __('loop.empty_campaigns_cta') }}</a>
                 </div>
             @endforelse
         </div>

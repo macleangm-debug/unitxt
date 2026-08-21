@@ -11,12 +11,16 @@ class BillingSettings
     /**
      * @return array{
      *   trial_days: int,
+     *   grace_days: int,
      *   free_max_shops: int,
      *   free_max_members: int,
      *   free_max_monthly_visits: int,
      *   free_max_product_pushes: int,
      *   free_max_offers: int,
-     *   block_till_when_trial_ends: bool
+     *   block_till_when_trial_ends: bool,
+     *   discount_months_3: int,
+     *   discount_months_6: int,
+     *   discount_months_12: int
      * }
      */
     public static function settings(): array
@@ -30,6 +34,7 @@ class BillingSettings
 
         return [
             'trial_days' => max(1, (int) ($stored['trial_days'] ?? $defaults['trial_days'])),
+            'grace_days' => max(0, (int) ($stored['grace_days'] ?? $defaults['grace_days'])),
             'free_max_shops' => max(1, (int) ($stored['free_max_shops'] ?? $defaults['free_max_shops'])),
             'free_max_members' => max(1, (int) ($stored['free_max_members'] ?? $defaults['free_max_members'])),
             'free_max_monthly_visits' => max(1, (int) ($stored['free_max_monthly_visits'] ?? $defaults['free_max_monthly_visits'])),
@@ -49,6 +54,7 @@ class BillingSettings
     {
         return [
             'trial_days' => 14,
+            'grace_days' => 7,
             'free_max_shops' => 1,
             'free_max_members' => 50,
             'free_max_monthly_visits' => 50,
@@ -69,6 +75,7 @@ class BillingSettings
     {
         return [
             'trial_days' => max(1, min(90, (int) ($input['trial_days'] ?? 14))),
+            'grace_days' => max(0, min(30, (int) ($input['grace_days'] ?? 7))),
             'free_max_shops' => max(1, min(5, (int) ($input['free_max_shops'] ?? 1))),
             'free_max_members' => max(1, min(500, (int) ($input['free_max_members'] ?? 50))),
             'free_max_monthly_visits' => max(1, min(500, (int) ($input['free_max_monthly_visits'] ?? 50))),
@@ -107,5 +114,28 @@ class BillingSettings
         $discount = self::discountForMonths($months);
 
         return (int) round($monthly * $months * (100 - $discount) / 100);
+    }
+
+    public static function graceDays(): int
+    {
+        return (int) self::settings()['grace_days'];
+    }
+
+    /**
+     * @return array{months: int, discount: int, full: int, amount: int, save: int}
+     */
+    public static function quote(int $monthly, int $months): array
+    {
+        $months = in_array($months, [1, 3, 6, 12], true) ? $months : 1;
+        $full = $monthly * $months;
+        $amount = self::amountForMonths($monthly, $months);
+
+        return [
+            'months' => $months,
+            'discount' => self::discountForMonths($months),
+            'full' => $full,
+            'amount' => $amount,
+            'save' => max(0, $full - $amount),
+        ];
     }
 }

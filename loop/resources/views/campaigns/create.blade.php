@@ -198,15 +198,15 @@
 
                 <template x-if="type === 'earn'">
                     <div class="space-y-3">
-                        <p class="text-sm text-ink-muted">{{ __('loop.min_spend_section_help') }}</p>
+                        <p class="text-sm text-ink-muted">{{ __('loop.earn_in_plain_words') }}</p>
                         <div class="grid gap-3 sm:grid-cols-2">
                             <div>
-                                <label class="loop-label">{{ __('loop.min_spend_to_earn') }} ({{ $business->currency }})</label>
+                                <label class="loop-label">{{ __('loop.earn_for_every') }} ({{ $business->currency }})</label>
                                 <input type="text" inputmode="numeric" class="loop-input" x-model="spendDisplay" @input="formatSpend()" data-spend-input :placeholder="spendPlaceholder" :required="step === 3 && type === 'earn'">
                                 <x-input-error :messages="$errors->get('spend_step')" class="mt-1" />
                             </div>
                             <div>
-                                <label class="loop-label">{{ __('loop.points_earned') }}</label>
+                                <label class="loop-label">{{ __('loop.earn_give_points') }}</label>
                                 <input type="number" class="loop-input" x-model="pointsPerStep" data-points-input :placeholder="pointsPlaceholder" :required="step === 3 && type === 'earn'" min="1">
                                 <x-input-error :messages="$errors->get('points_per_step')" class="mt-1" />
                             </div>

@@ -8,6 +8,7 @@ use App\Models\PaymentIntent;
 use App\Models\Plan;
 use App\Models\SenderId;
 use App\Models\User;
+use App\Services\LoopAccess;
 use App\Services\MessagingService;
 use App\Support\BillingSettings;
 use App\Support\Countries;
@@ -199,13 +200,17 @@ class PaymentService
 
         if ($intent->purpose === 'plan_upgrade' && $intent->business_id && $intent->plan_key) {
             $months = (int) (($intent->meta['months'] ?? 1) ?: 1);
-            $intent->business?->update([
-                'plan_key' => $intent->plan_key,
-                'billing_status' => 'active',
-                'trial_ends_at' => null,
-                'plan_interval_months' => $months,
-                'plan_renews_at' => now()->addMonths($months),
-            ]);
+            $business = $intent->business;
+            if ($business) {
+                $plan = Plan::locate($intent->plan_key, $business->country);
+                $monthly = (int) ($plan?->price_monthly ?? 0);
+                if (($business->referral_credit_months ?? 0) > 0) {
+                    $monthly = 0;
+                } elseif ($monthly > 0) {
+                    $monthly = (int) round($monthly * (100 - min(100, max(0, (int) $business->referral_discount_percent))) / 100);
+                }
+                app(LoopAccess::class)->activate($business, $intent->plan_key, $months, $monthly);
+            }
         }
 
         if ($intent->purpose === 'sender_id') {

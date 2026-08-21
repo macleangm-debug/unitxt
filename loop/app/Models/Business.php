@@ -39,6 +39,11 @@ use Illuminate\Support\Str;
     'trial_ends_at',
     'plan_renews_at',
     'plan_interval_months',
+    'paused_at',
+    'grace_started_at',
+    'price_locked_until',
+    'price_locked_monthly',
+    'price_locked_plan_key',
     'referral_discount_percent',
     'referral_credit_months',
     'referral_credit_days',
@@ -60,6 +65,10 @@ class Business extends Model
             'trial_ends_at' => 'datetime',
             'plan_renews_at' => 'datetime',
             'plan_interval_months' => 'integer',
+            'paused_at' => 'datetime',
+            'grace_started_at' => 'datetime',
+            'price_locked_until' => 'datetime',
+            'price_locked_monthly' => 'integer',
             'referral_discount_percent' => 'integer',
             'referral_credit_months' => 'integer',
             'referral_credit_days' => 'integer',
@@ -180,36 +189,14 @@ class Business extends Model
         }
     }
 
+    public function loopBackRequests(): HasMany
+    {
+        return $this->hasMany(LoopBackRequest::class);
+    }
+
     public function subscriptionBanner(): ?array
     {
-        if (Plans::isPaidPlan($this->plan_key) && $this->billing_status === 'active' && $this->plan_renews_at) {
-            $days = (int) now()->startOfDay()->diffInDays($this->plan_renews_at->copy()->startOfDay(), false);
-            if ($days >= 0 && $days <= 14) {
-                return [
-                    'tone' => $days <= 3 ? 'coral' : 'amber',
-                    'text' => __('loop.sub_renews_soon', ['days' => max(0, $days), 'plan' => $this->plan?->name ?? $this->plan_key]),
-                ];
-            }
-        }
-
-        if ($this->billing_status === 'past_due' || ($this->trial_ends_at && $this->trial_ends_at->isPast() && ! Plans::isPaidPlan($this->plan_key))) {
-            return [
-                'tone' => 'coral',
-                'text' => __('loop.sub_expired_banner'),
-            ];
-        }
-
-        if ($this->billing_status === 'trialing' && $this->trial_ends_at && $this->trial_ends_at->isFuture()) {
-            $days = (int) now()->startOfDay()->diffInDays($this->trial_ends_at->copy()->startOfDay(), false);
-            if ($days <= 7) {
-                return [
-                    'tone' => $days <= 2 ? 'coral' : 'amber',
-                    'text' => __('loop.sub_trial_ending', ['days' => max(0, $days)]),
-                ];
-            }
-        }
-
-        return null;
+        return app(\App\Services\LoopAccess::class)->banner($this);
     }
 
     public function uniqueMemberCount(): int
@@ -235,6 +222,11 @@ class Business extends Model
     public function isOnline(): bool
     {
         return ($this->presence ?? 'physical') === 'online';
+    }
+
+    public function hasPhysicalLocation(): bool
+    {
+        return ($this->presence ?? 'physical') !== 'online';
     }
 
     public function payWithPointsEnabled(): bool
@@ -267,6 +259,12 @@ class Business extends Model
     {
         $plan = Plan::locate($this->plan_key ?: \App\Support\Plans::FREE, $this->country);
         $base = (int) ($plan?->price_monthly ?? 0);
+
+        if ($this->price_locked_until?->isFuture()
+            && $this->price_locked_plan_key === ($this->plan_key ?: \App\Support\Plans::FREE)
+            && (int) $this->price_locked_monthly > 0) {
+            $base = (int) $this->price_locked_monthly;
+        }
 
         if ($base <= 0) {
             return 0;
