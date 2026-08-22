@@ -5,14 +5,47 @@
     $samePage = $confirmUrl !== '' && rtrim($confirmUrl, '/') === rtrim($currentUrl, '/');
     $ctaIsDone = strcasecmp((string) ($confirm['cta'] ?? ''), (string) __('loop.done')) === 0;
     $mustContinue = ! empty($confirm['must_continue']);
+    $tillInline = $confirm && request()->routeIs('till.index') && ! empty($confirm['loop_moment']);
+    $isToast = $confirm
+        && ! $tillInline
+        && empty($confirm['celebrate'])
+        && empty($confirm['loop_moment'])
+        && empty($confirm['must_continue'])
+        && empty($confirm['steps']);
 @endphp
 
-@if ($confirm)
+@if ($confirm && ! $tillInline && $isToast)
+    <template x-teleport="body">
+        <div
+            x-data="{ open: true }"
+            x-show="open"
+            x-cloak
+            x-init="setTimeout(() => open = false, 2400)"
+            x-transition:enter="transition ease-out"
+            x-transition:enter-start="opacity-0 translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="loop-toast"
+            role="status"
+        >
+            <span class="loop-toast__check">✓</span>
+            <span>{{ $confirm['title'] }}</span>
+        </div>
+    </template>
+@elseif ($confirm && ! $tillInline)
     <template x-teleport="body">
     <div
         x-data="{ open: true }"
         x-show="open"
         x-cloak
+        x-transition:enter="loop-sheet-enter-active"
+        x-transition:enter-start="loop-sheet-enter-from"
+        x-transition:enter-end="loop-sheet-enter-to"
+        x-transition:leave="loop-sheet-leave-active"
+        x-transition:leave-start="loop-sheet-leave-from"
+        x-transition:leave-end="loop-sheet-leave-to"
         class="fixed inset-0 z-[80] flex items-center justify-center p-4"
         @if (! $mustContinue)
             @keydown.escape.window="open=false"

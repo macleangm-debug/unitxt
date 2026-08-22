@@ -188,7 +188,7 @@
                         <div class="mt-4">
                             <div class="h-1.5 overflow-hidden rounded-full {{ $canRedeem ? 'bg-white/20' : 'bg-ink/10' }}">
                                 <div
-                                    class="h-full rounded-full transition-all duration-700 ease-out {{ $canRedeem ? 'bg-lime' : 'bg-violet' }}"
+                                    class="loop-fill h-full rounded-full {{ $canRedeem ? 'bg-lime' : 'bg-violet' }}"
                                     style="width: {{ $progress['percent'] }}%"
                                 ></div>
                             </div>

@@ -54,7 +54,45 @@
             @endforeach
         </div>
     @else
-    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6">
+    @php
+        $tillConfirm = session('confirm');
+        $tillMoment = is_array($tillConfirm) ? ($tillConfirm['loop_moment'] ?? null) : null;
+    @endphp
+    <div
+        class="mx-auto max-w-xl"
+        x-data="{ tillDone: {{ $tillMoment ? 'true' : 'false' }} }"
+    >
+    @if ($tillMoment)
+        <div x-show="tillDone" class="loop-panel loop-till-done mb-6 p-6 text-center">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-mint-soft text-2xl font-bold text-mint-deep">✓</div>
+            <p class="mt-4 font-display text-3xl font-semibold">{{ $tillConfirm['title'] }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ $tillMoment['name'] }}</p>
+            @if ((int) $tillMoment['earned'] > 0)
+                <p class="mt-4 font-display text-2xl font-semibold text-mint-deep">+{{ $tillMoment['earned'] }} {{ __('loop.pts') }}</p>
+            @endif
+            <p class="mt-2 font-display text-5xl font-semibold tabular-nums">
+                @if ((int) $tillMoment['from'] !== (int) $tillMoment['to'])
+                    <x-count-up :value="$tillMoment['to']" :from="$tillMoment['from']" :earned="$tillMoment['earned']" />
+                @else
+                    {{ number_format((int) $tillMoment['to']) }}
+                @endif
+            </p>
+            @if (! empty($tillMoment['unlock']))
+                <div class="mt-5 rounded-[1.25rem] bg-violet px-4 py-3 text-white">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.offer_unlocked') }}</p>
+                    <p class="mt-1 font-display text-xl font-semibold">{{ $tillMoment['unlock'] }}</p>
+                </div>
+            @endif
+            <button type="button" class="loop-btn mt-6 w-full" @click="tillDone = false">{{ $tillConfirm['cta'] ?? __('loop.next_customer') }}</button>
+            @if (! empty($tillConfirm['undo_url']))
+                <form method="POST" action="{{ $tillConfirm['undo_url'] }}" class="mt-3">
+                    @csrf
+                    <button type="submit" class="w-full text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.undo') }}</button>
+                </form>
+            @endif
+        </div>
+    @endif
+    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel space-y-4 p-6" x-show="!tillDone">
         @csrf
         @if ($errors->any())
             <div class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
@@ -68,7 +106,7 @@
                     <p class="font-semibold">{{ $activeShop->name }}</p>
                 </div>
                 @if ($shopCount > 1)
-                    <a href="{{ route('till.index', array_filter(['change' => 1, 'scan' => $scanQuery ?? null])) }}" class="text-sm font-semibold text-violet">{{ __('loop.change_branch') }}</a>
+                    <x-till-branch-sheet :shops="$shops" :active-shop="$activeShop" :scan-query="$scanQuery ?? null" />
                 @endif
             </div>
 
@@ -134,6 +172,7 @@
         </div>
         <button class="loop-btn w-full">{{ __('loop.continue') }}</button>
     </form>
+    </div>
     @endif
 
     @if ($hasRecent)

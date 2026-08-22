@@ -8,6 +8,14 @@
     --loop-lime: #C8FF3D;
     --loop-chalk: #F7F7F4;
     --loop-lavender: #E9E5FF;
+    /* Frozen motion system — consume these; do not invent per-screen timings. */
+    --loop-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --loop-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --loop-motion-fast: 140ms;
+    --loop-motion-std: 230ms;
+    --loop-motion-sheet: 340ms;
+    --loop-motion-celebrate: 650ms;
+    --loop-motion-count: 800ms;
 }
 
 @layer base {
@@ -332,19 +340,45 @@
     }
 
     .loop-btn {
-        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+        transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out),
+            box-shadow var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-btn:active {
+        transform: scale(0.98);
     }
 
     .loop-btn-mint {
-        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+        transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-btn-mint:active {
+        transform: scale(0.98);
     }
 
     .loop-btn-lime {
-        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-lime px-5 py-3.5 text-sm font-semibold text-ink transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-lime px-5 py-3.5 text-sm font-semibold text-ink hover:bg-white focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2;
+        transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-btn-lime:active {
+        transform: scale(0.98);
     }
 
     .loop-btn-ghost {
-        @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-ink/15 bg-white px-5 py-3.5 text-sm font-semibold text-ink transition hover:border-ink/30 hover:bg-chalk;
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-ink/15 bg-white px-5 py-3.5 text-sm font-semibold text-ink hover:border-ink/30 hover:bg-chalk;
+        transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+            border-color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-btn-ghost:active {
+        transform: scale(0.98);
     }
 
     .loop-input {
@@ -705,7 +739,7 @@
         @apply absolute top-1.5 bottom-1.5 rounded-xl bg-violet-soft;
         width: calc(33.333% - 0.5rem);
         left: 0.25rem;
-        transition: left 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: left var(--loop-motion-sheet) var(--loop-ease-spring);
     }
 
     .loop-admin-tabs {
@@ -746,6 +780,19 @@
 
     .loop-hbar {
         @apply h-2.5 overflow-hidden rounded-full bg-chalk;
+    }
+
+    .loop-fill {
+        transform-origin: left center;
+        animation: loop-fill-in var(--loop-motion-std) var(--loop-ease-out) both;
+    }
+
+    .loop-press-card {
+        transition: transform var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-press-card:active {
+        transform: translateY(1px) scale(0.99);
     }
 
     .loop-bar-chart__bar--mint {
@@ -887,12 +934,32 @@
 
 @keyframes loop-unlock-in {
     from {
-        transform: scale(0.97);
+        transform: scale(0.985);
         box-shadow: none;
     }
     to {
-        transform: scale(1.02);
-        box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.35), 0 18px 50px rgba(91, 46, 255, 0.18);
+        transform: scale(1);
+        box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.28), 0 14px 36px rgba(91, 46, 255, 0.12);
+    }
+}
+
+@keyframes loop-fill-in {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+@keyframes loop-check-in {
+    from {
+        opacity: 0;
+        transform: scale(0.86);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
     }
 }
 
@@ -919,33 +986,33 @@
 }
 
 @keyframes loop-vt-fade-out {
-    from { opacity: 1; }
-    to { opacity: 1; }
+    from { opacity: 1; transform: none; }
+    to { opacity: 0.55; transform: translateY(-4px); }
 }
 
 @keyframes loop-vt-fade-in {
-    from { opacity: 1; transform: none; }
+    from { opacity: 0.55; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
 }
 
 @keyframes loop-vt-slide-out-left {
     from { opacity: 1; transform: translateX(0); }
-    to { opacity: 1; transform: translateX(0); }
+    to { opacity: 0.55; transform: translateX(-8px); }
 }
 
 @keyframes loop-vt-slide-in-right {
-    from { opacity: 1; transform: none; }
-    to { opacity: 1; transform: none; }
+    from { opacity: 0.55; transform: translateX(8px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes loop-vt-slide-out-right {
     from { opacity: 1; transform: translateX(0); }
-    to { opacity: 1; transform: translateX(0); }
+    to { opacity: 0.55; transform: translateX(8px); }
 }
 
 @keyframes loop-vt-slide-in-left {
-    from { opacity: 1; transform: none; }
-    to { opacity: 1; transform: none; }
+    from { opacity: 0.55; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 /* Cross-document View Transitions — logo morph + soft root fade */
@@ -960,25 +1027,25 @@
 
     /* Instagram-style tab crossfade */
     html[data-loop-nav="tab"]::view-transition-old(root) {
-        animation: 0.22s ease-out both loop-vt-fade-out;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-fade-out;
     }
     html[data-loop-nav="tab"]::view-transition-new(root) {
-        animation: 0.28s ease-out both loop-vt-fade-in;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-fade-in;
     }
 
-    /* Netflix / iOS push: outgoing slides left, incoming from right */
+    /* List → detail: slight left. Back: slight right. */
     html[data-loop-nav="push"]::view-transition-old(root) {
-        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-out-left;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-slide-out-left;
     }
     html[data-loop-nav="push"]::view-transition-new(root) {
-        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-in-right;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-slide-in-right;
     }
 
     html[data-loop-nav="back"]::view-transition-old(root) {
-        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-out-right;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-slide-out-right;
     }
     html[data-loop-nav="back"]::view-transition-new(root) {
-        animation: 0.34s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-slide-in-left;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-slide-in-left;
     }
 
     /* Morph keeps logo shared-element; root softens underneath */
@@ -1027,10 +1094,30 @@
     .loop-pricing-card,
     .animate-fade-up,
     .animate-fade-up-delay,
-    .loop-morph-flyer {
+    .loop-morph-flyer,
+    .loop-fill,
+    .loop-till-done,
+    .loop-toast__check,
+    .loop-unlock-card.is-ready,
+    html.loop-ready main.loop-shell {
         animation: none !important;
         transition: none !important;
         opacity: 1 !important;
+        transform: none !important;
+    }
+
+    .loop-sheet-enter-active .loop-picker-backdrop,
+    .loop-sheet-leave-active .loop-picker-backdrop,
+    .loop-sheet-enter-active .loop-picker-panel,
+    .loop-sheet-leave-active .loop-picker-panel {
+        transition: none !important;
+    }
+
+    .loop-btn:active,
+    .loop-btn-mint:active,
+    .loop-btn-lime:active,
+    .loop-btn-ghost:active,
+    .loop-press-card:active {
         transform: none !important;
     }
 
@@ -1866,8 +1953,9 @@ html.loop-picker-open body {
 .loop-picker-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(17, 17, 20, 0.5);
-    backdrop-filter: blur(2px);
+    background: rgba(17, 17, 20, 0.48);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .loop-picker-panel {
@@ -1884,6 +1972,56 @@ html.loop-picker-open body {
     background: #fff;
     border-radius: 1.75rem 1.75rem 0 0;
     box-shadow: 0 -20px 60px rgba(17, 17, 20, 0.25);
+    will-change: transform;
+}
+
+.loop-sheet-enter-active,
+.loop-sheet-leave-active {
+    transition: opacity var(--loop-motion-sheet) var(--loop-ease-out);
+}
+
+.loop-sheet-enter-from,
+.loop-sheet-leave-to {
+    opacity: 0.001;
+}
+
+.loop-sheet-enter-to,
+.loop-sheet-leave-from {
+    opacity: 1;
+}
+
+.loop-sheet-enter-active .loop-picker-backdrop,
+.loop-sheet-leave-active .loop-picker-backdrop {
+    transition: opacity var(--loop-motion-sheet) var(--loop-ease-out);
+}
+
+.loop-sheet-enter-active .loop-picker-panel,
+.loop-sheet-leave-active .loop-picker-panel {
+    transition: transform var(--loop-motion-sheet) var(--loop-ease-spring);
+}
+
+.loop-sheet-enter-from .loop-picker-backdrop,
+.loop-sheet-leave-to .loop-picker-backdrop {
+    opacity: 0;
+}
+
+.loop-sheet-enter-to .loop-picker-backdrop,
+.loop-sheet-leave-from .loop-picker-backdrop {
+    opacity: 1;
+}
+
+.loop-sheet-enter-from .loop-picker-panel,
+.loop-sheet-leave-to .loop-picker-panel {
+    transform: translateY(100%);
+}
+
+.loop-sheet-enter-to .loop-picker-panel,
+.loop-sheet-leave-from .loop-picker-panel {
+    transform: translateY(0);
+}
+
+.loop-picker-panel.is-dragging {
+    transition: none !important;
 }
 
 .loop-picker-handle {
@@ -1948,6 +2086,12 @@ html.loop-picker-open body {
     font-weight: 500;
     color: #111114;
     line-height: 1.35;
+    transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+        transform var(--loop-motion-fast) var(--loop-ease-out);
+}
+
+.loop-picker-option:active {
+    transform: scale(0.99);
 }
 
 .loop-picker-option:hover,
@@ -2040,12 +2184,88 @@ html.loop-picker-open body {
     .loop-picker-handle {
         display: none;
     }
+
+    .loop-sheet-enter-from .loop-picker-panel,
+    .loop-sheet-leave-to .loop-picker-panel {
+        transform: translate(-50%, -46%) scale(0.98);
+        opacity: 0;
+    }
+
+    .loop-sheet-enter-to .loop-picker-panel,
+    .loop-sheet-leave-from .loop-picker-panel {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    .loop-sheet-enter-active .loop-picker-panel,
+    .loop-sheet-leave-active .loop-picker-panel {
+        transition: transform var(--loop-motion-sheet) var(--loop-ease-spring),
+            opacity var(--loop-motion-sheet) var(--loop-ease-out);
+    }
 }
 
 @media (max-width: 639px) {
     .loop-picker-handle {
         display: block;
     }
+}
+
+.loop-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    z-index: 90;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    max-width: calc(100vw - 2rem);
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: rgba(17, 17, 20, 0.92);
+    color: #fff;
+    padding: 0.7rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 12px 32px rgba(17, 17, 20, 0.22);
+}
+
+.loop-toast__check {
+    display: inline-flex;
+    height: 1.35rem;
+    width: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #C8FF3D;
+    color: #111114;
+    font-size: 0.75rem;
+    animation: loop-check-in var(--loop-motion-fast) var(--loop-ease-spring) both;
+}
+
+.loop-till-done {
+    animation: loop-unlock-in var(--loop-motion-celebrate) var(--loop-ease-spring) both;
+}
+
+.loop-sticky-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgba(247, 247, 244, 0) 0%, rgba(247, 247, 244, 0.92) 28%, #F7F7F4 100%);
+}
+
+html.loop-ready main.loop-shell {
+    animation: loop-vt-fade-in var(--loop-motion-std) var(--loop-ease-out) both;
+}
+
+html[data-loop-nav="push"].loop-ready main.loop-shell {
+    animation-name: loop-vt-slide-in-right;
+}
+
+html[data-loop-nav="back"].loop-ready main.loop-shell {
+    animation-name: loop-vt-slide-in-left;
 }
 
 

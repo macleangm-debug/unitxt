@@ -2,6 +2,74 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+window.loopNumber = {
+    decimalsFor(code) {
+        return ['USD', 'KES', 'EUR', 'GBP'].includes(String(code || '').toUpperCase()) ? 2 : 0;
+    },
+    parse(value) {
+        const raw = String(value ?? '').replace(/,/g, '').replace(/[^\d.-]/g, '');
+        if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
+            return 0;
+        }
+        const n = Number(raw);
+
+        return Number.isFinite(n) ? n : 0;
+    },
+    format(value, decimals = 0) {
+        const n = typeof value === 'number' ? value : this.parse(value);
+
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        }).format(n);
+    },
+    formatInput(value, decimals = 0) {
+        const raw = String(value ?? '');
+        const cleaned = raw.replace(/[^\d.]/g, '');
+        if (! cleaned) {
+            return '';
+        }
+        const parts = cleaned.split('.');
+        const intPart = parts.shift() || '';
+        const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (decimals <= 0) {
+            return grouped;
+        }
+        const frac = parts.join('').slice(0, decimals);
+        if (raw.includes('.') && frac.length === 0) {
+            return grouped + '.';
+        }
+
+        return frac.length ? grouped + '.' + frac : grouped;
+    },
+};
+
+window.loopToast = {
+    show(message, kind = 'success', ms) {
+        const store = window.Alpine?.store?.('loopToast');
+        if (store) {
+            store.show(message, kind, ms);
+        }
+    },
+    success(message) {
+        this.show(message, 'success', 2000);
+    },
+    error(message) {
+        this.show(message, 'error', 4000);
+    },
+};
+
+window.loopCopy = async (text, successLabel, errorLabel) => {
+    try {
+        await navigator.clipboard.writeText(String(text || ''));
+        window.loopToast.success(successLabel || 'Copied');
+        return true;
+    } catch (_) {
+        window.loopToast.error(errorLabel || successLabel || 'Copied');
+        return false;
+    }
+};
+
 (() => {
     if ('Notification' in window) {
         try {
@@ -46,14 +114,14 @@ window.Alpine = Alpine;
         if (name === 'phone' || name === 'payout_phone' || mode === 'tel') {
             return 'phone';
         }
-        if (mode === 'decimal' || (el.step && String(el.step).includes('.'))) {
-            return 'decimal';
+        if (mode === 'decimal' || el.hasAttribute('data-amount-input') || el.hasAttribute('data-spend-input') || el.hasAttribute('data-value-input') || el.hasAttribute('data-loop-money')) {
+            return 'amount';
         }
         if (el.type === 'number') {
             return 'digits';
         }
         if (mode === 'numeric' || el.dataset.numeric) {
-            return el.dataset.numeric === 'decimal' ? 'decimal' : 'amount';
+            return el.dataset.numeric === 'decimal' || el.dataset.numeric === 'amount' ? 'amount' : 'digits';
         }
 
         return null;
@@ -62,7 +130,7 @@ window.Alpine = Alpine;
     const allowedRe = {
         digits: /[0-9]/,
         phone: /[0-9+]/,
-        decimal: /[0-9.]/,
+        decimal: /[0-9.,]/,
         amount: /[0-9.,]/,
     };
 
@@ -71,14 +139,10 @@ window.Alpine = Alpine;
         if (kind === 'phone') {
             return raw.replace(/[^\d+]/g, '');
         }
-        if (kind === 'decimal') {
-            const next = raw.replace(/[^\d.]/g, '');
-            const parts = next.split('.');
+        if (kind === 'decimal' || kind === 'amount') {
+            const decimals = kind === 'decimal' ? 2 : 0;
 
-            return parts.shift() + (parts.length ? '.' + parts.join('') : '');
-        }
-        if (kind === 'amount') {
-            return raw.replace(/[^\d,]/g, '');
+            return window.loopNumber.formatInput(raw, decimals);
         }
 
         return raw.replace(/\D+/g, '');
@@ -168,6 +232,70 @@ window.Alpine = Alpine;
 const prefersReducedMotion = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const loopSheetState = {
+    panel: null,
+    startY: 0,
+    dy: 0,
+    tracking: false,
+    locked: () => false,
+    setOpen: null,
+};
+
+window.loopSheet = {
+    down(event, panel, getOpen, setOpen, getLocked) {
+        if (prefersReducedMotion() || window.matchMedia('(min-width: 640px)').matches) {
+            return;
+        }
+        if (! panel || event.touches.length !== 1) {
+            return;
+        }
+        const list = panel.querySelector('.loop-picker-list');
+        const fromHandle = event.target.closest('.loop-picker-handle, .loop-picker-head');
+        if (! fromHandle && list && list.scrollTop > 0) {
+            return;
+        }
+        loopSheetState.panel = panel;
+        loopSheetState.startY = event.touches[0].clientY;
+        loopSheetState.dy = 0;
+        loopSheetState.tracking = true;
+        loopSheetState.locked = typeof getLocked === 'function' ? getLocked : () => false;
+        loopSheetState.setOpen = setOpen;
+        panel.classList.add('is-dragging');
+    },
+    move(event) {
+        if (! loopSheetState.tracking || ! loopSheetState.panel || event.touches.length !== 1) {
+            return;
+        }
+        const dy = event.touches[0].clientY - loopSheetState.startY;
+        if (dy < 0) {
+            loopSheetState.dy = 0;
+            loopSheetState.panel.style.transform = '';
+            return;
+        }
+        if (dy > 8) {
+            event.preventDefault();
+        }
+        loopSheetState.dy = dy;
+        loopSheetState.panel.style.transform = `translateY(${dy}px)`;
+    },
+    up() {
+        if (! loopSheetState.tracking || ! loopSheetState.panel) {
+            return;
+        }
+        const panel = loopSheetState.panel;
+        const dy = loopSheetState.dy;
+        const locked = loopSheetState.locked();
+        const close = loopSheetState.setOpen;
+        panel.classList.remove('is-dragging');
+        panel.style.transform = '';
+        loopSheetState.tracking = false;
+        loopSheetState.panel = null;
+        if (! locked && dy > 88 && typeof close === 'function') {
+            close(false);
+        }
+    },
+};
+
 const supportsViewTransitions = () => 'startViewTransition' in document;
 
 const sameOriginUrl = (url) => {
@@ -230,6 +358,29 @@ const isHashOnlyNav = (url) => {
  * - fade: generic soft dissolve
  * - morph: shared-element (logo) handoff
  */
+Alpine.store('loopToast', {
+    open: false,
+    message: '',
+    kind: 'success',
+    timer: null,
+    show(message, kind = 'success', ms) {
+        this.message = String(message || '');
+        this.kind = kind === 'error' ? 'error' : 'success';
+        this.open = true;
+        clearTimeout(this.timer);
+        const wait = ms ?? (this.kind === 'error' ? 4000 : 2000);
+        this.timer = setTimeout(() => {
+            this.open = false;
+        }, wait);
+    },
+    success(message) {
+        this.show(message, 'success', 2000);
+    },
+    error(message) {
+        this.show(message, 'error', 4000);
+    },
+});
+
 Alpine.store('loopNav', {
     transitioning: false,
     morphing: false,
@@ -344,7 +495,9 @@ Alpine.store('loopNav', {
         document.documentElement.dataset.loopNav = kind;
         sessionStorage.setItem('loopNavKind', kind);
 
-        showLoopSkeleton();
+        if (kind !== 'tab') {
+            showLoopSkeleton();
+        }
         this.transitioning = false;
         window.location.href = next.href;
     },
@@ -741,7 +894,7 @@ Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0, startFrom =
         }, 1200);
     },
     formatted() {
-        return new Intl.NumberFormat().format(this.display);
+        return window.loopNumber.format(this.display);
     },
 }));
 
@@ -1498,14 +1651,20 @@ Alpine.data('tillWizard', (cfg = {}) => ({
             this.payWithPoints = false;
         }
     },
+    init() {
+        this.amountDisplay = window.loopNumber.formatInput(
+            this.amountDisplay,
+            window.loopNumber.decimalsFor(this.currency)
+        );
+    },
     formatAmount() {
-        let raw = String(this.amountDisplay).replace(/[^\d.]/g, '');
-        const parts = raw.split('.');
-        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-        this.amountDisplay = parts.join('.');
+        this.amountDisplay = window.loopNumber.formatInput(
+            this.amountDisplay,
+            window.loopNumber.decimalsFor(this.currency)
+        );
     },
     amountValue() {
-        return parseFloat(String(this.amountDisplay).replace(/,/g, '')) || 0;
+        return window.loopNumber.parse(this.amountDisplay);
     },
     discount() {
         const offer = this.selectedOffer();
@@ -1541,11 +1700,11 @@ Alpine.data('tillWizard', (cfg = {}) => ({
             return this.giveAndCollect
                 .replace(':name', name)
                 .replace(':currency', this.currency)
-                .replace(':amount', this.remaining().toLocaleString());
+                .replace(':amount', window.loopNumber.format(this.remaining(), window.loopNumber.decimalsFor(this.currency)));
         }
         if (this.discount() > 0) {
             return this.collectRemaining
-                .replace(':amount', this.remaining().toLocaleString())
+                .replace(':amount', window.loopNumber.format(this.remaining(), window.loopNumber.decimalsFor(this.currency)))
                 .replace(':currency', this.currency);
         }
 
@@ -1716,6 +1875,8 @@ Alpine.data('affiliateApplyWizard', (cfg = {}) => ({
 
 Alpine.data('memberRegisterWizard', (cfg = {}) => ({
     step: cfg.step ?? 1,
+    introPane: cfg.introPane ?? 1,
+    splitIntro: cfg.splitIntro ?? false,
     persistKey: 'loop.memberRegister',
     maxStep: cfg.total ?? 3,
     init() {
@@ -1729,9 +1890,13 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
         const urlStep = parseInt(params.get('step') || '', 10);
         if (cfg.force) {
             this.step = cfg.step ?? 1;
+            this.introPane = cfg.introPane ?? 1;
         } else {
             if (saved && saved.step) {
                 this.step = saved.step;
+            }
+            if (saved && saved.introPane) {
+                this.introPane = saved.introPane;
             }
             if (urlStep >= 1 && urlStep <= this.maxStep) {
                 this.step = urlStep;
@@ -1742,7 +1907,10 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
     },
     persist() {
         try {
-            sessionStorage.setItem(this.persistKey, JSON.stringify({ step: this.step }));
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                introPane: this.introPane,
+            }));
         } catch (e) {}
     },
     syncUrl() {
@@ -1756,7 +1924,11 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
         return this.maxStep;
     },
     go(n) {
-        this.step = Math.max(1, Math.min(this.maxStep, parseInt(n, 10) || 1));
+        const next = Math.max(1, Math.min(this.maxStep, parseInt(n, 10) || 1));
+        if (this.splitIntro && next === 1 && this.step > 1) {
+            this.introPane = 2;
+        }
+        this.step = next;
         this.syncUrl();
         this.persist();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1776,10 +1948,49 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
         }
     },
     next() {
+        if (this.splitIntro && this.step === 1 && this.introPane === 1) {
+            if (! this.validatePane(1)) {
+                return;
+            }
+            this.introPane = 2;
+            this.persist();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
         if (!this.validateStep(this.step)) {
             return;
         }
+        if (this.splitIntro && this.step === 1) {
+            this.introPane = 1;
+        }
         this.go(Math.min(this.maxStep, this.step + 1));
+    },
+    backIntro() {
+        if (this.splitIntro && this.step === 1 && this.introPane === 2) {
+            this.introPane = 1;
+            this.persist();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        this.go(this.step - 1);
+    },
+    validatePane(pane) {
+        const form = this.$refs.form;
+        if (! form) {
+            return false;
+        }
+        const root = form.querySelector('[data-intro-pane="' + pane + '"]');
+        if (! root) {
+            return true;
+        }
+        const fields = root.querySelectorAll('input, select, textarea');
+        for (const el of fields) {
+            if (typeof el.reportValidity === 'function' && ! el.reportValidity()) {
+                el.focus();
+                return false;
+            }
+        }
+        return true;
     },
     validateStep(stepNum) {
         const form = this.$refs.form;
@@ -1880,9 +2091,14 @@ document.addEventListener('submit', (event) => {
     if (! (form instanceof HTMLFormElement) || (form.target && form.target !== '_self')) {
         return;
     }
-    if (form.hasAttribute('data-loop-no-skeleton') || form.closest('[data-loop-no-skeleton]')) {
+    if (form.hasAttribute('data-loop-quiet') || form.hasAttribute('data-loop-no-skeleton') || form.closest('[data-loop-no-skeleton]')) {
         return;
     }
+    form.querySelectorAll('[data-loop-money]').forEach((el) => {
+        if (el instanceof HTMLInputElement && el.name) {
+            el.value = String(window.loopNumber.parse(el.value));
+        }
+    });
     if (document.documentElement.classList.contains('loop-no-skeleton')) {
         return;
     }
@@ -2154,10 +2370,7 @@ Alpine.data('contentStudio', (cfg = {}) => ({
                 return;
             }
         } catch (e) {}
-        try {
-            await navigator.clipboard.writeText(text);
-            alert(cfg.copiedLabel);
-        } catch (e) {}
+        await window.loopCopy(text, cfg.copiedLabel);
     },
     loadImage(src) {
         return new Promise((resolve, reject) => {
@@ -2399,6 +2612,13 @@ Alpine.data('raffleStage', (cfg = {}) => ({
         }, 65);
     },
 }));
+
+if (document.body && ! document.querySelector('[data-loop-toast-host]')) {
+    const host = document.createElement('div');
+    host.setAttribute('data-loop-toast-host', '');
+    host.innerHTML = '<div class="loop-toast" x-cloak x-show="$store.loopToast.open" role="status" aria-live="polite" :class="$store.loopToast.kind === \'error\' && \'loop-toast--error\'"><span class="loop-toast__check" x-show="$store.loopToast.kind !== \'error\'">✓</span><span x-text="$store.loopToast.message"></span></div>';
+    document.body.appendChild(host);
+}
 
 Alpine.start();
 

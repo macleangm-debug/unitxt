@@ -225,9 +225,9 @@ class LoopMemberExperienceTest extends TestCase
             ->assertSee('Harbor Beans', false)
             ->assertSee('Coffee', false)
             ->assertSee('right-3 top-3', false)
-            ->assertSee(__('loop.youve_got_something'), false)
+            ->assertSee(__('loop.reward_ready_title', ['reward' => 'Free pour']), false)
             ->assertSee('Free pour', false)
-            ->assertSee(__('loop.show_at_till'), false)
+            ->assertSee(__('loop.use_reward'), false)
             ->assertDontSee(__('loop.explore_nearby'), false)
             ->assertSee('172 pts', false)
             ->assertDontSee('absolute left-3 bottom-3', false);

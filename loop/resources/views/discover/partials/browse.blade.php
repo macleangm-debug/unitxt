@@ -2,7 +2,7 @@
     $browsePad = $isCustomer ?? false;
     $search = $search ?? '';
 @endphp
-<div @if (! $browsePad) class="pb-28 pt-6" @endif x-data="{ filtersOpen: false }">
+<div @if (! $browsePad) class="pb-28 pt-6" @endif x-data="{ filtersOpen: false, q: @js($search), hayMatch(hay) { const q = this.q.trim().toLowerCase(); return !q || String(hay).includes(q); } }">
     <div @class(['loop-shell' => ! $browsePad])>
         @if (session('status'))
             <div class="mb-4 rounded-2xl border border-lime/50 bg-lime/20 px-4 py-3 text-sm font-medium text-ink">{{ session('status') }}</div>
@@ -29,6 +29,7 @@
                     id="discover-q"
                     type="search"
                     name="q"
+                    x-model="q"
                     value="{{ $search }}"
                     placeholder="{{ __('loop.search_shops_placeholder') }}"
                     class="loop-input"
@@ -92,13 +93,21 @@
                         $membership = $membershipByBusinessId->get($business->id);
                         $points = $membership?->points_balance;
                         $cheapest = $business->rewards?->first();
+                        $hay = strtolower(trim(implode(' ', array_filter([
+                            $business->name,
+                            \App\Support\Sectors::label($business->sector, $business->sector_other),
+                            $business->shops?->first()?->city ?: $business->city,
+                            $cheapest?->name,
+                        ]))));
                     @endphp
+                    <div x-show="hayMatch(@js($hay))">
                     <x-discover-tile
                         :business="$business"
                         :show-points="$isCustomer && $membership !== null"
                         :points="$points"
                         :headline="$cheapest?->name"
                     />
+                    </div>
                 @endforeach
             </div>
         </section>
@@ -121,7 +130,8 @@
                         <a href="{{ route('customer.login') }}" class="loop-btn mt-5 inline-flex">{{ __('loop.sign_in_to_invite') }}</a>
                     @endif
                 @else
-                    <p class="text-ink-muted">{{ __('loop.no_shops_filter') }}</p>
+                    <p class="font-display text-lg font-semibold text-ink">{{ __('loop.nothing_nearby_title') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.nothing_nearby_body') }}</p>
                     @if ($isCustomer)
                         <div class="mt-5">
                             <x-invite-business

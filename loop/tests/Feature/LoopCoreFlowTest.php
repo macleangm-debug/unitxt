@@ -1033,7 +1033,7 @@ class LoopCoreFlowTest extends TestCase
 
         $this->get(route('staff.login'))->assertOk()
             ->assertSee('loop-page-skeleton', false)
-            ->assertSee(__('loop.page_loading'), false);
+            ->assertSee(__('loop.page_preparing'), false);
 
         [$owner] = $this->seedBusiness();
 

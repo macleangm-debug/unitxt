@@ -10,7 +10,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans text-ink">
-<div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
+<div class="relative min-h-screen overflow-x-hidden bg-chalk pb-24 sm:pb-0" x-data="loopPageMotion()">
     <div class="pointer-events-none absolute inset-0">
         <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-violet/15 blur-3xl"></div>
         <div class="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-lime/20 blur-3xl"></div>
@@ -91,6 +91,9 @@
         </div>
     </section>
 </main>
+<div class="loop-sticky-cta sm:hidden">
+    <a href="{{ route('business.register') }}" class="loop-btn w-full justify-center">{{ __('loop.cta_business') }}</a>
+</div>
 <x-site-footer />
 <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>

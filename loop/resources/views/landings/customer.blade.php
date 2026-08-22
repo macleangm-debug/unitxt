@@ -10,7 +10,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans text-ink">
-<div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
+<div class="relative min-h-screen overflow-x-hidden bg-chalk pb-24 sm:pb-0" x-data="loopPageMotion()">
     <div class="pointer-events-none absolute inset-0">
         <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-violet/15 blur-3xl"></div>
         <div class="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-lime/20 blur-3xl"></div>
@@ -36,22 +36,22 @@
                 </p>
                 <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <a href="{{ route('customer.login') }}" class="loop-btn w-full justify-center sm:w-auto">
-                        {{ __('loop.start_using_loop') }}
+                        {{ __('loop.cta_customer') }}
                     </a>
                     <a href="{{ route('discover') }}" class="inline-flex items-center justify-center px-1 py-2 text-sm font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline sm:px-3">
                         {{ __('loop.browse_campaigns') }} →
                     </a>
                 </div>
 
-                <div class="mt-10 grid max-w-md grid-cols-3 gap-3 text-center sm:gap-4">
+                <div class="mt-10 grid max-w-lg grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-4">
                     @foreach ([
-                        ['01', 'customer_flow_phone'],
-                        ['02', 'customer_flow_points'],
-                        ['03', 'customer_flow_rewards'],
-                    ] as [$num, $key])
+                        'flow_buy',
+                        'flow_earn',
+                        'flow_unlock',
+                        'flow_enjoy',
+                    ] as $key)
                         <div class="loop-glass px-2 py-3">
-                            <p class="font-display text-2xl font-semibold text-violet">{{ $num }}</p>
-                            <p class="mt-1 text-xs font-semibold leading-snug text-ink sm:text-sm">{{ __('loop.'.$key) }}</p>
+                            <p class="font-display text-sm font-semibold leading-snug text-ink sm:text-base">{{ __('loop.'.$key) }}</p>
                         </div>
                     @endforeach
                 </div>
@@ -116,7 +116,29 @@
         </section>
 
         @include('stories.partials.landing')
+
+        <section class="border-t border-ink/8">
+            <div class="loop-shell py-12 sm:py-16">
+                <p class="font-display text-2xl font-semibold tracking-tight">{{ __('loop.member_faq_title') }}</p>
+                <div class="mt-6 space-y-3">
+                    @foreach ([
+                        ['member_faq_1_q', 'member_faq_1_a'],
+                        ['member_faq_2_q', 'member_faq_2_a'],
+                        ['member_faq_3_q', 'member_faq_3_a'],
+                    ] as [$q, $a])
+                        <details class="loop-panel group px-5 py-4">
+                            <summary class="cursor-pointer list-none font-display text-base font-semibold">{{ __('loop.'.$q) }}</summary>
+                            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.'.$a) }}</p>
+                        </details>
+                    @endforeach
+                </div>
+            </div>
+        </section>
     </main>
+
+    <div class="loop-sticky-cta sm:hidden">
+        <a href="{{ route('customer.login') }}" class="loop-btn w-full justify-center">{{ __('loop.cta_customer') }}</a>
+    </div>
 
     <x-site-footer />
     <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>

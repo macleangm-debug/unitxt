@@ -70,6 +70,10 @@
                     <p class="mt-2 text-xs font-semibold text-lime/90">{{ __('loop.offers_ready_count', ['count' => $ready]) }}</p>
                 @elseif ($next && $needed > 0 && empty($pausedHere))
                     <p class="mt-2 text-xs font-semibold text-lime/90">{{ __('loop.pts_to_unlock_named', ['points' => $needed, 'offer' => $next->name]) }}</p>
+                    @php $pct = max(0, min(100, (int) round(($membership->points_balance / max(1, $next->points_cost)) * 100))); @endphp
+                    <div class="loop-hbar mt-2 h-1.5 bg-white/15">
+                        <span class="loop-fill block h-full rounded-full bg-lime" style="width: {{ $pct }}%"></span>
+                    </div>
                 @endif
                 @if ($pausedHere)
                     <p class="mt-2 text-xs font-semibold text-white/80">{{ __('loop.member_paused_title') }}</p>

@@ -239,12 +239,12 @@
                     </div>
 
                     <div x-show="discount() > 0" x-cloak class="rounded-2xl border border-mint/30 bg-mint-soft/40 px-4 py-3 text-sm">
-                        <p>{{ __('loop.till_offer_takes_off') }}: <span class="font-semibold" x-text="currency + ' ' + discount().toLocaleString()"></span></p>
-                        <p class="mt-1 font-display text-lg font-semibold">{{ __('loop.till_they_pay') }}: <span x-text="currency + ' ' + remaining().toLocaleString()"></span></p>
+                        <p>{{ __('loop.till_offer_takes_off') }}: <span class="font-semibold" x-text="currency + ' ' + window.loopNumber.format(discount(), window.loopNumber.decimalsFor(currency))"></span></p>
+                        <p class="mt-1 font-display text-lg font-semibold">{{ __('loop.till_they_pay') }}: <span x-text="currency + ' ' + window.loopNumber.format(remaining(), window.loopNumber.decimalsFor(currency))"></span></p>
                     </div>
 
                     <div x-show="hasExtraPurchase()" x-cloak class="rounded-2xl border border-mint/30 bg-mint-soft/40 px-4 py-3 text-sm">
-                        <p>{{ __('loop.till_they_pay') }}: <span class="font-display text-lg font-semibold" x-text="currency + ' ' + remaining().toLocaleString()"></span></p>
+                        <p>{{ __('loop.till_they_pay') }}: <span class="font-display text-lg font-semibold" x-text="currency + ' ' + window.loopNumber.format(remaining(), window.loopNumber.decimalsFor(currency))"></span></p>
                     </div>
 
                     @if (($productPushes ?? collect())->isNotEmpty())

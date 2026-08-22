@@ -19,6 +19,11 @@
     }
     $initialStep = $errors->any() ? $errorStep : (int) old('_step', 1);
     $knownCity = filled($existing?->city);
+    $splitIntro = ! ($knownBirthday && $knownGender);
+    $introPane = 1;
+    if ($errors->hasAny(['birth_month', 'birth_day', 'gender'])) {
+        $introPane = 2;
+    }
 @endphp
 <x-guest-layout
     :aside-title="__('loop.customer_aside_title')"
@@ -29,7 +34,7 @@
     :aside-point3="__('loop.customer_aside_3')"
 >
     <div
-        x-data="memberRegisterWizard({ step: {{ (int) $initialStep }}, total: {{ (int) $totalSteps }}, force: {{ $errors->any() ? 'true' : 'false' }} })"
+        x-data="memberRegisterWizard({ step: {{ (int) $initialStep }}, total: {{ (int) $totalSteps }}, introPane: {{ (int) $introPane }}, splitIntro: {{ $splitIntro ? 'true' : 'false' }}, force: {{ $errors->any() ? 'true' : 'false' }} })"
         x-effect="persist()"
     >
         <div class="mb-4">
@@ -57,74 +62,98 @@
             <input type="hidden" name="_step" :value="step">
 
             <div data-step="1" x-show="step === 1" class="space-y-4">
-                @if ($knownName)
-                    <p class="text-sm text-ink-muted">{{ __('loop.member_details_ready') }}</p>
-                    <div class="rounded-2xl bg-chalk px-4 py-3 text-sm">
-                        <p class="font-semibold">{{ $existing->name }}</p>
-                        @if ($knownBirthday)
-                            <p class="mt-1 text-ink-muted">{{ __('loop.birthday') }} · {{ $existing->birth_day }}/{{ $existing->birth_month }}</p>
+                <div data-intro-pane="1" x-show="!splitIntro || introPane === 1" class="space-y-4">
+                    <p class="font-display text-lg font-semibold">{{ __('loop.member_intro') }}</p>
+                    @if ($knownName)
+                        <p class="text-sm text-ink-muted">{{ __('loop.member_details_ready') }}</p>
+                        <div class="rounded-2xl bg-chalk px-4 py-3 text-sm">
+                            <p class="font-semibold">{{ $existing->name }}</p>
+                            @if ($knownBirthday)
+                                <p class="mt-1 text-ink-muted">{{ __('loop.birthday') }} · {{ $existing->birth_day }}/{{ $existing->birth_month }}</p>
+                            @endif
+                            @if ($knownGender)
+                                <p class="mt-1 text-ink-muted">{{ $existing->gender === 'female' ? __('loop.gender_female') : __('loop.gender_male') }}</p>
+                            @endif
+                        </div>
+                        <input type="hidden" name="first_name" value="{{ old('first_name', $existing->first_name) }}">
+                        @if (filled($existing->last_name))
+                            <input type="hidden" name="last_name" value="{{ old('last_name', $existing->last_name) }}">
+                        @else
+                            <div>
+                                <label class="loop-label">{{ __('loop.last_name') }} ({{ __('loop.optional') }})</label>
+                                <input name="last_name" value="{{ old('last_name', $existing->last_name) }}" class="loop-input" autocomplete="family-name">
+                            </div>
                         @endif
-                        @if ($knownGender)
-                            <p class="mt-1 text-ink-muted">{{ $existing->gender === 'female' ? __('loop.gender_female') : __('loop.gender_male') }}</p>
-                        @endif
-                    </div>
-                    <input type="hidden" name="first_name" value="{{ old('first_name', $existing->first_name) }}">
-                    @if (filled($existing->last_name))
-                        <input type="hidden" name="last_name" value="{{ old('last_name', $existing->last_name) }}">
                     @else
+                        <p class="text-sm text-ink-muted">{{ __('loop.member_intro_blurb') }}</p>
+                        <div>
+                            <label class="loop-label">{{ __('loop.first_name') }}</label>
+                            <input name="first_name" value="{{ old('first_name', $existing?->first_name) }}" class="loop-input" :required="step === 1 && introPane === 1" autocomplete="given-name">
+                        </div>
                         <div>
                             <label class="loop-label">{{ __('loop.last_name') }} ({{ __('loop.optional') }})</label>
-                            <input name="last_name" value="{{ old('last_name', $existing->last_name) }}" class="loop-input" autocomplete="family-name">
+                            <input name="last_name" value="{{ old('last_name', $existing?->last_name) }}" class="loop-input" autocomplete="family-name">
                         </div>
                     @endif
-                @else
-                    <p class="text-sm text-ink-muted">{{ __('loop.member_intro_blurb') }}</p>
-                    <div>
-                        <label class="loop-label">{{ __('loop.first_name') }}</label>
-                        <input name="first_name" value="{{ old('first_name', $existing?->first_name) }}" class="loop-input" :required="step === 1" autocomplete="given-name">
-                    </div>
-                    <div>
-                        <label class="loop-label">{{ __('loop.last_name') }} ({{ __('loop.optional') }})</label>
-                        <input name="last_name" value="{{ old('last_name', $existing?->last_name) }}" class="loop-input" autocomplete="family-name">
-                    </div>
-                @endif
 
-                @if ($knownCity)
-                    <input type="hidden" name="city" value="{{ old('city', $existing->city) }}">
-                @else
-                    <div>
-                        <x-city-sheet-select
-                            name="city"
-                            :label="__('loop.city')"
-                            :value="old('city', $existing?->city ?? ($cities[0] ?? ''))"
-                            :cities="$cities"
-                            :country="old('country', $country)"
-                            :required="true"
-                        />
-                    </div>
-                @endif
+                    @if ($knownCity)
+                        <input type="hidden" name="city" value="{{ old('city', $existing->city) }}">
+                    @else
+                        <div>
+                            <x-city-sheet-select
+                                name="city"
+                                :label="__('loop.city')"
+                                :value="old('city', $existing?->city ?? ($cities[0] ?? ''))"
+                                :cities="$cities"
+                                :country="old('country', $country)"
+                                :required="true"
+                            />
+                        </div>
+                    @endif
 
-                <input type="hidden" name="country" value="{{ old('country', $country) }}">
+                    <input type="hidden" name="country" value="{{ old('country', $country) }}">
 
-                @if ($knownBirthday)
-                    <input type="hidden" name="birth_month" value="{{ old('birth_month', $existing->birth_month) }}">
-                    <input type="hidden" name="birth_day" value="{{ old('birth_day', $existing->birth_day) }}">
-                @else
-                    <div>
-                        <p class="loop-label">{{ __('loop.birthday') }}</p>
-                        <div class="mt-1">
-                            <x-birthday-fields :month="old('birth_month', $existing?->birth_month)" :day="old('birth_day', $existing?->birth_day)" />
+                    @unless ($splitIntro)
+                        @if ($knownBirthday)
+                            <input type="hidden" name="birth_month" value="{{ old('birth_month', $existing->birth_month) }}">
+                            <input type="hidden" name="birth_day" value="{{ old('birth_day', $existing->birth_day) }}">
+                        @endif
+                        @if ($knownGender)
+                            <input type="hidden" name="gender" value="{{ old('gender', $existing->gender) }}">
+                        @endif
+                    @endunless
+
+                    <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
+                </div>
+
+                @if ($splitIntro)
+                    <div data-intro-pane="2" x-show="introPane === 2" x-cloak class="space-y-4">
+                        <p class="font-display text-lg font-semibold">{{ __('loop.member_a_little_more') }}</p>
+                        <p class="text-sm text-ink-muted">{{ __('loop.member_a_little_more_blurb') }}</p>
+                        @if ($knownBirthday)
+                            <input type="hidden" name="birth_month" value="{{ old('birth_month', $existing->birth_month) }}">
+                            <input type="hidden" name="birth_day" value="{{ old('birth_day', $existing->birth_day) }}">
+                        @else
+                            <div>
+                                <p class="loop-label">{{ __('loop.birthday') }}</p>
+                                <div class="mt-1">
+                                    <x-birthday-fields :month="old('birth_month', $existing?->birth_month)" :day="old('birth_day', $existing?->birth_day)" />
+                                </div>
+                            </div>
+                        @endif
+
+                        @if ($knownGender)
+                            <input type="hidden" name="gender" value="{{ old('gender', $existing->gender) }}">
+                        @else
+                            <x-gender-field :value="old('gender', $existing?->gender)" />
+                        @endif
+
+                        <div class="flex gap-3">
+                            <button type="button" class="loop-btn-ghost flex-1" @click="backIntro()">{{ __('loop.back') }}</button>
+                            <button type="button" class="loop-btn-mint flex-1" @click="next()">{{ __('loop.continue') }}</button>
                         </div>
                     </div>
                 @endif
-
-                @if ($knownGender)
-                    <input type="hidden" name="gender" value="{{ old('gender', $existing->gender) }}">
-                @else
-                    <x-gender-field :value="old('gender', $existing?->gender)" />
-                @endif
-
-                <button type="button" class="loop-btn-mint w-full" @click="next()">{{ __('loop.continue') }}</button>
             </div>
 
             <div data-step="2" x-show="step === 2" x-cloak class="space-y-4">
@@ -159,6 +188,7 @@
 
             @if ($needsPin)
                 <div data-step="3" x-show="step === 3" x-cloak class="space-y-4">
+                    <p class="font-display text-lg font-semibold">{{ __('loop.protect_your_loop') }}</p>
                     <p class="text-sm text-ink-muted">{{ __('loop.member_pin_blurb') }}</p>
                     <div>
                         <label class="loop-label">{{ __('loop.create_pin') }}</label>

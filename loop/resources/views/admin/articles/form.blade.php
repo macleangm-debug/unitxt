@@ -94,12 +94,26 @@
         <div class="flex flex-wrap gap-3">
             <button class="admin-btn">{{ __('loop.save') }}</button>
             @if ($editing)
-                <button
-                    type="submit"
-                    form="article-delete"
-                    class="admin-btn-ghost text-coral"
-                    onclick="return confirm(@js(__('loop.article_delete_confirm')))"
-                >{{ __('loop.delete') }}</button>
+                <div class="contents" x-data="{ confirmDelete: false }">
+                    <button type="button" class="admin-btn-ghost text-coral" @click="confirmDelete = true">{{ __('loop.delete') }}</button>
+                    <template x-teleport="body">
+                        <div
+                            x-show="confirmDelete"
+                            x-cloak
+                            class="fixed inset-0 z-[80] flex items-center justify-center p-4"
+                            @keydown.escape.window="confirmDelete = false"
+                        >
+                            <div class="absolute inset-0 bg-slate-900/55" @click="confirmDelete = false"></div>
+                            <div class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
+                                <p class="text-center font-display text-2xl font-semibold tracking-tight text-slate-900">{{ __('loop.article_delete_confirm') }}</p>
+                                <div class="mt-7 flex gap-3">
+                                    <button type="button" class="admin-btn-ghost flex-1" @click="confirmDelete = false">{{ __('loop.cancel') }}</button>
+                                    <button type="submit" form="article-delete" class="admin-btn flex-1 bg-coral">{{ __('loop.delete') }}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             @endif
         </div>
         </div>

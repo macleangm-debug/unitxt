@@ -26,10 +26,10 @@
 
                     <div class="mt-6">
                         @if ($featuredRedeem ?? null)
-                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.youve_got_something') }}</p>
-                            <p class="mt-2 font-display text-[clamp(1.85rem,7vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">{{ $featuredRedeem['reward']->name }}</p>
-                            <p class="mt-1 text-sm text-white/65">{{ $featuredRedeem['business']->name }}</p>
-                            <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="loop-btn-lime mt-4 inline-flex">{{ __('loop.show_at_till') }}</a>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">🎁</p>
+                            <p class="mt-2 font-display text-[clamp(1.85rem,7vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">{{ __('loop.reward_ready_title', ['reward' => $featuredRedeem['reward']->name]) }}</p>
+                            <p class="mt-1 text-sm text-white/65">{{ __('loop.reward_unlocked_at', ['shop' => $featuredRedeem['business']->name]) }}</p>
+                            <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="loop-btn-lime mt-4 inline-flex">{{ __('loop.use_reward') }}</a>
                             <p class="mt-4 font-display text-2xl font-semibold text-white/80">
                                 <span class="relative" x-data="loopCountUp({{ (int) $totalPoints }}, 800, {{ $pointsEarned }})" x-text="formatted()">{{ number_format($totalPoints) }}</span>
                                 <span class="text-sm font-medium uppercase tracking-[0.16em] text-white/45">{{ __('loop.pts') }}</span>

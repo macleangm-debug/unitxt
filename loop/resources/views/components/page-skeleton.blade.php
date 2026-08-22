@@ -11,7 +11,7 @@
     data-variant="{{ $variant }}"
     role="status"
     aria-live="polite"
-    aria-label="{{ __('loop.page_loading') }}"
+    aria-label="{{ __('loop.page_preparing') }}"
 >
     @if ($variant === 'admin')
         <div class="loop-skel-admin">
@@ -64,16 +64,16 @@
         <div class="loop-skel-app">
             <span class="loop-skel-bone loop-skel-bar"></span>
             <div class="loop-skel-app__body">
-                <span class="loop-skel-bone loop-skel-hero"></span>
+                <span class="loop-skel-bone loop-skel-hero" aria-hidden="true"></span>
+                <span class="loop-skel-bone loop-skel-row" aria-hidden="true"></span>
                 <div class="loop-skel-stats">
-                    <span class="loop-skel-bone loop-skel-stat"></span>
-                    <span class="loop-skel-bone loop-skel-stat"></span>
+                    <span class="loop-skel-bone loop-skel-stat" aria-hidden="true"></span>
+                    <span class="loop-skel-bone loop-skel-stat" aria-hidden="true"></span>
                 </div>
-                <span class="loop-skel-bone loop-skel-row"></span>
-                <span class="loop-skel-bone loop-skel-row"></span>
-                <span class="loop-skel-bone loop-skel-row"></span>
+                <span class="loop-skel-bone loop-skel-row" aria-hidden="true"></span>
+                <span class="loop-skel-bone loop-skel-row" aria-hidden="true"></span>
             </div>
         </div>
     @endif
-    <span class="sr-only">{{ __('loop.page_loading') }}</span>
+    <span class="sr-only">{{ __('loop.page_preparing') }}</span>
 </div>
