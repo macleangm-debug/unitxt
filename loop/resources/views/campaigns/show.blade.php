@@ -35,7 +35,7 @@
         <div class="mt-6 rounded-[1.5rem] border border-ink/10 bg-white px-5 py-5">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.customer_gets') }}</p>
             <p class="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-                {{ $campaign->points_per_step }} {{ __('loop.pts') }}
+                {{ number_format((int) $campaign->points_per_step) }} {{ __('loop.pts') }}
                 <span class="text-ink-muted">/</span>
                 {{ $business->currency }} {{ number_format($campaign->spend_step) }}
             </p>
@@ -75,7 +75,7 @@
                     <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
                         <div class="min-w-0">
                             <p class="truncate font-semibold">{{ $visit->customer->name }}</p>
-                            <p class="mt-0.5 text-xs text-ink-muted">{{ $visit->created_at->format('d M · H:i') }} · +{{ $visit->points_earned }} pts</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">{{ $visit->created_at->format('d M · H:i') }} · +{{ number_format((int) $visit->points_earned) }} pts</p>
                         </div>
                         <p class="shrink-0 font-display text-lg font-semibold">
                             {{ number_format($visit->amount_spent, 0) }}

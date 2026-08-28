@@ -13,19 +13,19 @@
 </head>
 <body class="font-sans" x-data="loopPageMotion()">
 <x-page-skeleton variant="app" />
-@php $isCustomer = auth()->user()?->isCustomer(); @endphp
-<div @class(['min-h-screen', 'pb-nav md:pb-0' => $isCustomer])>
+@php $user = auth()->user(); $hasMobileNav = \App\Support\MobileNav::enabled($user); @endphp
+<div @class(['min-h-screen loop-has-bottom-nav' => $hasMobileNav, 'min-h-screen' => ! $hasMobileNav, 'pb-nav md:pb-0' => $hasMobileNav])>
     @include('layouts.navigation')
     @isset($header)
         <header class="loop-shell pt-5 pb-1 sm:pt-8 sm:pb-2">{{ $header }}</header>
     @endisset
-    <main class="loop-shell py-5 sm:py-6 {{ $isCustomer ? 'pb-8' : 'pb-16' }}">
-        @if (session('status') && ! session('all_set') && ! session('confirm'))
-            <div class="mb-6 rounded-2xl border border-lime/50 bg-lime-soft px-4 py-3 text-sm text-ink">{{ session('status') }}</div>
-        @endif
+    <main class="loop-shell py-5 sm:py-6 {{ $hasMobileNav ? 'pb-8' : 'pb-16' }}">
         {{ $slot }}
     </main>
 </div>
+@if ($hasMobileNav)
+    <x-loop-bottom-nav />
+@endif
 <div
     class="loop-page-veil"
     :class="{ 'is-on': transitioning, 'is-morph': morphing }"
@@ -33,7 +33,7 @@
 ></div>
 
 @php
-    $confirm = session('confirm');
+    $confirm = \App\Support\Confirm::resolve(session('confirm'), session('status'), $errors ?? null);
     if (session('all_set')) {
         $confirm = [
             'title' => __('loop.all_set_title'),

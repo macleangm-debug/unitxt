@@ -65,6 +65,14 @@ class SettingsHealth
                     : __('loop.health_flag_off'),
             ],
             [
+                'key' => 'games',
+                'label' => __('loop.games_wins'),
+                'status' => ($flags['games'] ?? false) && ! empty(GameSettings::settings()['enabled']) ? 'ok' : 'off',
+                'detail' => ($flags['games'] ?? false) && ! empty(GameSettings::settings()['enabled'])
+                    ? __('loop.health_games_on', ['rate' => GameSettings::settings()['recommended_win_rate']])
+                    : __('loop.health_flag_off'),
+            ],
+            [
                 'key' => 'content_studio',
                 'label' => __('loop.content_studio'),
                 'status' => $flags['content_studio'] ? 'ok' : 'off',

@@ -249,7 +249,7 @@ window.loopSheet = {
         if (! panel || event.touches.length !== 1) {
             return;
         }
-        const list = panel.querySelector('.loop-picker-list');
+        const list = panel.querySelector('.loop-picker-list, .loop-picker-body');
         const fromHandle = event.target.closest('.loop-picker-handle, .loop-picker-head');
         if (! fromHandle && list && list.scrollTop > 0) {
             return;
@@ -293,6 +293,12 @@ window.loopSheet = {
         if (! locked && dy > 88 && typeof close === 'function') {
             close(false);
         }
+        this.syncLock();
+    },
+    syncLock() {
+        const any = Array.from(document.getElementsByClassName('loop-picker-layer'))
+            .some((el) => window.getComputedStyle(el).display !== 'none');
+        document.documentElement.classList.toggle('loop-picker-open', any);
     },
 };
 
@@ -322,11 +328,28 @@ const showLoopSkeleton = () => {
     }
 };
 
-const markLoopReady = () => {
-    const root = document.documentElement;
-    if (root.classList.contains('loop-ready')) {
+const markTabActive = (event) => {
+    const item = event?.target?.closest?.('.loop-bottom-nav__item');
+    if (! item) {
         return;
     }
+    const nav = item.closest('.loop-bottom-nav');
+    if (! nav) {
+        return;
+    }
+    nav.querySelectorAll('.loop-bottom-nav__item').forEach((el) => {
+        const on = el === item;
+        el.classList.toggle('is-active', on);
+        if (on) {
+            el.setAttribute('aria-current', 'page');
+        } else {
+            el.removeAttribute('aria-current');
+        }
+    });
+};
+
+const markLoopReady = () => {
+    const root = document.documentElement;
     root.classList.add('loop-ready');
     root.classList.remove('loop-nav-pending');
     document.body?.removeAttribute('aria-busy');
@@ -360,24 +383,26 @@ const isHashOnlyNav = (url) => {
  */
 Alpine.store('loopToast', {
     open: false,
+    title: '',
     message: '',
     kind: 'success',
-    timer: null,
-    show(message, kind = 'success', ms) {
+    cta: 'Done',
+    show(message, kind = 'success') {
         this.message = String(message || '');
+        this.title = this.message;
+        this.message = '';
         this.kind = kind === 'error' ? 'error' : 'success';
         this.open = true;
         clearTimeout(this.timer);
-        const wait = ms ?? (this.kind === 'error' ? 4000 : 2000);
-        this.timer = setTimeout(() => {
-            this.open = false;
-        }, wait);
     },
     success(message) {
-        this.show(message, 'success', 2000);
+        this.show(message, 'success');
     },
     error(message) {
-        this.show(message, 'error', 4000);
+        this.show(message, 'error');
+    },
+    close() {
+        this.open = false;
     },
 });
 
@@ -410,7 +435,11 @@ Alpine.store('loopNav', {
         }
 
         if (prefersReducedMotion()) {
-            showLoopSkeleton();
+            try {
+                sessionStorage.setItem('loopNavKind', options.kind || 'tab');
+            } catch (_) {
+                /* ignore */
+            }
             return;
         }
 
@@ -435,6 +464,13 @@ Alpine.store('loopNav', {
         const supportsVT = supportsViewTransitions();
         let usedMorph = false;
         let kind = options.kind || (morphEl ? 'morph' : 'fade');
+        if (next.pathname.startsWith('/locale/')) {
+            kind = 'tab';
+        }
+
+        if (kind === 'tab') {
+            markTabActive(event);
+        }
 
         if (morphEl) {
             kind = 'morph';
@@ -495,9 +531,8 @@ Alpine.store('loopNav', {
         document.documentElement.dataset.loopNav = kind;
         sessionStorage.setItem('loopNavKind', kind);
 
-        if (kind !== 'tab') {
-            showLoopSkeleton();
-        }
+        // Do not flash the skeleton on the outgoing page. The next document
+        // already knows the nav kind and paints ready (see head-boot).
         this.transitioning = false;
         window.location.href = next.href;
     },
@@ -917,16 +952,48 @@ Alpine.data('loopLivingWallet', (earnedDelta = 0) => ({
  * Horizontal carousel: native swipe + light parallax.
  * Never hijack the wheel — that turned page-scroll into a sideways snap and hid copy.
  */
-Alpine.data('loopParallaxCarousel', () => ({
+Alpine.data('loopParallaxCarousel', (cfg = {}) => ({
+    autoMs: cfg.autoMs ?? 0,
+    _timer: null,
     init() {
         this._onScroll = () => this.refresh();
         this.$nextTick(() => this.refresh());
         this.$el.addEventListener('scroll', this._onScroll, { passive: true });
         window.addEventListener('resize', this._onScroll, { passive: true });
+        if (this.autoMs > 0 && ! prefersReducedMotion()) {
+            this.$el.addEventListener('pointerenter', () => this.stopAuto());
+            this.$el.addEventListener('pointerleave', () => this.startAuto());
+            this.startAuto();
+        }
     },
     destroy() {
+        this.stopAuto();
         this.$el.removeEventListener('scroll', this._onScroll);
         window.removeEventListener('resize', this._onScroll);
+    },
+    startAuto() {
+        this.stopAuto();
+        if (this.autoMs <= 0 || prefersReducedMotion()) {
+            return;
+        }
+        this._timer = window.setInterval(() => this.advance(), this.autoMs);
+    },
+    stopAuto() {
+        if (this._timer) {
+            window.clearInterval(this._timer);
+            this._timer = null;
+        }
+    },
+    advance() {
+        const root = this.$el;
+        const cards = root.querySelectorAll('[data-loop-card]');
+        if (cards.length < 2) {
+            return;
+        }
+        const step = cards[0].offsetWidth + 16;
+        const max = root.scrollWidth - root.clientWidth;
+        const next = root.scrollLeft + step;
+        root.scrollTo({ left: next >= max - 4 ? 0 : next, behavior: 'smooth' });
     },
     refresh() {
         if (prefersReducedMotion()) {
@@ -1605,10 +1672,353 @@ Alpine.data('offerWizard', (cfg = {}) => ({
     },
 }));
 
+Alpine.data('raffleWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    total: 4,
+    persistKey: cfg.persistKey ?? '',
+    type: cfg.type ?? '',
+    typeLabels: cfg.typeLabels ?? {},
+    typeLabel: cfg.typeLabel ?? '',
+    name: cfg.name ?? '',
+    description: cfg.description ?? '',
+    prizeName: cfg.prizeName ?? '',
+    valueDisplay: cfg.valueDisplay ?? '',
+    frequency: cfg.frequency ?? 'once',
+    drawAt: cfg.drawAt ?? '',
+    winners: cfg.winners ?? '',
+    claimDays: cfg.claimDays ?? '',
+    pickRequired: cfg.pickRequired ?? '',
+    valueRequired: cfg.valueRequired ?? '',
+    prizeNameRequired: cfg.prizeNameRequired ?? '',
+    saving: false,
+    init() {
+        if (!this.persistKey) {
+            return;
+        }
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        const urlType = params.get('prize_type') || '';
+        const urlFreq = params.get('frequency') || '';
+        const urlDraw = params.get('draw_at') || '';
+        if (saved) {
+            this.type = saved.type || this.type;
+            this.name = saved.name || this.name;
+            this.description = saved.description || this.description;
+            this.prizeName = saved.prizeName || this.prizeName;
+            this.valueDisplay = saved.valueDisplay || this.valueDisplay;
+            this.frequency = saved.frequency || this.frequency;
+            this.drawAt = saved.drawAt || this.drawAt;
+            this.winners = saved.winners ?? this.winners;
+            this.claimDays = saved.claimDays ?? this.claimDays;
+        }
+        if (urlType) {
+            this.type = urlType;
+        }
+        if (urlFreq) {
+            this.frequency = urlFreq;
+        }
+        if (urlDraw) {
+            this.drawAt = urlDraw;
+        }
+        this.applyTypeLabel();
+        if (urlStep >= 1 && urlStep <= this.total) {
+            this.step = urlStep;
+        } else if (saved && saved.step) {
+            this.step = saved.step;
+        }
+        this.syncUrl();
+        this.persist();
+        window.addEventListener('loop:locale-changing', () => {
+            this.persist();
+            this.syncUrl();
+        });
+    },
+    applyTypeLabel() {
+        if (this.type && this.typeLabels[this.type]) {
+            this.typeLabel = this.typeLabels[this.type];
+        }
+    },
+    captureForm() {
+        const form = this.$refs.form;
+        if (!form) {
+            return;
+        }
+        const date = form.querySelector('[name="draw_at"]');
+        if (date && date.value) {
+            this.drawAt = date.value;
+        }
+        const freq = form.querySelector('[name="frequency"]');
+        if (freq && freq.value) {
+            this.frequency = freq.value;
+        }
+    },
+    persist() {
+        if (!this.persistKey) {
+            return;
+        }
+        this.captureForm();
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                type: this.type,
+                name: this.name,
+                description: this.description,
+                prizeName: this.prizeName,
+                valueDisplay: this.valueDisplay,
+                frequency: this.frequency,
+                drawAt: this.drawAt,
+                winners: this.winners,
+                claimDays: this.claimDays,
+            }));
+        } catch (e) {}
+    },
+    clearPersist() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+    },
+    syncUrl() {
+        this.captureForm();
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            if (this.type) {
+                url.searchParams.set('prize_type', this.type);
+            }
+            if (this.frequency) {
+                url.searchParams.set('frequency', this.frequency);
+            }
+            if (this.drawAt) {
+                url.searchParams.set('draw_at', this.drawAt);
+            }
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
+    pickType(key) {
+        this.type = key;
+        this.applyTypeLabel();
+        this.persist();
+        this.syncUrl();
+    },
+    go(n) {
+        this.step = n;
+        this.syncUrl();
+        this.persist();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    valueNumber() {
+        return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0;
+    },
+    formatValue() {
+        if (this.type !== 'fixed_off') {
+            return;
+        }
+        let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
+        this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        if (stepNum === 1 && !this.type) {
+            return this.fail(1, this.$refs.pickAnchor, this.pickRequired);
+        }
+        if (stepNum === 2 && (this.type === 'percent_off' || this.type === 'fixed_off')) {
+            const el = root.querySelector('[data-value-input]');
+            const n = this.valueNumber();
+            if (this.type === 'percent_off' && (n < 1 || n > 100)) {
+                return this.fail(2, el, this.valueRequired);
+            }
+            if (this.type === 'fixed_off' && n < 1) {
+                return this.fail(2, el, this.valueRequired);
+            }
+        }
+        if (stepNum === 2 && (this.type === 'free_item' || this.type === 'custom')) {
+            const el = root.querySelector('[name="prize_name"]');
+            if (!el || !String(this.prizeName || el.value || '').trim()) {
+                return this.fail(2, el, this.prizeNameRequired);
+            }
+        }
+        if (stepNum === 3) {
+            const name = root.querySelector('[name="name"]');
+            if (!name || !String(name.value || '').trim()) {
+                return this.fail(3, name);
+            }
+        }
+        if (stepNum === 4) {
+            const date = root.querySelector('[name="draw_at"]');
+            if (date && !String(date.value || '').trim()) {
+                return this.fail(4, date);
+            }
+        }
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(Math.min(this.total, this.step + 1));
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.step !== this.total) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        for (let s = 1; s <= this.total; s++) {
+            if (!this.validateStep(s)) {
+                event.preventDefault();
+                return;
+            }
+        }
+        this.clearPersist();
+        this.saving = true;
+    },
+}));
+
+Alpine.data('gameWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    type: cfg.type ?? '',
+    typeLabels: cfg.typeLabels ?? {},
+    qualify: cfg.qualify ?? 'spend',
+    spend: cfg.spend ?? 20000,
+    spendDisplay: '',
+    visits: cfg.visits ?? 3,
+    playLimit: cfg.playLimit ?? 'daily',
+    winMode: cfg.winMode ?? 'automatic',
+    oddsEvery: cfg.oddsEvery ?? 5,
+    spreadCount: cfg.spreadCount ?? 5,
+    expectedPlays: cfg.expectedPlays ?? 500,
+    typicalSpend: cfg.typicalSpend ?? 10000,
+    currency: cfg.currency ?? 'TZS',
+    pickRequired: cfg.pickRequired ?? '',
+    init() {
+        this.spendDisplay = window.loopNumber.format(this.spend);
+    },
+    formatSpend() {
+        this.spendDisplay = window.loopNumber.formatInput(this.spendDisplay);
+        this.spend = window.loopNumber.parse(this.spendDisplay);
+    },
+    goTo(n) {
+        this.step = n;
+    },
+    go(n) {
+        this.step = n;
+    },
+    next() {
+        if (this.step === 1 && !this.type) {
+            return;
+        }
+        if (this.step < 7) {
+            this.step += 1;
+        }
+    },
+    recommendLine() {
+        if (this.qualify === 'visits') {
+            return this.visits + '';
+        }
+        return this.currency + ' ' + Number(this.spend).toLocaleString();
+    },
+    summaryLine() {
+        return this.recommendLine();
+    },
+    submitForm() {
+        return true;
+    },
+}));
+
+Alpine.data('gamePlay', (cfg = {}) => ({
+    type: cfg.type || 'spin',
+    played: Boolean(cfg.played),
+    justPlayed: Boolean(cfg.justPlayed),
+    spinning: false,
+    shown: Boolean(cfg.played) && !cfg.justPlayed,
+    revealMs: Number(cfg.revealMs) || 2800,
+    landing: Number(cfg.landing) || 0,
+    sliceCount: Number(cfg.sliceCount) || 1,
+    win: Boolean(cfg.win),
+    init() {
+        if (!this.justPlayed) {
+            return;
+        }
+        this.spinning = true;
+        this.shown = false;
+        setTimeout(() => {
+            this.spinning = false;
+            this.shown = true;
+            window.dispatchEvent(new CustomEvent('loop:confirm-ready'));
+        }, this.revealMs);
+    },
+    choose() {
+        if (this.played || this.spinning) {
+            return;
+        }
+        this.$refs.form?.requestSubmit();
+    },
+    wheelStyle() {
+        const n = this.sliceCount || 1;
+        const target = 360 - ((this.landing + 0.5) * (360 / n));
+        const turn = this.spinning || this.shown ? (1080 + target) : 0;
+        return `--turn: ${turn}deg`;
+    },
+}));
+
 Alpine.data('tillWizard', (cfg = {}) => ({
     step: cfg.step ?? 1,
     hasOffers: cfg.hasOffers ?? false,
     rewardId: cfg.rewardId ?? '',
+    raffleWinnerId: cfg.raffleWinnerId ?? '',
     offers: cfg.offers ?? [],
     amountDisplay: cfg.amountDisplay ?? '',
     currency: cfg.currency ?? '',
@@ -1624,12 +2034,16 @@ Alpine.data('tillWizard', (cfg = {}) => ({
     maxPercent: cfg.maxPercent ?? 100,
     saving: false,
     selectedOffer() {
+        const raffleId = String(this.raffleWinnerId || '');
+        if (raffleId) {
+            return this.offers.find((offer) => offer.kind === 'raffle' && String(offer.id) === raffleId) || null;
+        }
         const id = String(this.rewardId || '');
         if (!id) {
             return null;
         }
 
-        return this.offers.find((offer) => String(offer.id) === id) || null;
+        return this.offers.find((offer) => offer.kind !== 'raffle' && String(offer.id) === id) || null;
     },
     isFreeItem() {
         const type = this.selectedOffer()?.type;
@@ -1645,9 +2059,15 @@ Alpine.data('tillWizard', (cfg = {}) => ({
     billStep() {
         return this.hasOffers ? 2 : 1;
     },
-    pickOffer(id) {
-        this.rewardId = id === null || id === undefined || id === '' ? '' : String(id);
-        if (this.rewardId) {
+    pickOffer(id, kind) {
+        if (kind === 'raffle') {
+            this.raffleWinnerId = id === null || id === undefined || id === '' ? '' : String(id);
+            this.rewardId = '';
+        } else {
+            this.rewardId = id === null || id === undefined || id === '' ? '' : String(id);
+            this.raffleWinnerId = '';
+        }
+        if (this.rewardId || this.raffleWinnerId) {
             this.payWithPoints = false;
         }
     },
@@ -1798,39 +2218,216 @@ Alpine.data('tillWizard', (cfg = {}) => ({
 }));
 
 Alpine.data('billingPayConfirm', (cfg = {}) => ({
-    months: Number(cfg.months || 1),
-    open: false,
-    form: null,
-    title: '',
-    body: '',
-    discounts: cfg.discounts || { 1: 0, 3: 8, 6: 15, 12: 25 },
+    months: Number(cfg.months || 6),
+    discounts: cfg.discounts || {},
+    monthly: Number(cfg.monthly || 0),
+    currency: cfg.currency || 'TZS',
+    planKey: cfg.planKey || 'growth',
+    pickedKey: cfg.pickedKey || cfg.planKey || 'growth',
+    currentKey: cfg.currentKey || '',
+    planPrices: cfg.planPrices || {},
+    planNames: cfg.planNames || {},
+    payUrl: cfg.payUrl || '/pay',
+    plansUrl: cfg.plansUrl || '/billing/plans',
+    fromPlans: Boolean(cfg.fromPlans),
+    untils: cfg.untils || {},
+    monthLabels: cfg.monthLabels || {},
+    saveTemplate: cfg.saveTemplate || 'Save :currency :amount',
+    payTemplate: cfg.payTemplate || 'Pay :currency :amount',
+    paySaveTemplate: cfg.paySaveTemplate || 'Pay :currency :amount · Save :currency :save',
+    continueLabel: cfg.continueLabel || 'Continue to payment',
+    upgradeTemplate: cfg.upgradeTemplate || 'Upgrade to :plan',
+    regularLabel: cfg.regularLabel || 'Regular price',
+    historyOpen: false,
+    setMonths(n) {
+        this.months = Math.max(1, Math.min(12, Number(n) || 1));
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('months', String(this.months));
+            window.history.replaceState({}, '', url);
+        } catch (e) {
+            // ignore
+        }
+    },
+    setPlan(key) {
+        this.pickedKey = key;
+    },
+    lookup(map, key) {
+        if (! map) {
+            return undefined;
+        }
+
+        return map[key] ?? map[String(key)];
+    },
+    discountFor(months) {
+        return Number(this.lookup(this.discounts, months) || 0);
+    },
+    monthlyFor(planKey) {
+        const fromPlan = this.lookup(this.planPrices, planKey || this.planKey);
+        if (fromPlan != null && fromPlan !== '') {
+            return Number(fromPlan);
+        }
+
+        return Number(this.monthly || 0);
+    },
+    quote(planKey) {
+        return this.quoteFor(planKey || this.planKey);
+    },
+    quoteFor(planKey) {
+        const months = Number(this.months) || 1;
+        const monthly = this.monthlyFor(planKey);
+        const discount = this.discountFor(months);
+        const full = monthly * months;
+        const amount = Math.round(full * ((100 - discount) / 100));
+
+        return {
+            months,
+            monthly,
+            discount,
+            full,
+            amount,
+            save: Math.max(0, full - amount),
+        };
+    },
+    money(n) {
+        const formatted = window.loopNumber
+            ? window.loopNumber.format(n)
+            : Number(n).toLocaleString('en-US');
+
+        return `${this.currency} ${formatted}`;
+    },
+    fill(template, vars) {
+        return Object.keys(vars).reduce(
+            (text, key) => text.split(`:${key}`).join(String(vars[key])),
+            String(template || ''),
+        );
+    },
+    saveLabel(planKey) {
+        return this.saveLabelFor(planKey || this.planKey);
+    },
+    saveLabelFor(planKey) {
+        const quote = this.quoteFor(planKey);
+        if (quote.save <= 0) {
+            return '';
+        }
+
+        return this.fill(this.saveTemplate, {
+            currency: this.currency,
+            amount: window.loopNumber.format(quote.save),
+        });
+    },
+    monthLabel() {
+        return this.lookup(this.monthLabels, this.months) || String(this.months);
+    },
+    untilLabel() {
+        return this.lookup(this.untils, this.months) || '';
+    },
+    summaryTitle(name) {
+        return `${name} · ${this.monthLabel()}`;
+    },
+    pickedName() {
+        return this.lookup(this.planNames, this.pickedKey) || this.pickedKey;
+    },
+    pickedSummaryTitle() {
+        return this.summaryTitle(this.pickedName());
+    },
+    isUpgrade() {
+        return ['starter', 'growth', 'scale'].includes(this.currentKey)
+            && this.pickedKey !== this.currentKey;
+    },
+    regularPriceLine() {
+        return `${this.regularLabel}: ${this.money(this.quoteFor(this.pickedKey).full)}`;
+    },
+    planCta() {
+        if (this.isUpgrade()) {
+            return this.fill(this.upgradeTemplate, { plan: this.pickedName() });
+        }
+
+        return this.continueLabel;
+    },
+    payCta(paused, fallback) {
+        if (paused) {
+            return fallback || this.continueLabel;
+        }
+        const quote = this.quoteFor(this.pickedKey || this.planKey);
+        const amount = window.loopNumber.format(quote.amount);
+        if (quote.save > 0) {
+            return this.fill(this.paySaveTemplate, {
+                currency: this.currency,
+                amount,
+                save: window.loopNumber.format(quote.save),
+            });
+        }
+
+        return this.fill(this.payTemplate, {
+            currency: this.currency,
+            amount,
+        });
+    },
+    priceFor(planKey) {
+        return this.money(this.quoteFor(planKey).amount);
+    },
     priceLabel(monthly, currency) {
         const months = Number(this.months) || 1;
-        const discount = Number(this.discounts[months] || 0);
-        const amount = Math.round(monthly * months * (100 - discount) / 100);
-        return `${currency} ${amount.toLocaleString()} / ${months} ${cfg.monthsLabel || 'mo'}`;
+        const amount = Math.round(monthly * months * ((100 - this.discountFor(months)) / 100));
+
+        return `${currency} ${window.loopNumber.format(amount)}`;
     },
-    ask(event, planName, monthly, currency) {
-        event.preventDefault();
-        this.form = event.target;
-        this.title = cfg.confirmTitle || planName;
-        this.body = `${planName} · ${this.priceLabel(monthly, currency)}`;
-        this.open = true;
-    },
-    confirm() {
-        this.open = false;
-        if (this.form) {
-            this.form.submit();
+    payHref(planKey) {
+        const params = new URLSearchParams({
+            purpose: 'plan',
+            plan_key: planKey || this.pickedKey || this.planKey,
+            months: String(this.months || 1),
+        });
+        if (this.fromPlans) {
+            params.set('from', 'plans');
         }
+
+        return `${this.payUrl}?${params.toString()}`;
+    },
+    plansHref() {
+        const params = new URLSearchParams({ months: String(this.months || 1) });
+
+        return `${this.plansUrl}?${params.toString()}`;
     },
 }));
 
 Alpine.data('memberMessageWizard', (cfg = {}) => ({
+    step: Number(cfg.step || 1),
     audience: 'all',
     body: '',
+    groupMode: 'pick',
+    shopOpen: false,
+    memberOpen: false,
     price: cfg.price || 30,
+    chars: cfg.chars || 160,
+    credits: cfg.credits || 0,
     currency: cfg.currency || 'TZS',
     memberCount: cfg.memberCount || 0,
+    goTo(n) {
+        this.step = Math.max(1, Math.min(4, Number(n) || 1));
+    },
+    go(n) {
+        this.goTo(n);
+    },
+    next() {
+        if (this.step < 4) {
+            this.step += 1;
+        }
+    },
+    segments() {
+        const len = String(this.body || '').length;
+        if (len < 1) {
+            return 0;
+        }
+        return Math.max(1, Math.ceil(len / (this.chars || 160)));
+    },
+    costLine() {
+        const units = this.segments();
+        const people = this.audience === 'person' ? 1 : this.memberCount;
+        const needed = units * people;
+        return `${this.currency} ${(needed * this.price).toLocaleString()} · ${needed} · ${this.credits}`;
+    },
 }));
 
 Alpine.data('affiliateApplyWizard', (cfg = {}) => ({
@@ -2035,6 +2632,7 @@ Alpine.data('memberRegisterWizard', (cfg = {}) => ({
 
 Alpine.data('articlePreview', (cfg = {}) => ({
     lang: 'en',
+    device: 'phone',
     title_en: cfg.title_en || '',
     title_sw: cfg.title_sw || '',
     excerpt_en: cfg.excerpt_en || '',
@@ -2102,8 +2700,134 @@ document.addEventListener('submit', (event) => {
     if (document.documentElement.classList.contains('loop-no-skeleton')) {
         return;
     }
-    showLoopSkeleton();
+    try {
+        sessionStorage.setItem('loopNavKind', 'tab');
+    } catch (_) {
+        /* ignore */
+    }
 });
+
+Alpine.data('loopDateField', (cfg = {}) => ({
+    open: false,
+    isCompact: typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches,
+    init() {
+        const mq = window.matchMedia('(max-width: 639px)');
+        const sync = () => { this.isCompact = mq.matches; };
+        if (mq.addEventListener) {
+            mq.addEventListener('change', sync);
+        } else if (mq.addListener) {
+            mq.addListener(sync);
+        }
+    },
+    value: cfg.value || '',
+    placeholder: cfg.placeholder || '',
+    min: cfg.min || '',
+    weekdays: cfg.weekdays || ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+    view: (() => {
+        const today = new Date();
+        const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const floor = cfg.min || '';
+        let base = cfg.value || todayIso;
+        if (floor && base < floor) {
+            base = floor;
+        }
+        const parts = String(base).split('-').map(Number);
+
+        return {
+            year: parts[0] || today.getFullYear(),
+            month: parts[1] || (today.getMonth() + 1),
+        };
+    })(),
+    monthLabel() {
+        return new Date(this.view.year, this.view.month - 1, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' });
+    },
+    days() {
+        const first = new Date(this.view.year, this.view.month - 1, 1);
+        const start = (first.getDay() + 6) % 7;
+        const daysInMonth = new Date(this.view.year, this.view.month, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < start; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+        return cells;
+    },
+    isoDay(day) {
+        if (! day) {
+            return '';
+        }
+
+        return `${this.view.year}-${String(this.view.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    },
+    isDisabled(day) {
+        if (! day || ! this.min) {
+            return ! day;
+        }
+
+        return this.isoDay(day) < this.min;
+    },
+    canPrev() {
+        if (! this.min) {
+            return true;
+        }
+        let month = this.view.month - 1;
+        let year = this.view.year;
+        if (month === 0) {
+            month = 12;
+            year -= 1;
+        }
+        const last = new Date(year, month, 0).getDate();
+        const lastIso = `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+
+        return lastIso >= this.min;
+    },
+    isSelected(day) {
+        return Boolean(day) && this.value === this.isoDay(day);
+    },
+    toggle() {
+        this.open = ! this.open;
+    },
+    close() {
+        this.open = false;
+    },
+    pick(day) {
+        if (! day || this.isDisabled(day)) {
+            return;
+        }
+        this.value = this.isoDay(day);
+        this.open = false;
+    },
+    display() {
+        if (! this.value) {
+            return '';
+        }
+        const [y, m, d] = this.value.split('-');
+
+        return `${d}/${m}/${y}`;
+    },
+    prev() {
+        if (! this.canPrev()) {
+            return;
+        }
+        if (this.view.month === 1) {
+            this.view.month = 12;
+            this.view.year--;
+        } else {
+            this.view.month--;
+        }
+    },
+    next() {
+        if (this.view.month === 12) {
+            this.view.month = 1;
+            this.view.year++;
+        } else {
+            this.view.month++;
+        }
+    },
+    clear() {
+        this.value = '';
+        this.open = false;
+    },
+}));
 
 Alpine.data('phoneCountryField', (cfg = {}) => ({
     country: cfg.country || 'TZ',
@@ -2140,7 +2864,7 @@ Alpine.data('logoPlaceholder', (cfg = {}) => ({
             this.posX = 50;
             this.posY = 50;
             this.zoom = 100;
-            this.$dispatch('logo-picked');
+            this.$dispatch('logo-picked', { preview: this.preview });
         };
         reader.readAsDataURL(file);
     },
@@ -2283,15 +3007,20 @@ Alpine.data('contentStudio', (cfg = {}) => ({
     },
     cardToneClass() {
         if (this.look === 'photo' && this.photoUrl) {
-            return 'bg-ink text-white';
+            return 'loop-studio-tone-photo';
         }
-        const map = {
-            mint_card: 'bg-gradient-to-br from-mint to-mint-deep text-ink',
-            ink_bold: 'bg-ink text-white',
-            coral_pop: 'bg-gradient-to-br from-coral to-[#ff8f75] text-ink',
-            cream_soft: 'bg-[#F7F3EA] text-ink ring-1 ring-ink/10',
+        return 'loop-studio-tone-' + (this.design || 'mint_card').replace('_', '-');
+    },
+    cardToneStyle() {
+        if (this.look === 'photo' && this.photoUrl) {
+            return { background: '#0B1F2A', color: '#FFFFFF' };
+        }
+        const design = this.currentDesign();
+
+        return {
+            background: 'linear-gradient(135deg, ' + (design.from || '#2DD4A8') + ' 0%, ' + (design.to || '#0F6B56') + ' 100%)',
+            color: design.ink || '#0B1F2A',
         };
-        return map[this.design] || map.mint_card;
     },
     onPhoto(event) {
         const file = event.target.files?.[0];
@@ -2506,16 +3235,19 @@ Alpine.data('raffleControl', (cfg = {}) => ({
     },
     theatre() {
         this.spinning = true;
-        let i = 0;
+        const duration = Math.max(1000, Number(cfg.spinMs) || 50000);
+        const tick = 80;
         const max = Math.max(10, Number(cfg.eligible) || 10);
+        const start = Date.now();
+        clearInterval(this.timer);
         this.timer = setInterval(() => {
             this.shown = String(1 + Math.floor(Math.random() * max)).padStart(3, '0');
-            i += 1;
-            if (i > 22) {
+            if (Date.now() - start >= duration) {
                 clearInterval(this.timer);
                 this.spinning = false;
+                window.dispatchEvent(new CustomEvent('loop:confirm-ready'));
             }
-        }, 70);
+        }, tick);
     },
     signalCalling() {
         try {
@@ -2598,31 +3330,61 @@ Alpine.data('raffleStage', (cfg = {}) => ({
     },
     animateTo(latest) {
         this.phase = 'spin';
-        let i = 0;
+        const duration = Math.max(1000, Number(cfg.spinMs) || 50000);
+        const tick = 80;
         const max = Math.max(10, Number(this.eligible) || 10);
+        const start = Date.now();
         clearInterval(this.timer);
         this.timer = setInterval(() => {
             this.shown = String(1 + Math.floor(Math.random() * max)).padStart(3, '0');
-            i += 1;
-            const hold = i > 26;
-            if (hold) {
+            if (Date.now() - start >= duration) {
                 clearInterval(this.timer);
-                setTimeout(() => this.showWinner(latest), 420);
+                this.showWinner(latest);
             }
-        }, 65);
+        }, tick);
     },
 }));
 
 if (document.body && ! document.querySelector('[data-loop-toast-host]')) {
     const host = document.createElement('div');
     host.setAttribute('data-loop-toast-host', '');
-    host.innerHTML = '<div class="loop-toast" x-cloak x-show="$store.loopToast.open" role="status" aria-live="polite" :class="$store.loopToast.kind === \'error\' && \'loop-toast--error\'"><span class="loop-toast__check" x-show="$store.loopToast.kind !== \'error\'">✓</span><span x-text="$store.loopToast.message"></span></div>';
+    host.innerHTML = `
+        <div
+            x-cloak
+            x-show="$store.loopToast.open"
+            x-transition:enter="loop-sheet-enter-active"
+            x-transition:enter-start="loop-sheet-enter-from"
+            x-transition:enter-end="loop-sheet-enter-to"
+            class="fixed inset-0 z-[80] flex items-center justify-center p-4"
+            role="dialog"
+            @keydown.escape.window="$store.loopToast.close()"
+        >
+            <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm" @click="$store.loopToast.close()"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-[0_40px_100px_rgba(17,17,20,0.35)] sm:p-10">
+                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold ring-1"
+                     :class="$store.loopToast.kind === 'error' ? 'bg-coral/15 text-coral ring-coral/30' : 'bg-mint-soft text-mint-deep ring-mint/30'"
+                     x-text="$store.loopToast.kind === 'error' ? '!' : '✓'"></div>
+                <p class="mt-6 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl" x-text="$store.loopToast.title"></p>
+                <p class="mt-3 text-base font-medium leading-relaxed text-ink-muted sm:text-lg" x-show="$store.loopToast.message" x-text="$store.loopToast.message"></p>
+                <button type="button" class="loop-btn mt-8 inline-flex w-full justify-center text-base" @click="$store.loopToast.close()" x-text="$store.loopToast.cta">Done</button>
+            </div>
+        </div>`;
     document.body.appendChild(host);
 }
 
 Alpine.start();
 
-document.body?.setAttribute('aria-busy', 'true');
+window.addEventListener('loop:locale-changing', () => {
+    try {
+        sessionStorage.setItem('loopNavKind', 'tab');
+    } catch (_) {
+        /* ignore */
+    }
+});
+
+if (! document.documentElement.classList.contains('loop-ready')) {
+    document.body?.setAttribute('aria-busy', 'true');
+}
 requestAnimationFrame(() => {
     requestAnimationFrame(markLoopReady);
 });
@@ -2630,6 +3392,15 @@ window.addEventListener('pageshow', (event) => {
     if (event.persisted) {
         Alpine.store('loopNav').navigating = false;
         markLoopReady();
+    }
+});
+window.addEventListener('pagehide', () => {
+    try {
+        if (! sessionStorage.getItem('loopNavKind')) {
+            sessionStorage.setItem('loopNavKind', 'back');
+        }
+    } catch (_) {
+        /* ignore */
     }
 });
 setTimeout(markLoopReady, 700);

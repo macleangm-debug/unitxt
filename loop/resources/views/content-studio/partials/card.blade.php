@@ -1,6 +1,7 @@
 <div
     class="loop-studio-card relative aspect-square w-full overflow-hidden rounded-[2rem] shadow-[0_30px_80px_rgba(11,31,42,0.18)]"
     :class="cardToneClass()"
+    :style="cardToneStyle()"
 >
     <template x-if="look === 'photo' && photoUrl">
         <div class="absolute inset-0">

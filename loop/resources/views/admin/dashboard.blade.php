@@ -93,7 +93,7 @@
                                 <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
                             </div>
                             <div class="admin-hbar"><span style="width: {{ $pct }}%"></span></div>
-                            <p class="mt-1 text-xs text-ink-muted">{{ $row->sales_count }} {{ __('loop.till_sales') }} · {{ $row->unique_customers }} {{ __('loop.customers') }}</p>
+                            <p class="mt-1 text-xs text-ink-muted">{{ number_format((int) $row->sales_count) }} {{ __('loop.till_sales') }} · {{ number_format((int) $row->unique_customers) }} {{ __('loop.customers') }}</p>
                         </div>
                     @empty
                         <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>
@@ -192,7 +192,7 @@
             <div class="admin-chart">
                 @foreach ($dailySales as $day)
                     @php $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100)); @endphp
-                    <div class="admin-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ $day->sales_count }}">
+                    <div class="admin-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ number_format((int) $day->sales_count) }}">
                         <div class="admin-chart__bar" style="height: {{ $h }}%"></div>
                         <span class="admin-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
                     </div>
@@ -312,7 +312,7 @@
                                 <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
                             </div>
                             <div class="admin-hbar"><span style="width: {{ $pct }}%"></span></div>
-                            <p class="mt-1 text-xs text-ink-muted">{{ $row->sales_count }} {{ __('loop.till_sales') }} · {{ $row->unique_customers }} {{ __('loop.customers') }} · {{ $row->businesses }} {{ __('loop.admin_businesses') }}</p>
+                            <p class="mt-1 text-xs text-ink-muted">{{ number_format((int) $row->sales_count) }} {{ __('loop.till_sales') }} · {{ number_format((int) $row->unique_customers) }} {{ __('loop.customers') }} · {{ number_format((int) $row->businesses) }} {{ __('loop.admin_businesses') }}</p>
                         </div>
                     @empty
                         <p class="text-sm text-ink-muted">{{ __('loop.no_data_yet') }}</p>

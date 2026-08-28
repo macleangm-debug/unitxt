@@ -86,6 +86,7 @@ class CustomerController extends Controller
             'sort' => $sort,
             'gender' => $gender,
             'topSpenders' => $topSpenders,
+            'smsEnabled' => \App\Support\FeatureFlags::enabled('sms_messaging'),
         ]);
     }
 

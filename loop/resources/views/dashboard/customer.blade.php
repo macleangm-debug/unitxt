@@ -7,7 +7,7 @@
 
     {{-- Living Wallet — name + points aligned to QR bottom --}}
     <section
-        class="loop-wallet mb-8 px-5 py-7 sm:px-8 sm:py-9"
+        class="loop-wallet px-5 py-6 sm:px-7 sm:py-7"
         :class="{ 'loop-wallet--pulse': pulsing }"
         x-data="loopLivingWallet({{ $pointsEarned }})"
     >
@@ -54,7 +54,11 @@
                     </div>
                 </div>
 
-                <x-wallet-qr :size="120" class="shrink-0" />
+                <div class="flex shrink-0 flex-col items-center">
+                    <x-wallet-qr :size="120" class="shrink-0" />
+                    <p class="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">{{ __('loop.wallet_qr_title') }}</p>
+                    <p class="mt-0.5 text-center text-[10px] text-white/45">{{ __('loop.show_at_till') }}</p>
+                </div>
             </div>
 
             @if (($featuredRedeem ?? null) === null && $redeemables->isNotEmpty())
@@ -65,8 +69,49 @@
         </div>
     </section>
 
+    @if (($pendingPlays ?? collect())->isNotEmpty())
+        <section class="mt-6">
+            @foreach ($pendingPlays as $play)
+                <a href="{{ route('games.play', $play) }}" class="loop-panel mb-3 flex items-center justify-between gap-3 p-5">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ $play->game?->typeLabel() }}</p>
+                        <p class="mt-1 font-display text-xl font-semibold">{{ __('loop.you_have_a_play') }}</p>
+                        <p class="mt-1 text-sm text-ink-muted">{{ $play->business?->name }}</p>
+                    </div>
+                    <span class="loop-btn-mint !py-2">{{ __('loop.play_now') }}</span>
+                </a>
+            @endforeach
+        </section>
+    @endif
+
+    @if (($pendingRaffleWins ?? collect())->isNotEmpty())
+        <section class="mt-6">
+            <x-section-heading
+                :eyebrow="__('loop.raffle')"
+                :title="__('loop.ready_to_claim_raffle')"
+                :blurb="__('loop.raffle_won_home_blurb')"
+                class="mb-3"
+            />
+            <div class="loop-carousel mt-4" x-data="loopParallaxCarousel()">
+                @foreach ($pendingRaffleWins as $win)
+                    <a
+                        href="{{ route('memberships.show', $win->raffle->business) }}"
+                        data-loop-card
+                        class="loop-shop-card loop-unlock-card is-ready w-[15.5rem] shrink-0 rounded-[1.35rem] bg-violet p-4 text-white"
+                    >
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.raffle_won_badge') }}</p>
+                        <p class="mt-1 truncate text-sm text-white/70">{{ $win->raffle->business?->name }}</p>
+                        <p class="mt-2 font-display text-lg font-semibold leading-snug">{{ $win->raffle->prize_name }}</p>
+                        <p class="mt-2 text-sm font-semibold text-lime">{{ $win->claimHeadline() }}</p>
+                        <p class="mt-4 text-sm font-semibold">{{ __('loop.call_to_claim') }} →</p>
+                    </a>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     @if ($showWelcome ?? false)
-        <div x-data="{ i: 0 }" class="mb-8 loop-divider pb-6">
+        <div x-data="{ i: 0 }" class="mt-6 loop-divider pb-4">
             <div x-show="i===0" x-transition.opacity>
                 <p class="font-display text-2xl font-semibold">{{ __('loop.tagline') }}</p>
                 <p class="mt-2 text-sm text-ink-muted">{{ __('loop.customer_welcome_1') }}</p>
@@ -85,65 +130,42 @@
         </div>
     @endif
 
-    @if (($featuredRedeem ?? null) === null && $redeemables->isNotEmpty())
-        <section
-            id="ready"
-            class="mb-10 scroll-mt-24"
-        >
+    @if ($redeemables->isNotEmpty())
+        <section id="ready" class="mt-6 scroll-mt-24">
             <x-section-heading
-                :eyebrow="__('loop.offers')"
-                :title="__('loop.ready_to_redeem')"
-                :blurb="__('loop.ready_to_redeem_home_blurb')"
-                class="mb-5"
+                :eyebrow="__('loop.nav_rewards')"
+                :title="__('loop.ready_for_you')"
+                :href="route('memberships.index')"
+                :link="__('loop.see_all_rewards')"
+                class="mb-3"
             />
-
-            @if ($featuredRedeem)
-                <div class="loop-unlock-card is-ready mt-4 overflow-hidden rounded-[1.5rem] bg-violet text-white">
-                    <a href="{{ route('memberships.show', $featuredRedeem['business']) }}" class="block px-5 py-5 sm:px-6">
-                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.reward_unlocked') }}</p>
-                        <p class="mt-1 text-sm text-white/70">{{ $featuredRedeem['business']->name }}</p>
-                        <div class="mt-2 flex flex-wrap items-end justify-between gap-4">
-                            <div>
-                                <p class="font-display text-2xl font-semibold tracking-tight">{{ $featuredRedeem['reward']->name }}</p>
-                                <p class="mt-1 text-sm text-lime">{{ number_format($featuredRedeem['reward']->points_cost) }} {{ __('loop.pts') }}</p>
-                            </div>
-                            <span class="inline-flex rounded-xl bg-lime px-4 py-2.5 text-sm font-semibold text-ink">{{ __('loop.redeem') }}</span>
-                        </div>
+            <p class="text-sm text-ink-muted">{{ trans_choice('loop.rewards_waiting_count', $redeemables->count(), ['count' => $redeemables->count()]) }}</p>
+            <div class="mt-3 space-y-2">
+                @foreach ($homeRedeemables as $item)
+                    <a href="{{ route('memberships.show', $item['business']) }}" class="flex items-center justify-between gap-3 rounded-[1.25rem] border border-ink/8 bg-white/90 px-4 py-3">
+                        <span class="min-w-0">
+                            <span class="block truncate font-semibold">{{ $item['business']->name }}</span>
+                            <span class="mt-0.5 block truncate text-sm text-violet">{{ $item['reward']->name }}</span>
+                        </span>
+                        <span class="shrink-0 text-[12px] font-semibold text-ink-muted">{{ __('loop.use_reward') }}</span>
                     </a>
-                </div>
-            @else
-                <div class="loop-carousel mt-4" x-data="loopParallaxCarousel()">
-                    @foreach ($redeemables as $item)
-                        <a
-                            href="{{ route('memberships.show', $item['business']) }}"
-                            data-loop-card
-                            class="loop-shop-card loop-unlock-card is-ready w-[15.5rem] shrink-0 rounded-[1.35rem] bg-violet p-4 text-white"
-                        >
-                            <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.reward_unlocked') }}</p>
-                            <p class="mt-1 truncate text-sm text-white/70">{{ $item['business']->name }}</p>
-                            <p class="mt-2 font-display text-lg font-semibold leading-snug">{{ $item['reward']->name }}</p>
-                            <p class="mt-2 text-sm font-semibold text-lime">{{ number_format($item['reward']->points_cost) }} {{ __('loop.pts') }}</p>
-                            <p class="mt-4 text-sm font-semibold">{{ __('loop.redeem') }} →</p>
-                        </a>
-                    @endforeach
-                </div>
-            @endif
+                @endforeach
+            </div>
         </section>
     @endif
 
-    {{-- Your Loop — same tile language as browse / discover --}}
-    <section class="mb-10">
+    {{-- Your businesses — memberships you already have --}}
+    <section class="mt-6">
         <x-section-heading
             :eyebrow="__('loop.member')"
-            :title="__('loop.your_loop')"
-            :blurb="__('loop.my_wallets_blurb')"
-            :href="route('discover')"
-            :link="__('loop.browse_campaigns').' →'"
+            :title="__('loop.your_businesses')"
+            :href="route('memberships.index')"
+            :link="__('loop.see_all').' →'"
             class="mb-5"
         />
-        @if ($memberships->isNotEmpty())
+        @if (($homeMemberships ?? $memberships)->isNotEmpty())
             <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
-                @foreach ($memberships as $membership)
+                @foreach ($homeMemberships ?? $memberships as $membership)
                     @php
                         $progress = $membership->home_progress ?? ['percent' => 0, 'needed' => 0, 'ready' => false];
                         $target = $membership->home_target_reward;
@@ -182,25 +204,46 @@
                     </div>
                 </a>
                 <div class="flex max-w-xs flex-col justify-center py-2">
-                    <p class="text-sm text-ink-muted">{{ __('loop.visit_or_browse') }}</p>
+                    <p class="font-semibold">{{ __('loop.redeem_places_empty_title') }}</p>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_places_empty') }}</p>
+                    <p class="mt-2 text-sm text-ink-muted">{{ __('loop.visit_or_browse') }}</p>
                 </div>
             </div>
         @endif
     </section>
 
+    @if (($offersForYou ?? collect())->isNotEmpty())
+        <section class="mt-6">
+            <x-section-heading
+                :eyebrow="__('loop.offers')"
+                :title="__('loop.offers_for_you')"
+                :href="route('discover', ['status' => 'offers'])"
+                :link="__('loop.see_all').' →'"
+                class="mb-5"
+            />
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
+                @foreach ($offersForYou as $business)
+                    <x-discover-tile :business="$business" :carousel="true" data-loop-card />
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     @if (($recent ?? collect())->isNotEmpty())
-        <section class="mb-10">
+        <section class="mt-6">
             <x-section-heading
                 :eyebrow="__('loop.activity')"
-                :title="__('loop.recent')"
-                class="mb-5"
+                :title="__('loop.recent_activity')"
+                :href="route('member.activity')"
+                :link="__('loop.see_all_activity')"
+                class="mb-3"
             />
             <div class="space-y-2">
                 @foreach ($recent as $row)
                     <div class="flex items-center justify-between rounded-[1.25rem] border border-ink/8 bg-white/80 px-4 py-3">
                         <p class="text-sm font-semibold">{{ $row->shop_name }}</p>
                         <p class="font-display text-sm font-semibold {{ $row->points >= 0 ? 'text-mint-deep' : 'text-coral' }}">
-                            {{ $row->points >= 0 ? '+' : '' }}{{ $row->points }}
+                            {{ $row->points >= 0 ? '+' : '' }}{{ number_format((int) $row->points) }}
                         </p>
                     </div>
                 @endforeach
@@ -208,81 +251,65 @@
         </section>
     @endif
 
-    {{-- Where offers work — browse-tile carousel --}}
-    <section class="mb-10">
-        <x-section-heading
-            :eyebrow="__('loop.discover')"
-            :title="__('loop.where_points_work')"
-            :blurb="__('loop.where_points_work_blurb')"
-            :href="route('discover')"
-            :link="__('loop.explore').' →'"
-            class="mb-5"
-        />
-        @if ($topShops->isNotEmpty())
-            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
-                @foreach ($topShops as $business)
-                    @php
-                        $cheapest = $business->rewards->first();
-                        $headline = $cheapest?->name;
-                        $footnote = $cheapest
-                            ? __('loop.from_points', ['points' => $cheapest->points_cost])
-                            : null;
-                        $memberPoints = $memberships->firstWhere('business_id', $business->id)?->points_balance;
-                    @endphp
-                    <x-discover-tile
-                        :business="$business"
-                        :points="$memberPoints"
-                        :show-points="$memberPoints !== null"
-                        :carousel="true"
-                        :headline="$headline"
-                        :footnote="$footnote"
-                        data-loop-card
-                    />
-                @endforeach
-            </div>
-        @else
-            <div class="flex items-stretch gap-4">
-                <a href="{{ route('discover') }}" class="group flex w-40 shrink-0 flex-col sm:w-44">
-                    <div class="flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-ink/20 bg-white/60 px-3 py-8 shadow-[0_12px_40px_rgba(17,17,20,0.04)]">
-                        <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-soft text-2xl font-semibold text-violet">+</span>
-                        <span class="mt-3 text-center text-sm font-semibold text-ink-muted">{{ __('loop.explore') }}</span>
-                    </div>
-                </a>
-                <div class="flex max-w-xs flex-col justify-center py-2">
-                    <p class="font-semibold">{{ __('loop.redeem_places_empty_title') }}</p>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_places_empty') }}</p>
-                </div>
-            </div>
-        @endif
-    </section>
-
-    @if ($otherShops->isNotEmpty())
-        <section class="mb-12">
+    @if (($nearYou ?? collect())->isNotEmpty())
+        <section class="mt-6">
             <x-section-heading
-                :eyebrow="__('loop.more_businesses_eyebrow')"
-                :title="__('loop.more_businesses')"
-                :blurb="__('loop.more_businesses_blurb')"
+                :eyebrow="__('loop.discover')"
+                :title="__('loop.near_you')"
                 :href="route('discover')"
-                :link="__('loop.explore').' →'"
+                :link="__('loop.see_all').' →'"
                 class="mb-5"
             />
             <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
-                @foreach ($otherShops as $business)
-                    <x-discover-tile
-                        :business="$business"
-                        :carousel="true"
-                        data-loop-card
-                    />
+                @foreach ($nearYou as $business)
+                    <x-discover-tile :business="$business" :carousel="true" data-loop-card />
                 @endforeach
             </div>
         </section>
     @endif
 
-    {{-- Scout as social share --}}
-    <section class="mb-4 rounded-[1.5rem] bg-ink px-5 py-6 text-white sm:px-7">
-        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">Loop</p>
+    @if (($popularAround ?? collect())->isNotEmpty())
+        <section class="mt-6">
+            <x-section-heading
+                :eyebrow="__('loop.discover')"
+                :title="__('loop.popular_around_you')"
+                :href="route('discover')"
+                :link="__('loop.see_all').' →'"
+                class="mb-5"
+            />
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
+                @foreach ($popularAround as $business)
+                    <x-discover-tile :business="$business" :carousel="true" data-loop-card />
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if (($newOnLoop ?? collect())->isNotEmpty())
+        <section class="mt-6">
+            <x-section-heading
+                :eyebrow="__('loop.discover')"
+                :title="__('loop.new_on_loop')"
+                :href="route('discover')"
+                :link="__('loop.see_all').' →'"
+                class="mb-5"
+            />
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
+                @foreach ($newOnLoop as $business)
+                    <x-discover-tile :business="$business" :carousel="true" data-loop-card />
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    <section class="loop-invite-card mb-4 mt-6 overflow-hidden rounded-[1.75rem] p-5 text-white sm:p-7">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.invite_card_eyebrow') }}</p>
         <h2 class="mt-2 font-display text-2xl font-semibold tracking-tight">{{ __('loop.know_a_shop_title') }}</h2>
-        <p class="mt-2 max-w-md text-sm text-white/65">{{ __('loop.know_a_shop_body') }}</p>
-        <x-invite-business />
+        <p class="mt-2 max-w-md text-sm text-white/70">{{ __('loop.know_a_shop_body') }}</p>
+        <x-invite-business
+            button-class="loop-btn-lime mt-5"
+            :button-label="__('loop.share_invite')"
+        />
     </section>
 </x-app-layout>
+

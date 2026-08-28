@@ -1,4 +1,3 @@
-<div class="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15"></div>
 <div class="mb-3 flex items-center justify-between gap-3">
     <div class="flex gap-1 rounded-full bg-chalk p-1">
         <button type="button" class="rounded-full px-3 py-1 text-xs font-semibold" :class="lang==='en' ? 'bg-ink text-white' : 'text-ink-muted'" @click="lang='en'">EN</button>

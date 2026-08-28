@@ -30,19 +30,14 @@
             <label class="loop-label">{{ __('loop.address') }}</label>
             <input name="address" value="{{ old('address', $shop->address) }}" class="loop-input">
         </div>
-        <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-            <div>
-                <label class="loop-label">{{ __('loop.country_prefix') }}</label>
-                <select name="country_code" class="loop-input">
-                    @foreach ($countries as $meta)
-                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', $dial) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="loop-label">{{ __('loop.phone') }}</label>
-                <input name="phone" value="{{ old('phone', $localPhone) }}" class="loop-input" placeholder="+255 712 000 001">
-            </div>
+        <div>
+            <label class="loop-label">{{ __('loop.phone') }}</label>
+            <x-phone-field
+                name="phone"
+                :dial="$dial"
+                hidden-dial-name="country_code"
+                :value="old('phone', $localPhone)"
+            />
         </div>
         <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $shop->is_active))>

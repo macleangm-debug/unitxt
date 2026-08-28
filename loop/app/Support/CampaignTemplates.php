@@ -179,11 +179,13 @@ class CampaignTemplates
 
     /**
      * Picker groups: one main earn slot, then bonus add-ons.
+     * Unique bonuses already on the business stay visible so owners can open them.
      *
      * @param  list<string>  $usedTypes
+     * @param  array<string, \App\Models\Campaign>  $existingByType
      * @return array<string, array{label: string, hint: string, templates: array<string, array<string, mixed>>}>
      */
-    public static function picker(array $usedTypes = [], bool $canAddProductPush = true): array
+    public static function picker(array $usedTypes = [], bool $canAddProductPush = true, array $existingByType = []): array
     {
         $main = [];
         if (! in_array('earn', $usedTypes, true)) {
@@ -196,14 +198,15 @@ class CampaignTemplates
             if (! $template) {
                 continue;
             }
-            if (! FeatureFlags::allowsCampaignType($template['type'])) {
+            $existing = $existingByType[$template['type']] ?? null;
+            if (! FeatureFlags::allowsCampaignType($template['type']) && ! $existing) {
                 continue;
             }
             if ($template['type'] === 'product_push' && ! $canAddProductPush) {
                 continue;
             }
-            if ($template['type'] !== 'product_push' && in_array($template['type'], $usedTypes, true)) {
-                continue;
+            if ($existing && $template['type'] !== 'product_push') {
+                $template['existing_id'] = $existing->id;
             }
             $bonus[$key] = $template;
         }

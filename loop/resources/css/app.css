@@ -16,6 +16,16 @@
     --loop-motion-sheet: 340ms;
     --loop-motion-celebrate: 650ms;
     --loop-motion-count: 800ms;
+    --loop-space-1: 0.25rem;
+    --loop-space-2: 0.5rem;
+    --loop-space-3: 0.75rem;
+    --loop-space-4: 1rem;
+    --loop-space-5: 1.25rem;
+    --loop-space-6: 1.5rem;
+    --loop-space-8: 2rem;
+    --loop-lh-title: 1.12;
+    --loop-lh-body: 1.32;
+    --loop-lh-ui: 1.22;
 }
 
 @layer base {
@@ -29,6 +39,20 @@
         @apply bg-chalk text-ink antialiased;
         background-image: none;
         background-color: #F7F7F4;
+        line-height: var(--loop-lh-body);
+    }
+
+    header.loop-shell h1,
+    .loop-page-title {
+        line-height: var(--loop-lh-title);
+    }
+
+    h1, h2, h3, h4 {
+        line-height: var(--loop-lh-title);
+    }
+
+    p, li, dd, dt, label, small {
+        line-height: var(--loop-lh-body);
     }
 }
 
@@ -98,7 +122,8 @@
 
     .loop-energy-card {
         @apply relative overflow-hidden rounded-[1.75rem];
-        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease-out;
+        transition: transform var(--loop-motion-std) var(--loop-ease-out),
+            box-shadow var(--loop-motion-std) var(--loop-ease-out);
     }
 
     .loop-energy-card:hover {
@@ -243,14 +268,18 @@
         border-radius: 1.15rem;
         border: 1px solid rgba(17, 17, 20, 0.08);
         background: linear-gradient(180deg, #fff 0%, #f7f6fb 100%);
-        padding: 0.95rem 1.05rem;
+        padding: var(--loop-space-4) var(--loop-space-5);
         text-align: left;
         font-size: 0.95rem;
         font-weight: 600;
         color: #111114;
         text-decoration: none;
         box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 8px 20px rgba(17, 17, 20, 0.04);
-        transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        transition: border-color var(--loop-motion-fast) var(--loop-ease-out),
+            background-color var(--loop-motion-fast) var(--loop-ease-out),
+            color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out),
+            box-shadow var(--loop-motion-fast) var(--loop-ease-out);
     }
 
     .loop-mobile-actions > a:hover,
@@ -320,7 +349,9 @@
         box-shadow:
             0 12px 40px rgba(17, 17, 20, 0.06),
             inset 0 1px 0 rgba(255, 255, 255, 0.72);
-        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease-out, border-color 0.25s ease-out;
+        transition: transform var(--loop-motion-std) var(--loop-ease-out),
+            box-shadow var(--loop-motion-std) var(--loop-ease-out),
+            border-color var(--loop-motion-fast) var(--loop-ease-out);
     }
 
     .loop-pricing-card:hover {
@@ -341,6 +372,9 @@
 
     .loop-btn {
         @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+        min-height: 3.25rem;
+        white-space: nowrap;
+        line-height: var(--loop-lh-ui);
         transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
             transform var(--loop-motion-fast) var(--loop-ease-out),
             box-shadow var(--loop-motion-fast) var(--loop-ease-out);
@@ -352,6 +386,9 @@
 
     .loop-btn-mint {
         @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-violet px-5 py-3.5 text-sm font-semibold text-white hover:bg-violet-deep focus:outline-none focus:ring-2 focus:ring-violet focus:ring-offset-2;
+        min-height: 3.25rem;
+        white-space: nowrap;
+        line-height: var(--loop-lh-ui);
         transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
             transform var(--loop-motion-fast) var(--loop-ease-out);
     }
@@ -362,6 +399,9 @@
 
     .loop-btn-lime {
         @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-lime px-5 py-3.5 text-sm font-semibold text-ink hover:bg-white focus:outline-none focus:ring-2 focus:ring-ink focus:ring-offset-2;
+        min-height: 3.25rem;
+        white-space: nowrap;
+        line-height: var(--loop-lh-ui);
         transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
             transform var(--loop-motion-fast) var(--loop-ease-out);
     }
@@ -372,6 +412,9 @@
 
     .loop-btn-ghost {
         @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-ink/15 bg-white px-5 py-3.5 text-sm font-semibold text-ink hover:border-ink/30 hover:bg-chalk;
+        min-height: 3.25rem;
+        white-space: nowrap;
+        line-height: var(--loop-lh-ui);
         transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
             border-color var(--loop-motion-fast) var(--loop-ease-out),
             transform var(--loop-motion-fast) var(--loop-ease-out);
@@ -381,9 +424,40 @@
         transform: scale(0.98);
     }
 
+    .loop-btn-danger {
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-coral px-5 py-3.5 text-sm font-semibold text-white hover:bg-coral/90 focus:outline-none focus:ring-2 focus:ring-coral focus:ring-offset-2;
+        min-height: 3.25rem;
+        white-space: nowrap;
+        line-height: var(--loop-lh-ui);
+        transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-btn-danger:active {
+        transform: scale(0.98);
+    }
+
+    .loop-btn:disabled,
+    .loop-btn-mint:disabled,
+    .loop-btn-lime:disabled,
+    .loop-btn-ghost:disabled,
+    .loop-btn-danger:disabled {
+        opacity: 0.55;
+        pointer-events: none;
+        transform: none;
+    }
+
     .loop-input {
         @apply mt-1 block w-full rounded-2xl border-ink/10 bg-white text-base shadow-sm placeholder:text-ink-muted focus:border-violet focus:ring-violet;
+        min-height: 3.25rem;
         font-size: 1rem;
+        line-height: var(--loop-lh-ui);
+    }
+
+    textarea.loop-input {
+        min-height: 6.5rem;
+        padding-top: var(--loop-space-4);
+        padding-bottom: var(--loop-space-4);
     }
 
     .loop-discover-search {
@@ -406,12 +480,43 @@
     .loop-discover-search .loop-btn {
         flex: 0 0 auto;
         white-space: nowrap;
-        padding-left: 1.15rem;
-        padding-right: 1.15rem;
+        padding-left: var(--loop-space-5);
+        padding-right: var(--loop-space-5);
+    }
+
+    .loop-discover-chips {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.15rem;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .loop-discover-chips::-webkit-scrollbar {
+        display: none;
+    }
+
+    .loop-chip {
+        @apply inline-flex shrink-0 items-center rounded-full border border-ink/10 bg-white px-3 py-1.5 text-[12px] font-semibold text-ink-muted;
+        line-height: var(--loop-lh-ui);
+    }
+
+    .loop-chip.is-on {
+        @apply border-violet/30 bg-violet text-white;
+    }
+
+    .loop-discover-row {
+        @apply flex items-center gap-3 rounded-[1.25rem] border border-ink/10 bg-white/90 px-3 py-3;
+    }
+
+    .loop-discover-row__logo {
+        @apply flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[0.95rem] bg-ink text-lime;
     }
 
     .loop-label {
         @apply block text-sm font-medium text-ink-muted;
+        line-height: var(--loop-lh-ui);
     }
 
     .loop-stat {
@@ -460,11 +565,13 @@
     }
 
     .loop-section-eyebrow {
-        @apply mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-violet;
+        @apply mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-violet;
+        line-height: var(--loop-lh-ui);
     }
 
     .loop-section-title {
-        @apply font-display text-[1.55rem] font-semibold leading-[1.15] tracking-tight text-ink sm:text-[1.85rem];
+        @apply font-display text-lg font-semibold tracking-tight text-ink sm:text-xl;
+        line-height: var(--loop-lh-title);
         background: linear-gradient(120deg, #111114 0%, #1a1228 55%, #5b2eff 140%);
         -webkit-background-clip: text;
         background-clip: text;
@@ -472,7 +579,8 @@
     }
 
     .loop-section-blurb {
-        @apply mt-2 max-w-md text-sm leading-relaxed text-ink-muted;
+        @apply mt-1 max-w-md text-sm text-ink-muted;
+        line-height: var(--loop-lh-body);
     }
 
     .loop-section-link {
@@ -488,7 +596,7 @@
     }
 
     .loop-morph-target--landed {
-        animation: loop-morph-land 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation: loop-morph-land var(--loop-motion-std) var(--loop-ease-out) both;
     }
 
     .loop-morph-flyer {
@@ -499,11 +607,11 @@
         box-shadow: 0 18px 50px rgba(17, 17, 20, 0.35);
         pointer-events: none;
         transition:
-            top 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-            left 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-            width 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-            height 0.48s cubic-bezier(0.22, 1, 0.36, 1),
-            border-radius 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+            top var(--loop-motion-sheet) var(--loop-ease-out),
+            left var(--loop-motion-sheet) var(--loop-ease-out),
+            width var(--loop-motion-sheet) var(--loop-ease-out),
+            height var(--loop-motion-sheet) var(--loop-ease-out),
+            border-radius var(--loop-motion-sheet) var(--loop-ease-out);
     }
 
     .loop-morph-flyer img {
@@ -532,7 +640,7 @@
 
     .loop-offer-card {
         @apply rounded-[1.4rem] border border-ink/10 bg-white/80 p-4 shadow-[0_12px_36px_rgba(17,17,20,0.05)] backdrop-blur-xl;
-        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease-out;
+        transition: transform var(--loop-motion-std) var(--loop-ease-out), box-shadow var(--loop-motion-std) var(--loop-ease-out);
     }
 
     .loop-offer-card--ready {
@@ -548,7 +656,7 @@
             radial-gradient(circle at 50% 42%, rgba(91, 46, 255, 0.22), transparent 48%),
             rgba(17, 17, 20, 0.28);
         transform: scale(1);
-        transition: opacity 0.22s ease-out;
+        transition: opacity var(--loop-motion-std) var(--loop-ease-out);
     }
 
     .loop-morph-page-enter {
@@ -586,24 +694,26 @@
         border-radius: 9999px;
         background: rgba(200, 255, 61, 0.55);
         transform: translate(-50%, -50%);
-        animation: loop-ripple 0.9s ease-out both;
+        animation: loop-ripple var(--loop-motion-count) var(--loop-ease-out) both;
         pointer-events: none;
     }
 
     .loop-points-float {
         @apply pointer-events-none absolute left-1/2 top-[38%] -translate-x-1/2 font-display text-2xl font-semibold text-lime;
-        animation: loop-float-up 1.1s ease-out both;
+        animation: loop-float-up var(--loop-motion-count) var(--loop-ease-out) both;
     }
 
     .loop-unlock-card {
-        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease-out, background-color 0.4s ease-out;
+        transition: transform var(--loop-motion-celebrate) var(--loop-ease-out),
+            box-shadow var(--loop-motion-celebrate) var(--loop-ease-out),
+            background-color var(--loop-motion-celebrate) var(--loop-ease-out);
     }
 
     .loop-unlock-card.is-unlocked,
     .loop-unlock-card.is-ready {
         transform: scale(1.02);
         box-shadow: 0 0 0 1px rgba(200, 255, 61, 0.35), 0 18px 50px rgba(91, 46, 255, 0.18);
-        animation: loop-unlock-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation: loop-unlock-in var(--loop-motion-celebrate) var(--loop-ease-out) both;
     }
 
     .loop-ticket-code {
@@ -643,7 +753,7 @@
             radial-gradient(circle at 50% 42%, rgba(91, 46, 255, 0.55), transparent 42%),
             radial-gradient(circle at 50% 50%, rgba(17, 17, 20, 0.92), rgba(17, 17, 20, 0.98) 70%);
         transform: scale(0.55);
-        transition: opacity 0.35s ease-out, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: opacity var(--loop-motion-sheet) var(--loop-ease-out), transform var(--loop-motion-sheet) var(--loop-ease-out);
     }
 
     .loop-page-veil.is-on {
@@ -718,12 +828,33 @@
         @apply relative w-36 shrink-0 overflow-hidden;
         scroll-snap-align: start;
         transform: scale(0.98);
-        transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: transform var(--loop-motion-std) var(--loop-ease-out);
     }
 
     .loop-shop-card.is-active,
     .loop-shop-card:hover {
         transform: scale(1);
+    }
+
+    .loop-invite-card {
+        position: relative;
+        background:
+            radial-gradient(circle at 12% 20%, rgba(200, 255, 61, 0.18), transparent 42%),
+            radial-gradient(circle at 88% 10%, rgba(91, 46, 255, 0.55), transparent 40%),
+            linear-gradient(160deg, #17141f 0%, #2a1848 55%, #121018 100%);
+    }
+
+    .loop-invite-card::after {
+        content: '';
+        position: absolute;
+        right: -1.25rem;
+        bottom: -1.5rem;
+        width: 9rem;
+        height: 9rem;
+        border-radius: 1.5rem;
+        border: 2px solid rgba(200, 255, 61, 0.22);
+        transform: rotate(18deg);
+        pointer-events: none;
     }
 
     .loop-divider {
@@ -733,6 +864,115 @@
     .loop-bottom-nav {
         @apply fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 backdrop-blur-md;
         padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 0 -8px 28px rgba(17, 17, 20, 0.08);
+    }
+
+    .loop-bottom-nav__row {
+        display: grid;
+        align-items: stretch;
+        max-width: 32rem;
+        margin: 0 auto;
+        padding: 0.35rem 0.35rem 0.2rem;
+    }
+
+    .loop-bottom-nav__item {
+        position: relative;
+        display: flex;
+        min-height: 3.25rem;
+        min-width: 0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        border-radius: 0.9rem;
+        padding: 0.35rem 0.2rem;
+        color: #4b4b55;
+        text-decoration: none;
+        transition: background-color var(--loop-motion-fast) var(--loop-ease-out),
+            color var(--loop-motion-fast) var(--loop-ease-out),
+            transform var(--loop-motion-fast) var(--loop-ease-out);
+    }
+
+    .loop-bottom-nav__item:active {
+        transform: scale(0.97);
+    }
+
+    .loop-bottom-nav__item.is-active {
+        color: #5B2EFF;
+        background: #E9E5FF;
+        font-weight: 700;
+    }
+
+    .loop-bottom-nav__item.is-active .loop-bottom-nav__icon {
+        stroke-width: 2.2;
+    }
+
+    .loop-bottom-nav__icon-wrap {
+        position: relative;
+        display: inline-flex;
+    }
+
+    .loop-bottom-nav__icon {
+        width: 1.5rem;
+        height: 1.5rem;
+        display: block;
+    }
+
+    .loop-bottom-nav__label {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        line-height: 1.2;
+        letter-spacing: -0.01em;
+    }
+
+    .loop-bottom-nav__badge {
+        position: absolute;
+        top: -0.35rem;
+        right: -0.55rem;
+        min-width: 1.05rem;
+        height: 1.05rem;
+        padding: 0 0.25rem;
+        border-radius: 9999px;
+        background: #FF4F70;
+        color: #fff;
+        font-size: 0.625rem;
+        font-weight: 700;
+        line-height: 1.05rem;
+        text-align: center;
+    }
+
+    .loop-more-row {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.95rem 1rem;
+        color: inherit;
+        text-decoration: none;
+        min-height: 3.25rem;
+    }
+
+    .loop-more-row:active {
+        background: #F7F7F4;
+    }
+
+    .loop-more-row__icon {
+        display: inline-flex;
+        height: 2.25rem;
+        width: 2.25rem;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.75rem;
+        background: #E9E5FF;
+        color: #5B2EFF;
+    }
+
+    .loop-sticky-cta {
+        bottom: 0;
     }
 
     .loop-nav-pill {
@@ -848,11 +1088,11 @@
 @layer utilities {
     /* Soft rise only — never opacity:0 (that caused flicker on tunnel/CSS load) */
     .animate-fade-up {
-        animation: loop-fade-up 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation: loop-fade-up var(--loop-motion-celebrate) var(--loop-ease-out) both;
     }
 
     .animate-fade-up-delay {
-        animation: loop-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+        animation: loop-fade-up var(--loop-motion-celebrate) var(--loop-ease-out) var(--loop-motion-fast) both;
     }
 
     .pb-nav {
@@ -1018,11 +1258,11 @@
 /* Cross-document View Transitions — logo morph + soft root fade */
 @supports (view-transition-name: none) {
     ::view-transition-old(root) {
-        animation: 0.3s ease-out both loop-vt-fade-out;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-fade-out;
     }
 
     ::view-transition-new(root) {
-        animation: 0.38s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-fade-in;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-fade-in;
     }
 
     /* Instagram-style tab crossfade */
@@ -1050,15 +1290,15 @@
 
     /* Morph keeps logo shared-element; root softens underneath */
     html[data-loop-nav="morph"]::view-transition-old(root) {
-        animation: 0.28s ease-out both loop-vt-fade-out;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-fade-out;
     }
     html[data-loop-nav="morph"]::view-transition-new(root) {
-        animation: 0.36s cubic-bezier(0.22, 1, 0.36, 1) both loop-vt-fade-in;
+        animation: var(--loop-motion-std) var(--loop-ease-out) both loop-vt-fade-in;
     }
 
     ::view-transition-group(loop-biz-logo) {
-        animation-duration: 0.48s;
-        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+        animation-duration: var(--loop-motion-sheet);
+        animation-timing-function: var(--loop-ease-out);
     }
 
     ::view-transition-old(loop-biz-logo),
@@ -1067,8 +1307,8 @@
         overflow: clip;
         object-fit: cover;
         border-radius: 1.1rem;
-        animation-duration: 0.48s;
-        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+        animation-duration: var(--loop-motion-sheet);
+        animation-timing-function: var(--loop-ease-out);
     }
 
     ::view-transition-image-pair(loop-biz-logo) {
@@ -1095,10 +1335,19 @@
     .animate-fade-up,
     .animate-fade-up-delay,
     .loop-morph-flyer,
+    .loop-morph-target--landed,
     .loop-fill,
     .loop-till-done,
     .loop-toast__check,
+    .loop-unlock-card,
     .loop-unlock-card.is-ready,
+    .loop-shop-card,
+    .loop-page-veil,
+    .loop-points-float,
+    .loop-drawer-enter-active,
+    .loop-drawer-leave-active,
+    .loop-drawer-scrim-enter-active,
+    .loop-drawer-scrim-leave-active,
     html.loop-ready main.loop-shell {
         animation: none !important;
         transition: none !important;
@@ -1117,6 +1366,7 @@
     .loop-btn-mint:active,
     .loop-btn-lime:active,
     .loop-btn-ghost:active,
+    .loop-btn-danger:active,
     .loop-press-card:active {
         transform: none !important;
     }
@@ -1313,7 +1563,10 @@
 }
 
 .admin-nav__sublink {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
     border-radius: 0.4rem;
     padding: 0.35rem 0.55rem;
     font-size: 0.8rem;
@@ -1359,7 +1612,7 @@
     background: #f0fdf4;
     color: #14532d;
     border-radius: 0.6rem;
-    padding: 0.7rem 0.9rem;
+    padding: var(--loop-space-3) var(--loop-space-4);
     font-size: 0.875rem;
 }
 
@@ -1367,14 +1620,14 @@
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 0.75rem;
-    padding: 1.15rem 1.25rem;
+    padding: var(--loop-space-5);
 }
 
 .admin-stat {
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 0.75rem;
-    padding: 1rem 1.1rem;
+    padding: var(--loop-space-4) var(--loop-space-5);
 }
 
 .admin-stat--emphasis {
@@ -1393,7 +1646,7 @@
     border: 1px solid #e2e8f0;
     border-left-width: 3px;
     border-radius: 0.75rem;
-    padding: 1rem 1.1rem;
+    padding: var(--loop-space-4) var(--loop-space-5);
 }
 
 .admin-insight--mint { border-left-color: #0f766e; }
@@ -1418,14 +1671,14 @@
 }
 
 .admin-stat__value {
-    margin-top: 0.35rem;
+    margin-top: var(--loop-space-1);
     font-size: 1.45rem;
     font-weight: 700;
     letter-spacing: -0.03em;
 }
 
 .admin-stat__hint {
-    margin-top: 0.2rem;
+    margin-top: var(--loop-space-1);
     font-size: 0.75rem;
     color: #64748b;
 }
@@ -1517,6 +1770,78 @@
     padding: 0.7rem 0.9rem;
     border-bottom: 1px solid #f1f5f9;
     vertical-align: top;
+}
+
+.admin-table tbody tr.admin-row-link {
+    cursor: pointer;
+}
+
+.admin-table tbody tr.admin-row-link:hover td {
+    background: #f8fafc;
+}
+
+.admin-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.65rem 0.85rem;
+    margin-bottom: 1.25rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+}
+
+.admin-range__presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.admin-range__chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    background: #f1f5f9;
+}
+
+.admin-range__chip:hover {
+    background: #e2e8f0;
+}
+
+.admin-range__chip.is-active {
+    background: #0f172a;
+    color: #fff;
+}
+
+.admin-range__dates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.5rem;
+}
+
+.admin-preview.is-phone .admin-preview__stage {
+    max-width: 24.5rem;
+    margin-inline: auto;
+}
+
+.admin-preview__story {
+    overflow: hidden;
+    border-radius: 1.75rem;
+    border: 1px solid rgba(17, 17, 20, 0.08);
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.loop-logo-ph.is-cover {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 1.25rem;
 }
 
 .admin-table tbody tr:last-child td {
@@ -1650,7 +1975,7 @@
         z-index: 50;
         inset: 0 auto 0 0;
         transform: translateX(-105%);
-        transition: transform 0.2s ease;
+        transition: transform var(--loop-motion-std) var(--loop-ease-out);
     }
     .admin-sidebar.is-open {
         transform: none;
@@ -1873,6 +2198,32 @@ html.loop-no-skeleton .loop-page-skeleton {
 
 .loop-studio-card {
     background: #0B1F2A;
+    color: #fff;
+}
+
+.loop-studio-tone-mint-card {
+    background: linear-gradient(135deg, #2DD4A8 0%, #0F6B56 100%);
+    color: #0B1F2A;
+}
+
+.loop-studio-tone-ink-bold {
+    background: linear-gradient(135deg, #0B1F2A 0%, #173445 100%);
+    color: #fff;
+}
+
+.loop-studio-tone-coral-pop {
+    background: linear-gradient(135deg, #FF6B4A 0%, #ff8f75 100%);
+    color: #0B1F2A;
+}
+
+.loop-studio-tone-cream-soft {
+    background: linear-gradient(135deg, #F7F3EA 0%, #E8DFC8 100%);
+    color: #0B1F2A;
+}
+
+.loop-studio-tone-photo {
+    background: #0B1F2A;
+    color: #fff;
 }
 
 .loop-studio-photo {
@@ -1941,6 +2292,18 @@ html.loop-picker-open body {
     overflow: hidden !important;
 }
 
+html.loop-picker-open .loop-bottom-nav {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--loop-motion-fast) var(--loop-ease-out);
+}
+
+@media (max-width: 767px) {
+    .loop-has-bottom-nav .loop-sticky-cta {
+        bottom: calc(4.85rem + env(safe-area-inset-bottom));
+    }
+}
+
 .loop-picker-layer {
     position: fixed;
     inset: 0;
@@ -1956,6 +2319,22 @@ html.loop-picker-open body {
     background: rgba(17, 17, 20, 0.48);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+}
+
+.loop-drawer-scrim {
+    background: rgba(17, 17, 20, 0.48);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.loop-drawer-scrim-enter-active,
+.loop-drawer-scrim-leave-active {
+    transition: opacity var(--loop-motion-std) var(--loop-ease-out);
+}
+
+.loop-drawer-enter-active,
+.loop-drawer-leave-active {
+    transition: transform var(--loop-motion-std) var(--loop-ease-out);
 }
 
 .loop-picker-panel {
@@ -2072,6 +2451,20 @@ html.loop-picker-open body {
     padding: 0.15rem 0.75rem max(1.5rem, env(safe-area-inset-bottom));
 }
 
+.loop-picker-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.loop-picker-panel--auto {
+    height: auto;
+    max-height: 85dvh;
+}
+
 .loop-picker-option {
     display: flex;
     width: 100%;
@@ -2181,6 +2574,11 @@ html.loop-picker-open body {
         box-shadow: 0 24px 80px rgba(17, 17, 20, 0.28);
     }
 
+    .loop-picker-panel--auto {
+        height: auto;
+        max-height: min(36rem, 80vh);
+    }
+
     .loop-picker-handle {
         display: none;
     }
@@ -2208,6 +2606,10 @@ html.loop-picker-open body {
     .loop-picker-handle {
         display: block;
     }
+}
+
+.loop-fade {
+    transition: opacity var(--loop-motion-sheet) var(--loop-ease-out);
 }
 
 .loop-toast {
@@ -2256,16 +2658,76 @@ html.loop-picker-open body {
     background: linear-gradient(180deg, rgba(247, 247, 244, 0) 0%, rgba(247, 247, 244, 0.92) 28%, #F7F7F4 100%);
 }
 
+.loop-month-pills {
+    scrollbar-width: none;
+}
+
+.loop-month-pills::-webkit-scrollbar {
+    display: none;
+}
+
+/* MPA loads must not replay a fade/slide after the document is already
+   painted. That was the page-switch flicker (dim + 6px, then snap).
+   Cross-document view transitions still use the keyframes above. */
 html.loop-ready main.loop-shell {
-    animation: loop-vt-fade-in var(--loop-motion-std) var(--loop-ease-out) both;
+    animation: none;
 }
 
-html[data-loop-nav="push"].loop-ready main.loop-shell {
-    animation-name: loop-vt-slide-in-right;
+.loop-game-wheel {
+    position: relative;
+    width: min(18rem, 80vw);
+    height: min(18rem, 80vw);
+    border-radius: 999px;
+    background: conic-gradient(#5B2EFF 0 20%, #C8FF3D 20% 40%, #111114 40% 60%, #2E7D32 60% 80%, #E9E5FF 80% 100%);
+    transform: rotate(var(--turn, 0deg));
+    transition: transform 2.6s var(--loop-ease-out);
+    box-shadow: inset 0 0 0 8px #fff, 0 18px 40px rgba(17, 17, 20, 0.2);
+}
+.loop-game-wheel.is-spinning {
+    transition-duration: 2.6s;
+}
+.loop-game-slice {
+    display: none;
+}
+.loop-game-box {
+    aspect-ratio: 1;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(17, 17, 20, 0.1);
+    background: #fff;
+    font-size: 1.75rem;
+}
+.loop-game-scratch {
+    position: relative;
+    display: flex;
+    min-height: 12rem;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 1.75rem;
+    background: #111114;
+    color: #fff;
+}
+.loop-game-scratch-cover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-linear-gradient(135deg, #5B2EFF, #5B2EFF 12px, #C8FF3D 12px, #C8FF3D 24px);
+    color: #111114;
+    font-weight: 700;
+    transition: opacity var(--loop-motion-celebrate) var(--loop-ease-out);
+}
+.loop-game-scratch.is-revealed .loop-game-scratch-cover {
+    opacity: 0;
+    pointer-events: none;
 }
 
-html[data-loop-nav="back"].loop-ready main.loop-shell {
-    animation-name: loop-vt-slide-in-left;
+/* Uniform line-height — body copy stays compact; numbers keep leading-none via utilities. */
+.leading-relaxed,
+.leading-loose {
+    line-height: var(--loop-lh-body);
 }
 
 

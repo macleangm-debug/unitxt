@@ -24,7 +24,7 @@
 
     <div class="admin-subnav" role="tablist">
         @foreach ($tabs as $key => $label)
-            <a href="{{ route('admin.reports.index', ['tab' => $key]) }}"
+            <a href="{{ route('admin.reports.index', $period->query(['tab' => $key])) }}"
                class="{{ $tab === $key ? 'is-active' : '' }}"
                role="tab"
                aria-selected="{{ $tab === $key ? 'true' : 'false' }}">{{ $label }}</a>
@@ -32,6 +32,7 @@
     </div>
 
     @if ($tab === 'overview')
+        <x-admin.date-range :period="$period" :tab="$tab" />
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.revenue_all') }}</p>
@@ -39,12 +40,14 @@
                 <p class="mt-1 text-xs text-ink-muted">{{ $overview['sales_all'] }} {{ __('loop.sales') }}</p>
             </div>
             <div class="admin-card">
-                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.revenue_month') }}</p>
-                <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($overview['revenue_month']) }}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ $overview['period_label'] }}</p>
+                <p class="mt-2 font-display text-2xl font-semibold">TZS {{ number_format($overview['revenue_period']) }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $overview['sales_period'] }} {{ __('loop.sales') }}</p>
             </div>
             <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.unique_customers') }}</p>
                 <p class="mt-2 font-display text-2xl font-semibold">{{ $overview['unique_customers'] }}</p>
+                <p class="mt-1 text-xs text-ink-muted">{{ $overview['unique_customers_period'] }} {{ __('loop.in_this_range') }}</p>
             </div>
             <div class="admin-card">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.paid') }} / {{ __('loop.trialing') }}</p>
@@ -59,7 +62,7 @@
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.sales_by_sector') }}</h2>
                         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.top_3_sectors_blurb') }}</p>
                     </div>
-                    <a href="{{ route('admin.reports.index', ['tab' => 'sectors']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                    <a href="{{ route('admin.reports.index', $period->query(['tab' => 'sectors'])) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
                 </div>
                 <div class="space-y-4">
                     @forelse (collect($salesBySector)->take(3) as $row)
@@ -82,7 +85,7 @@
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.reports_tab_trend') }}</h2>
                         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.last_14_days_sales_blurb') }}</p>
                     </div>
-                    <a href="{{ route('admin.reports.index', ['tab' => 'trend']) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
+                    <a href="{{ route('admin.reports.index', $period->query(['tab' => 'trend'])) }}" class="text-sm font-semibold text-violet">{{ __('loop.view_more') }} →</a>
                 </div>
                 <div class="admin-chart h-32">
                     @foreach (collect($dailySales)->take(14) as $day)
@@ -123,7 +126,7 @@
                             <div class="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-sm">
                                 <div>
                                     <p class="font-semibold">{{ $row->sector_label }}</p>
-                                    <p class="text-xs text-ink-muted">{{ $row->sales_count }} {{ __('loop.sales') }} · {{ $row->unique_customers }} {{ __('loop.customers') }}</p>
+                                    <p class="text-xs text-ink-muted">{{ number_format((int) $row->sales_count) }} {{ __('loop.sales') }} · {{ number_format((int) $row->unique_customers) }} {{ __('loop.customers') }}</p>
                                 </div>
                                 <p class="font-semibold">TZS {{ number_format($row->revenue) }}</p>
                             </div>
@@ -154,7 +157,7 @@
                         @forelse ($salesBySector as $row)
                             <tr>
                                 <td class="font-semibold">{{ $row->sector_label }}</td>
-                                <td>{{ $row->sales_count }}</td>
+                                <td>{{ number_format((int) $row->sales_count) }}</td>
                                 <td>{{ $row->unique_customers }}</td>
                                 <td>TZS {{ number_format($row->revenue) }}</td>
                             </tr>
@@ -192,7 +195,7 @@
                                         <td class="font-medium">{{ $row->name }}</td>
                                         <td>{{ $row->sector_label }}</td>
                                         <td>{{ $row->unique_customers }}</td>
-                                        <td>{{ $row->sales_count }}</td>
+                                        <td>{{ number_format((int) $row->sales_count) }}</td>
                                         <td>TZS {{ number_format($row->revenue) }}</td>
                                         <td>{{ $row->plan_key }} · {{ $row->billing_status }}</td>
                                         <td class="text-right">
@@ -220,7 +223,7 @@
             <div class="mt-6 admin-chart">
                 @foreach ($dailySales as $day)
                     @php $h = max(4, (int) round(((float) $day->revenue / $maxDaily) * 100)); @endphp
-                    <div class="admin-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ $day->sales_count }} {{ __('loop.sales') }}">
+                    <div class="admin-chart__col" title="{{ $day->day }} · TZS {{ number_format($day->revenue) }} · {{ number_format((int) $day->sales_count) }} {{ __('loop.sales') }}">
                         <div class="admin-chart__bar" style="height: {{ $h }}%"></div>
                         <span class="admin-chart__label">{{ \Illuminate\Support\Carbon::parse($day->day)->format('d') }}</span>
                     </div>
@@ -239,7 +242,7 @@
                         @foreach ($dailySales as $day)
                             <tr>
                                 <td class="font-medium">{{ $day->day }}</td>
-                                <td>{{ $day->sales_count }}</td>
+                                <td>{{ number_format((int) $day->sales_count) }}</td>
                                 <td>TZS {{ number_format($day->revenue) }}</td>
                             </tr>
                         @endforeach

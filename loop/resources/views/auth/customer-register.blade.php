@@ -184,6 +184,9 @@
                         <button type="submit" class="loop-btn-mint flex-1">{{ __('loop.youre_on_loop') }}</button>
                     @endif
                 </div>
+                @unless ($needsPin)
+                    <x-legal-signup-note />
+                @endunless
             </div>
 
             @if ($needsPin)
@@ -202,6 +205,7 @@
                         <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
                         <button type="submit" class="loop-btn-mint flex-1">{{ __('loop.youre_on_loop') }}</button>
                     </div>
+                    <x-legal-signup-note />
                 </div>
             @endif
         </form>

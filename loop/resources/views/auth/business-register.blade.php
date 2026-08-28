@@ -160,6 +160,7 @@
                         <x-input-error :messages="$errors->get('referral_code')" class="mt-1" />
                     </div>
                 </div>
+                <x-legal-signup-note />
                 <div class="flex gap-3">
                     <button type="button" @click="step = 3" class="loop-btn-ghost flex-1">{{ __('loop.back') }}</button>
                     <button class="loop-btn flex-1">{{ __('loop.create_account') }}</button>

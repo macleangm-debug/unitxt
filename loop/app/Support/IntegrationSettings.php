@@ -52,6 +52,7 @@ class IntegrationSettings
                 'business_can_message_customers' => true,
                 'platform_can_message_businesses' => true,
                 'price_per_message' => 30,
+                'chars_per_message' => 160,
                 'sender_id_yearly_fee' => 15000,
                 'enabled_countries' => ['TZ'],
             ],
@@ -106,6 +107,7 @@ class IntegrationSettings
                 'business_can_message_customers' => ! empty($m['business_can_message_customers']),
                 'platform_can_message_businesses' => ! empty($m['platform_can_message_businesses']),
                 'price_per_message' => max(1, (int) ($m['price_per_message'] ?? 30)),
+                'chars_per_message' => max(1, min(320, (int) ($m['chars_per_message'] ?? 160))),
                 'sender_id_yearly_fee' => max(0, (int) ($m['sender_id_yearly_fee'] ?? 15000)),
                 'enabled_countries' => self::normalizeCountries($m['enabled_countries'] ?? ['TZ']),
             ];
@@ -141,6 +143,20 @@ class IntegrationSettings
         }
 
         return $out !== [] ? array_values(array_unique($out)) : ['TZ'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    public static function mergeMessagingRates(array $input): array
+    {
+        $current = self::settings();
+        $current['messaging']['price_per_message'] = max(1, (int) ($input['price_per_message'] ?? $current['messaging']['price_per_message'] ?? 30));
+        $current['messaging']['chars_per_message'] = max(1, min(320, (int) ($input['chars_per_message'] ?? $current['messaging']['chars_per_message'] ?? 160)));
+        $current['messaging']['sender_id_yearly_fee'] = max(0, (int) ($input['sender_id_yearly_fee'] ?? $current['messaging']['sender_id_yearly_fee'] ?? 15000));
+
+        return $current;
     }
 
     public static function primaryProvider(): string

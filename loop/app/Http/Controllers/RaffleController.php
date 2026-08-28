@@ -24,6 +24,7 @@ class RaffleController extends Controller
         $planAllows = app(\App\Services\PlanLimitService::class)->rafflesEnabled($business);
 
         $raffles = $business->raffles()->withCount(['winners as drawn_count'])->latest()->get();
+        $remindDays = (int) GrowthSettings::settings()['raffle_remind_days_before'];
 
         return view('raffles.index', [
             'business' => $business,
@@ -35,10 +36,12 @@ class RaffleController extends Controller
             'eligibleCount' => $memberCount,
             'minMembers' => $min,
             'reminders' => $business->raffles()
-                ->where('status', 'scheduled')
-                ->whereDate('draw_at', '<=', now()->addDays(GrowthSettings::settings()['raffle_remind_days_before']))
-                ->orderBy('draw_at')
-                ->get(),
+                ->where('is_active', true)
+                ->whereIn('status', ['scheduled', 'live'])
+                ->get()
+                ->filter(fn (Raffle $raffle) => $raffle->nextDrawDate()->lte(now()->addDays($remindDays)))
+                ->sortBy(fn (Raffle $raffle) => $raffle->nextDrawDate()->timestamp)
+                ->values(),
         ]);
     }
 
@@ -63,12 +66,36 @@ class RaffleController extends Controller
 
         $maxWinners = GrowthSettings::maxWinnersForMembers($memberCount);
 
+        $prizeTypes = [
+            [
+                'key' => 'free_item',
+                'title' => __('loop.offer_type_free_item_title'),
+                'body' => __('loop.raffle_prize_free_body'),
+            ],
+            [
+                'key' => 'percent_off',
+                'title' => __('loop.offer_type_percent_off_title'),
+                'body' => __('loop.raffle_prize_percent_body'),
+            ],
+            [
+                'key' => 'fixed_off',
+                'title' => __('loop.offer_type_fixed_off_title'),
+                'body' => __('loop.raffle_prize_fixed_body'),
+            ],
+            [
+                'key' => 'custom',
+                'title' => __('loop.offer_type_custom_title'),
+                'body' => __('loop.raffle_prize_custom_body'),
+            ],
+        ];
+
         return view('raffles.create', [
             'business' => $business,
             'memberCount' => $memberCount,
             'maxWinners' => $maxWinners,
             'maxWinnersPercent' => GrowthSettings::raffleMaxWinnersPercent(),
             'defaultClaimDays' => GrowthSettings::settings()['raffle_default_claim_days'],
+            'prizeTypes' => $prizeTypes,
         ]);
     }
 
@@ -88,9 +115,19 @@ class RaffleController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'prize_name' => ['required', 'string', 'max:120'],
+            'prize_name' => [
+                \Illuminate\Validation\Rule::requiredIf(in_array($request->input('prize_type'), ['free_item', 'custom'], true)),
+                'nullable',
+                'string',
+                'max:120',
+            ],
             'prize_type' => ['required', 'in:free_item,percent_off,fixed_off,custom'],
-            'prize_value' => ['nullable', 'numeric', 'min:0'],
+            'prize_value' => [
+                \Illuminate\Validation\Rule::requiredIf(in_array($request->input('prize_type'), ['percent_off', 'fixed_off'], true)),
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
             'winners_count' => ['required', 'integer', 'min:1', 'max:'.$maxWinners],
             'frequency' => ['required', 'in:once,weekly,monthly,yearly'],
             'draw_at' => ['required', 'date', 'after_or_equal:today'],
@@ -102,6 +139,28 @@ class RaffleController extends Controller
                 'members' => $memberCount,
             ]),
         ]);
+
+        if ($data['prize_type'] === 'percent_off') {
+            $request->validate(['prize_value' => ['numeric', 'min:1', 'max:100']]);
+        }
+        if ($data['prize_type'] === 'fixed_off') {
+            $request->validate(['prize_value' => ['numeric', 'min:1']]);
+        }
+
+        $data['prize_name'] = $data['prize_name'] ?? null;
+        $data['prize_value'] = $data['prize_value'] ?? null;
+
+        if (blank($data['prize_name'])) {
+            $data['prize_name'] = match ($data['prize_type']) {
+                'percent_off' => __('loop.offer_type_percent_name', ['value' => (int) $data['prize_value']]),
+                'fixed_off' => $business->currency.' '.number_format((float) $data['prize_value']).' '.__('loop.off_every_eligible_sale'),
+                default => $data['name'],
+            };
+        }
+
+        if (in_array($data['prize_type'], ['free_item', 'custom'], true) && ($data['prize_value'] === null || $data['prize_value'] === '')) {
+            $data['prize_value'] = null;
+        }
 
         $raffle = $business->raffles()->create([
             ...$data,
@@ -129,11 +188,19 @@ class RaffleController extends Controller
         ]);
     }
 
-    public function live(Request $request, Raffle $raffle): View
+    public function live(Request $request, Raffle $raffle): View|RedirectResponse
     {
         $this->authorizeRaffle($request, $raffle);
 
         $raffle->load(['winners.customer', 'winners.membership', 'business']);
+
+        if ($raffle->remainingWinnerSlots() > 0 && ! $raffle->canDrawNow()) {
+            return redirect()->route('raffles.show', $raffle)->withErrors([
+                'raffle' => __('loop.raffle_draw_too_soon', [
+                    'date' => $raffle->nextDrawDate()->format('j M Y'),
+                ]),
+            ]);
+        }
 
         return view('raffles.live', [
             'business' => $raffle->business,
@@ -141,6 +208,7 @@ class RaffleController extends Controller
             'remaining' => $raffle->remainingWinnerSlots(),
             'eligibleCount' => app(RaffleService::class)->eligibleCustomers($raffle->business)->count(),
             'drawnWinnerId' => (int) $request->session()->get('drawn_winner_id', 0),
+            'spinMs' => GrowthSettings::raffleSpinMs(),
         ]);
     }
 
@@ -166,15 +234,24 @@ class RaffleController extends Controller
                 $raffle->remainingWinnerSlots() > 0
                     ? route('raffles.live', $raffle)
                     : route('raffles.show', $raffle),
+                true,
+                ['delay_ms' => GrowthSettings::raffleSpinMs()],
             ),
         ]);
     }
 
-    public function contact(Request $request, Raffle $raffle, \App\Models\RaffleWinner $winner, RaffleService $raffles): RedirectResponse
+    public function contact(Request $request, Raffle $raffle, \App\Models\RaffleWinner $winner, RaffleService $raffles): RedirectResponse|JsonResponse
     {
         $this->authorizeRaffle($request, $raffle);
         abort_unless($winner->raffle_id === $raffle->id, 404);
         $raffles->markContacted($winner);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'status' => $winner->fresh()->status,
+            ]);
+        }
 
         return back()->with('confirm', Confirm::make(
             __('loop.raffle_contacted_title'),
@@ -213,6 +290,7 @@ class RaffleController extends Controller
             'raffle' => $raffle,
             'eligibleCount' => $raffle->business->uniqueMemberCount(),
             'boardUrl' => route('raffles.board', $raffle),
+            'spinMs' => GrowthSettings::raffleSpinMs(),
         ]);
     }
 

@@ -139,6 +139,9 @@ class BusinessRegisterController extends Controller
         event(new Registered($owner));
         Auth::login($owner);
         $request->session()->put('preferred_country', $data['country']);
+        $owner->marketing_opt_in = $request->boolean('marketing_opt_in');
+        $owner->save();
+        app(\App\Services\LegalService::class)->recordSignup($owner, 'business');
 
         return redirect()->route('onboarding.show');
     }

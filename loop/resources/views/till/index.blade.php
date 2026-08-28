@@ -40,7 +40,7 @@
                 <p class="mt-1 text-sm text-ink-muted">{{ __('loop.choose_branch_first_blurb') }}</p>
             </div>
             @foreach ($shops as $shop)
-                <form method="POST" action="{{ route('till.branch') }}">
+                <form method="POST" action="{{ route('till.branch') }}" data-loop-quiet>
                     @csrf
                     <input type="hidden" name="shop_id" value="{{ $shop->id }}">
                     @if (! empty($scanQuery))
@@ -83,6 +83,13 @@
                     <p class="mt-1 font-display text-xl font-semibold">{{ $tillMoment['unlock'] }}</p>
                 </div>
             @endif
+            @if (! empty($tillConfirm['game_play']))
+                <div class="mt-5 rounded-[1.25rem] bg-violet px-4 py-3 text-white">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{{ $tillConfirm['game_play']['game'] }}</p>
+                    <p class="mt-1 font-display text-xl font-semibold">{{ $tillConfirm['game_play']['title'] }}</p>
+                    <a href="{{ $tillConfirm['game_play']['url'] }}" class="loop-btn-lime mt-3 inline-flex">{{ __('loop.game_let_them_play') }}</a>
+                </div>
+            @endif
             <button type="button" class="loop-btn mt-6 w-full" @click="tillDone = false">{{ $tillConfirm['cta'] ?? __('loop.next_customer') }}</button>
             @if (! empty($tillConfirm['undo_url']))
                 <form method="POST" action="{{ $tillConfirm['undo_url'] }}" class="mt-3">
@@ -92,7 +99,7 @@
             @endif
         </div>
     @endif
-    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel space-y-4 p-6" x-show="!tillDone">
+    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel space-y-4 p-6" x-show="!tillDone" data-loop-quiet>
         @csrf
         @if ($errors->any())
             <div class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
@@ -183,16 +190,17 @@
             </div>
             <div class="space-y-3">
                 @foreach ($recent as $visit)
-                    <div class="loop-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                        <div>
-                            <p class="font-semibold">{{ $visit->customer->name }} · {{ $visit->shop->name }}</p>
-                            <p class="text-sm text-ink-muted">
+                    <div class="loop-panel flex items-start gap-3 px-4 py-3">
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate font-semibold">{{ $visit->customer->name }}</p>
+                            <p class="mt-0.5 text-sm text-ink-muted">
                                 {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
                                 · {{ $visit->channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
                                 · {{ $visit->created_at->format('d M Y · H:i') }}
                             </p>
+                            <p class="mt-0.5 truncate text-xs text-ink-muted">{{ $visit->shop->name }}</p>
                         </div>
-                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }} {{ __('loop.pts') }}</span>
+                        <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ number_format((int) $visit->points_earned) }} {{ __('loop.pts') }}</span>
                     </div>
                 @endforeach
             </div>

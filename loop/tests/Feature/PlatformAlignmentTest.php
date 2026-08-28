@@ -213,6 +213,11 @@ class PlatformAlignmentTest extends TestCase
             ->assertSee(__('loop.feature_paused_sms_title'));
 
         $this->actingAs($owner)
+            ->get(route('customers.index'))
+            ->assertOk()
+            ->assertDontSee(__('loop.send_messages'), false);
+
+        $this->actingAs($owner)
             ->get(route('settings'))
             ->assertOk()
             ->assertDontSee(__('loop.content_studio'), false)

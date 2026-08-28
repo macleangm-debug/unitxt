@@ -94,17 +94,17 @@
             </div>
         @endif
 
-        @if (! empty($pulse['money_line']))
-            <p class="mt-4 rounded-[1.25rem] border border-ink/8 bg-white/80 px-4 py-3 text-sm font-medium">{{ $pulse['money_line'] }}</p>
-        @endif
-
-        @if (! empty($pulse['suggestion']))
-            <section class="mt-4 rounded-[1.5rem] border border-violet/15 bg-violet-soft/40 px-5 py-4">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.pulse_something_you_could') }}</p>
-                <h2 class="mt-1 font-display text-lg font-semibold">{{ $pulse['suggestion']['title'] }}</h2>
-                <p class="mt-1 text-sm text-ink-muted">{{ $pulse['suggestion']['body'] }}</p>
-                <a href="{{ $pulse['suggestion']['url'] }}" class="mt-3 inline-flex text-sm font-semibold text-violet">{{ $pulse['suggestion']['cta'] }} →</a>
-            </section>
+        @if (! empty($pulse['prompts']))
+            <div class="loop-carousel mt-4 items-stretch" x-data="loopParallaxCarousel({ autoMs: 5500 })">
+                @foreach ($pulse['prompts'] as $prompt)
+                    <section data-loop-card class="w-[min(100%,22rem)] shrink-0 rounded-[1.5rem] border border-violet/15 bg-violet-soft/40 px-5 py-4">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ $prompt['eyebrow'] }}</p>
+                        <h2 class="mt-1 font-display text-lg font-semibold">{{ $prompt['title'] }}</h2>
+                        <p class="mt-1 text-sm text-ink-muted">{{ $prompt['body'] }}</p>
+                        <a href="{{ $prompt['url'] }}" class="mt-3 inline-flex text-sm font-semibold text-violet">{{ $prompt['cta'] }} →</a>
+                    </section>
+                @endforeach
+            </div>
         @endif
     @else
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -188,7 +188,7 @@
                                 <p class="text-sm text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
                             </div>
                             <div class="text-right">
-                                <p class="font-display text-xl font-semibold">{{ $campaign->today_visits_count }}</p>
+                                <p class="font-display text-xl font-semibold">{{ number_format((int) $campaign->today_visits_count) }}</p>
                                 <p class="text-xs text-ink-muted">{{ __('loop.today') }}</p>
                             </div>
                     @if ($isOwner)
@@ -203,14 +203,20 @@
         </section>
         <section>
             @if ($recentVisits->isNotEmpty())
-                <h2 class="mb-4 font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
+                <div class="mb-4 flex items-end justify-between gap-3">
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_sales') }}</h2>
+                    <a href="{{ route('transactions.index') }}" class="text-sm font-semibold text-violet">{{ __('loop.see_all_activity') }}</a>
+                </div>
                 <div class="divide-y divide-ink/10">
                     @foreach ($recentVisits as $visit)
                         <div class="flex items-center justify-between gap-4 py-3.5">
                             <div class="min-w-0">
                                 <p class="font-semibold">{{ $visit->customer->name }}</p>
                                 <p class="text-xs text-ink-muted">{{ $visit->shop->name }} · {{ $visit->created_at->format('d M Y · H:i') }}</p>
-                                <p class="mt-0.5 text-xs font-medium text-violet">+{{ $visit->points_earned }} pts</p>
+                                @if ($visit->raffleWinner?->raffle)
+                                    <p class="mt-0.5 text-xs font-medium text-mint-deep">{{ __('loop.raffle') }} · {{ $visit->raffleWinner->raffle->prize_name }}</p>
+                                @endif
+                                <p class="mt-0.5 text-xs font-medium text-violet">+{{ number_format((int) $visit->points_earned) }} pts</p>
                             </div>
                             <p class="shrink-0 text-right font-display text-xl font-semibold tracking-tight">
                                 {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}

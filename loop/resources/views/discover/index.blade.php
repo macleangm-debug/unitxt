@@ -32,6 +32,7 @@
 
     <x-site-footer />
 </div>
+@include('partials.confirm-modal')
 </body>
 </html>
 @endif

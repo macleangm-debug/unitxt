@@ -59,9 +59,9 @@ export default {
                 },
             },
             animation: {
-                'fade-up': 'fade-up 0.7s ease-out both',
-                'fade-up-delay': 'fade-up 0.7s ease-out 0.15s both',
-                'fade-up-delay-2': 'fade-up 0.7s ease-out 0.3s both',
+                'fade-up': 'fade-up 650ms cubic-bezier(0.22, 1, 0.36, 1) both',
+                'fade-up-delay': 'fade-up 650ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both',
+                'fade-up-delay-2': 'fade-up 650ms cubic-bezier(0.22, 1, 0.36, 1) 230ms both',
                 'loop-spin': 'loop-spin 18s linear infinite',
                 float: 'float 5s ease-in-out infinite',
             },

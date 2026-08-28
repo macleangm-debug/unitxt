@@ -3,6 +3,7 @@
     'preview' => null,
     'required' => false,
     'hint' => null,
+    'variant' => 'square',
 ])
 
 <div
@@ -15,7 +16,7 @@
     <button
         type="button"
         x-ref="frame"
-        class="loop-logo-ph relative overflow-hidden rounded-[1.75rem] bg-ink ring-4 ring-violet/25 transition hover:ring-lime/40 focus:outline-none focus:ring-lime/50"
+        class="loop-logo-ph relative overflow-hidden rounded-[1.75rem] bg-ink ring-4 ring-violet/25 transition hover:ring-lime/40 focus:outline-none focus:ring-lime/50 {{ $variant === 'cover' ? 'is-cover' : '' }}"
         @click="if (!preview) openPicker()"
         @pointerdown="onDown($event)"
         @pointermove="onMove($event)"

@@ -25,6 +25,7 @@ class FeatureFlags
             ['key' => 'streak_campaigns', 'default' => true, 'category' => 'campaigns'],
             ['key' => 'featured_product', 'default' => true, 'category' => 'campaigns'],
             ['key' => 'raffles', 'default' => true, 'category' => 'growth'],
+            ['key' => 'games', 'default' => true, 'category' => 'growth'],
             ['key' => 'content_studio', 'default' => true, 'category' => 'growth'],
             ['key' => 'sms_messaging', 'default' => true, 'category' => 'comms'],
             ['key' => 'member_daily_digest', 'default' => true, 'category' => 'comms'],

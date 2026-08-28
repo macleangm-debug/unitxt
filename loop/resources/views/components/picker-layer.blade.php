@@ -16,7 +16,7 @@
         class="loop-picker-layer"
         x-cloak
         style="display: none;"
-        x-effect="document.documentElement.classList.toggle('loop-picker-open', open)"
+        x-effect="open; window.loopSheet?.syncLock()"
         @keydown.escape.window="open = false"
         role="presentation"
     >

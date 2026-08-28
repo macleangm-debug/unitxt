@@ -26,7 +26,7 @@
             aria-label="{{ __('loop.wallet_qr_expand') }}"
         @endif
     >
-        <span class="block overflow-hidden rounded-[1.25rem] bg-white p-2.5">
+        <span class="block overflow-hidden rounded-[1.25rem] bg-white p-4">
             <img
                 src="{{ $qrUrl }}"
                 alt="{{ __('loop.wallet_qr_title') }}"
@@ -50,7 +50,7 @@
                 aria-label="{{ __('loop.wallet_qr_title') }}"
             >
                 <div
-                    class="absolute inset-0 bg-ink/75 backdrop-blur-md transition-opacity duration-300"
+                    class="absolute inset-0 bg-ink/75 backdrop-blur-md loop-fade"
                     :class="expanded ? 'opacity-100' : 'opacity-0'"
                     @click="close()"
                 ></div>

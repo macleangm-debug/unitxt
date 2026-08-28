@@ -137,16 +137,27 @@
                             @endif
                         </div>
                         @foreach ($group['templates'] as $key => $item)
-                            <button
-                                type="button"
-                                @click="pickTemplate(@js($key))"
-                                class="flex w-full min-h-[7.5rem] flex-col rounded-3xl border bg-white p-5 text-left transition"
-                                :class="templateKey === @js($key) ? 'border-mint ring-2 ring-mint/20' : 'border-ink/10 hover:border-mint'"
-                            >
-                                <p class="font-display text-lg font-semibold">{{ $item['name'] }}</p>
-                                <p class="mt-2 flex-1 text-sm text-ink-muted">{{ $item['description'] }}</p>
-                                <p x-show="templateKey === @js($key)" x-cloak class="mt-3 text-sm font-semibold text-mint-deep">{{ __('loop.offer_type_selected_hint') }}</p>
-                            </button>
+                            @if (! empty($item['existing_id']))
+                                <a
+                                    href="{{ route('campaigns.edit', $item['existing_id']) }}"
+                                    class="flex w-full min-h-[7.5rem] flex-col rounded-3xl border border-ink/10 bg-white p-5 text-left transition hover:border-mint"
+                                >
+                                    <p class="font-display text-lg font-semibold">{{ $item['name'] }}</p>
+                                    <p class="mt-2 flex-1 text-sm text-ink-muted">{{ $item['description'] }}</p>
+                                    <p class="mt-3 text-sm font-semibold text-mint-deep">{{ __('loop.bonus_already_live') }}</p>
+                                </a>
+                            @else
+                                <button
+                                    type="button"
+                                    @click="pickTemplate(@js($key))"
+                                    class="flex w-full min-h-[7.5rem] flex-col rounded-3xl border bg-white p-5 text-left transition"
+                                    :class="templateKey === @js($key) ? 'border-mint ring-2 ring-mint/20' : 'border-ink/10 hover:border-mint'"
+                                >
+                                    <p class="font-display text-lg font-semibold">{{ $item['name'] }}</p>
+                                    <p class="mt-2 flex-1 text-sm text-ink-muted">{{ $item['description'] }}</p>
+                                    <p x-show="templateKey === @js($key)" x-cloak class="mt-3 text-sm font-semibold text-mint-deep">{{ __('loop.offer_type_selected_hint') }}</p>
+                                </button>
+                            @endif
                         @endforeach
                     </section>
                 @empty

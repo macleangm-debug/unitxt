@@ -32,8 +32,9 @@
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">{{ __('loop.footer_legal') }}</p>
             <ul class="mt-4 space-y-2.5 text-sm text-white/75">
-                <li><a href="#" class="hover:text-white">{{ __('loop.footer_privacy') }}</a></li>
-                <li><a href="#" class="hover:text-white">{{ __('loop.footer_terms') }}</a></li>
+                <li><a href="{{ route('legal.index') }}" class="hover:text-white">{{ __('loop.legal_privacy') }}</a></li>
+                <li><a href="{{ route('legal.show', 'privacy') }}" class="hover:text-white">{{ __('loop.footer_privacy') }}</a></li>
+                <li><a href="{{ route('legal.show', 'terms') }}" class="hover:text-white">{{ __('loop.footer_terms') }}</a></li>
             </ul>
         </div>
     </div>

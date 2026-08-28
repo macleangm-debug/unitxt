@@ -1,12 +1,15 @@
 @php
     $browsePad = $isCustomer ?? false;
     $search = $search ?? '';
+    $featuredSectors = $featuredSectors ?? [];
+    $chipBase = array_filter([
+        'country' => $activeCountry ?? null,
+        'city' => $activeCity ?? null,
+        'q' => $search !== '' ? $search : null,
+    ]);
 @endphp
-<div @if (! $browsePad) class="pb-28 pt-6" @endif x-data="{ filtersOpen: false, q: @js($search), hayMatch(hay) { const q = this.q.trim().toLowerCase(); return !q || String(hay).includes(q); } }">
+<div @if (! $browsePad) class="pb-28 pt-6" @endif x-data="{ filtersOpen: false }">
     <div @class(['loop-shell' => ! $browsePad])>
-        @if (session('status'))
-            <div class="mb-4 rounded-2xl border border-lime/50 bg-lime/20 px-4 py-3 text-sm font-medium text-ink">{{ session('status') }}</div>
-        @endif
 
         <div class="flex items-end justify-between gap-3">
             <div>
@@ -29,7 +32,6 @@
                     id="discover-q"
                     type="search"
                     name="q"
-                    x-model="q"
                     value="{{ $search }}"
                     placeholder="{{ __('loop.search_shops_placeholder') }}"
                     class="loop-input"
@@ -38,6 +40,26 @@
                 >
                 <button type="submit" class="loop-btn">{{ __('loop.search') }}</button>
             </div>
+
+            <div class="loop-discover-chips">
+                <a
+                    href="{{ route('discover', array_filter(['country' => $activeCountry, 'city' => $activeCity, 'q' => $search !== '' ? $search : null])) }}"
+                    class="loop-chip {{ empty($activeSector) && empty($activeCategory) && empty($activeStatus) ? 'is-on' : '' }}"
+                >{{ __('loop.all') }}</a>
+                @if ($isCustomer)
+                    <a href="{{ route('discover', $chipBase + ['status' => 'ready']) }}" class="loop-chip {{ ($activeStatus ?? '') === 'ready' ? 'is-on' : '' }}">{{ __('loop.filter_reward_ready') }}</a>
+                    <a href="{{ route('discover', $chipBase + ['status' => 'almost']) }}" class="loop-chip {{ ($activeStatus ?? '') === 'almost' ? 'is-on' : '' }}">{{ __('loop.filter_almost_there') }}</a>
+                    <a href="{{ route('discover', $chipBase + ['status' => 'offers']) }}" class="loop-chip {{ ($activeStatus ?? '') === 'offers' ? 'is-on' : '' }}">{{ __('loop.filter_offers') }}</a>
+                @endif
+                @foreach ($featuredSectors as $row)
+                    <a
+                        href="{{ route('discover', $chipBase + ['sector' => $row['key']]) }}"
+                        class="loop-chip {{ ($activeSector ?? '') === $row['key'] ? 'is-on' : '' }}"
+                    >{{ $row['short'] ?: $row['label'] }}</a>
+                @endforeach
+                <button type="button" class="loop-chip" @click="filtersOpen = true">{{ __('loop.more') }}</button>
+            </div>
+
             <div class="hidden gap-3 sm:grid sm:grid-cols-3">
             <x-sheet-select
                 name="country"
@@ -63,6 +85,32 @@
                 :autosubmit="true"
             />
             </div>
+
+            <x-loop-sheet :title="__('loop.filters')" model="filtersOpen" lock-swipe="true">
+                <div class="space-y-3">
+                    <x-sheet-select
+                        name="country"
+                        :label="__('loop.country')"
+                        :options="collect($countries)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])])->all()"
+                        :value="$activeCountry"
+                    />
+                    <x-city-sheet-select
+                        name="city"
+                        :label="__('loop.city')"
+                        :value="$activeCity ?? ''"
+                        :cities="$cities"
+                        :country="$activeCountry"
+                        :allow-empty="true"
+                    />
+                    <x-sheet-select
+                        name="sector"
+                        :label="__('loop.sector')"
+                        :options="$sectorOptions ?? collect(['' => __('loop.all')])->union($sectors)->all()"
+                        :value="$activeSector ?? ''"
+                    />
+                    <button class="loop-btn w-full">{{ __('loop.apply') }}</button>
+                </div>
+            </x-loop-sheet>
         </form>
         @if ($isCustomer)
             <p class="mt-3 text-sm text-ink-muted">
@@ -79,41 +127,52 @@
         @endif
     </div>
 
-    @forelse ($rows as $row)
-        <section @class(['loop-shell mt-8 first:mt-6' => ! $browsePad, 'mt-8 first:mt-6' => $browsePad])>
+    @if (($frequentBusinesses ?? collect())->isNotEmpty())
+        <section @class(['loop-shell mt-8' => ! $browsePad, 'mt-8' => $browsePad])>
             <div class="mb-4 flex items-end justify-between gap-3">
-                <h2 class="font-display text-xl font-semibold sm:text-2xl">{{ $row['title'] }}</h2>
-                @if ($row['key'] === 'frequent')
-                    <span class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.frequent') }}</span>
-                @endif
+                <h2 class="font-display text-xl font-semibold sm:text-2xl">{{ __('loop.your_places') }}</h2>
+                <span class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.frequent') }}</span>
             </div>
-            <div class="loop-shop-grid">
-                @foreach ($row['businesses'] as $business)
-                    @php
-                        $membership = $membershipByBusinessId->get($business->id);
-                        $points = $membership?->points_balance;
-                        $cheapest = $business->rewards?->first();
-                        $hay = strtolower(trim(implode(' ', array_filter([
-                            $business->name,
-                            \App\Support\Sectors::label($business->sector, $business->sector_other),
-                            $business->shops?->first()?->city ?: $business->city,
-                            $cheapest?->name,
-                        ]))));
-                    @endphp
-                    <div x-show="hayMatch(@js($hay))">
+            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
+                @foreach ($frequentBusinesses as $business)
+                    @php $membership = $membershipByBusinessId->get($business->id); @endphp
                     <x-discover-tile
                         :business="$business"
                         :show-points="$isCustomer && $membership !== null"
-                        :points="$points"
-                        :headline="$cheapest?->name"
+                        :points="$membership?->points_balance"
+                        :carousel="true"
+                        data-loop-card
                     />
-                    </div>
                 @endforeach
             </div>
         </section>
-    @empty
-        <div @class(['loop-shell' => ! $browsePad])>
-            <div class="loop-panel mt-10 p-8 text-center">
+    @endif
+
+    <section @class(['loop-shell mt-8' => ! $browsePad, 'mt-8' => $browsePad])>
+        @if ($search !== '')
+            <h2 class="mb-4 font-display text-xl font-semibold sm:text-2xl">{{ __('loop.search_results', ['q' => $search]) }}</h2>
+        @elseif (($activeSector ?? null))
+            <h2 class="mb-4 font-display text-xl font-semibold sm:text-2xl">{{ \App\Support\Sectors::label($activeSector) }}</h2>
+        @else
+            <h2 class="mb-4 font-display text-xl font-semibold sm:text-2xl">{{ __('loop.discover') }}</h2>
+        @endif
+
+        @if ($results->isNotEmpty())
+            <div class="space-y-2">
+                @foreach ($results as $business)
+                    @php $membership = $membershipByBusinessId->get($business->id); @endphp
+                    <x-discover-row
+                        :business="$business"
+                        :points="$membership?->points_balance"
+                        :is-member="$isCustomer && $membership !== null"
+                    />
+                @endforeach
+            </div>
+            <div class="mt-6">
+                {{ $results->links() }}
+            </div>
+        @else
+            <div class="loop-panel mt-4 p-8 text-center">
                 @if ($searchMiss ?? false)
                     <p class="font-display text-lg font-semibold text-ink">{{ __('loop.no_shops_search', ['q' => $search]) }}</p>
                     <p class="mt-2 text-sm text-ink-muted">{{ __('loop.no_shops_search_body') }}</p>
@@ -143,38 +202,6 @@
                     @endif
                 @endif
             </div>
-        </div>
-    @endforelse
-
-    <div x-show="filtersOpen" x-cloak class="fixed inset-0 z-40 sm:hidden" @keydown.escape.window="filtersOpen=false">
-        <div class="absolute inset-0 bg-ink/40" @click="filtersOpen=false"></div>
-        <div class="absolute inset-x-0 bottom-0 rounded-t-3xl bg-white p-5 pb-8 shadow-2xl" @click.stop>
-            <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15"></div>
-            <h3 class="font-display text-lg font-semibold">{{ __('loop.filters') }}</h3>
-            <form method="GET" action="{{ route('discover') }}" class="mt-4 space-y-3">
-                <input type="hidden" name="q" value="{{ $search }}">
-                <x-sheet-select
-                    name="country"
-                    :label="__('loop.country')"
-                    :options="collect($countries)->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$meta['name'])])->all()"
-                    :value="$activeCountry"
-                />
-                <x-city-sheet-select
-                    name="city"
-                    :label="__('loop.city')"
-                    :value="$activeCity ?? ''"
-                    :cities="$cities"
-                    :country="$activeCountry"
-                    :allow-empty="true"
-                />
-                <x-sheet-select
-                    name="sector"
-                    :label="__('loop.sector')"
-                    :options="$sectorOptions ?? collect(['' => __('loop.all')])->union($sectors)->all()"
-                    :value="$activeSector ?? ''"
-                />
-                <button class="loop-btn w-full">{{ __('loop.apply') }}</button>
-            </form>
-        </div>
-    </div>
+        @endif
+    </section>
 </div>

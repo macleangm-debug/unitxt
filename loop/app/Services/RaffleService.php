@@ -23,6 +23,17 @@ class RaffleService
             ->values();
     }
 
+    public function openWinsForCustomer(Business $business, int $customerId)
+    {
+        return RaffleWinner::query()
+            ->with('raffle')
+            ->where('customer_id', $customerId)
+            ->whereIn('status', ['pending', 'contacted'])
+            ->whereHas('raffle', fn ($q) => $q->where('business_id', $business->id))
+            ->latest('id')
+            ->get();
+    }
+
     public function drawNext(Raffle $raffle, User $operator): RaffleWinner
     {
         if (! in_array($raffle->status, ['scheduled', 'live'], true)) {
@@ -31,6 +42,12 @@ class RaffleService
 
         if ($raffle->remainingWinnerSlots() <= 0) {
             throw ValidationException::withMessages(['raffle' => __('loop.raffle_full')]);
+        }
+
+        if (! $raffle->canDrawNow()) {
+            throw ValidationException::withMessages(['raffle' => __('loop.raffle_draw_too_soon', [
+                'date' => $raffle->nextDrawDate()->format('j M Y'),
+            ])]);
         }
 
         return DB::transaction(function () use ($raffle, $operator) {

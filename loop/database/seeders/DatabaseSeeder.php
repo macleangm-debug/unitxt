@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
                     'max_offers' => $plan['max_offers'] ?? null,
                     'has_raffles' => (bool) ($plan['has_raffles'] ?? false),
                     'has_sms' => (bool) ($plan['has_sms'] ?? false),
+                    'has_games' => (bool) ($plan['has_games'] ?? false),
                     'is_public' => true,
                     'sort_order' => $plan['sort_order'],
                     'features' => $plan['features'],
@@ -44,6 +45,7 @@ class DatabaseSeeder extends Seeder
         \App\Models\PlatformSetting::putValue(\App\Support\ReferralProgram::KEY, \App\Support\ReferralProgram::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\GrowthSettings::KEY, \App\Support\GrowthSettings::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\FeatureFlags::KEY, \App\Support\FeatureFlags::defaults());
+        \App\Models\PlatformSetting::putValue(\App\Support\GameSettings::KEY, \App\Support\GameSettings::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\AffiliateProgram::KEY, \App\Support\AffiliateProgram::defaults());
 
         User::factory()->admin()->create([
@@ -161,6 +163,46 @@ class DatabaseSeeder extends Seeder
 
         app(TillService::class)->recordSale($frontDesk, $downtown, $customer, 10000);
 
+        $extraMembers = [
+            ['Asha', 'Mushi', '713000002'],
+            ['Baraka', 'Ngoma', '713000003'],
+            ['Clara', 'Mwakyusa', '713000004'],
+            ['David', 'Kimaro', '713000005'],
+            ['Eliza', 'Shayo', '713000006'],
+            ['Faraji', 'Hassan', '713000007'],
+            ['Grace', 'Lyimo', '713000008'],
+            ['Hassan', 'Omar', '713000009'],
+            ['Irene', 'Massawe', '713000010'],
+            ['Juma', 'Kweka', '713000011'],
+            ['Lulu', 'Ngowi', '713000012'],
+        ];
+        foreach ($extraMembers as $i => [$first, $last, $phone]) {
+            $member = User::factory()->customer()->create([
+                'first_name' => $first,
+                'last_name' => $last,
+                'phone' => $phone,
+                'country' => 'TZ',
+                'city' => 'Dar es Salaam',
+                'password' => Hash::make('1234'),
+                'phone_verified_at' => now(),
+                'profile_completed' => true,
+            ]);
+            app(TillService::class)->recordSale($frontDesk, $downtown, $member, 2500 + ($i * 400));
+        }
+
+        $business->raffles()->create([
+            'created_by' => $owner->id,
+            'name' => 'Friday coffee draw',
+            'prize_name' => 'Free pourover',
+            'prize_type' => 'custom',
+            'winners_count' => 2,
+            'frequency' => 'once',
+            'draw_at' => now()->toDateString(),
+            'claim_days' => 7,
+            'status' => 'scheduled',
+            'is_active' => true,
+        ]);
+
         $business->update(['onboarding_completed_at' => now()]);
 
         // Fashion demo business for sector grouping
@@ -260,5 +302,6 @@ class DatabaseSeeder extends Seeder
             'audience' => Article::AUDIENCE_MEMBERS,
             'published_at' => now()->subDay(),
         ]);
+        app(\App\Services\LegalService::class)->syncDrafts();
     }
 }

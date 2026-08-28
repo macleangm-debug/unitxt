@@ -25,6 +25,21 @@ class CampaignFormValidationTest extends TestCase
         $this->assertStringNotContainsString('value="password"', $html);
     }
 
+    public function test_failed_staff_login_uses_the_standard_modal(): void
+    {
+        $this->followingRedirects()
+            ->from(route('staff.login'))
+            ->post(route('staff.login'), [
+                'country_code' => '+255',
+                'phone' => '710000000',
+                'password' => 'wrong-password',
+            ])
+            ->assertOk()
+            ->assertSee(__('loop.login_failed_title'), false)
+            ->assertSee(__('loop.login_failed_body'), false)
+            ->assertDontSee('loop-toast', false);
+    }
+
     public function test_campaign_cannot_be_created_without_spend_and_points(): void
     {
         [$owner] = $this->seedOwnerWithOffer();

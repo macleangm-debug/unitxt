@@ -73,20 +73,16 @@
             </div>
         </div>
 
-        {{-- Mobile dock --}}
-        <div class="lg:hidden sticky bottom-0 z-20 -mx-4 mt-4 border-t border-ink/10 bg-chalk/95 px-4 py-3 backdrop-blur" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        {{-- Mobile actions sit under the poster so they never cover the hotline --}}
+        <div class="mx-auto mt-4 max-w-[20.5rem] lg:hidden">
             <div class="grid grid-cols-2 gap-3">
                 <button type="button" class="loop-btn-ghost" @click="editOpen = true">{{ __('loop.studio_edit') }}</button>
                 <button type="button" class="loop-btn-mint" @click="shareCard()">{{ __('loop.share_creative') }}</button>
             </div>
         </div>
 
-        {{-- Mobile edit sheet: compact pickers, poster stays in view --}}
-        <div x-show="editOpen" x-cloak class="fixed inset-0 z-40 lg:hidden" @keydown.escape.window="editOpen = false">
-            <div class="absolute inset-0 bg-ink/35" @click="editOpen = false"></div>
-            <div class="loop-studio-sheet absolute inset-x-0 bottom-0 rounded-t-[1.75rem] bg-white p-4 shadow-[0_-18px_50px_rgba(11,31,42,0.18)]" @click.stop>
+        <x-loop-sheet model="editOpen" :title="__('loop.studio_edit')" lock-swipe="true">
                 @include('content-studio.partials.sheet')
-            </div>
-        </div>
+        </x-loop-sheet>
     </div>
 </x-app-layout>

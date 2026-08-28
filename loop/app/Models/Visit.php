@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'amount_spent',
     'points_earned',
     'reward_id',
+    'raffle_winner_id',
     'points_redeemed',
     'discount_amount',
     'receipt_ref',
@@ -77,6 +78,11 @@ class Visit extends Model
     public function reward(): BelongsTo
     {
         return $this->belongsTo(Reward::class);
+    }
+
+    public function raffleWinner(): BelongsTo
+    {
+        return $this->belongsTo(RaffleWinner::class);
     }
 
     public function pointTransaction(): HasOne

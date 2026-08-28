@@ -34,6 +34,7 @@ class Plans
                 'max_offers' => $billing['free_max_offers'],
                 'has_raffles' => false,
                 'has_sms' => false,
+                'has_games' => false,
                 'sort_order' => 1,
                 'features' => [
                     '1 physical shop + address',
@@ -55,6 +56,7 @@ class Plans
                 'max_offers' => 8,
                 'has_raffles' => false,
                 'has_sms' => false,
+                'has_games' => false,
                 'sort_order' => 2,
                 'features' => [
                     '1 physical shop',
@@ -76,6 +78,7 @@ class Plans
                 'max_offers' => 20,
                 'has_raffles' => true,
                 'has_sms' => false,
+                'has_games' => false,
                 'sort_order' => 3,
                 'features' => [
                     'Up to 5 shop locations',
@@ -97,11 +100,12 @@ class Plans
                 'max_offers' => null,
                 'has_raffles' => true,
                 'has_sms' => true,
+                'has_games' => true,
                 'sort_order' => 4,
                 'features' => [
                     'Unlimited shop locations',
                     'Unlimited product-push campaigns & offers',
-                    'Raffles + member SMS (Tanzania)',
+                    'Raffles + Games & Wins + member SMS (Tanzania)',
                     'Dedicated success check-ins',
                     'Custom sector offer packs',
                 ],
@@ -151,6 +155,7 @@ class Plans
                     'max_offers' => $plan['max_offers'] ?? null,
                     'has_raffles' => (bool) ($plan['has_raffles'] ?? false),
                     'has_sms' => (bool) ($plan['has_sms'] ?? false),
+                    'has_games' => (bool) ($plan['has_games'] ?? false),
                     'is_public' => true,
                     'sort_order' => $plan['sort_order'],
                     'features' => $plan['features'],

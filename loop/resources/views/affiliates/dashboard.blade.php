@@ -36,7 +36,7 @@
                     <p class="mt-2 text-sm text-white/70">{{ __('loop.withdraw_when_ready', ['min' => number_format($minPayout), 'currency' => $currency]) }}</p>
                 @endif
 
-                <div class="mt-6 flex flex-wrap gap-2">
+                <div class="mt-6 flex flex-wrap gap-2" id="share">
                     <a href="{{ route('affiliate.withdraw') }}" class="loop-btn-lime !py-2.5">{{ __('loop.withdraw') }}</a>
                     <button type="button" class="rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15" @click="copy(url)">{{ __('loop.copy_link') }}</button>
                     <button type="button" class="rounded-2xl border border-white/25 bg-transparent px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/10"

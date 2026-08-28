@@ -51,8 +51,14 @@
         </div>
         <div>
             <label class="loop-label">{{ __('loop.hotline') }}</label>
-            <input name="hotline" value="{{ old('hotline', $business->hotline) }}" class="loop-input" placeholder="+255 712 345 678">
+            <x-phone-field
+                name="hotline"
+                :dial="$dial"
+                hidden-dial-name="hotline_country_code"
+                :value="old('hotline', $hotlineLocal)"
+            />
             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
+            <x-input-error :messages="$errors->get('hotline')" class="mt-1" />
         </div>
         <div>
             <label class="loop-label">{{ __('loop.description') }}</label>

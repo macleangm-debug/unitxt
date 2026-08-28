@@ -33,6 +33,7 @@ use Illuminate\Notifications\Notifiable;
     'must_change_password',
     'is_active',
     'profile_completed',
+    'marketing_opt_in',
     'phone_verified_at',
     'email_verified_at',
 ])]
@@ -64,6 +65,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'is_active' => 'boolean',
             'profile_completed' => 'boolean',
+            'marketing_opt_in' => 'boolean',
             'interests' => 'array',
         ];
     }

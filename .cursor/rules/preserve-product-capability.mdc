@@ -1,0 +1,125 @@
+---
+description: Preserve existing Loop data fields, forms, and journeys when simplifying UX
+alwaysApply: true
+---
+
+# Preserve product capability
+
+Ask less. Use what Loop already knows. Calculate automatically. Recommend one thing. Confirm clearly. Preserve capability.
+
+A UX simplification request does **not** authorize deleting data fields, business rules, backend capabilities, forms, or established journeys.
+
+Never achieve simplicity by silently deleting useful business information or capability.
+
+> Ask less where possible, calculate automatically where possible, recommend one thing where possible — but do not remove existing required data, forms, fields, or downstream functionality unless explicitly instructed.
+
+> A request to simplify a screen is not permission to simplify the data model.
+
+Owner onboarding stays three steps with one recommended campaign and one starting reward. That structure is frozen. The trim applies to **decisions**, not to shop/presence/address/hotline/branch data. Do not apply onboarding-decision trim to Till member creation or member account completion.
+
+## Form contract (frozen)
+
+The restoration table from the field-restoration pass is the form contract.
+
+Future UX work **may** change:
+
+- layout, grouping, wording, order
+- conditional visibility, prefill, defaults
+- automatic calculation and presentation
+
+Future UX work **must not** change without explicit instruction:
+
+- fields
+- stored data
+- relationships
+- validation / business rules
+- downstream use
+- an existing capability
+
+Do not start another onboarding redesign. Keep the three-step structure, the smart campaign/reward logic, and the restored fields. Next improvements make existing information effortless to enter — they do not decide what else can be removed.
+
+## Test baseline
+
+The Loop suite baseline is **156 passing tests**. That is the regression floor.
+
+After any pass, report **156+ passed / 0 failed**, unless a test was intentionally changed because the corresponding product rule was explicitly changed.
+
+A visual polish or refinement request must **never** remove a field, alter a calculation, change a sector key, or modify a journey.
+
+## Sector architecture (frozen)
+
+Sectors are a shared Admin-controlled taxonomy (`Settings Hub → Sectors`), not a registration-only dropdown.
+
+- Existing sector **keys stay stable** so current businesses are never remapped accidentally.
+- Display names, categories, aliases, ordering, and quick-pick status are Admin-controlled.
+- Quick picks are convenience, not a separate taxonomy.
+- **Other / Can’t find your business?** remains available so registration is never blocked.
+- Unmatched search terms feed Admin intelligence so the catalogue evolves from actual market demand.
+- Repeat-visit sectors can rank higher by default, but search relevance still wins when someone types something specific.
+- Discover, interests, registration, and messaging must all consume the same sector source, not maintain their own lists.
+
+Do not reopen this taxonomy. Do not remap keys. Alias expansion is Admin data, not a code-structure change.
+
+## Three layers (frozen)
+
+Keep these layers separate. Future changes must not reinvent the experience by mixing them.
+
+**Product law** — fields, calculations, eligibility, campaigns, rewards, subscriptions, and business rules. Do not change without explicit instruction.
+
+**Design system** — typography, spacing, cards, sheets, navigation, hierarchy, and responsive behavior. New UI consumes existing Loop surfaces.
+
+**Motion system** — `--loop-motion-fast` 140ms (interaction), `--loop-motion-std` 230ms (navigation), `--loop-motion-sheet` 340ms (sheets), `--loop-motion-celebrate` 650ms (meaningful celebrations only), `--loop-motion-count` 800ms (existing count-up). Ease tokens: `--loop-ease-out`, `--loop-ease-spring`. Respect `prefers-reduced-motion`. Do not invent timings or easings screen by screen.
+
+## Consume existing components
+
+From this baseline onward, new features must consume the existing Loop components and motion tokens.
+
+Do **not** create a new modal, picker, toast, card transition, loading state, or animation when an equivalent Loop component already exists.
+
+Use first:
+
+- Buttons: `loop-btn`, `loop-btn-mint`, `loop-btn-lime`, `loop-btn-ghost`
+- Surfaces: `loop-panel`, `loop-wallet`, `x-discover-tile`, `x-wallet-membership-card`
+- Sheets / pickers: `x-picker-layer`, `x-sheet-select`, `x-city-sheet-select`, `x-sector-picker`, `x-gender-field`
+- Feedback: `partials/confirm-modal` (celebration, toast, or Till Done — pick the existing pattern)
+- Loading: `x-page-skeleton` and `loop-skel-*` bones — never a blank screen or a visible “Loading…”
+- Numbers / progress: `x-count-up` / `loopCountUp`, `loop-fill`
+- Navigation: `$store.loopNav` kinds (`tab`, `push`, `back`, `fade`, `morph`)
+
+Do not add more visual effects. The next work is production-quality refinement under real-world usage: real phones, slower connections, small screens, keyboard-open, long EN/SW copy, reduced motion, image loading, double taps, interrupted submissions, back-navigation, and payment/network failures.
+
+## Surface law
+
+Every action should visibly acknowledge the user's input, every transition should explain where they went, every wait should show progress, and every completion should feel complete.
+
+Simple underneath. Alive on the surface.
+
+## When a form feels long
+
+1. Improve wording
+2. Use better controls (date picker, chips, not free text)
+3. Prefill known information
+4. Calculate values automatically
+5. Move non-urgent information later
+6. Progressively reveal secondary fields
+
+Only after those options, and only with explicit approval, remove a field.
+
+## Hierarchy
+
+1. Known → prefill or use automatically
+2. Can be inferred safely → calculate
+3. Unknown but needed → ask
+4. Not needed yet → ask later
+5. Never needed → only then consider removal
+
+## Never
+
+- Drop birthday, gender, interests, PIN, profile-completion state, logo, presence, address, hotline, or branch count from the product
+- Ask the member for information Loop already knows
+- Create a second member for the same phone number
+- Wipe stored values because a field was hidden on a given screen
+- Silently default a business to physical / one branch to shorten a form
+- Treat “ask less during onboarding” as permission to delete business data elsewhere
+- Invent a one-off modal, picker, toast, skeleton, or animation when a Loop component already exists
+- Mix product-law changes into a design or motion pass

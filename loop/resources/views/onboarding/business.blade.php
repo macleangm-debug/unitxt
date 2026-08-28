@@ -347,7 +347,7 @@
                 <div class="mt-6 rounded-[1.5rem] bg-violet px-5 py-5 text-white">
                     <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.starter_recommend_title') }}</p>
                     <p class="mt-2 font-display text-2xl font-semibold">{{ $starter['reward_name'] }}</p>
-                    <p class="mt-1 text-sm text-white/75">{{ $starter['points_cost'] }} {{ __('loop.pts') }} · {{ __('loop.starter_visits_line', ['count' => $starter['visits']]) }}</p>
+                    <p class="mt-1 text-sm text-white/75">{{ number_format((int) $starter['points_cost']) }} {{ __('loop.pts') }} · {{ __('loop.starter_visits_line', ['count' => $starter['visits']]) }}</p>
                 </div>
                 <div class="mt-5">
                     <label class="loop-label">{{ __('loop.offer_name') }}</label>

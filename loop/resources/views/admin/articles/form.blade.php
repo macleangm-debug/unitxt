@@ -28,6 +28,7 @@
             body_sw: @js(old('body_sw', $article->body_sw)),
             image: @js($article->imageUrl()),
         })"
+        @logo-picked="image = $event.detail.preview || image"
     >
         @csrf
         @if ($editing)
@@ -79,10 +80,12 @@
             </div>
             <div>
                 <label class="loop-label">{{ __('loop.article_image') }}</label>
-                <input type="file" name="image" accept="image/*" class="loop-input">
-                @if ($article->imageUrl())
-                    <img src="{{ $article->imageUrl() }}" alt="" class="mt-3 h-28 w-full rounded-2xl object-cover">
-                @endif
+                <x-logo-placeholder
+                    name="image"
+                    variant="cover"
+                    :preview="$article->imageUrl()"
+                    :hint="__('loop.article_image_hint')"
+                />
             </div>
         </div>
 
@@ -100,12 +103,18 @@
                         <div
                             x-show="confirmDelete"
                             x-cloak
+                            x-transition:enter="loop-sheet-enter-active"
+                            x-transition:enter-start="loop-sheet-enter-from"
+                            x-transition:enter-end="loop-sheet-enter-to"
+                            x-transition:leave="loop-sheet-leave-active"
+                            x-transition:leave-start="loop-sheet-leave-from"
+                            x-transition:leave-end="loop-sheet-leave-to"
                             class="fixed inset-0 z-[80] flex items-center justify-center p-4"
                             @keydown.escape.window="confirmDelete = false"
                         >
-                            <div class="absolute inset-0 bg-slate-900/55" @click="confirmDelete = false"></div>
-                            <div class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
-                                <p class="text-center font-display text-2xl font-semibold tracking-tight text-slate-900">{{ __('loop.article_delete_confirm') }}</p>
+                            <div class="loop-picker-backdrop" @click="confirmDelete = false"></div>
+                            <div class="relative w-full max-w-md rounded-[1.75rem] border border-ink/10 bg-white p-8 shadow-[0_24px_80px_rgba(17,17,20,0.18)]">
+                                <p class="text-center font-display text-2xl font-semibold tracking-tight text-ink">{{ __('loop.article_delete_confirm') }}</p>
                                 <div class="mt-7 flex gap-3">
                                     <button type="button" class="admin-btn-ghost flex-1" @click="confirmDelete = false">{{ __('loop.cancel') }}</button>
                                     <button type="submit" form="article-delete" class="admin-btn flex-1 bg-coral">{{ __('loop.delete') }}</button>
@@ -118,23 +127,34 @@
         </div>
         </div>
 
-        <aside class="admin-preview h-fit xl:sticky xl:top-4">
-            <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <aside class="admin-preview h-fit xl:sticky xl:top-4" :class="device === 'phone' && 'is-phone'">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
                 <p class="text-sm font-semibold">{{ __('loop.article_preview') }}</p>
-                <div class="flex gap-2 text-xs font-semibold">
+                <div class="flex flex-wrap gap-2 text-xs font-semibold">
+                    <button type="button" class="admin-btn-ghost !py-1" :class="device === 'phone' && 'bg-slate-900 text-white'" @click="device = 'phone'">{{ __('loop.article_preview_phone') }}</button>
+                    <button type="button" class="admin-btn-ghost !py-1" :class="device === 'desktop' && 'bg-slate-900 text-white'" @click="device = 'desktop'">{{ __('loop.article_preview_desktop') }}</button>
                     <button type="button" class="admin-btn-ghost !py-1" :class="lang === 'en' && 'bg-slate-900 text-white'" @click="lang = 'en'">EN</button>
                     <button type="button" class="admin-btn-ghost !py-1" :class="lang === 'sw' && 'bg-slate-900 text-white'" @click="lang = 'sw'">SW</button>
                 </div>
             </div>
-            <div class="admin-preview__frame">
-                <template x-if="image">
-                    <img :src="image" alt="" class="h-40 w-full object-cover">
-                </template>
-                <div class="space-y-3 p-5">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.story_general') }}</p>
-                    <h2 class="text-2xl font-semibold" x-text="title()"></h2>
-                    <p class="text-sm text-slate-500" x-show="excerpt()" x-text="excerpt()"></p>
-                    <div class="text-sm leading-relaxed" x-html="bodyHtml()"></div>
+            <div class="admin-preview__frame bg-chalk/80 p-3 sm:p-5">
+                <div class="admin-preview__stage">
+                    <div class="mb-4 flex items-start gap-3">
+                        <span class="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg text-ink-muted">←</span>
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.story_general') }}</p>
+                            <h2 class="mt-1 font-display text-3xl font-semibold" x-text="title() || '—'"></h2>
+                        </div>
+                    </div>
+                    <article class="admin-preview__story">
+                        <template x-if="image">
+                            <img :src="image" alt="" class="h-56 w-full object-cover" :class="device === 'desktop' && 'sm:h-72'">
+                        </template>
+                        <div class="space-y-4 p-5" :class="device === 'desktop' && 'sm:p-8'">
+                            <p class="text-lg text-ink-muted" x-show="excerpt()" x-text="excerpt()"></p>
+                            <div class="prose-loop text-sm leading-relaxed text-ink" x-html="bodyHtml()"></div>
+                        </div>
+                    </article>
                 </div>
             </div>
             @if ($editing && $article->isPublished())

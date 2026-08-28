@@ -57,15 +57,12 @@
                         <button type="button" class="admin-btn-ghost w-full" @click="decision='rejected'; open=true">{{ __('loop.reject') }}</button>
                     </div>
 
-                    <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4">
-                        <div class="absolute inset-0 bg-ink/55" @click="open=false"></div>
-                        <div class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
+                    <x-loop-sheet model="open">
                             <p class="font-display text-2xl font-semibold" x-text="decision==='approved' ? @js(__('loop.confirm_approve_title')) : @js(__('loop.confirm_reject_title'))"></p>
                             <p class="mt-2 text-sm text-ink-muted" x-text="decision==='approved' ? @js(__('loop.confirm_approve_body')) : @js(__('loop.confirm_reject_body'))"></p>
                             <button type="submit" form="affiliate-decide-form" class="admin-btn mt-6 w-full" x-text="decision==='approved' ? @js(__('loop.approve')) : @js(__('loop.reject'))"></button>
                             <button type="button" class="mt-3 text-sm font-semibold text-ink-muted" @click="open=false">{{ __('loop.cancel') }}</button>
-                        </div>
-                    </div>
+                    </x-loop-sheet>
                 </div>
             @else
                 <p class="mt-4 text-sm text-ink-muted">{{ __('loop.reviewed_on') }} {{ $affiliate->reviewed_at?->format('d M Y H:i') }}</p>

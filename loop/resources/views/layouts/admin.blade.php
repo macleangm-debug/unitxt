@@ -61,16 +61,13 @@
             </div>
         </header>
         <div class="admin-content">
-            @if (session('status') && ! session('all_set') && ! session('confirm'))
-                <div class="admin-flash">{{ session('status') }}</div>
-            @endif
             {{ $slot }}
         </div>
     </div>
 </div>
 
 @php
-    $confirm = session('confirm');
+    $confirm = \App\Support\Confirm::resolve(session('confirm'), session('status'), $errors ?? null);
 @endphp
 @include('partials.admin-confirm-modal', ['confirm' => $confirm])
 </body>

@@ -1,17 +1,19 @@
 @php
     $nav = [
         ['route' => 'admin.dashboard', 'match' => 'admin.dashboard', 'label' => __('loop.admin_overview')],
-        ['route' => 'admin.insights.customers', 'match' => 'admin.insights.customers', 'label' => __('loop.admin_customers_nav')],
+        ['route' => 'admin.insights.customers', 'match' => 'admin.insights.customers*', 'label' => __('loop.admin_customers_nav')],
         ['route' => 'admin.reports.index', 'match' => 'admin.reports.*', 'label' => __('loop.admin_reports')],
+        ['route' => 'admin.privacy.index', 'match' => 'admin.privacy.*', 'label' => __('loop.admin_privacy')],
         ['route' => 'admin.businesses.index', 'match' => 'admin.businesses.*', 'label' => __('loop.admin_businesses')],
         ['route' => 'admin.articles.index', 'match' => 'admin.articles.*', 'label' => __('loop.admin_articles')],
         ['route' => 'admin.affiliates.index', 'match' => 'admin.affiliates.*', 'label' => __('loop.admin_affiliates')],
         ['route' => 'admin.referrals.index', 'match' => 'admin.referrals.*', 'label' => __('loop.admin_referrals')],
-        ['route' => 'admin.settings', 'match' => ['admin.settings*', 'admin.plans.*'], 'label' => __('loop.admin_settings_hub')],
-        ['route' => 'admin.integrations.index', 'match' => 'admin.integrations.*', 'label' => __('loop.integrations_hub')],
-        ['route' => 'admin.errors.index', 'match' => 'admin.errors.*', 'label' => __('loop.admin_errors')],
+        ['route' => 'admin.settings', 'match' => ['admin.settings*', 'admin.plans.*', 'admin.integrations.*', 'admin.errors.*', 'admin.privacy.*'], 'label' => __('loop.admin_settings_hub')],
     ];
-    $settingsOpen = request()->routeIs('admin.settings*') || request()->routeIs('admin.plans.*');
+    $settingsOpen = request()->routeIs('admin.settings*')
+        || request()->routeIs('admin.plans.*')
+        || request()->routeIs('admin.integrations.*')
+        || request()->routeIs('admin.errors.*');
     $settingsItems = [
         'overview' => __('loop.settings_tab_overview'),
         'packages' => __('loop.settings_tab_packages'),
@@ -28,6 +30,8 @@
         'notifications' => __('loop.settings_tab_notifications'),
         'product' => __('loop.settings_tab_product'),
         'health' => __('loop.settings_tab_health'),
+        'legal' => __('loop.settings_tab_legal'),
+        'links' => __('loop.settings_tab_links'),
     ];
     $settingsTab = request('tab', 'overview');
 @endphp
@@ -55,10 +59,10 @@
             @endphp
             <a href="{{ route($item['route']) }}" class="admin-nav__link {{ $active ? 'is-active' : '' }}" @click="navOpen = false">
                 <span>{{ $item['label'] }}</span>
-                @if ($item['route'] === 'admin.errors.index' && ($openExceptionHits ?? 0) > 0)
-                    <span class="admin-nav__badge">{{ $openExceptionHits }}</span>
-                @elseif ($item['route'] === 'admin.affiliates.index' && ($pendingAffiliateApps ?? 0) > 0)
+                @if ($item['route'] === 'admin.affiliates.index' && ($pendingAffiliateApps ?? 0) > 0)
                     <span class="admin-nav__badge">{{ $pendingAffiliateApps }}</span>
+                @elseif ($item['route'] === 'admin.settings' && ($openExceptionHits ?? 0) > 0)
+                    <span class="admin-nav__badge">{{ $openExceptionHits }}</span>
                 @endif
             </a>
             @if ($item['route'] === 'admin.settings' && $settingsOpen)
@@ -66,10 +70,25 @@
                     @foreach ($settingsItems as $key => $label)
                         <a
                             href="{{ route('admin.settings', ['tab' => $key]) }}"
-                            class="admin-nav__sublink {{ $settingsTab === $key ? 'is-active' : '' }}"
+                            class="admin-nav__sublink {{ request()->routeIs('admin.settings*') && $settingsTab === $key ? 'is-active' : '' }}"
                             @click="navOpen = false"
                         >{{ $label }}</a>
                     @endforeach
+                    <a
+                        href="{{ route('admin.integrations.index') }}"
+                        class="admin-nav__sublink {{ request()->routeIs('admin.integrations.*') ? 'is-active' : '' }}"
+                        @click="navOpen = false"
+                    >{{ __('loop.integrations_hub') }}</a>
+                    <a
+                        href="{{ route('admin.errors.index') }}"
+                        class="admin-nav__sublink {{ request()->routeIs('admin.errors.*') ? 'is-active' : '' }}"
+                        @click="navOpen = false"
+                    >
+                        <span>{{ __('loop.admin_errors') }}</span>
+                        @if (($openExceptionHits ?? 0) > 0)
+                            <span class="admin-nav__badge">{{ $openExceptionHits }}</span>
+                        @endif
+                    </a>
                 </div>
             @endif
         @endforeach

@@ -67,8 +67,10 @@
                 </thead>
                 <tbody>
                     @foreach ($customers as $customer)
-                        <tr>
-                            <td class="font-semibold">{{ $customer->name }}</td>
+                        <tr class="admin-row-link" onclick="window.location='{{ route('admin.insights.customers.show', $customer) }}'">
+                            <td class="font-semibold">
+                                <a href="{{ route('admin.insights.customers.show', $customer) }}" class="hover:text-violet">{{ $customer->name }}</a>
+                            </td>
                             <td class="font-mono text-sm">{{ $customer->full_phone ?? $customer->phone }}</td>
                             <td>{{ $customer->city ?: '—' }}</td>
                             <td>{{ $customer->memberships_count }}</td>

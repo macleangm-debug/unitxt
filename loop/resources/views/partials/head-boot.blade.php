@@ -85,9 +85,8 @@
         visibility:visible;
         pointer-events:auto;
     }
-    html.loop-js:not(.loop-ready):not(.loop-no-skeleton) body > :not(.loop-page-skeleton){
-        opacity:0;
-    }
+    /* Do not zero the real page. The overlay covers the wait; hiding
+       content caused a second flash (and an enlarge-snap) when ready. */
     html.loop-ready .loop-page-skeleton,
     html.loop-no-skeleton .loop-page-skeleton{
         display:none !important;
@@ -138,11 +137,28 @@
     (function () {
         var root = document.documentElement;
         root.classList.add('loop-js');
+        if (root.classList.contains('loop-no-skeleton')) {
+            return;
+        }
         try {
-            if (!root.classList.contains('loop-no-skeleton')) {
-                root.classList.add('loop-nav-pending');
+            var kind = sessionStorage.getItem('loopNavKind') || '';
+            if (kind) {
+                root.setAttribute('data-loop-nav', kind);
+                root.classList.add('loop-ready');
+                try {
+                    if (history.scrollRestoration) {
+                        history.scrollRestoration = kind === 'back' ? 'auto' : 'manual';
+                    }
+                    if (kind !== 'back') {
+                        window.scrollTo(0, 0);
+                    }
+                } catch (e2) {}
+                return;
             }
-        } catch (e) {}
+            root.classList.add('loop-nav-pending');
+        } catch (e) {
+            root.classList.add('loop-nav-pending');
+        }
     })();
 </script>
 <noscript>

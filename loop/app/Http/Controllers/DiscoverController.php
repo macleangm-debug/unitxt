@@ -4,97 +4,83 @@ namespace App\Http\Controllers;
 
 use App\Models\Business;
 use App\Models\Membership;
+use App\Services\DiscoverCatalog;
 use App\Support\Countries;
+use App\Support\FeatureFlags;
 use App\Support\Sectors;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DiscoverController extends Controller
 {
-    public function __invoke(Request $request): View
+    public const PROFILE_PREVIEW = 10;
+
+    public function __invoke(Request $request, DiscoverCatalog $catalog): View
     {
         $user = $request->user();
         $isCustomer = $user?->isCustomer() ?? false;
         $country = Countries::snapToEnabled($request->query('country', $user?->country ?? session('preferred_country', 'TZ')));
         $city = $request->query('city', $isCustomer ? $user?->city : null);
         $sector = $request->query('sector');
+        $category = $request->query('category');
+        $status = $request->query('status');
         $search = trim((string) $request->query('q', ''));
         $interests = $isCustomer ? ($user->interests ?? []) : [];
 
-        $businesses = Business::query();
-        app(\App\Services\LoopAccess::class)->constrainPromoted($businesses);
-        $businesses = $businesses
-            ->where('country', $country)
-            ->when($sector, fn ($q) => $q->where('sector', $sector))
-            ->when($search !== '', function ($query) use ($search) {
-                $like = '%'.addcslashes($search, '%_\\').'%';
-                $query->where(function ($inner) use ($like) {
-                    $inner->where('name', 'like', $like)
-                        ->orWhereHas('shops', function ($shops) use ($like) {
-                            $shops->where('is_active', true)
-                                ->where(function ($shop) use ($like) {
-                                    $shop->where('name', 'like', $like)
-                                        ->orWhere('city', 'like', $like);
-                                });
-                        });
-                });
-            })
-            ->whereHas('shops', function ($q) use ($city) {
-                $q->where('is_active', true)
-                    ->when($city, fn ($qq) => $qq->where('city', $city));
-            })
-            ->with([
-                'shops' => fn ($q) => $q->where('is_active', true)->when($city, fn ($qq) => $qq->where('city', $city)),
-                'campaigns' => fn ($c) => $c->active(),
-                'rewards' => fn ($r) => $r->where('is_active', true)->orderBy('points_cost'),
-            ])
-            ->withCount(['shops' => fn ($q) => $q->where('is_active', true)])
-            ->orderBy('name')
-            ->get();
+        $filters = [
+            'country' => $country,
+            'city' => $city,
+            'sector' => $sector ?: null,
+            'category' => $category ?: null,
+            'q' => $search,
+            'status' => $isCustomer ? $status : null,
+        ];
+
+        $results = $catalog->paginate($filters, $user);
+        $frequentBusinesses = $isCustomer && $search === '' && ! $sector && ! $category && ! $status
+            ? $catalog->memberPlaces($user, DiscoverCatalog::HOME_LIMIT)
+            : collect();
 
         $membershipByBusinessId = collect();
-        $frequentBusinesses = collect();
-
         if ($isCustomer) {
-            $memberships = Membership::query()
-                ->withCount('visits')
-                ->where('customer_id', $user->id)
-                ->whereIn('business_id', $businesses->pluck('id'))
-                ->get();
-
-            $membershipByBusinessId = $memberships
-                ->groupBy('business_id')
-                ->map(fn (Collection $group) => (object) [
-                    'points_balance' => $group->sum('points_balance'),
-                    'visits_count' => $group->sum('visits_count'),
-                ]);
-
-            $frequentBusinesses = $businesses
-                ->filter(fn (Business $business) => $membershipByBusinessId->has($business->id))
-                ->sortByDesc(function (Business $business) use ($membershipByBusinessId) {
-                    $m = $membershipByBusinessId->get($business->id);
-
-                    return sprintf('%08d-%08d', $m->visits_count, $m->points_balance);
-                })
+            $ids = $results->getCollection()->pluck('id')
+                ->merge($frequentBusinesses->pluck('id'))
+                ->unique()
                 ->values();
+            if ($ids->isNotEmpty()) {
+                $memberships = Membership::query()
+                    ->withCount('visits')
+                    ->where('customer_id', $user->id)
+                    ->whereIn('business_id', $ids)
+                    ->get();
+                $membershipByBusinessId = $memberships
+                    ->groupBy('business_id')
+                    ->map(fn (Collection $group) => (object) [
+                        'points_balance' => $group->sum('points_balance'),
+                        'visits_count' => $group->sum('visits_count'),
+                    ]);
+            }
         }
 
-        $rows = $this->buildRows($businesses, $frequentBusinesses, $sector, $interests, $city, $search);
-
         return view('discover.index', [
-            'rows' => $rows,
+            'results' => $results,
+            'frequentBusinesses' => $frequentBusinesses,
             'membershipByBusinessId' => $membershipByBusinessId,
             'isCustomer' => $isCustomer,
             'sectors' => Sectors::all(),
             'sectorOptions' => Sectors::sheetOptions(),
+            'featuredSectors' => Sectors::featured(),
             'countries' => Countries::enabledOptions(),
             'cities' => Countries::cities($country),
             'activeCountry' => $country,
             'activeCity' => $city,
             'activeSector' => $sector,
+            'activeCategory' => $category,
+            'activeStatus' => $status,
             'search' => $search,
-            'searchMiss' => $search !== '' && $businesses->isEmpty(),
+            'searchMiss' => $search !== '' && $results->total() === 0,
             'interests' => $interests,
         ]);
     }
@@ -138,10 +124,29 @@ class DiscoverController extends Controller
             ->take(8)
             ->get();
 
+        $campaigns = $this->previewList($business->campaigns()->active()->latest('id'));
+        $rewards = $this->previewList($business->rewards()->where('is_active', true)->orderBy('points_cost'));
+        $raffles = FeatureFlags::enabled('raffles')
+            ? $this->previewList(
+                $business->raffles()
+                    ->where('is_active', true)
+                    ->whereIn('status', ['scheduled', 'live'])
+                    ->orderBy('draw_at')
+            )
+            : ['items' => collect(), 'has_more' => false];
+        $liveGames = \App\Support\GameSettings::engineOn() && \App\Support\GameSettings::tablesReady()
+            ? $business->games()->live()->orderBy('id')->get()
+            : collect();
+
         return view('discover.show', [
             'business' => $business->load(['shops' => fn ($q) => $q->where('is_active', true)]),
-            'campaigns' => $business->campaigns()->active()->get(),
-            'rewards' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->get(),
+            'campaigns' => $campaigns['items'],
+            'campaignsHasMore' => $campaigns['has_more'],
+            'rewards' => $rewards['items'],
+            'rewardsHasMore' => $rewards['has_more'],
+            'raffles' => $raffles['items'],
+            'rafflesHasMore' => $raffles['has_more'],
+            'liveGames' => $liveGames,
             'related' => $related,
             'sectors' => Sectors::all(),
             'sectorOptions' => Sectors::sheetOptions(),
@@ -153,75 +158,57 @@ class DiscoverController extends Controller
         ]);
     }
 
-    /**
-     * @return list<array{key: string, title: string, businesses: Collection<int, Business>}>
-     */
-    private function buildRows(Collection $businesses, Collection $frequentBusinesses, ?string $sector, array $interests, ?string $city, string $search = ''): array
+    public function catalog(Request $request, Business $business, string $kind): View|RedirectResponse
     {
-        if ($search !== '') {
-            if ($businesses->isEmpty()) {
-                return [];
-            }
-
-            return [[
-                'key' => 'search',
-                'title' => __('loop.search_results', ['q' => $search]),
-                'businesses' => $businesses->values(),
-            ]];
+        abort_unless($business->is_active, 404);
+        abort_unless(in_array($kind, ['campaigns', 'offers', 'raffles'], true), 404);
+        if ($kind === 'raffles') {
+            abort_unless(FeatureFlags::enabled('raffles'), 404);
         }
 
-        $rows = [];
-
-        if ($frequentBusinesses->isNotEmpty()) {
-            $rows[] = [
-                'key' => 'frequent',
-                'title' => __('loop.your_places'),
-                'businesses' => $frequentBusinesses,
-            ];
+        $access = app(\App\Services\LoopAccess::class);
+        if ($access->isPaused($business)) {
+            return redirect()->route('discover.show', $business);
         }
 
-        if ($sector) {
-            $rows[] = [
-                'key' => 'sector-'.$sector,
-                'title' => Sectors::label($sector),
-                'businesses' => $businesses->values(),
-            ];
+        $user = $request->user();
+        $isCustomer = $user?->isCustomer() ?? false;
 
-            return $rows;
-        }
+        $items = match ($kind) {
+            'campaigns' => $business->campaigns()->active()->latest('id')->paginate(24),
+            'offers' => $business->rewards()->where('is_active', true)->orderBy('points_cost')->paginate(24),
+            default => $business->raffles()
+                ->where('is_active', true)
+                ->whereIn('status', ['scheduled', 'live'])
+                ->orderBy('draw_at')
+                ->paginate(24),
+        };
 
-        $bySector = $businesses->groupBy('sector');
+        $title = match ($kind) {
+            'campaigns' => __('loop.all_campaigns'),
+            'offers' => __('loop.all_offers'),
+            default => __('loop.all_raffles'),
+        };
 
-        $orderedKeys = collect(array_keys(Sectors::all()))
-            ->sortBy(function (string $key) use ($interests, $bySector) {
-                if (! $bySector->has($key)) {
-                    return '9-'.str_pad((string) Sectors::rankFor($key), 3, '0', STR_PAD_LEFT).'-'.$key;
-                }
-                if (in_array($key, $interests, true)) {
-                    return '0-'.$key;
-                }
+        return view('discover.catalog', [
+            'business' => $business->load(['shops' => fn ($q) => $q->where('is_active', true)]),
+            'kind' => $kind,
+            'title' => $title,
+            'items' => $items,
+            'isCustomer' => $isCustomer,
+        ]);
+    }
 
-                return '1-'.str_pad((string) Sectors::rankFor($key), 3, '0', STR_PAD_LEFT).'-'.$key;
-            })
-            ->values();
+    /**
+     * @return array{items: Collection, has_more: bool}
+     */
+    private function previewList($query): array
+    {
+        $rows = $query->take(self::PROFILE_PREVIEW + 1)->get();
 
-        foreach ($orderedKeys as $key) {
-            if (! $bySector->has($key) || $bySector[$key]->isEmpty()) {
-                continue;
-            }
-
-            $title = Sectors::label($key);
-            if ($city) {
-                $title = $title.' · '.$city;
-            }
-
-            $rows[] = [
-                'key' => 'sector-'.$key,
-                'title' => $title,
-                'businesses' => $bySector[$key]->values(),
-            ];
-        }
-
-        return $rows;
+        return [
+            'items' => $rows->take(self::PROFILE_PREVIEW)->values(),
+            'has_more' => $rows->count() > self::PROFILE_PREVIEW,
+        ];
     }
 }

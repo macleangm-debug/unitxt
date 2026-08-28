@@ -904,6 +904,7 @@ class LoopCoreFlowTest extends TestCase
                 'streak_campaigns' => 1,
                 'featured_product' => 1,
                 'raffles' => 0,
+                'games' => 1,
                 'content_studio' => 0,
                 'sms_messaging' => 1,
                 'member_daily_digest' => 1,
@@ -993,7 +994,7 @@ class LoopCoreFlowTest extends TestCase
         ]);
     }
 
-    public function test_staff_phone_cannot_open_a_second_member_account(): void
+    public function test_staff_phone_can_be_a_member_without_a_second_account(): void
     {
         [$owner] = $this->seedBusiness();
 
@@ -1003,8 +1004,10 @@ class LoopCoreFlowTest extends TestCase
                 'phone' => $owner->phone,
             ])
             ->assertRedirect(route('customer.login'))
-            ->assertSessionHasErrors('phone');
+            ->assertSessionHas('confirm')
+            ->assertSessionHasNoErrors();
 
+        $this->assertSame(__('loop.staff_is_member_title'), session('confirm')['title']);
         $this->assertSame(1, User::query()->where('phone', $owner->phone)->count());
         $this->assertSame(User::ROLE_OWNER, $owner->fresh()->role);
     }
@@ -1042,6 +1045,19 @@ class LoopCoreFlowTest extends TestCase
             ->assertOk()
             ->assertSee('loop-page-skeleton', false)
             ->assertSee('data-variant="app"', false);
+    }
+
+    public function test_in_app_page_switches_paint_ready_instead_of_flashing_the_skeleton(): void
+    {
+        $boot = file_get_contents(resource_path('views/partials/head-boot.blade.php'));
+
+        $this->assertStringContainsString("sessionStorage.getItem('loopNavKind')", $boot);
+        $this->assertStringContainsString("root.classList.add('loop-ready')", $boot);
+        $this->assertStringContainsString('history.scrollRestoration', $boot);
+        $this->assertStringNotContainsString(
+            'body > :not(.loop-page-skeleton){',
+            preg_replace('/<noscript>.*<\/noscript>/s', '', $boot)
+        );
     }
 
     public function test_public_pages_use_relative_in_app_links(): void
@@ -1115,7 +1131,7 @@ class LoopCoreFlowTest extends TestCase
             ->assertSee(__('loop.your_places'))
             ->assertSee('10 pts')
             ->assertSee('loop-bottom-nav', false)
-            ->assertSee(__('loop.wallets'), false);
+            ->assertSee(__('loop.nav_rewards'), false);
 
         $this->actingAs($customer)
             ->get(route('discover.show', $business))
@@ -1560,7 +1576,7 @@ class LoopCoreFlowTest extends TestCase
                 'prize_type' => 'free_item',
                 'winners_count' => 1,
                 'frequency' => 'weekly',
-                'draw_at' => now()->addDays(3)->format('Y-m-d'),
+                'draw_at' => now()->format('Y-m-d'),
                 'claim_days' => 7,
             ])
             ->assertRedirect();
@@ -1856,7 +1872,7 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('billing.show'))
             ->assertOk()
-            ->assertSee(__('loop.upgrade_title'));
+            ->assertSee(__('loop.keep_loop_running'));
 
         $this->actingAs($owner)
             ->post(route('billing.choose'), [
@@ -1984,7 +2000,10 @@ class LoopCoreFlowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('staff.index'))
             ->assertOk()
-            ->assertSee(__('loop.your_team'));
+            ->assertSee(__('loop.your_team'))
+            ->assertSee(__('loop.add_staff'), false)
+            ->assertSee(__('loop.add_front_desk'), false)
+            ->assertSee('id="add-staff"', false);
     }
 
     public function test_affiliate_apply_approve_activate_and_attach_promo(): void

@@ -47,7 +47,7 @@
                                 <tr>
                                     <td>{{ $i + 1 }}</td>
                                     <td class="font-semibold">{{ $row->sector_label }}</td>
-                                    <td>{{ $row->sales_count }}</td>
+                                    <td>{{ number_format((int) $row->sales_count) }}</td>
                                     <td>{{ $row->unique_customers }}</td>
                                     <td>TZS {{ number_format($row->revenue) }}</td>
                                 </tr>

@@ -35,7 +35,9 @@ class MemberMessageController extends Controller
             'members' => $business->memberships()->with('customer')->get()->pluck('customer')->filter()->unique('id')->values(),
             'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
             'pricePerMessage' => $messaging->pricePerMessage(),
+            'charsPerMessage' => $messaging->charsPerMessage(),
             'senderFee' => $messaging->senderYearlyFee(),
+            'credits' => (int) $business->sms_credit_balance,
             'dial' => Countries::dial($business->country ?: 'TZ'),
             'country' => $business->country ?: 'TZ',
             'currency' => $business->currency ?: 'TZS',
@@ -126,7 +128,7 @@ class MemberMessageController extends Controller
         ));
     }
 
-    public function storeBroadcast(Request $request, MessagingService $messaging, PaymentService $payments): RedirectResponse
+    public function storeBroadcast(Request $request, MessagingService $messaging): RedirectResponse
     {
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
@@ -144,7 +146,6 @@ class MemberMessageController extends Controller
             'group_ids.*' => ['integer'],
             'customer_id' => ['required_if:audience,person', 'nullable', 'integer'],
             'min_points' => ['required_if:audience,points', 'nullable', 'integer', 'min:1'],
-            'phone' => ['required', 'string', 'max:20'],
         ]);
 
         $sender = $business->senderIds()->whereKey($data['sender_id_id'])->firstOrFail();
@@ -163,7 +164,8 @@ class MemberMessageController extends Controller
             return back()->withInput()->withErrors(['audience' => __('loop.sms_no_recipients')]);
         }
 
-        $cost = $recipients->count() * $messaging->pricePerMessage();
+        $needed = $messaging->messagesFor($recipients->count(), $data['body']);
+        $cost = $messaging->costForMessages($needed);
         $broadcast = MessageBroadcast::query()->create([
             'business_id' => $business->id,
             'user_id' => $request->user()->id,
@@ -179,8 +181,26 @@ class MemberMessageController extends Controller
             'purpose' => 'member_sms',
         ]);
 
-        $intent = $payments->startSmsBroadcastPayment($business, $request->user(), $broadcast, $data['phone'], $business->country ?: 'TZ');
+        if ((int) $business->sms_credit_balance >= $needed) {
+            $business->decrement('sms_credit_balance', $needed);
+            $phones = $messaging->phonesFor($recipients, $business->country ?: 'TZ');
+            $messaging->deliver($broadcast, $phones);
 
-        return redirect()->route('payments.wait', $intent);
+            return redirect()->route('members.messages.index')->with('confirm', Confirm::make(
+                __('loop.sms_sent_title'),
+                __('loop.sms_paid_body'),
+                __('loop.done'),
+                route('members.messages.index'),
+                true,
+            ));
+        }
+
+        $shortfall = max(1, $needed - (int) $business->sms_credit_balance);
+
+        return redirect()->route('payments.show', [
+            'purpose' => 'sms_credits',
+            'credits' => $shortfall,
+            'broadcast' => $broadcast->id,
+        ]);
     }
 }

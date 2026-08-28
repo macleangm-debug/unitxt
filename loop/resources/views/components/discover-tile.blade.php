@@ -64,7 +64,7 @@
                 class="loop-morph-logo absolute inset-0 block"
             >
                 @if ($business->logoUrl())
-                    <img src="{{ $business->logoUrl() }}" alt="" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" draggable="false">
+                    <img src="{{ $business->logoUrl() }}" alt="" class="h-full w-full object-cover transition duration-[230ms] group-hover:scale-105" draggable="false">
                 @else
                     <span class="flex h-full w-full flex-col justify-start bg-gradient-to-br from-ink via-[#1a1228] to-violet/50 p-4">
                         <span class="font-display text-3xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>

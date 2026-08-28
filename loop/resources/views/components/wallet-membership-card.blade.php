@@ -56,7 +56,7 @@
             </span>
         </a>
 
-        <div class="mt-5 flex flex-1 items-end justify-between gap-3">
+        <div class="mt-5 flex flex-1 items-end">
             <a
                 href="{{ $href }}"
                 class="min-w-0 flex-1 self-end"
@@ -80,8 +80,6 @@
                     <p class="mt-1 text-xs text-white/55">{{ __('loop.member_paused_points', ['points' => number_format($membership->points_balance)]) }}</p>
                 @endif
             </a>
-
-            <x-wallet-qr :size="96" class="self-end" />
         </div>
     </div>
 </article>

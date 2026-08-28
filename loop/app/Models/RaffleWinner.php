@@ -50,6 +50,11 @@ class RaffleWinner extends Model
             && $this->claim_by->isPast();
     }
 
+    public function isOpenToClaim(): bool
+    {
+        return in_array($this->status, ['pending', 'contacted'], true);
+    }
+
     public function displayFirstName(): string
     {
         return $this->customer?->first_name ?? '—';

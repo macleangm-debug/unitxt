@@ -147,6 +147,7 @@
                     </div>
                     <p class="mt-5 text-xs text-ink-muted">{{ __('loop.affiliate_review_note') }}</p>
                     <p class="mt-2 text-xs text-ink-muted">{{ __('loop.affiliate_payout_later_note') }}</p>
+                    <x-legal-signup-note />
                     <div class="mt-6 flex gap-3">
                         <button type="button" class="loop-btn-ghost flex-1" @click="go(2)">{{ __('loop.back') }}</button>
                         <button class="loop-btn-mint flex-1">{{ __('loop.submit_application') }}</button>

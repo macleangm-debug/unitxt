@@ -244,4 +244,20 @@ class PlanLimitService
 
         return (bool) ($catalog['has_sms'] ?? false);
     }
+
+    public function gamesEnabled(Business $business): bool
+    {
+        if (! \App\Support\GameSettings::engineOn()) {
+            return false;
+        }
+
+        $plan = $this->planFor($business);
+        if ($plan && $plan->exists) {
+            return (bool) $plan->has_games;
+        }
+
+        $catalog = Plans::catalog()[$business->plan_key] ?? [];
+
+        return (bool) ($catalog['has_games'] ?? false);
+    }
 }

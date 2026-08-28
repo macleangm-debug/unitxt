@@ -1,7 +1,8 @@
 @php
     $availableOffers = $availableOffers ?? (($customer && $membership) ? $membership->availableRewards() : collect());
+    $raffleWins = $raffleWins ?? collect();
     $offerCards = $offerCards ?? [];
-    $hasRedeemable = $availableOffers->isNotEmpty();
+    $hasRedeemable = $availableOffers->isNotEmpty() || $raffleWins->isNotEmpty();
     $needsRegister = $needsRegister ?? false;
     $payEnabled = $business->payWithPointsEnabled();
     $payRate = $business->payCurrencyPerPoint();
@@ -51,28 +52,12 @@
             <a href="{{ route('till.index') }}" class="mt-4 block text-sm font-semibold text-ink-muted">{{ __('loop.back') }}</a>
         </div>
     @elseif ($needsRegister)
-        <div
-            x-data="{ open: true, step: 1 }"
-            class="mx-auto max-w-xl"
-        >
-            <template x-teleport="body">
-                <div
-                    x-show="open && step === 1"
-                    x-cloak
-                    class="fixed inset-0 z-[80] flex items-center justify-center p-4"
-                    @keydown.escape.window="open = false"
-                >
-                    <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm"></div>
-                    <div class="relative w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-[0_40px_100px_rgba(17,17,20,0.35)] sm:p-10">
-                        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-2xl text-violet">?</div>
-                        <p class="mt-5 font-display text-2xl font-bold sm:text-3xl">{{ __('loop.customer_not_on_loop_title') }}</p>
-                        <p class="mt-3 text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
-                        <button type="button" class="loop-btn mt-7 w-full" @click="step = 2">{{ __('loop.add_and_continue') }}</button>
-                        <a href="{{ route('till.index') }}" class="mt-3 block text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
-                    </div>
-                </div>
-            </template>
-
+        <div x-data="{ open: true, step: 1 }" class="mx-auto max-w-xl">
+            <x-loop-sheet show="open && step === 1" model="open" :title="__('loop.customer_not_on_loop_title')">
+                <p class="text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
+                <button type="button" class="loop-btn mt-6 w-full" @click="step = 2; open = false">{{ __('loop.add_and_continue') }}</button>
+                <a href="{{ route('till.index') }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
+            </x-loop-sheet>
             <form
                 method="POST"
                 action="{{ route('till.register-customer') }}"
@@ -80,6 +65,7 @@
                 x-cloak
                 class="overflow-visible rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
                 x-data="{ regStep: {{ $errors->hasAny(['birth_month', 'birth_day', 'gender', 'email']) ? 2 : 1 }} }"
+                data-loop-quiet
             >
                 @csrf
                 <div class="space-y-4 p-6" x-show="regStep === 1">
@@ -118,6 +104,7 @@
                 step: {{ $initialStep }},
                 hasOffers: {{ $hasRedeemable ? 'true' : 'false' }},
                 rewardId: @js((string) $oldReward),
+                raffleWinnerId: @js((string) old('raffle_winner_id', '')),
                 offers: @js($offerCards),
                 amountDisplay: @js(old('amount_spent', '')),
                 currency: @js($business->currency),
@@ -149,7 +136,7 @@
                         <p class="mt-3 text-sm font-semibold text-lime">🎁 {{ $readyOffer?->name }} · {{ __('loop.offer_available') }}</p>
                     @elseif ($nextOffer)
                         <p class="mt-3 text-sm font-semibold text-lime">
-                            {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->redeemablePoints()), 'offer' => $nextOffer->name]) }}
+                            {{ __('loop.points_to_next', ['points' => number_format(max(0, $nextOffer->points_cost - $membership->redeemablePoints())), 'offer' => $nextOffer->name]) }}
                         </p>
                     @endif
                 </div>
@@ -165,6 +152,7 @@
                 action="{{ route('till.store') }}"
                 class="overflow-hidden rounded-[2rem] border border-ink/10 bg-white shadow-[0_24px_70px_rgba(11,31,42,0.08)]"
                 @submit="submitForm($event)"
+                data-loop-quiet
             >
                 @csrf
                 <input type="hidden" name="shop_id" value="{{ $shop->id }}">
@@ -172,6 +160,7 @@
                 <input type="hidden" name="phone" value="{{ $phone }}">
                 <input type="hidden" name="channel" value="{{ $channel }}">
                 <input type="hidden" name="reward_id" :value="rewardId">
+                <input type="hidden" name="raffle_winner_id" :value="raffleWinnerId">
                 <input type="hidden" name="amount_spent" :value="amountValue()">
 
                 @if ($errors->any())
@@ -186,16 +175,27 @@
                         <h2 class="font-display text-xl font-semibold">{{ __('loop.till_ask_title') }}</h2>
                         <p class="text-sm text-ink-muted">{{ __('loop.till_ask_body') }}</p>
 
-                        <button type="button" class="flex w-full flex-col rounded-3xl border p-5 text-left transition" :class="!rewardId ? 'border-mint ring-2 ring-mint/20' : 'border-ink/10 hover:border-mint'" @click="pickOffer('')">
+                        <button type="button" class="flex w-full flex-col rounded-3xl border p-5 text-left transition" :class="!rewardId && !raffleWinnerId ? 'border-mint ring-2 ring-mint/20' : 'border-ink/10 hover:border-mint'" @click="pickOffer('')">
                             <p class="font-display text-lg font-semibold">{{ __('loop.till_just_sale') }}</p>
                             <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_just_sale_body') }}</p>
                         </button>
+
+                        @foreach ($raffleWins ?? [] as $win)
+                            <button type="button" class="flex w-full flex-col rounded-3xl border p-5 text-left transition" :class="String(raffleWinnerId) === @js((string) $win->id) ? 'border-mint ring-2 ring-mint/20' : 'border-ink/10 hover:border-mint'" @click="pickOffer(@js((string) $win->id), 'raffle')">
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="font-display text-lg font-semibold">{{ $win->raffle->prize_name }}</p>
+                                    <span class="shrink-0 rounded-lg bg-lime/40 px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.raffle') }}</span>
+                                </div>
+                                <p class="mt-1 text-sm text-ink-muted">{{ $win->raffle->name }}</p>
+                                <p class="mt-2 text-sm font-semibold text-mint-deep">{{ __('loop.till_raffle_hint') }}</p>
+                            </button>
+                        @endforeach
 
                         @foreach ($availableOffers as $reward)
                             <button type="button" class="flex w-full flex-col rounded-3xl border p-5 text-left transition" :class="String(rewardId) === @js((string) $reward->id) ? 'border-mint ring-2 ring-mint/20' : 'border-ink/10 hover:border-mint'" @click="pickOffer(@js((string) $reward->id))">
                                 <div class="flex items-start justify-between gap-3">
                                     <p class="font-display text-lg font-semibold">{{ $reward->name }}</p>
-                                    <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ $reward->points_cost }} {{ __('loop.pts') }}</span>
+                                    <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}</span>
                                 </div>
                                 <p class="mt-1 text-sm text-ink-muted">{{ $reward->label() }}</p>
                                 <p class="mt-2 text-sm font-semibold text-mint-deep">
@@ -206,7 +206,7 @@
 
                         @if ($nextOffer)
                             <p class="text-sm font-semibold text-mint-deep">
-                                {{ __('loop.points_to_next', ['points' => max(0, $nextOffer->points_cost - $membership->points_balance), 'offer' => $nextOffer->name]) }}
+                                {{ __('loop.points_to_next', ['points' => number_format(max(0, $nextOffer->points_cost - $membership->points_balance)), 'offer' => $nextOffer->name]) }}
                             </p>
                         @endif
 
@@ -263,7 +263,7 @@
                     @endif
 
                     @if ($membership && $membership->points_balance > 0 && $payEnabled)
-                        <div x-show="!rewardId" x-cloak class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 space-y-3">
+                        <div x-show="!rewardId && !raffleWinnerId" x-cloak class="rounded-2xl border border-ink/10 bg-chalk/50 p-4 space-y-3">
                             <label class="flex items-start gap-3 text-sm font-semibold">
                                 <input type="checkbox" name="pay_with_points" value="1" x-model="payWithPoints" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep">
                                 <span>

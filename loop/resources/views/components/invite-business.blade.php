@@ -13,17 +13,8 @@
 <div x-data="{ open: false, copied: false }" {{ $attributes }}>
     <button type="button" class="{{ $buttonClass }}" @click="open = true">{{ $buttonLabel ?? __('loop.share_loop') }}</button>
 
-    <div
-        x-show="open"
-        x-cloak
-        class="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-6"
-        @keydown.escape.window="open = false"
-    >
-        <div class="absolute inset-0" @click="open = false"></div>
-        <div class="relative w-full max-w-md rounded-t-[1.5rem] bg-white p-5 text-ink sm:rounded-[1.5rem] sm:p-6" @click.stop>
-            <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15 sm:hidden"></div>
-            <h3 class="font-display text-xl font-semibold">{{ __('loop.share_loop_sheet_title') }}</h3>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.share_loop_sheet_body') }}</p>
+    <x-loop-sheet :title="__('loop.share_loop_sheet_title')" lock-swipe="true">
+            <p class="text-sm text-ink-muted">{{ __('loop.share_loop_sheet_body') }}</p>
 
             <form method="POST" action="{{ route('business-invites.store') }}" class="mt-5 space-y-3">
                 @csrf
@@ -53,6 +44,5 @@
             ></button>
 
             <button type="button" class="mt-4 w-full py-2 text-sm font-semibold text-ink-muted" @click="open = false">{{ __('loop.close') }}</button>
-        </div>
-    </div>
+    </x-loop-sheet>
 </div>

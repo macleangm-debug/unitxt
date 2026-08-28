@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use App\Models\Business;
 use App\Models\Membership;
-use App\Models\Visit;
+use App\Services\DiscoverCatalog;
 use App\Services\PlanLimitService;
 use App\Services\ReferralService;
 use App\Support\Sectors;
@@ -14,7 +14,7 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View|\Illuminate\Http\RedirectResponse
+    public function __invoke(Request $request, DiscoverCatalog $catalog): View|\Illuminate\Http\RedirectResponse
     {
         $user = $request->user();
 
@@ -71,7 +71,7 @@ class DashboardController extends Controller
                 'totalSpend' => $totalSpend,
                 'todayVisits' => $todayVisits,
                 'todaySpend' => $todaySpend,
-                'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder'])->latest()->take(8)->get(),
+                'recentVisits' => $business->visits()->with(['customer', 'shop', 'recorder', 'raffleWinner.raffle'])->latest()->take(5)->get(),
                 'activeCampaigns' => $activeCampaigns,
                 'isOwner' => $user->isOwner(),
                 'showWelcome' => $request->session()->pull('show_welcome', false) || $request->boolean('welcome'),
@@ -121,69 +121,56 @@ class DashboardController extends Controller
                     'reward' => $reward,
                 ]);
             })
-            ->take(8)
             ->values();
 
+        $homeRedeemables = $redeemables->take(3)->values();
         $country = $user->country ?? session('preferred_country', 'TZ');
-        $memberBusinessIds = $memberships->pluck('business_id');
+        $memberBusinessIds = $memberships->pluck('business_id')->all();
+        $shownIds = $memberBusinessIds;
 
-        // Prefer shops where the customer can already redeem, then shops with live offers.
-        $redeemableBusinessIds = $redeemables->pluck('business.id')->unique()->values();
+        $nearYou = filled($user->city)
+            ? $catalog->take([
+                'country' => $country,
+                'city' => $user->city,
+                'exclude' => $shownIds,
+                'order' => 'popular',
+            ], DiscoverCatalog::HOME_LIMIT)
+            : collect();
+        $shownIds = array_values(array_unique(array_merge($shownIds, $nearYou->pluck('id')->all())));
 
-        $topQuery = Business::query()
-            ->where('is_active', true)
+        $popularAround = $catalog->take([
+            'country' => $country,
+            'city' => $user->city,
+            'exclude' => $shownIds,
+            'order' => 'popular',
+        ], DiscoverCatalog::HOME_LIMIT);
+        $shownIds = array_values(array_unique(array_merge($shownIds, $popularAround->pluck('id')->all())));
+
+        $offersForYou = Business::query();
+        app(\App\Services\LoopAccess::class)->constrainPromoted($offersForYou);
+        $offersForYou = $offersForYou
             ->where('country', $country)
-            ->whereHas('rewards', fn ($q) => $q->where('is_active', true));
-
-        $withShops = [
-            'shops' => fn ($q) => $q->where('is_active', true),
-            'rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
-            'campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
-        ];
-
-        $topShops = (clone $topQuery)
-            ->when(filled($user->interests), fn ($q) => $q->whereIn('sector', $user->interests))
-            ->with($withShops)
-            ->withCount(['memberships', 'shops'])
-            ->get();
-
-        if ($topShops->isEmpty() && filled($user->interests)) {
-            $topShops = (clone $topQuery)
-                ->with($withShops)
-                ->withCount(['memberships', 'shops'])
-                ->get();
-        }
-
-        $topShops = $topShops
-            ->sortByDesc(function (Business $business) use ($redeemableBusinessIds, $memberBusinessIds) {
-                $score = 0;
-                if ($redeemableBusinessIds->contains($business->id)) {
-                    $score += 100;
-                }
-                if ($memberBusinessIds->contains($business->id)) {
-                    $score += 40;
-                }
-                $score += min(30, (int) $business->memberships_count);
-
-                return $score;
-            })
-            ->take(8)
-            ->values();
-
-        $otherShops = Business::query()
-            ->where('is_active', true)
-            ->where('country', $country)
-            ->whereNotIn('id', $topShops->pluck('id')->merge($memberBusinessIds))
+            ->whereHas('campaigns', fn ($q) => $q->where('is_active', true))
+            ->when($shownIds !== [], fn ($q) => $q->whereNotIn('id', $shownIds))
             ->with([
                 'shops' => fn ($q) => $q->where('is_active', true),
                 'campaigns' => fn ($q) => $q->where('is_active', true)->latest(),
+                'rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
             ])
             ->withCount('shops')
-            ->latest()
-            ->take(8)
+            ->latest('id')
+            ->take(DiscoverCatalog::HOME_LIMIT)
             ->get();
+        $shownIds = array_values(array_unique(array_merge($shownIds, $offersForYou->pluck('id')->all())));
 
-        $memberships = $memberships->map(function (Membership $membership) {
+        $newOnLoop = $catalog->take([
+            'country' => $country,
+            'exclude' => $shownIds,
+            'order' => 'new',
+        ], DiscoverCatalog::HOME_LIMIT);
+
+        $homeMemberships = $memberships->take(DiscoverCatalog::HOME_LIMIT)->values();
+        $homeMemberships = $homeMemberships->map(function (Membership $membership) {
             $next = $membership->nextReward();
             $ready = $membership->nearestReadyReward();
             $target = $ready ?: $next;
@@ -199,6 +186,16 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        $pendingPlays = app(\App\Services\GameService::class)->pendingForCustomer($user->id);
+
+        $pendingRaffleWins = \App\Models\RaffleWinner::query()
+            ->with(['raffle.business'])
+            ->where('customer_id', $user->id)
+            ->whereIn('status', ['pending', 'contacted'])
+            ->whereHas('raffle.business')
+            ->latest('drawn_at')
+            ->get();
+
         $recent = $memberships->flatMap(function (Membership $membership) {
             return $membership->groupedActivity(6)->map(function ($row) use ($membership) {
                 $row->shop_name = $membership->business->name;
@@ -209,19 +206,27 @@ class DashboardController extends Controller
 
         return view('dashboard.customer', [
             'memberships' => $memberships,
+            'homeMemberships' => $homeMemberships,
             'grouped' => $memberships->groupBy(fn ($m) => $m->business->sector),
             'sectors' => Sectors::all(),
             'totalPoints' => $memberships->sum('points_balance'),
             'pointsEarned' => (int) $request->session()->pull('points_earned_flash', 0),
             'redeemables' => $redeemables,
-            'featuredRedeem' => $redeemables->first(),
+            'homeRedeemables' => $homeRedeemables,
+            'featuredRedeem' => $homeRedeemables->first(),
             'recent' => $recent,
-            'topShops' => $topShops,
-            'otherShops' => $otherShops,
-            'discover' => $topShops,
+            'nearYou' => $nearYou,
+            'popularAround' => $popularAround,
+            'offersForYou' => $offersForYou,
+            'newOnLoop' => $newOnLoop,
+            'topShops' => $popularAround,
+            'otherShops' => $newOnLoop,
+            'discover' => $popularAround,
             'showWelcome' => $request->session()->pull('show_welcome', false) || ! $user->profile_completed,
             'featuredStory' => $stories->first(),
             'moreStories' => $stories->skip(1)->values(),
+            'pendingPlays' => $pendingPlays,
+            'pendingRaffleWins' => $pendingRaffleWins,
         ]);
     }
 }

@@ -74,7 +74,7 @@
                         <p class="font-display text-lg font-semibold">{{ $reward->name }}</p>
                         <p class="mt-0.5 truncate text-sm text-ink-muted">
                             {{ $reward->label() }}
-                            · {{ $reward->points_cost }} {{ __('loop.pts') }}
+                            · {{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}
                             @if ($reward->product_name)
                                 · {{ $reward->product_name }}
                             @endif

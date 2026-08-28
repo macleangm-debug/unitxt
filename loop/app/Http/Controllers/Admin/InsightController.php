@@ -7,6 +7,7 @@ use App\Models\Affiliate;
 use App\Models\AffiliateReferral;
 use App\Models\Business;
 use App\Models\PaymentIntent;
+use App\Models\User;
 use App\Services\AdminReportService;
 use App\Support\AffiliateProgram;
 use App\Support\Sectors;
@@ -145,6 +146,45 @@ class InsightController extends Controller
             'customers' => $customers,
             'totals' => $totals,
             'bySector' => app(AdminReportService::class)->customersBySector(),
+        ]);
+    }
+
+    public function customer(User $customer): View
+    {
+        abort_unless($customer->isCustomer() || $customer->memberships()->exists(), 404);
+
+        $memberships = $customer->memberships()
+            ->with(['business', 'shop'])
+            ->latest('joined_at')
+            ->get();
+
+        $visits = $customer->visits()
+            ->with(['shop', 'business', 'campaign', 'reward'])
+            ->latest()
+            ->take(20)
+            ->get();
+
+        $raffleWins = \App\Models\RaffleWinner::query()
+            ->with('raffle')
+            ->where('customer_id', $customer->id)
+            ->latest('drawn_at')
+            ->get();
+
+        $interests = collect($customer->interests ?? [])
+            ->map(fn ($key) => Sectors::label((string) $key))
+            ->filter()
+            ->values();
+
+        return view('admin.insights.customer', [
+            'customer' => $customer,
+            'memberships' => $memberships,
+            'visits' => $visits,
+            'raffleWins' => $raffleWins,
+            'interests' => $interests,
+            'points' => (int) $memberships->sum('points_balance'),
+            'lifetime' => (int) $memberships->sum('lifetime_points'),
+            'visitCount' => $customer->visits()->count(),
+            'totalSpend' => (float) $customer->visits()->sum('amount_spent'),
         ]);
     }
 }

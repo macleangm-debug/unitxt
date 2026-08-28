@@ -7,128 +7,136 @@
         $readyCount = $rewards->filter(fn ($r) => ($membership->progressTo($r)['ready'] ?? false))->count();
     @endphp
 
-    {{-- Business wallet hero — same language as customer home --}}
-    <section class="loop-wallet relative mb-8 overflow-hidden px-5 py-7 sm:px-8 sm:py-9" x-data>
-        <div class="loop-orb loop-orb--a"></div>
-        <div class="loop-orb loop-orb--b"></div>
-        <div class="loop-orb loop-orb--c"></div>
-
-        <div class="relative">
-            <div class="flex items-end justify-between gap-4">
-                <div class="flex min-w-0 flex-1 flex-col justify-between self-stretch">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-3">
-                            <div
-                                data-loop-morph-target="{{ $morphId }}"
-                                class="loop-morph-logo loop-vt-logo flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] bg-white/10 ring-2 ring-white/20 sm:h-16 sm:w-16"
-                                style="view-transition-name: loop-biz-logo"
-                            >
-                                @if ($logoUrl)
-                                    <img src="{{ $logoUrl }}" alt="{{ $business->name }}" class="h-full w-full object-cover" draggable="false">
-                                @elseif ($shop)
-                                    <x-shop-logo :shop="$shop" class="h-full w-full rounded-[1.1rem]" />
-                                @else
-                                    <span class="font-display text-2xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
-                                @endif
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-lime/85">Loop</p>
-                                <h1 class="mt-1 truncate font-display text-xl font-semibold leading-tight tracking-tight text-white sm:text-2xl">
-                                    {{ $business->name }}
-                                </h1>
-                                <p class="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-                                    {{ $business->sectorLabel() }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-7">
-                        @php
-                            $readyReward = $rewards->first(fn ($r) => ($membership->progressTo($r)['ready'] ?? false));
-                        @endphp
-                        @if (! empty($paused))
-                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.member_paused_title') }}</p>
-                            <p class="mt-2 font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime">
-                                {{ number_format($points) }}
-                            </p>
-                            <p class="mt-2 text-sm text-white/70">{{ __('loop.member_paused_points', ['points' => number_format($points)]) }}</p>
-                            @if ($readyReward)
-                                <p class="mt-3 text-sm text-white/80">{{ __('loop.member_paused_reward', ['reward' => $readyReward->name, 'name' => $business->name]) }}</p>
-                            @endif
-                            <x-want-loop-back :business="$business" :wanted-back="$wantedBack ?? false" />
-                        @elseif ($readyReward)
-                            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.youve_got_something') }}</p>
-                            <p class="mt-2 font-display text-[clamp(1.85rem,7vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">{{ $readyReward->name }}</p>
-                            <p class="mt-4 font-display text-2xl font-semibold text-white/80">
-                                <x-count-up :value="$points" class="font-display" />
-                                <span class="text-sm font-medium uppercase tracking-[0.16em] text-white/45">{{ __('loop.pts') }}</span>
-                            </p>
-                        @else
-                            <div x-data="loopCountUp({{ $points }})">
-                                <p class="font-display text-[clamp(3.25rem,13vw,5rem)] font-semibold leading-none tracking-tight text-lime" x-text="formatted()">
-                                    {{ number_format($points) }}
-                                </p>
-                            </div>
-                            <p class="mt-2 text-sm font-medium uppercase tracking-[0.16em] text-white/55">{{ __('loop.pts') }}</p>
-                            <p class="mt-2 text-sm text-white/70">{{ __('loop.at_this_shop_balance') }}</p>
-                        @endif
-                    </div>
-                </div>
-
-                <div x-ref="qrBox" class="shrink-0">
-                    <x-wallet-qr :size="112" />
+    {{-- Same wallet hero as the public business page --}}
+    <div x-data>
+    <section class="loop-wallet relative overflow-hidden p-5 sm:p-8">
+        <div class="relative grid gap-5 sm:gap-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+            <div class="mx-auto lg:mx-0">
+                <div
+                    data-loop-morph-target="{{ $morphId }}"
+                    class="loop-morph-logo loop-vt-logo flex h-28 w-28 items-center justify-center overflow-hidden rounded-[1.5rem] bg-ink ring-4 ring-white/15 sm:h-36 sm:w-36"
+                    style="view-transition-name: loop-biz-logo"
+                >
+                    @if ($logoUrl)
+                        <img src="{{ $logoUrl }}" alt="{{ $business->name }}" class="h-full w-full object-cover" draggable="false">
+                    @elseif ($shop)
+                        <x-shop-logo :shop="$shop" class="h-full w-full rounded-[1.5rem]" />
+                    @else
+                        <span class="font-display text-4xl font-semibold text-lime">{{ mb_substr($business->name, 0, 1) }}</span>
+                    @endif
                 </div>
             </div>
-
-            <div class="mt-6 flex flex-wrap gap-3">
-                @if ($readyCount > 0)
-                    <button type="button" class="loop-btn-lime" @click="$refs.qrBox.querySelector('button')?.click()">{{ __('loop.show_at_till') }}</button>
-                @else
-                    <a href="#offers" class="loop-btn-lime">{{ __('loop.see_rewards') }}</a>
+            <div class="min-w-0 text-center lg:text-left">
+                <h1 class="font-display text-3xl font-semibold sm:text-4xl">{{ $business->name }}</h1>
+                <p class="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ $business->sectorLabel() }}</p>
+                <p class="mt-1.5 text-sm text-white/70">
+                    {{ $business->city ?: $shop?->city }} · {{ $business->country }}
+                    @if ($business->shops->count() > 1)
+                        · {{ $business->shops->count() }} {{ __('loop.branches') }}
+                    @endif
+                </p>
+                @if ($business->description)
+                    <p class="mt-1.5 max-w-xl text-sm text-white/75 lg:mx-0 mx-auto">{{ $business->description }}</p>
                 @endif
-                @if ($business->hotline)
-                    <a
-                        href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}"
-                        class="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                    >
-                        {{ __('loop.call_hotline_cta') }}
-                    </a>
+                @if (! empty($paused))
+                    <p class="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-lime">{{ __('loop.member_paused_title') }}</p>
+                    <p class="mt-1 text-sm text-white/70">{{ __('loop.member_paused_points', ['points' => number_format($points)]) }}</p>
+                    @php $readyReward = $rewards->first(fn ($r) => ($membership->progressTo($r)['ready'] ?? false)); @endphp
+                    @if ($readyReward)
+                        <p class="mt-1 text-sm text-white/80">{{ __('loop.member_paused_reward', ['reward' => $readyReward->name, 'name' => $business->name]) }}</p>
+                    @endif
+                    <div class="mt-3 text-left">
+                        <x-want-loop-back :business="$business" :wanted-back="$wantedBack ?? false" />
+                    </div>
                 @endif
             </div>
+            <div class="text-center">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">{{ __('loop.pts') }}</p>
+                <div class="mt-1.5" x-data="loopCountUp({{ $points }})">
+                    <p class="font-display text-3xl font-semibold text-lime" x-text="formatted()">{{ number_format($points) }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="mt-6 flex flex-col items-center">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">{{ __('loop.wallet_qr_title') }}</p>
+            <div x-ref="qrBox" class="mt-3">
+                <x-wallet-qr :size="148" />
+            </div>
+            <p class="mt-3 text-sm font-semibold text-lime">{{ __('loop.show_at_till') }}</p>
+            @if ($business->hotline && empty($paused))
+                <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mt-5 inline-flex items-center gap-2.5 rounded-2xl bg-lime px-4 py-2.5 font-display text-base font-semibold text-ink transition hover:bg-white">
+                    <span>{{ $business->hotline }}</span>
+                </a>
+                <p class="mt-1.5 text-xs text-white/55">{{ __('loop.call_hotline_cta') }}</p>
+            @endif
         </div>
     </section>
 
+    @if (empty($paused))
+        <div class="mt-4 flex flex-wrap gap-3">
+            @if ($readyCount > 0)
+                <button type="button" class="loop-btn-lime" @click="$refs.qrBox.querySelector('button')?.click()">{{ __('loop.show_at_till') }}</button>
+            @else
+                <a href="#offers" class="loop-btn-lime">{{ __('loop.see_rewards') }}</a>
+            @endif
+        </div>
+    @endif
+    </div>
+
+    @if ($business->shops->isNotEmpty())
+        <section class="mt-6">
+            <h2 class="font-display text-lg font-semibold">{{ __('loop.branches') }}</h2>
+            <div class="mt-3 grid gap-2.5 sm:grid-cols-2">
+                @foreach ($business->shops as $branch)
+                    <div class="rounded-2xl border border-ink/10 bg-white px-4 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="font-semibold">{{ $branch->name }}</p>
+                                <p class="mt-0.5 text-sm text-ink-muted">
+                                    @if ($branch->address){{ $branch->address }} · @endif{{ $branch->city }}
+                                </p>
+                            </div>
+                            @if ($membership->shop_id === $branch->id || $business->shops->count() === 1)
+                                <span class="shrink-0 rounded-lg bg-violet-soft px-2.5 py-1 text-xs font-semibold text-violet-deep">
+                                    {{ number_format($points) }} {{ __('loop.pts') }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     <div x-data="loopRedeem()">
         @if ($raffleWins->isNotEmpty())
-            <section class="mb-8 overflow-hidden rounded-[1.75rem] border border-violet/20 bg-violet-soft/40">
-                <div class="px-5 py-4 sm:px-6">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.raffle') }}</p>
-                    <h2 class="mt-1 font-display text-xl font-semibold">{{ __('loop.your_raffle_wins') }}</h2>
-                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.your_raffle_wins_body') }}</p>
-                </div>
-                <div class="space-y-3 border-t border-ink/5 px-5 py-4 sm:px-6">
+            <section class="mt-6">
+                <h2 class="font-display text-lg font-semibold">{{ __('loop.your_raffle_wins') }}</h2>
+                <div class="mt-3 grid gap-2.5 sm:grid-cols-2">
                     @foreach ($raffleWins as $win)
                         @php
                             $expired = $win->status !== 'claimed' && $win->daysUntilClaim() !== null && $win->daysUntilClaim() < 0;
+                            $ready = $win->isOpenToClaim() && ! $expired;
                         @endphp
-                        <div class="rounded-2xl bg-white px-4 py-3.5 ring-1 ring-ink/5">
-                            <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <p class="font-display text-lg font-semibold">{{ $win->raffle->prize_name }}</p>
-                                    <p class="mt-0.5 text-sm text-ink-muted">{{ $win->raffle->name }} · {{ __('loop.raffle_winner_status_'.$win->status) }}</p>
+                        <div class="loop-offer-card {{ $ready ? 'loop-offer-card--ready' : '' }}">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    @if ($ready)
+                                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.raffle_won_badge') }}</p>
+                                    @endif
+                                    <p class="font-display text-lg font-semibold {{ $ready ? 'text-white' : 'text-ink' }}">{{ $win->raffle->prize_name }}</p>
+                                    <p class="mt-0.5 text-sm {{ $ready ? 'text-white/65' : 'text-ink-muted' }}">{{ $win->raffle->name }}</p>
                                 </div>
-                                @if ($win->status !== 'claimed')
-                                    <span class="rounded-xl px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] {{ $expired ? 'bg-coral/15 text-coral' : 'bg-ink text-lime' }}">
-                                        {{ $win->claimHeadline() }}
-                                    </span>
-                                @endif
+                                <p class="shrink-0 rounded-xl px-2.5 py-1 text-xs font-semibold {{ $ready ? 'bg-lime text-ink' : 'bg-ink/5 text-ink-muted' }}">
+                                    {{ __('loop.raffle_winner_status_'.$win->status) }}
+                                </p>
                             </div>
+                            <p class="mt-2 text-xs {{ $ready ? 'font-semibold text-lime' : 'text-ink-muted' }}">{{ $win->claimHeadline() }}</p>
                             @if ($win->claim_by && $win->status !== 'claimed')
-                                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}</p>
+                                <p class="mt-0.5 text-xs {{ $ready ? 'text-white/70' : 'text-ink-muted' }}">{{ __('loop.claim_by') }} {{ $win->claim_by->format('d M Y') }}</p>
                             @endif
-                            @if ($business->hotline && $win->status !== 'claimed' && ! $expired)
-                                <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-violet">
+                            @if ($ready && $business->hotline)
+                                <a href="tel:{{ preg_replace('/\s+/', '', $business->hotline) }}" class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-lime px-3 py-2.5 text-sm font-semibold text-ink">
                                     {{ __('loop.call_to_claim') }}
                                 </a>
                             @endif
@@ -139,60 +147,44 @@
         @endif
 
         {{-- Offers --}}
-        <section id="offers" class="mb-10 scroll-mt-24">
-            <x-section-heading
-                :eyebrow="__('loop.offers')"
-                :title="__('loop.offers_at_this_shop')"
-                :blurb="__('loop.offers_at_this_shop_body')"
-                class="mb-5"
-            />
-
-            <div class="mb-5 flex items-center justify-between gap-3 rounded-[1.35rem] border border-ink/8 bg-white/70 px-4 py-3.5 shadow-[0_10px_30px_rgba(17,17,20,0.04)] backdrop-blur-xl">
-                <div>
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">{{ __('loop.your_balance_here') }}</p>
-                    <p class="mt-0.5 font-display text-2xl font-semibold tracking-tight text-ink">
-                        {{ number_format($points) }}
-                        <span class="text-sm font-medium text-ink-muted">{{ __('loop.pts') }}</span>
-                    </p>
-                </div>
+        <section id="offers" class="mt-6 scroll-mt-24">
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="font-display text-lg font-semibold">{{ __('loop.offers_at_till') }}</h2>
                 @if ($readyCount > 0)
-                    <span class="rounded-xl bg-violet px-3 py-1.5 text-xs font-semibold text-white">
+                    <span class="rounded-lg bg-violet-soft px-2.5 py-1 text-xs font-semibold text-violet-deep">
                         {{ __('loop.offers_ready_count', ['count' => $readyCount]) }}
                     </span>
                 @endif
             </div>
 
-            <div class="loop-carousel items-stretch" x-data="loopParallaxCarousel()">
+            <div class="mt-3 grid gap-2.5 sm:grid-cols-2">
                 @forelse ($rewards as $reward)
                     @php
                         $progress = $membership->progressTo($reward);
                         $canRedeem = $progress['ready'];
                         $needed = $progress['needed'];
                     @endphp
-                    <div
-                        data-loop-card
-                        class="loop-shop-card loop-offer-card w-[16.75rem] shrink-0 {{ $canRedeem ? 'loop-offer-card--ready' : '' }}"
-                    >
+                    <div class="loop-offer-card {{ $canRedeem ? 'loop-offer-card--ready' : '' }}">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 @if ($canRedeem)
                                     <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.reward_unlocked') }}</p>
                                 @endif
-                                <p class="font-display text-lg font-semibold leading-snug {{ $canRedeem ? 'text-white' : 'text-ink' }}">{{ $reward->name }}</p>
+                                <p class="font-semibold {{ $canRedeem ? 'text-white' : 'text-ink' }}">{{ $reward->name }}</p>
                                 <p class="mt-0.5 text-sm {{ $canRedeem ? 'text-white/65' : 'text-ink-muted' }}">{{ $reward->label() }}</p>
                             </div>
-                            <p class="shrink-0 rounded-xl px-2.5 py-1 text-xs font-semibold {{ $canRedeem ? 'bg-lime text-ink' : 'bg-ink/5 text-ink-muted' }}">
-                                {{ $reward->points_cost }} {{ __('loop.pts') }}
+                            <p class="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold {{ $canRedeem ? 'bg-lime text-ink' : 'bg-ink/5 text-ink-muted' }}">
+                                {{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}
                             </p>
                         </div>
-                        <div class="mt-4">
+                        <div class="mt-3">
                             <div class="h-1.5 overflow-hidden rounded-full {{ $canRedeem ? 'bg-white/20' : 'bg-ink/10' }}">
                                 <div
                                     class="loop-fill h-full rounded-full {{ $canRedeem ? 'bg-lime' : 'bg-violet' }}"
                                     style="width: {{ $progress['percent'] }}%"
                                 ></div>
                             </div>
-                            <p class="mt-2 text-xs {{ $canRedeem ? 'font-semibold text-lime' : 'text-ink-muted' }}">
+                            <p class="mt-1.5 text-xs {{ $canRedeem ? 'font-semibold text-lime' : 'text-ink-muted' }}">
                                 @if ($canRedeem)
                                     {{ __('loop.offer_ready_hint') }}
                                 @else
@@ -203,7 +195,7 @@
                         @if ($canRedeem)
                             <button
                                 type="button"
-                                class="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-lime px-3 py-2.5 text-sm font-semibold text-ink"
+                                class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-lime px-3 py-2.5 text-sm font-semibold text-ink"
                                 @click="show({
                                     name: @js($reward->name),
                                     pts: @js(number_format($reward->points_cost).' '.__('loop.pts')),
@@ -214,61 +206,37 @@
                         @endif
                     </div>
                 @empty
-                    <p class="py-6 text-sm text-ink-muted">{{ __('loop.no_offers_yet') }}</p>
+                    <p class="text-sm text-ink-muted">{{ __('loop.no_offers_yet') }}</p>
                 @endforelse
             </div>
         </section>
 
         {{-- Activity --}}
-        <section class="mb-4">
-            <x-section-heading
-                :eyebrow="__('loop.pts')"
-                :title="__('loop.points_activity')"
-                :blurb="__('loop.points_activity_blurb')"
-                class="mb-5"
-            />
-
-            <div class="overflow-hidden rounded-[1.6rem] border border-ink/8 bg-white/75 shadow-[0_12px_36px_rgba(17,17,20,0.04)] backdrop-blur-xl">
+        <section class="mt-6">
+            <h2 class="font-display text-lg font-semibold">{{ __('loop.points_activity') }}</h2>
+            <div class="mt-3 overflow-hidden rounded-2xl border border-ink/10 bg-white">
                 @forelse ($transactions as $tx)
                     @php
                         $label = $tx->points >= 0
                             ? ($tx->visit_id ? __('loop.points_visit_earned') : __('loop.points_earned_private'))
                             : ($tx->visit_id ? __('loop.points_visit_spent') : __('loop.points_spent_private'));
                     @endphp
-                    <div class="flex items-center justify-between gap-3 border-b border-ink/5 px-5 py-4 last:border-b-0">
+                    <div class="flex items-center justify-between gap-3 border-b border-ink/5 px-4 py-3 last:border-b-0">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-semibold text-ink">{{ $label }}</p>
                             <p class="mt-0.5 text-xs text-ink-muted">{{ $tx->created_at->diffForHumans() }}</p>
                         </div>
-                        <span class="shrink-0 font-display text-xl font-semibold {{ $tx->points >= 0 ? 'text-violet' : 'text-coral' }}">
-                            {{ $tx->points >= 0 ? '+' : '' }}{{ $tx->points }}
+                        <span class="shrink-0 font-display text-lg font-semibold {{ $tx->points >= 0 ? 'text-violet' : 'text-coral' }}">
+                            {{ $tx->points >= 0 ? '+' : '' }}{{ number_format((int) $tx->points) }}
                         </span>
                     </div>
                 @empty
-                    <p class="px-5 py-8 text-sm text-ink-muted">{{ __('loop.no_history_yet') }}</p>
+                    <p class="px-4 py-6 text-sm text-ink-muted">{{ __('loop.no_history_yet') }}</p>
                 @endforelse
             </div>
         </section>
 
-        <div
-            x-show="open"
-            x-cloak
-            class="fixed inset-0 z-50 flex items-end justify-center bg-ink/55 p-0 sm:items-center sm:p-6"
-            @keydown.escape.window="close()"
-        >
-            <div class="absolute inset-0" @click="close()"></div>
-            <div
-                class="relative w-full max-w-md rounded-t-[1.75rem] bg-white p-6 text-ink shadow-2xl sm:rounded-[1.75rem]"
-                x-show="open"
-                x-transition:enter="transition ease-out duration-300"
-                x-transition:enter-start="translate-y-10 scale-95 opacity-0"
-                x-transition:enter-end="translate-y-0 scale-100 opacity-100"
-                x-transition:leave="transition ease-in duration-200"
-                x-transition:leave-start="translate-y-0 scale-100 opacity-100"
-                x-transition:leave-end="translate-y-6 scale-95 opacity-0"
-                @click.stop
-            >
-                <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15 sm:hidden"></div>
+        <x-loop-sheet model="open">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet" x-text="businessName"></p>
                 <h3 class="mt-2 font-display text-2xl font-semibold" x-text="rewardName"></h3>
                 <p class="mt-1 text-sm font-semibold text-violet" x-text="rewardPts"></p>
@@ -292,7 +260,6 @@
                 </div>
 
                 <button type="button" class="loop-btn-ghost mt-4 w-full" @click="close()">{{ __('loop.close') }}</button>
-            </div>
-        </div>
+        </x-loop-sheet>
     </div>
 </x-app-layout>

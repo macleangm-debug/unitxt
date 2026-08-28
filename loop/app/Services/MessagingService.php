@@ -39,6 +39,31 @@ class MessagingService
         return max(1, (int) (IntegrationSettings::settings()['messaging']['price_per_message'] ?? 30));
     }
 
+    public function charsPerMessage(): int
+    {
+        return max(1, min(320, (int) (IntegrationSettings::settings()['messaging']['chars_per_message'] ?? 160)));
+    }
+
+    public function segmentsFor(string $body): int
+    {
+        $len = mb_strlen($body);
+        if ($len < 1) {
+            return 0;
+        }
+
+        return (int) max(1, (int) ceil($len / $this->charsPerMessage()));
+    }
+
+    public function messagesFor(int $recipients, string $body): int
+    {
+        return max(0, $recipients) * $this->segmentsFor($body);
+    }
+
+    public function costForMessages(int $messages): int
+    {
+        return max(0, $messages) * $this->pricePerMessage();
+    }
+
     public function senderYearlyFee(): int
     {
         return max(0, (int) (IntegrationSettings::settings()['messaging']['sender_id_yearly_fee'] ?? 15000));

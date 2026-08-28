@@ -10,7 +10,7 @@
 <x-admin-layout>
     <x-slot name="header">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin_settings_hub') }}</p>
             <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.integrations_hub') }}</h1>
             <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.integrations_hub_blurb') }}</p>
             <p class="mt-2 text-sm text-ink-muted">
@@ -217,6 +217,10 @@
                         <div>
                             <label class="loop-label">{{ __('loop.price_per_message') }}</label>
                             <input type="number" min="1" name="messaging[price_per_message]" value="{{ $settings['messaging']['price_per_message'] ?? 30 }}" class="loop-input">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.chars_per_message') }}</label>
+                            <input type="number" min="1" max="320" name="messaging[chars_per_message]" value="{{ $settings['messaging']['chars_per_message'] ?? 160 }}" class="loop-input">
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.sender_id_yearly_fee') }}</label>

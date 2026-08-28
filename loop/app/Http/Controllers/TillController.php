@@ -184,10 +184,13 @@ class TillController extends Controller
 
         $rewards = $business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
         $availableOffers = $membership ? $membership->availableRewards() : collect();
+        $raffleWins = ($customer && $membership && \App\Support\FeatureFlags::enabled('raffles'))
+            ? app(\App\Services\RaffleService::class)->openWinsForCustomer($business, (int) $customer->id)
+            : collect();
         $nextOffer = $membership?->nextReward();
 
         $errorStep = 1;
-        if ($availableOffers->isNotEmpty() && old('amount_spent')) {
+        if (($availableOffers->isNotEmpty() || $raffleWins->isNotEmpty()) && old('amount_spent')) {
             $errorStep = 2;
         }
 
@@ -203,15 +206,26 @@ class TillController extends Controller
             'membership' => $membership,
             'rewards' => $rewards,
             'availableOffers' => $availableOffers,
+            'raffleWins' => $raffleWins,
             'offerCards' => $availableOffers->map(fn ($reward) => [
-                'id' => $reward->id,
+                'id' => (string) $reward->id,
+                'kind' => 'reward',
                 'name' => $reward->name,
                 'type' => $reward->reward_type,
                 'points' => $reward->points_cost,
                 'value' => (float) $reward->reward_value,
                 'label' => $reward->label(),
                 'needs_bill' => $reward->needsBill(),
-            ])->values()->all(),
+            ])->concat($raffleWins->map(fn ($win) => [
+                'id' => (string) $win->id,
+                'kind' => 'raffle',
+                'name' => $win->raffle->prize_name,
+                'type' => $win->raffle->prize_type,
+                'points' => 0,
+                'value' => (float) $win->raffle->prize_value,
+                'label' => $win->raffle->name,
+                'needs_bill' => in_array($win->raffle->prize_type, ['percent_off', 'fixed_off'], true),
+            ]))->values()->all(),
             'campaign' => $campaign,
             'productPushes' => $productPushes,
             'nextOffer' => $nextOffer,
@@ -305,6 +319,7 @@ class TillController extends Controller
             'featured_campaign_ids' => ['nullable', 'array'],
             'featured_campaign_ids.*' => ['integer'],
             'reward_id' => ['nullable', 'integer', 'exists:rewards,id'],
+            'raffle_winner_id' => ['nullable', 'integer', 'exists:raffle_winners,id'],
         ]);
 
         $shop = $business->shops()->whereKey($data['shop_id'])->firstOrFail();
@@ -336,8 +351,19 @@ class TillController extends Controller
             }
         }
 
+        $raffleWinnerId = ! empty($data['raffle_winner_id']) ? (int) $data['raffle_winner_id'] : null;
+        if ($reward && $raffleWinnerId) {
+            return back()->withErrors(['raffle_winner_id' => __('loop.till_raffle_or_offer')])->withInput();
+        }
+
         $amount = (float) $data['amount_spent'];
         $hasFeatured = $featuredIds !== [] || $includesFeatured === true;
+
+        $rafflePrize = null;
+        if ($raffleWinnerId) {
+            $rafflePrize = \App\Models\RaffleWinner::query()->with('raffle')->find($raffleWinnerId);
+        }
+        $raffleIsFree = $rafflePrize && in_array($rafflePrize->raffle?->prize_type, ['free_item', 'custom'], true);
 
         if ($reward?->isFreeRedeem() && $amount <= 0 && ! $hasFeatured && ! $payWithPoints) {
             try {
@@ -376,8 +402,11 @@ class TillController extends Controller
         if ($reward && $payWithPoints) {
             return back()->withErrors(['pay_with_points' => __('loop.till_no_pay_points_with_offer')])->withInput();
         }
+        if ($raffleWinnerId && $payWithPoints) {
+            return back()->withErrors(['pay_with_points' => __('loop.till_no_pay_points_with_offer')])->withInput();
+        }
 
-        if ($amount <= 0 && ! $payWithPoints && ! ($reward?->isFreeRedeem() && $hasFeatured)) {
+        if ($amount <= 0 && ! $payWithPoints && ! ($reward?->isFreeRedeem() && $hasFeatured) && ! $raffleIsFree) {
             return back()->withErrors(['amount_spent' => __('loop.amount_required')])->withInput();
         }
 
@@ -392,12 +421,16 @@ class TillController extends Controller
             $payWithPoints ? ($data['points_to_spend'] ?? null) : null,
             $includesFeatured,
             $reward?->id,
+            $raffleWinnerId,
         );
 
         $visit = $visit->fresh(['customer', 'membership', 'reward']);
         $to = (int) ($visit->membership?->points_balance ?? 0);
         $from = max(0, $to - (int) $visit->points_earned + (int) $visit->points_redeemed);
         $unlock = $till->unlockAfterSale($visit);
+        $gamePlay = \App\Support\GameSettings::tablesReady()
+            ? \App\Models\GamePlay::query()->where('visit_id', $visit->id)->latest('id')->first()
+            : null;
 
         $request->session()->forget('till.ticket');
 
@@ -414,6 +447,7 @@ class TillController extends Controller
             'unlock' => $unlock['reward']?->name,
             'unlock_when' => $unlock['when'],
             'visit' => $visit,
+            'game_play' => $gamePlay,
         ]);
     }
 
@@ -517,6 +551,14 @@ class TillController extends Controller
         ];
         if ($visit) {
             $extra['undo_url'] = route('till.undo', $visit);
+        }
+        if (! empty($moment['game_play'])) {
+            $play = $moment['game_play'];
+            $extra['game_play'] = [
+                'title' => __('loop.game_unlocked_play', ['name' => $customer->first_name ?: $customer->name]),
+                'game' => $play->game?->typeLabel() ?? __('loop.games_wins'),
+                'url' => route('games.play', $play),
+            ];
         }
 
         return redirect()->route('till.index')->with('confirm', Confirm::make(

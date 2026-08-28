@@ -10,7 +10,7 @@
                 </div>
             </div>
             @if ($unlocked && empty($platformOff))
-                <a href="{{ route('raffles.create') }}" class="loop-btn-ghost">{{ __('loop.create_raffle') }}</a>
+                <a href="{{ route('raffles.create') }}" class="loop-btn-mint shrink-0">{{ __('loop.create_raffle') }}</a>
             @endif
         </div>
     </x-slot>
@@ -36,15 +36,19 @@
             <div class="mt-6 h-2 overflow-hidden rounded-full bg-white/15">
                 <div class="h-full rounded-full bg-mint" style="width: {{ min(100, round(($memberCount / max(1,$minMembers)) * 100)) }}%"></div>
             </div>
-            <p class="mt-2 text-xs text-white/55">{{ $memberCount }} / {{ $minMembers }} {{ __('loop.members') }}</p>
+            <p class="mt-2 text-xs text-white/55">{{ number_format((int) $memberCount) }} / {{ number_format((int) $minMembers) }} {{ __('loop.members') }}</p>
         </section>
     @elseif ($reminders->isNotEmpty())
         <section class="mb-6 rounded-[1.5rem] border border-coral/25 bg-coral/10 px-5 py-4">
             <p class="font-semibold">{{ __('loop.raffle_reminders_title') }}</p>
             <ul class="mt-2 space-y-1 text-sm text-ink-muted">
                 @foreach ($reminders as $r)
-                    <li>{{ $r->name }} — {{ __('loop.draw_on') }} {{ $r->draw_at->format('d M Y') }}
-                        <a href="{{ route('raffles.live', $r) }}" class="ml-2 font-semibold text-mint-deep">{{ __('loop.start_draw') }} →</a>
+                    <li>{{ $r->name }} — {{ __('loop.draw_on') }} {{ $r->nextDrawDate()->format('d M Y') }}
+                        @if ($r->canDrawNow())
+                            <a href="{{ route('raffles.live', $r) }}" class="ml-2 font-semibold text-mint-deep">{{ __('loop.start_draw') }} →</a>
+                        @else
+                            <a href="{{ route('raffles.show', $r) }}" class="ml-2 font-semibold text-mint-deep">{{ __('loop.view_raffle') }} →</a>
+                        @endif
                     </li>
                 @endforeach
             </ul>
@@ -57,7 +61,7 @@
                 @php
                     $drawn = (int) ($raffle->drawn_count ?? 0);
                     $slotsLeft = max(0, (int) $raffle->winners_count - $drawn);
-                    $canDraw = empty($platformOff) && in_array($raffle->status, ['scheduled', 'live'], true) && $slotsLeft > 0;
+                    $canDraw = empty($platformOff) && $raffle->canDrawNow();
                 @endphp
                 <article class="rounded-[1.75rem] border border-ink/8 bg-white/90 p-5 sm:p-6">
                     <div class="flex flex-wrap items-start justify-between gap-4">
@@ -66,7 +70,7 @@
                             <p class="mt-2 text-sm text-ink-muted">
                                 {{ $raffle->prize_name }}
                                 · {{ trans_choice('loop.winner_count_label', $raffle->winners_count, ['count' => $raffle->winners_count]) }}
-                                · {{ __('loop.raffle_draw_day', ['day' => $raffle->draw_at->format('l')]) }}
+                                · {{ __('loop.raffle_draw_day', ['day' => $raffle->nextDrawDate()->format('l')]) }}
                             </p>
                             <p class="mt-3 text-sm font-semibold text-ink">{{ __('loop.members_are_in', ['count' => $eligibleCount]) }}</p>
                         </div>

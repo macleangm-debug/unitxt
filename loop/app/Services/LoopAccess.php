@@ -160,7 +160,7 @@ class LoopAccess
 
     public function activate(Business $business, string $planKey, int $months, int $monthlyPrice): void
     {
-        $months = in_array($months, [1, 3, 6, 12], true) ? $months : 1;
+        $months = BillingSettings::normalizeMonths($months);
         $payload = [
             'plan_key' => $planKey,
             'billing_status' => 'active',

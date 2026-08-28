@@ -1,0 +1,35 @@
+---
+description: Freeze Loop in-app shell navigation — chrome stays put, no tab-switch flicker
+alwaysApply: true
+---
+
+# Shell navigation (frozen)
+
+The Loop shell stays stable while only destination content changes. This is the permanent navigation rule for Member, Business, Affiliate, and Front Desk.
+
+Do **not** treat a tab tap like a brand-new app load. Do **not** reopen the page-transition / skeleton / veil system unless a real bug appears.
+
+## Must remain true
+
+- Bottom nav stays visually mounted during in-app navigation.
+- Header / account chrome must not flash or enlarge-snap.
+- No skeleton on ordinary tab switches.
+- No replayed entrance animation on already-loaded app navigation.
+- Skeleton is only for first load, hard refresh, or genuinely unloaded heavy content.
+- Active tab updates immediately on tap (`is-active` before the next document arrives).
+- Back navigation uses native scroll restoration; tab/push start at the top.
+- EN/SW sets `loopNavKind=tab` (`loop:locale-changing`) so locale return does not flash.
+- Bottom sheets close back into the same page. Do not navigate away to “close”.
+- Pending payment recoveries return into the current shell (`data-loop-quiet` / `loopNavKind`), not a full-page visual reset.
+- Front Desk Sale is high-frequency: lookup, branch, register, and store stay `data-loop-quiet`.
+
+## How it is implemented
+
+Incoming in-app pages read `sessionStorage.loopNavKind` in `head-boot` and paint `loop-ready` immediately. `loopNav.go` must not show the skeleton on the outgoing page. `html.loop-ready main.loop-shell` must not replay a fade/slide.
+
+## Never
+
+- Hide `body > :not(.loop-page-skeleton)` at opacity 0
+- Flash the skeleton on tab taps, locale switch, Till submit, or payment checkout
+- Invent a second navigation / motion system
+- Turn Loop into an SPA to “keep the shell mounted” — visual stability is the contract

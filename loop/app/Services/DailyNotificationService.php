@@ -10,6 +10,7 @@ use App\Models\Membership;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\FeatureFlags;
+use App\Support\GrowthSettings;
 use App\Support\NotificationPolicy;
 use App\Support\NotificationSettings;
 use Illuminate\Support\Carbon;
@@ -177,6 +178,8 @@ class DailyNotificationService
             'tone' => 'mint',
             'when' => true,
         ]);
+
+        $created += $this->pushRaffleDrawReminders($owner, $business, $day);
 
         $created += $this->ensureMinimum($owner, $business, $day, 'owner', [
             [
@@ -478,6 +481,47 @@ class DailyNotificationService
         if ($user->isAffiliate()) {
             $this->generateForAffiliate($user);
         }
+    }
+
+    private function pushRaffleDrawReminders(User $owner, Business $business, Carbon $day): int
+    {
+        if (! FeatureFlags::enabled('raffles')) {
+            return 0;
+        }
+
+        $days = (int) GrowthSettings::settings()['raffle_remind_days_before'];
+        $horizon = $day->copy()->addDays($days);
+        $created = 0;
+
+        $raffles = $business->raffles()
+            ->where('is_active', true)
+            ->whereIn('status', ['scheduled', 'live'])
+            ->get();
+
+        foreach ($raffles as $raffle) {
+            $next = $raffle->nextDrawDate($day);
+            if ($next->lt($day) || $next->gt($horizon)) {
+                continue;
+            }
+
+            $created += $this->push($owner, $business, 'raffle_draw', 'raffle_'.$raffle->id.'_'.$next->toDateString(), $day, [
+                'title_key' => 'loop.notif_raffle_draw_title',
+                'body_key' => $raffle->frequency === 'weekly'
+                    ? 'loop.notif_raffle_draw_weekly_body'
+                    : 'loop.notif_raffle_draw_body',
+                'params' => [
+                    'name' => $raffle->name,
+                    'date' => $next->toFormattedDateString(),
+                    'prize' => $raffle->prize_name,
+                ],
+                'cta_key' => $raffle->canDrawNow($day) ? 'loop.start_draw' : 'loop.view_raffle',
+                'url' => $raffle->canDrawNow($day) ? route('raffles.live', $raffle) : route('raffles.show', $raffle),
+                'tone' => $next->isSameDay($day) ? 'coral' : 'mint',
+                'when' => true,
+            ]);
+        }
+
+        return $created;
     }
 
     private function pushInsights(User $owner, Business $business, Carbon $day): int

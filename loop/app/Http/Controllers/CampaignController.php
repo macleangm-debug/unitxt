@@ -73,7 +73,12 @@ class CampaignController extends Controller
             $templateKey = 'everyday_earn';
         }
         $template = $templateKey ? CampaignTemplates::localized($templateKey) : null;
-        $usedTypes = $business->campaigns()->pluck('type')->unique()->values()->all();
+        $campaigns = $business->campaigns()->get();
+        $usedTypes = $campaigns->pluck('type')->unique()->values()->all();
+        $existingBonuses = $campaigns
+            ->filter(fn ($campaign) => in_array($campaign->type, ['birthday', 'welcome', 'streak'], true))
+            ->keyBy('type')
+            ->all();
         $limits = app(PlanLimitService::class);
         $canAddProductPush = $limits->canAddProductPush($business);
 
@@ -95,7 +100,7 @@ class CampaignController extends Controller
             'business' => $business,
             'shops' => $business->shops()->where('is_active', true)->orderBy('name')->get(),
             'offers' => $offers,
-            'pickerGroups' => CampaignTemplates::picker($usedTypes, $canAddProductPush),
+            'pickerGroups' => CampaignTemplates::picker($usedTypes, $canAddProductPush, $existingBonuses),
             'template' => $template,
             'templateKey' => $templateKey,
             'picking' => $template === null,

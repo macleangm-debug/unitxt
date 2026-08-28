@@ -110,7 +110,7 @@
                 @if ($earnCampaign)
                     <p class="rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3 text-sm font-medium text-ink">
                         {{ __('loop.customer_gets') }}:
-                        {{ $earnCampaign->points_per_step }} {{ __('loop.pts') }} /
+                        {{ number_format((int) $earnCampaign->points_per_step) }} {{ __('loop.pts') }} /
                         {{ $business->currency }} {{ number_format($earnCampaign->spend_step) }}
                     </p>
                 @endif
@@ -125,7 +125,7 @@
                         >
                             <div class="flex items-start justify-between gap-3">
                                 <p class="font-display text-lg font-semibold">{{ $starter['name'] }}</p>
-                                <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ $starter['points_cost'] }} {{ __('loop.pts') }}</span>
+                                <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-xs font-semibold text-ink">{{ number_format((int) $starter['points_cost']) }} {{ __('loop.pts') }}</span>
                             </div>
                             <p class="mt-2 text-sm text-ink-muted">{{ $starter['description'] }}</p>
                             <div x-show="type === @js($starter['reward_type'])" x-cloak x-transition class="mt-3 border-t border-ink/5 pt-3">

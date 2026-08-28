@@ -7,7 +7,7 @@
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $reward->name }}</h1>
                     <x-status-pill :live="$reward->is_active" size="lg" />
                 </div>
-                <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} {{ __('loop.pts') }}</p>
+                <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <x-back-icon :href="route('campaigns.index', ['tab' => 'offers'])" />
@@ -31,9 +31,9 @@
     <div class="mt-6 rounded-[1.5rem] border border-ink/10 bg-white px-5 py-5">
         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.member_redeems') }}</p>
         <p class="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-            {{ $reward->points_cost }} {{ __('loop.pts') }}
+            {{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}
         </p>
-        <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ __('loop.offer_hero_hint', ['points' => $reward->points_cost]) }}</p>
+        <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ __('loop.offer_hero_hint', ['points' => number_format((int) $reward->points_cost)]) }}</p>
         @if ($reward->product_name)
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.product') }}: <span class="font-semibold text-ink">{{ $reward->product_name }}</span></p>
         @endif

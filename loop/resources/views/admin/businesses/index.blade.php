@@ -34,7 +34,7 @@
                 </thead>
                 <tbody>
                     @foreach ($businesses as $business)
-                        <tr>
+                        <tr class="admin-row-link" onclick="window.location='{{ route('admin.businesses.show', $business) }}'">
                             <td>
                                 <p class="font-semibold">{{ $business->name }}</p>
                                 <p class="text-xs text-ink-muted">{{ $business->owner?->name }} · {{ $business->city }}</p>

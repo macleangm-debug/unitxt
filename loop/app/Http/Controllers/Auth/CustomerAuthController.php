@@ -38,10 +38,26 @@ class CustomerAuthController extends Controller
             ->where('phone', $phone)
             ->first();
 
-        if ($user && ! $user->isCustomer()) {
-            return back()->withErrors([
-                'phone' => __('loop.phone_belongs_to_staff'),
-            ]);
+        if ($user && $user->isAdmin()) {
+            return back()->with('confirm', Confirm::make(
+                __('loop.phone_already_on_loop'),
+                __('loop.phone_belongs_to_staff'),
+                __('loop.try_again'),
+                route('customer.login'),
+                false,
+                ['kind' => 'error', 'dismiss' => true],
+            ));
+        }
+
+        if ($user && $user->isStaff()) {
+            return back()->with('confirm', Confirm::make(
+                __('loop.staff_is_member_title'),
+                __('loop.staff_is_member_body'),
+                __('loop.done'),
+                route('customer.login'),
+                false,
+                ['dismiss' => true],
+            ));
         }
 
         $request->session()->put('customer_auth', [
@@ -119,10 +135,25 @@ class CustomerAuthController extends Controller
         }
 
         $existing = $this->pendingCustomer($auth);
+        if ($existing && $existing->isStaff()) {
+            return redirect()->route('customer.login')->with('confirm', Confirm::make(
+                __('loop.staff_is_member_title'),
+                __('loop.staff_is_member_body'),
+                __('loop.done'),
+                route('customer.login'),
+                false,
+                ['dismiss' => true],
+            ));
+        }
         if ($existing && ! $existing->isCustomer()) {
-            return redirect()->route('customer.login')->withErrors([
-                'phone' => __('loop.phone_belongs_to_staff'),
-            ]);
+            return redirect()->route('customer.login')->with('confirm', Confirm::make(
+                __('loop.phone_already_on_loop'),
+                __('loop.phone_belongs_to_staff'),
+                __('loop.try_again'),
+                route('customer.login'),
+                false,
+                ['kind' => 'error', 'dismiss' => true],
+            ));
         }
 
         $country = $existing?->country ?: ($auth['country'] ?? 'TZ');
@@ -149,10 +180,25 @@ class CustomerAuthController extends Controller
         }
 
         $user = $this->pendingCustomer($auth);
+        if ($user && $user->isStaff()) {
+            return redirect()->route('customer.login')->with('confirm', Confirm::make(
+                __('loop.staff_is_member_title'),
+                __('loop.staff_is_member_body'),
+                __('loop.done'),
+                route('customer.login'),
+                false,
+                ['dismiss' => true],
+            ));
+        }
         if ($user && ! $user->isCustomer()) {
-            return redirect()->route('customer.login')->withErrors([
-                'phone' => __('loop.phone_belongs_to_staff'),
-            ]);
+            return redirect()->route('customer.login')->with('confirm', Confirm::make(
+                __('loop.phone_already_on_loop'),
+                __('loop.phone_belongs_to_staff'),
+                __('loop.try_again'),
+                route('customer.login'),
+                false,
+                ['kind' => 'error', 'dismiss' => true],
+            ));
         }
 
         $needsPin = empty($auth['has_pin']) && empty($auth['pin_verified']) && ! $user?->password;
@@ -224,6 +270,10 @@ class CustomerAuthController extends Controller
         $request->session()->regenerate();
         $request->session()->put('preferred_country', $data['country']);
         $request->session()->flash('show_welcome', true);
+
+        $user->marketing_opt_in = $request->boolean('marketing_opt_in');
+        $user->save();
+        app(\App\Services\LegalService::class)->recordSignup($user, 'member');
 
         return redirect()->route('dashboard');
     }

@@ -2,6 +2,7 @@
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.admin_settings_hub') }}</p>
                 <h1>{{ __('loop.admin_errors') }}</h1>
                 <p class="mt-1 text-sm text-slate-500">{{ __('loop.admin_errors_blurb') }}</p>
             </div>

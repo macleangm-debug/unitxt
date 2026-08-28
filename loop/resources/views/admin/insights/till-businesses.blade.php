@@ -41,7 +41,7 @@
                             <td class="font-semibold">{{ $row->name }}</td>
                             <td>{{ $row->sector_label }}</td>
                             <td>{{ $row->unique_customers }}</td>
-                            <td>{{ $row->sales_count }}</td>
+                            <td>{{ number_format((int) $row->sales_count) }}</td>
                             <td>TZS {{ number_format($row->revenue) }}</td>
                             <td>{{ $row->plan_key }}</td>
                             <td class="text-right"><a href="{{ route('admin.businesses.show', $row->id) }}" class="text-sm font-semibold text-violet">{{ __('loop.view') }} →</a></td>

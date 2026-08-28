@@ -89,31 +89,66 @@ class BillingSettings
     }
 
     /**
+     * Highlight months for Admin copy. Percentages still come from the 3 / 6 / 12 tier fields.
+     *
      * @return array<int, int> months => discount percent
      */
     public static function intervalDiscounts(): array
     {
-        $settings = self::settings();
-
         return [
-            1 => 0,
-            3 => (int) $settings['discount_months_3'],
-            6 => (int) $settings['discount_months_6'],
-            12 => (int) $settings['discount_months_12'],
+            1 => self::discountForMonths(1),
+            3 => self::discountForMonths(3),
+            6 => self::discountForMonths(6),
+            12 => self::discountForMonths(12),
         ];
+    }
+
+    /**
+     * @return array<int, int> 1–12 => discount percent
+     */
+    public static function monthDiscounts(): array
+    {
+        $out = [];
+        for ($months = 1; $months <= 12; $months++) {
+            $out[$months] = self::discountForMonths($months);
+        }
+
+        return $out;
+    }
+
+    public static function normalizeMonths(int $months): int
+    {
+        return max(1, min(12, $months));
     }
 
     public static function discountForMonths(int $months): int
     {
-        return self::intervalDiscounts()[$months] ?? 0;
+        $months = self::normalizeMonths($months);
+        $settings = self::settings();
+        if ($months >= 12) {
+            return (int) $settings['discount_months_12'];
+        }
+        if ($months >= 6) {
+            return (int) $settings['discount_months_6'];
+        }
+        if ($months >= 3) {
+            return (int) $settings['discount_months_3'];
+        }
+
+        return 0;
     }
 
     public static function amountForMonths(int $monthly, int $months): int
     {
-        $months = in_array($months, [1, 3, 6, 12], true) ? $months : 1;
+        $months = self::normalizeMonths($months);
         $discount = self::discountForMonths($months);
 
         return (int) round($monthly * $months * (100 - $discount) / 100);
+    }
+
+    public static function expiresAt(int $months): \Illuminate\Support\Carbon
+    {
+        return now()->addMonths(self::normalizeMonths($months));
     }
 
     public static function graceDays(): int
@@ -126,7 +161,7 @@ class BillingSettings
      */
     public static function quote(int $monthly, int $months): array
     {
-        $months = in_array($months, [1, 3, 6, 12], true) ? $months : 1;
+        $months = self::normalizeMonths($months);
         $full = $monthly * $months;
         $amount = self::amountForMonths($monthly, $months);
 

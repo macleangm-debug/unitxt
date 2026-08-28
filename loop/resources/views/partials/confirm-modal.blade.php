@@ -1,43 +1,30 @@
 @php
-    $confirm = $confirm ?? session('confirm');
-    $confirmUrl = $confirm['url'] ?? '';
+    $confirm = $confirm ?? \App\Support\Confirm::resolve(session('confirm'), session('status'), $errors ?? null);
+    $confirmUrl = is_array($confirm) ? ($confirm['url'] ?? '') : '';
     $currentUrl = url()->current();
     $samePage = $confirmUrl !== '' && rtrim($confirmUrl, '/') === rtrim($currentUrl, '/');
-    $ctaIsDone = strcasecmp((string) ($confirm['cta'] ?? ''), (string) __('loop.done')) === 0;
-    $mustContinue = ! empty($confirm['must_continue']);
-    $tillInline = $confirm && request()->routeIs('till.index') && ! empty($confirm['loop_moment']);
-    $isToast = $confirm
-        && ! $tillInline
-        && empty($confirm['celebrate'])
-        && empty($confirm['loop_moment'])
-        && empty($confirm['must_continue'])
-        && empty($confirm['steps']);
+    $ctaIsDone = strcasecmp((string) (is_array($confirm) ? ($confirm['cta'] ?? '') : ''), (string) __('loop.done')) === 0;
+    $mustContinue = is_array($confirm) && ! empty($confirm['must_continue']);
+    $tillInline = is_array($confirm) && request()->routeIs('till.index') && ! empty($confirm['loop_moment']);
+    $isError = is_array($confirm) && ($confirm['kind'] ?? '') === 'error';
+    $delayMs = is_array($confirm) ? (int) ($confirm['delay_ms'] ?? 0) : 0;
 @endphp
 
-@if ($confirm && ! $tillInline && $isToast)
-    <template x-teleport="body">
-        <div
-            x-data="{ open: true }"
-            x-show="open"
-            x-cloak
-            x-init="setTimeout(() => open = false, 2400)"
-            x-transition:enter="transition ease-out"
-            x-transition:enter-start="opacity-0 translate-y-2"
-            x-transition:enter-end="opacity-100 translate-y-0"
-            x-transition:leave="transition ease-in"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"
-            class="loop-toast"
-            role="status"
-        >
-            <span class="loop-toast__check">✓</span>
-            <span>{{ $confirm['title'] }}</span>
-        </div>
-    </template>
-@elseif ($confirm && ! $tillInline)
+@if ($confirm && ! $tillInline)
     <template x-teleport="body">
     <div
-        x-data="{ open: true }"
+        x-data="{
+            open: {{ $delayMs > 0 ? 'false' : 'true' }},
+            delayMs: {{ $delayMs }},
+            init() {
+                if (this.delayMs <= 0) {
+                    return;
+                }
+                const reveal = () => { this.open = true; };
+                window.addEventListener('loop:confirm-ready', reveal, { once: true });
+                setTimeout(reveal, this.delayMs);
+            }
+        }"
         x-show="open"
         x-cloak
         x-transition:enter="loop-sheet-enter-active"
@@ -69,7 +56,9 @@
                 </style>
             @endif
             <div class="relative">
-                @if (!empty($confirm['celebrate']))
+                @if ($isError)
+                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-coral/15 text-3xl font-bold text-coral ring-1 ring-coral/30">!</div>
+                @elseif (!empty($confirm['celebrate']))
                     <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint-deep text-3xl font-bold text-white shadow-[0_12px_40px_rgba(27,94,32,0.35)]">✓</div>
                 @else
                     <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint-soft text-3xl font-bold text-mint-deep ring-1 ring-mint/30">✓</div>
@@ -100,7 +89,14 @@
                             </p>
                         </div>
                     @endif
-                @else
+                    @if (! empty($confirm['game_play']))
+                        <div class="mt-5 rounded-[1.25rem] bg-violet px-4 py-3 text-white">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{{ $confirm['game_play']['game'] }}</p>
+                            <p class="mt-1 font-display text-xl font-semibold">{{ $confirm['game_play']['title'] }}</p>
+                            <a href="{{ $confirm['game_play']['url'] }}" class="loop-btn-lime mt-3 inline-flex">{{ __('loop.game_let_them_play') }}</a>
+                        </div>
+                    @endif
+                @elseif (! empty($confirm['body_html']) || filled($confirm['body'] ?? ''))
                     <p class="mt-3 text-base font-medium leading-relaxed text-ink-muted sm:text-lg">
                         @if (! empty($confirm['body_html']))
                             {!! $confirm['body_html'] !!}

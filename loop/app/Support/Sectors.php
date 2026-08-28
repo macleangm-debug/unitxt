@@ -64,7 +64,7 @@ class Sectors
     public static function defaultRows(): array
     {
         return [
-            ['restaurants', 'Restaurant', 'food', 'restaurant, mgahawa, chakula, food, eatery, dining', 1, 'Restaurant', 10],
+            ['restaurants', 'Restaurant', 'food', 'restaurant, mgahawa, chakula, food, eatery, dining, burger, hamburgers', 1, 'Restaurant', 10],
             ['coffee', 'Café / Coffee Shop', 'food', 'cafe, café, coffee, kahawa, coffee shop', 1, 'Café', 11],
             ['fast_food', 'Fast Food', 'food', 'fast food, chips, street food, takeout', 0, '', 12],
             ['bakery', 'Bakery', 'food', 'bakery, pastry, mkate, cakes, bread', 0, '', 13],
@@ -247,6 +247,52 @@ class Sectors
     public static function pickerRecords(): array
     {
         return array_values(array_map(fn (array $row) => $row + ['search' => self::haystack($row)], self::records()));
+    }
+
+    /**
+     * Featured catalogue rows for Discover chips. Same Settings Hub source, not a second taxonomy.
+     *
+     * @return list<array{key: string, label: string, category: string, aliases: string, featured: bool, short: string, rank: int}>
+     */
+    public static function featured(): array
+    {
+        return array_values(array_filter(self::list(), fn (array $row) => $row['featured']));
+    }
+
+    /**
+     * Sector keys whose label, aliases, or category match a search term.
+     *
+     * @return list<string>
+     */
+    public static function keysMatching(string $query): array
+    {
+        $q = strtolower(trim($query));
+        if ($q === '') {
+            return [];
+        }
+
+        $keys = [];
+        foreach (self::pickerRecords() as $row) {
+            if (str_contains($row['search'], $q)) {
+                $keys[] = $row['key'];
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function keysInCategory(string $category): array
+    {
+        $category = self::normalizeCategory($category);
+
+        return collect(self::list())
+            ->filter(fn (array $row) => $row['category'] === $category)
+            ->pluck('key')
+            ->values()
+            ->all();
     }
 
     /**

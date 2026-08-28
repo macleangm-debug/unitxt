@@ -47,6 +47,7 @@ use Illuminate\Support\Str;
     'referral_discount_percent',
     'referral_credit_months',
     'referral_credit_days',
+    'sms_credit_balance',
     'referral_milestones_applied',
 ])]
 class Business extends Model
@@ -72,6 +73,7 @@ class Business extends Model
             'referral_discount_percent' => 'integer',
             'referral_credit_months' => 'integer',
             'referral_credit_days' => 'integer',
+            'sms_credit_balance' => 'integer',
             'referral_milestones_applied' => 'array',
         ];
     }
@@ -152,6 +154,11 @@ class Business extends Model
         return $this->hasMany(Membership::class);
     }
 
+    public function paymentIntents(): HasMany
+    {
+        return $this->hasMany(PaymentIntent::class);
+    }
+
     public function rewards(): HasMany
     {
         return $this->hasMany(Reward::class);
@@ -160,6 +167,11 @@ class Business extends Model
     public function raffles(): HasMany
     {
         return $this->hasMany(Raffle::class);
+    }
+
+    public function games(): HasMany
+    {
+        return $this->hasMany(Game::class, 'business_id');
     }
 
     public function visits(): HasMany

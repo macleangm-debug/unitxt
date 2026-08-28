@@ -79,6 +79,27 @@ class CampaignOfferUiTest extends TestCase
             ->assertSee(__('loop.templates.birthday_treat.name'), false);
     }
 
+    public function test_birthday_stays_visible_when_already_live(): void
+    {
+        [$owner, $business] = $this->seedOwnerWithOffer();
+        $birthday = Campaign::create([
+            'business_id' => $business->id,
+            'name' => 'Birthday treat',
+            'type' => 'birthday',
+            'bonus_points' => 50,
+            'starts_at' => now()->toDateString(),
+            'is_active' => true,
+            'template_key' => 'birthday_treat',
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('campaigns.create'))
+            ->assertOk()
+            ->assertSee(__('loop.templates.birthday_treat.name'), false)
+            ->assertSee(__('loop.bonus_already_live'), false)
+            ->assertSee(route('campaigns.edit', $birthday), false);
+    }
+
     public function test_product_push_wizard_only_asks_for_product_and_bonus_points(): void
     {
         [$owner] = $this->seedOwnerWithOffer();
@@ -109,9 +130,10 @@ class CampaignOfferUiTest extends TestCase
 
     public function test_swahili_offer_type_titles(): void
     {
-        $this->assertSame('Punguzo', trans('loop.offer_type_percent_off_title', [], 'sw'));
-        $this->assertSame('Punguzo la pesa', trans('loop.offer_type_fixed_off_title', [], 'sw'));
-        $this->assertSame('Kitu bure', trans('loop.offer_type_free_item_title', [], 'sw'));
+        $this->assertSame('Punguzo la Asilimia', trans('loop.offer_type_percent_off_title', [], 'sw'));
+        $this->assertSame('Punguzo la Fedha', trans('loop.offer_type_fixed_off_title', [], 'sw'));
+        $this->assertSame('Punguzo la Fedha', trans('loop.offer_type_fixed_name', [], 'sw'));
+        $this->assertSame('Bidhaa ya Bure', trans('loop.offer_type_free_item_title', [], 'sw'));
     }
 
     public function test_new_offer_shows_type_cards_inside_wizard(): void

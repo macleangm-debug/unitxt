@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Confirm;
+use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,8 +15,15 @@ class BusinessController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
 
+        $dial = Countries::dial($business->country ?? 'TZ');
+        $hotlineLocal = $business->hotline
+            ? preg_replace('/^\+\d+\s*/', '', (string) $business->hotline)
+            : '';
+
         return view('business.edit', [
             'business' => $business,
+            'dial' => $dial,
+            'hotlineLocal' => $hotlineLocal,
         ]);
     }
 
@@ -29,6 +37,7 @@ class BusinessController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'city' => ['nullable', 'string', 'max:80'],
             'hotline' => ['nullable', 'string', 'max:40'],
+            'hotline_country_code' => ['nullable', 'string', 'max:8'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
             'allow_pay_with_points' => ['sometimes', 'boolean'],
@@ -49,7 +58,9 @@ class BusinessController extends Controller
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'city' => $data['city'] ?? $business->city,
-            'hotline' => $data['hotline'] ?? null,
+            'hotline' => filled($data['hotline'] ?? null)
+                ? trim(($data['hotline_country_code'] ?? Countries::dial($business->country ?? 'TZ')).' '.Countries::normalizePhone($data['hotline']))
+                : null,
             'logo_path' => $business->logo_path,
             'is_active' => $request->boolean('is_active', $business->is_active),
             'allow_pay_with_points' => $allowPay,

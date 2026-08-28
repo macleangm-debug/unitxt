@@ -1,6 +1,6 @@
 @php
     $tab = request('tab', 'overview');
-    $allowed = ['overview', 'packages', 'billing', 'growth', 'marketing', 'platform', 'sectors', 'countries', 'language', 'visibility', 'referrals', 'affiliates', 'notifications', 'product', 'health', 'links'];
+    $allowed = ['overview', 'packages', 'billing', 'growth', 'games', 'marketing', 'platform', 'sectors', 'countries', 'language', 'visibility', 'referrals', 'affiliates', 'notifications', 'product', 'health', 'legal', 'links'];
     if (! in_array($tab, $allowed, true)) {
         $tab = 'overview';
     }
@@ -9,6 +9,7 @@
         'packages' => __('loop.settings_tab_packages'),
         'billing' => __('loop.settings_tab_billing'),
         'growth' => __('loop.settings_tab_growth'),
+        'games' => __('loop.settings_tab_games'),
         'marketing' => __('loop.settings_tab_marketing'),
         'platform' => __('loop.settings_tab_platform'),
         'sectors' => __('loop.settings_tab_sectors'),
@@ -20,6 +21,7 @@
         'notifications' => __('loop.settings_tab_notifications'),
         'product' => __('loop.settings_tab_product'),
         'health' => __('loop.settings_tab_health'),
+        'legal' => __('loop.settings_tab_legal'),
         'links' => __('loop.settings_tab_links'),
     ];
 @endphp
@@ -32,6 +34,17 @@
             <p class="mt-1 text-sm text-slate-500">{{ __('loop.admin_settings_hub_blurb') }}</p>
         </div>
     </x-slot>
+
+    <div class="admin-subnav" role="tablist">
+        @foreach ($tabs as $key => $label)
+            <a href="{{ route('admin.settings', ['tab' => $key]) }}"
+               class="{{ $tab === $key ? 'is-active' : '' }}"
+               role="tab"
+               aria-selected="{{ $tab === $key ? 'true' : 'false' }}">{{ $label }}</a>
+        @endforeach
+        <a href="{{ route('admin.integrations.index') }}">{{ __('loop.integrations_hub') }}</a>
+        <a href="{{ route('admin.errors.index') }}">{{ __('loop.admin_errors') }}</a>
+    </div>
 
     @if ($tab === 'overview')
         <section class="admin-card">
@@ -54,6 +67,7 @@
                             'packages' => [__('loop.settings_tab_packages'), __('loop.settings_tab_packages_blurb')],
                             'billing' => [__('loop.settings_tab_billing'), __('loop.billing_trial_settings_blurb')],
                             'growth' => [__('loop.settings_tab_growth'), __('loop.growth_banners_settings_blurb')],
+                            'games' => [__('loop.settings_tab_games'), __('loop.settings_tab_games_blurb')],
                             'marketing' => [__('loop.settings_tab_marketing'), __('loop.settings_tab_marketing_blurb')],
                             'platform' => [__('loop.settings_tab_platform'), __('loop.admin_base_url_blurb')],
                             'sectors' => [__('loop.settings_tab_sectors'), __('loop.admin_sectors_blurb')],
@@ -84,6 +98,15 @@
                             </td>
                             <td class="text-right whitespace-nowrap">
                                 <a href="{{ route('admin.integrations.index') }}" class="admin-link">{{ __('loop.view') }}</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <p class="font-semibold">{{ __('loop.admin_errors') }}</p>
+                                <p class="text-xs text-slate-500">{{ __('loop.admin_errors_blurb') }}</p>
+                            </td>
+                            <td class="text-right whitespace-nowrap">
+                                <a href="{{ route('admin.errors.index') }}" class="admin-link">{{ __('loop.view') }}</a>
                             </td>
                         </tr>
                     </tbody>
@@ -150,6 +173,8 @@
                                 <dd>{{ $plan->has_sms ? __('loop.on') : __('loop.off') }}</dd>
                                 <dt>{{ __('loop.plan_includes_raffles') }}</dt>
                                 <dd>{{ $plan->has_raffles ? __('loop.on') : __('loop.off') }}</dd>
+                                <dt>{{ __('loop.plan_includes_games') }}</dt>
+                                <dd>{{ $plan->has_games ? __('loop.on') : __('loop.off') }}</dd>
                                 <dt>{{ __('loop.show_on_pricing') }}</dt>
                                 <dd>{{ $plan->is_public ? __('loop.on') : __('loop.off') }}</dd>
                             </dl>
@@ -212,6 +237,10 @@
                             <label class="flex items-center gap-2 text-sm font-semibold">
                                 <input type="checkbox" name="has_sms" value="1" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(old('has_sms', $plan->has_sms))>
                                 {{ __('loop.plan_includes_sms') }}
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold">
+                                <input type="checkbox" name="has_games" value="1" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(old('has_games', $plan->has_games))>
+                                {{ __('loop.plan_includes_games') }}
                             </label>
                             <div class="sm:col-span-2">
                                 <label class="loop-label">{{ __('loop.plan_features') }}</label>
@@ -290,14 +319,17 @@
                         <div>
                             <label class="loop-label">{{ __('loop.discount_3_months') }}</label>
                             <input type="number" min="0" max="80" name="discount_months_3" value="{{ old('discount_months_3', $billing['discount_months_3'] ?? 8) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.discount_3_months_help') }}</p>
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.discount_6_months') }}</label>
                             <input type="number" min="0" max="80" name="discount_months_6" value="{{ old('discount_months_6', $billing['discount_months_6'] ?? 15) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.discount_6_months_help') }}</p>
                         </div>
                         <div>
                             <label class="loop-label">{{ __('loop.discount_12_months') }}</label>
                             <input type="number" min="0" max="80" name="discount_months_12" value="{{ old('discount_months_12', $billing['discount_months_12'] ?? 25) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.discount_12_months_help') }}</p>
                         </div>
                     </div>
                     <label class="flex items-start gap-3 text-sm">
@@ -358,6 +390,11 @@
                             <label class="loop-label">{{ __('loop.raffle_default_claim_days') }}</label>
                             <input type="number" min="1" max="30" name="raffle_default_claim_days" value="{{ old('raffle_default_claim_days', $growth['raffle_default_claim_days']) }}" class="loop-input" required>
                         </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.raffle_spin_seconds') }}</label>
+                            <input type="number" min="45" max="60" name="raffle_spin_seconds" value="{{ old('raffle_spin_seconds', $growth['raffle_spin_seconds']) }}" class="loop-input" required>
+                            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.raffle_spin_seconds_help') }}</p>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -401,6 +438,94 @@
                             {{ $label }}
                         </label>
                     @endforeach
+                </div>
+                <button class="admin-btn">{{ __('loop.save') }}</button>
+            </x-admin.settings-lock>
+        </form>
+    @endif
+
+    @if ($tab === 'games')
+        @php $gs = $gameSettings ?? \App\Support\GameSettings::settings(); @endphp
+        <form method="POST" action="{{ route('admin.settings.games') }}" class="admin-card space-y-5">
+            @csrf
+            @method('PUT')
+            <div>
+                <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_games') }}</h2>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_games_blurb') }}</p>
+            </div>
+            <x-admin.settings-lock>
+                <label class="flex items-center gap-2 text-sm font-semibold">
+                    <input type="checkbox" name="enabled" value="1" class="rounded border-ink/20 text-mint focus:ring-mint" @checked(old('enabled', $gs['enabled']))>
+                    {{ __('loop.game_settings_enabled') }}
+                </label>
+                <div>
+                    <p class="loop-label">{{ __('loop.game_settings_types') }}</p>
+                    <div class="mt-2 flex flex-wrap gap-3 text-sm">
+                        @foreach (\App\Support\GameSettings::TYPES as $type)
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" name="types[]" value="{{ $type }}" @checked(in_array($type, old('types', $gs['types']), true))>
+                                {{ __('loop.game_type_'.$type) }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_settings_qualify') }}</label>
+                        <select name="default_qualify" class="loop-input">
+                            @foreach (\App\Support\GameSettings::QUALIFY as $mode)
+                                <option value="{{ $mode }}" @selected(old('default_qualify', $gs['default_qualify']) === $mode)>{{ __('loop.game_qualify_'.$mode) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_spend_multiplier') }}</label>
+                        <input type="number" min="1" max="4" step="0.1" name="spend_multiplier" value="{{ old('spend_multiplier', $gs['spend_multiplier']) }}" class="loop-input" required>
+                        <p class="mt-1 text-xs text-ink-muted">{{ __('loop.game_spend_multiplier_help') }}</p>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_recommended_visits') }}</label>
+                        <input type="number" min="2" max="20" name="recommended_visit_threshold" value="{{ old('recommended_visit_threshold', $gs['recommended_visit_threshold']) }}" class="loop-input" required>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_recommended_win_rate') }}</label>
+                        <input type="number" min="5" max="50" name="recommended_win_rate" value="{{ old('recommended_win_rate', $gs['recommended_win_rate']) }}" class="loop-input" required>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_max_win_rate') }}</label>
+                        <input type="number" min="10" max="80" name="max_win_rate" value="{{ old('max_win_rate', $gs['max_win_rate']) }}" class="loop-input" required>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_default_frequency') }}</label>
+                        <select name="default_play_frequency" class="loop-input">
+                            @foreach (\App\Support\GameSettings::FREQUENCIES as $freq)
+                                <option value="{{ $freq }}" @selected(old('default_play_frequency', $gs['default_play_frequency']) === $freq)>{{ __('loop.game_limit_'.$freq) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_max_duration') }}</label>
+                        <input type="number" min="1" max="365" name="max_duration_days" value="{{ old('max_duration_days', $gs['max_duration_days']) }}" class="loop-input" required>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_claim_days') }}</label>
+                        <input type="number" min="1" max="30" name="claim_days" value="{{ old('claim_days', $gs['claim_days']) }}" class="loop-input" required>
+                    </div>
+                    <div>
+                        <label class="loop-label">{{ __('loop.game_expected_plays') }}</label>
+                        <input type="number" min="20" max="20000" name="expected_plays" value="{{ old('expected_plays', $gs['expected_plays']) }}" class="loop-input" required>
+                    </div>
+                </div>
+                <div>
+                    <p class="loop-label">{{ __('loop.game_prize_kinds') }}</p>
+                    <div class="mt-2 flex flex-wrap gap-3 text-sm">
+                        @foreach (\App\Support\GameSettings::PRIZE_KINDS as $kind)
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" name="allowed_prize_kinds[]" value="{{ $kind }}" @checked(in_array($kind, old('allowed_prize_kinds', $gs['allowed_prize_kinds']), true))>
+                                {{ __('loop.game_prize_kind_'.$kind) }}
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
                 <button class="admin-btn">{{ __('loop.save') }}</button>
             </x-admin.settings-lock>
@@ -646,6 +771,31 @@
                         </div>
                     </div>
                     <button class="admin-btn">{{ __('loop.save') }}</button>
+                </x-admin.settings-lock>
+            </form>
+        </div>
+        <div class="admin-card mt-5">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.sms_rates_title') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.sms_rates_blurb') }}</p>
+            <form method="POST" action="{{ route('admin.settings.messaging') }}" class="mt-4">
+                @csrf
+                @method('PUT')
+                <x-admin.settings-lock>
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="loop-label">{{ __('loop.price_per_message') }}</label>
+                            <input type="number" min="1" name="price_per_message" value="{{ old('price_per_message', $messagingRates['price_per_message'] ?? 30) }}" class="loop-input">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.chars_per_message') }}</label>
+                            <input type="number" min="1" max="320" name="chars_per_message" value="{{ old('chars_per_message', $messagingRates['chars_per_message'] ?? 160) }}" class="loop-input">
+                        </div>
+                        <div>
+                            <label class="loop-label">{{ __('loop.sender_id_yearly_fee') }}</label>
+                            <input type="number" min="0" name="sender_id_yearly_fee" value="{{ old('sender_id_yearly_fee', $messagingRates['sender_id_yearly_fee'] ?? 15000) }}" class="loop-input">
+                        </div>
+                    </div>
+                    <button class="admin-btn mt-4">{{ __('loop.save') }}</button>
                 </x-admin.settings-lock>
             </form>
         </div>
@@ -903,6 +1053,59 @@
                                 <td colspan="4" class="text-ink-muted">{{ __('loop.no_setting_audits') }}</td>
                             </tr>
                         @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
+
+    @if ($tab === 'legal')
+        <section class="admin-card">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.settings_tab_legal') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.settings_tab_legal_blurb') }}</p>
+            <form method="POST" action="{{ route('admin.settings.legal') }}" class="mt-5 space-y-4">
+                @csrf
+                @method('PUT')
+                @foreach ([
+                    'legal_name' => __('loop.legal_company_name'),
+                    'registration_number' => __('loop.legal_registration'),
+                    'tin' => __('loop.legal_tin'),
+                    'address' => __('loop.legal_address'),
+                    'legal_email' => __('loop.legal_email'),
+                    'dpo_email' => __('loop.legal_dpo_email'),
+                    'support_email' => __('loop.legal_support_email'),
+                    'support_phone' => __('loop.legal_support_phone'),
+                ] as $key => $label)
+                    <div>
+                        <label class="loop-label">{{ $label }}</label>
+                        <input name="{{ $key }}" value="{{ old($key, $legalIdentity[$key] ?? '') }}" class="loop-input">
+                    </div>
+                @endforeach
+                <button class="loop-btn">{{ __('loop.save') }}</button>
+            </form>
+        </section>
+        <section class="admin-card mt-5">
+            <h2 class="font-display text-xl font-semibold">{{ __('loop.legal_documents') }}</h2>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.legal_documents_admin_blurb') }}</p>
+            <div class="admin-table-wrap mt-4">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('loop.document') }}</th>
+                            <th>{{ __('loop.version') }}</th>
+                            <th>{{ __('loop.status') }}</th>
+                            <th>{{ __('loop.effective') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($legalDocuments as $doc)
+                            <tr>
+                                <td>{{ $doc->title_en }}</td>
+                                <td>{{ $doc->version }}</td>
+                                <td>{{ $doc->status }}{{ $doc->counsel_reviewed ? '' : ' · DRAFT' }}</td>
+                                <td>{{ optional($doc->effective_on)->format('d M Y') }}</td>
+                            </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>

@@ -52,8 +52,15 @@ class BusinessController extends Controller
 
     public function show(Business $business, PlanLimitService $limits): View
     {
-        $business->load(['owner', 'plan', 'shops']);
-        $business->loadCount(['shops', 'memberships', 'visits', 'rewards', 'campaigns', 'referralsMade']);
+        $business->load([
+            'owner',
+            'plan',
+            'shops',
+            'campaigns' => fn ($q) => $q->latest()->take(10),
+            'rewards' => fn ($q) => $q->latest()->take(10),
+            'raffles' => fn ($q) => $q->latest()->take(10),
+        ]);
+        $business->loadCount(['shops', 'memberships', 'visits', 'rewards', 'campaigns', 'referralsMade', 'raffles']);
 
         $sectorPeers = Business::query()
             ->where('sector', $business->sector)

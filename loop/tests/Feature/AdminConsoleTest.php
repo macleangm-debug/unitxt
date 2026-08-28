@@ -49,14 +49,23 @@ class AdminConsoleTest extends TestCase
     public function test_members_table_paginates_with_a_chosen_page_size(): void
     {
         $admin = User::factory()->admin()->create(['phone' => '710222001']);
-        User::factory()->customer()->count(30)->create();
+        $member = User::factory()->customer()->create(['first_name' => 'Asha', 'phone' => '713222010']);
+        User::factory()->customer()->count(29)->create();
 
         $this->actingAs($admin)
             ->withSession(['locale' => 'en'])
             ->get(route('admin.insights.customers', ['per_page' => 25]))
             ->assertOk()
             ->assertSee(__('loop.admin_rows_per_page'), false)
-            ->assertSee('name="per_page"', false);
+            ->assertSee('name="per_page"', false)
+            ->assertSee(route('admin.insights.customers.show', $member), false);
+
+        $this->actingAs($admin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('admin.insights.customers.show', $member))
+            ->assertOk()
+            ->assertSee('Asha', false)
+            ->assertSee($member->full_phone, false);
     }
 
     public function test_reports_view_more_shows_a_sector_table_and_export(): void
@@ -70,6 +79,18 @@ class AdminConsoleTest extends TestCase
             ->assertSee(__('loop.sales_by_sector'), false)
             ->assertSee(__('loop.export_csv'), false)
             ->assertSee('type=sales_by_sector', false);
+
+        $this->actingAs($admin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('admin.reports.index', ['range' => '7d']))
+            ->assertOk()
+            ->assertSee(__('loop.report_range_7d'), false);
+
+        $this->actingAs($admin)
+            ->withSession(['locale' => 'en'])
+            ->get(route('admin.reports.index', ['range' => 'custom']))
+            ->assertOk()
+            ->assertSee('type="date"', false);
 
         $this->actingAs($admin)
             ->get(route('admin.reports.export', ['type' => 'sales_by_sector', 'format' => 'csv']))
@@ -107,7 +128,10 @@ class AdminConsoleTest extends TestCase
             ->get(route('admin.articles.create'))
             ->assertOk()
             ->assertSee('articlePreview', false)
-            ->assertSee(__('loop.article_preview'), false);
+            ->assertSee(__('loop.article_preview'), false)
+            ->assertSee(__('loop.article_preview_phone'), false)
+            ->assertSee(__('loop.article_preview_desktop'), false)
+            ->assertSee('logoPlaceholder', false);
     }
 
     public function test_admin_can_create_an_affiliate(): void
@@ -142,7 +166,9 @@ class AdminConsoleTest extends TestCase
             ->withSession(['locale' => 'en'])
             ->get(route('admin.settings'))
             ->assertOk()
-            ->assertSee(__('loop.settings_snapshot_title'), false);
+            ->assertSee(__('loop.settings_snapshot_title'), false)
+            ->assertSee(__('loop.integrations_hub'), false)
+            ->assertSee(__('loop.admin_errors'), false);
 
         $this->actingAs($admin)
             ->withSession(['locale' => 'en'])
@@ -207,6 +233,7 @@ class AdminConsoleTest extends TestCase
                     'max_offers' => $plan['max_offers'] ?? null,
                     'has_raffles' => (bool) ($plan['has_raffles'] ?? false),
                     'has_sms' => (bool) ($plan['has_sms'] ?? false),
+                    'has_games' => (bool) ($plan['has_games'] ?? false),
                     'is_public' => true,
                     'sort_order' => $plan['sort_order'],
                     'features' => $plan['features'],

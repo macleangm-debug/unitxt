@@ -72,6 +72,7 @@ class OwnerPulseService
         $next = $this->nextAction($business, $redeemable, $closeToReward, $needs);
         $suggestion = $this->suggestion($business, $closeToReward, $returningMonth, $redeemable);
         $momentum = app(LoopAccess::class)->momentum($business);
+        $prompts = $this->prompts($business, $suggestion, $returningMonth, $returningSpend, $momentum);
 
         return [
             'today_visits' => $todayVisits,
@@ -88,6 +89,7 @@ class OwnerPulseService
             'needs' => $needs,
             'next' => $next,
             'suggestion' => $suggestion,
+            'prompts' => $prompts,
             'milestone' => $milestone,
             'reason_to_return' => trans_choice('loop.pulse_reason_to_return', $memberCount, ['count' => $memberCount]),
             'campaign_return_line' => $momentum['campaign_returners'] > 0
@@ -242,6 +244,110 @@ class OwnerPulseService
         }
 
         return null;
+    }
+
+    /**
+     * Swipeable owner home cards. Critical items also land in the notification bell.
+     *
+     * @param  array{title: string, body: string, cta: string, url: string}|null  $suggestion
+     * @param  array<string, mixed>  $momentum
+     * @return list<array{key: string, eyebrow: string, title: string, body: string, cta: string, url: string}>
+     */
+    private function prompts(Business $business, ?array $suggestion, int $returningMonth, float $returningSpend, array $momentum): array
+    {
+        $items = [];
+
+        $banner = $business->subscriptionBanner();
+        if (! empty($banner['text'])) {
+            $items[] = [
+                'key' => 'billing',
+                'eyebrow' => __('loop.pulse_something_you_could'),
+                'title' => $banner['text'],
+                'body' => __('loop.renew_now'),
+                'cta' => __('loop.renew_now'),
+                'url' => route('billing.show'),
+            ];
+        }
+
+        if (\App\Support\FeatureFlags::enabled('raffles')) {
+            $upcoming = $business->raffles()
+                ->where('is_active', true)
+                ->whereIn('status', ['scheduled', 'live'])
+                ->get()
+                ->filter(function ($raffle) {
+                    $next = $raffle->nextDrawDate();
+
+                    return $next->lte(now()->addDay()->endOfDay()) && $raffle->remainingWinnerSlots() > 0;
+                })
+                ->sortBy(fn ($raffle) => $raffle->nextDrawDate()->timestamp)
+                ->values();
+
+            foreach ($upcoming as $raffle) {
+                $next = $raffle->nextDrawDate();
+                $today = $next->isSameDay(today());
+                $items[] = [
+                    'key' => 'raffle_'.$raffle->id,
+                    'eyebrow' => __('loop.pulse_something_you_could'),
+                    'title' => $today ? __('loop.pulse_raffle_today_title') : __('loop.pulse_raffle_soon_title'),
+                    'body' => $today
+                        ? __('loop.pulse_raffle_today_body', ['name' => $raffle->name, 'prize' => $raffle->prize_name])
+                        : __('loop.pulse_raffle_soon_body', ['name' => $raffle->name, 'date' => $next->format('j M')]),
+                    'cta' => $raffle->canDrawNow() ? __('loop.start_live_draw') : __('loop.view_raffle'),
+                    'url' => $raffle->canDrawNow() ? route('raffles.live', $raffle) : route('raffles.show', $raffle),
+                ];
+            }
+        }
+
+        if ($suggestion) {
+            $items[] = [
+                'key' => 'suggestion',
+                'eyebrow' => __('loop.pulse_something_you_could'),
+                'title' => $suggestion['title'],
+                'body' => $suggestion['body'],
+                'cta' => $suggestion['cta'],
+                'url' => $suggestion['url'],
+            ];
+        }
+
+        if ($returningMonth > 0) {
+            $items[] = [
+                'key' => 'returning',
+                'eyebrow' => __('loop.notifications'),
+                'title' => __('loop.pulse_money_title'),
+                'body' => __('loop.pulse_money', [
+                    'count' => $returningMonth,
+                    'currency' => $business->currency,
+                    'amount' => number_format($returningSpend, 0),
+                ]),
+                'cta' => __('loop.view_customers'),
+                'url' => route('customers.index', ['sort' => 'visits']),
+            ];
+        } elseif (($momentum['month_spend'] ?? 0) > 0 && $suggestion === null) {
+            $items[] = [
+                'key' => 'spend',
+                'eyebrow' => __('loop.notifications'),
+                'title' => __('loop.pulse_loop_spend_title'),
+                'body' => __('loop.pulse_loop_spend', [
+                    'currency' => $business->currency,
+                    'amount' => number_format($momentum['month_spend'], 0),
+                ]),
+                'cta' => __('loop.view_all'),
+                'url' => route('transactions.index'),
+            ];
+        }
+
+        $seen = [];
+        $unique = [];
+        foreach ($items as $item) {
+            $sig = $item['title'].'|'.$item['url'];
+            if (isset($seen[$sig])) {
+                continue;
+            }
+            $seen[$sig] = true;
+            $unique[] = $item;
+        }
+
+        return $unique;
     }
 
     /**
