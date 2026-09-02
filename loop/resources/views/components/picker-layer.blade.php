@@ -2,6 +2,7 @@
     'title',
     'searchPlaceholder',
     'search' => true,
+    'compact' => false,
 ])
 
 <template x-teleport="body">
@@ -22,7 +23,7 @@
     >
         <div class="loop-picker-backdrop" @click="open = false"></div>
         <div
-            class="loop-picker-panel"
+            class="{{ $compact ? 'loop-picker-panel loop-picker-panel--auto' : 'loop-picker-panel' }}"
             x-ref="sheetPanel"
             @click.stop
             @touchstart.passive="window.loopSheet?.down($event, $refs.sheetPanel, () => open, (v) => { open = v }, () => String(q || '').trim() !== '')"

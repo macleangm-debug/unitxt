@@ -15,6 +15,7 @@
     <div
         x-data="{
             open: {{ $delayMs > 0 ? 'false' : 'true' }},
+            undoOpen: false,
             delayMs: {{ $delayMs }},
             init() {
                 if (this.delayMs <= 0) {
@@ -124,10 +125,15 @@
                     <a href="{{ $confirmUrl }}" class="loop-btn mt-8 inline-flex w-full justify-center text-base">{{ $confirm['cta'] }}</a>
                 @endif
                 @if (! empty($confirm['undo_url']))
-                    <form method="POST" action="{{ $confirm['undo_url'] }}" class="mt-3">
-                        @csrf
-                        <button type="submit" class="w-full text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.undo') }}</button>
-                    </form>
+                    <button type="button" class="mt-3 w-full text-sm font-semibold text-ink-muted hover:text-ink" @click="undoOpen = true">{{ __('loop.undo') }}</button>
+                    <x-loop-sheet model="undoOpen" :title="__('loop.sale_undo_confirm_title')" lock-swipe="true">
+                        <p class="text-base leading-relaxed text-ink-muted">{{ __('loop.sale_undo_confirm_body') }}</p>
+                        <form method="POST" action="{{ $confirm['undo_url'] }}" class="mt-6 space-y-3" data-loop-quiet>
+                            @csrf
+                            <button type="submit" class="loop-btn-danger w-full">{{ __('loop.sale_undo_confirm_cta') }}</button>
+                            <button type="button" class="loop-btn-ghost w-full" @click="undoOpen = false">{{ __('loop.cancel') }}</button>
+                        </form>
+                    </x-loop-sheet>
                 @endif
                 @unless ($mustContinue || ($samePage && $ctaIsDone))
                     <button type="button" class="mt-4 text-sm font-semibold text-ink-muted hover:text-ink" @click="open=false">{{ __('loop.done') }}</button>

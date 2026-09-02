@@ -52,11 +52,19 @@
             <a href="{{ route('till.index') }}" class="mt-4 block text-sm font-semibold text-ink-muted">{{ __('loop.back') }}</a>
         </div>
     @elseif ($needsRegister)
-        <div x-data="{ open: true, step: 1 }" class="mx-auto max-w-xl">
-            <x-loop-sheet show="open && step === 1" model="open" :title="__('loop.customer_not_on_loop_title')">
-                <p class="text-base text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
+        <div
+            x-data="{ open: true, step: 1 }"
+            x-effect="if (!open && step === 1) window.location.href = @js(route('till.index'))"
+            class="mx-auto max-w-xl"
+        >
+            <x-loop-sheet show="open && step === 1" model="open" :title="__('loop.customer_not_on_loop_title')" lock-swipe="true">
+                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-soft text-violet">
+                    <x-loop-icon name="customers" class="h-7 w-7" />
+                </div>
+                <p class="rounded-[1.25rem] bg-chalk px-4 py-3 text-center font-display text-xl font-semibold tabular-nums tracking-tight">{{ $country_code }} {{ $phone }}</p>
+                <p class="mt-4 text-base leading-relaxed text-ink-muted">{{ __('loop.customer_not_on_loop_body', ['phone' => $country_code.' '.$phone]) }}</p>
                 <button type="button" class="loop-btn mt-6 w-full" @click="step = 2; open = false">{{ __('loop.add_and_continue') }}</button>
-                <a href="{{ route('till.index') }}" class="mt-3 block text-center text-sm font-semibold text-ink-muted">{{ __('loop.cancel') }}</a>
+                <a href="{{ route('till.index') }}" class="loop-btn-ghost mt-3 w-full">{{ __('loop.cancel') }}</a>
             </x-loop-sheet>
             <form
                 method="POST"

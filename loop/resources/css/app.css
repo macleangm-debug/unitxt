@@ -2487,10 +2487,20 @@ html.loop-picker-open .loop-bottom-nav {
     transform: scale(0.99);
 }
 
-.loop-picker-option:hover,
+.loop-picker-option:hover {
+    background: #F7F7F4;
+}
+
 .loop-picker-option.is-selected {
-    background: transparent;
+    background: #E9E5FF;
     font-weight: 600;
+}
+
+.loop-picker-option.is-selected::after {
+    content: '✓';
+    margin-left: auto;
+    color: #5B2EFF;
+    font-weight: 700;
 }
 
 .loop-status-card {

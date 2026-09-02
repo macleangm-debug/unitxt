@@ -73,7 +73,7 @@
         <span class="ml-2 shrink-0 text-violet">▾</span>
     </button>
 
-    <x-picker-layer :title="$label ?? $placeholder" :search-placeholder="$searchPlaceholder" :search="$showSearch">
+    <x-picker-layer :title="$label ?? $placeholder" :search-placeholder="$searchPlaceholder" :search="$showSearch" :compact="! $showSearch">
         <template x-for="opt in filtered" :key="'opt-'+opt.key">
             <button
                 type="button"

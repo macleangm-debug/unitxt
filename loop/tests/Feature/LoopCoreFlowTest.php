@@ -186,6 +186,7 @@ class LoopCoreFlowTest extends TestCase
             ->assertOk()
             ->assertSee(__('loop.customer_not_on_loop_title'), false)
             ->assertSee(__('loop.add_and_continue'), false)
+            ->assertSee('loop-picker-panel--auto', false)
             ->assertSee('name="first_name"', false)
             ->assertSee('name="birth_month"', false)
             ->assertSee('name="birth_day"', false)
@@ -253,6 +254,14 @@ class LoopCoreFlowTest extends TestCase
 
         $visit = Visit::query()->where('customer_id', $customer->id)->latest('id')->first();
         $this->assertNotNull($visit);
+
+        $this->actingAs($staff)
+            ->get(route('till.index'))
+            ->assertOk()
+            ->assertSee(__('loop.undo'), false)
+            ->assertSee(__('loop.sale_undo_confirm_title'), false)
+            ->assertSee(__('loop.sale_undo_confirm_cta'), false)
+            ->assertSee('undoOpen = true', false);
 
         $this->actingAs($staff)
             ->post(route('till.undo', $visit))
