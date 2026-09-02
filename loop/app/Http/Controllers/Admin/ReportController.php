@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\AdminReportService;
 use App\Services\ReportExportService;
+use App\Support\ReportPeriod;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -12,14 +13,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
-    public function index(AdminReportService $reports): View
+    public function index(Request $request, AdminReportService $reports): View
     {
+        $period = ReportPeriod::fromRequest($request);
+
         return view('admin.reports.index', [
-            'overview' => $reports->overview(),
+            'period' => $period,
+            'overview' => $reports->overview($period),
             'customersBySector' => $reports->customersBySector(),
-            'salesBySector' => $reports->salesBySector(),
+            'salesBySector' => $reports->salesBySector($period),
             'customersByBusiness' => $reports->customersByBusiness(100),
-            'dailySales' => $reports->dailySales(30),
+            'dailySales' => $reports->dailySales($period->dayCount(), $period),
             'exportTypes' => $this->exportTypes(),
         ]);
     }

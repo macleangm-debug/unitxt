@@ -89,6 +89,111 @@ class Countries
         return $out !== [] ? $out : ['TZ' => self::OPTIONS['TZ']];
     }
 
+    /**
+     * ISO codes currently on for new acquisition (register, apply, Discover, header).
+     *
+     * @return list<string>
+     */
+    public static function enabledCodes(): array
+    {
+        return array_keys(self::enabledOptions());
+    }
+
+    public static function isEnabled(string $code): bool
+    {
+        return isset(self::enabledOptions()[strtoupper($code)]);
+    }
+
+    /**
+     * Validation rule for choosing a market that is on in Settings Hub.
+     */
+    public static function enabledRule(): string
+    {
+        return 'in:'.implode(',', self::enabledCodes());
+    }
+
+    /**
+     * Login / activate pickers: enabled markets plus any market that already
+     * has a Loop user or affiliate, so turning a country off does not lock
+     * existing people out.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function authOptions(): array
+    {
+        $out = self::enabledOptions();
+        try {
+            $used = [];
+            if (\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                $used = array_merge($used, \Illuminate\Support\Facades\DB::table('users')
+                    ->whereNotNull('country')
+                    ->distinct()
+                    ->pluck('country')
+                    ->all());
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('affiliates')) {
+                $used = array_merge($used, \Illuminate\Support\Facades\DB::table('affiliates')
+                    ->whereNotNull('country')
+                    ->distinct()
+                    ->pluck('country')
+                    ->all());
+            }
+            foreach ($used as $code) {
+                $code = strtoupper((string) $code);
+                if (isset(self::OPTIONS[$code]) && ! isset($out[$code])) {
+                    $out[$code] = self::OPTIONS[$code];
+                }
+            }
+        } catch (\Throwable) {
+            // Schema may be missing during early migrate.
+        }
+
+        return $out;
+    }
+
+    public static function authRule(): string
+    {
+        return 'in:'.implode(',', array_keys(self::authOptions()));
+    }
+
+    /**
+     * Selectors that may keep a currently stored country after Admin turns that market off.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public static function formOptions(?string $keep = null): array
+    {
+        $out = self::enabledOptions();
+        $keep = strtoupper((string) $keep);
+        if ($keep !== '' && isset(self::OPTIONS[$keep]) && ! isset($out[$keep])) {
+            $out[$keep] = self::OPTIONS[$keep];
+        }
+
+        return $out;
+    }
+
+    public static function formRule(?string $keep = null): string
+    {
+        return 'in:'.implode(',', array_keys(self::formOptions($keep)));
+    }
+
+    /**
+     * Snap a stored/detected code onto an enabled market.
+     */
+    public static function snapToEnabled(?string $code, string $fallback = 'TZ'): string
+    {
+        $code = strtoupper((string) $code);
+        if (self::isEnabled($code)) {
+            return $code;
+        }
+        $enabled = self::enabledCodes();
+        if (in_array($fallback, $enabled, true)) {
+            return $fallback;
+        }
+
+        return $enabled[0] ?? 'TZ';
+    }
+
     public static function cities(string $country = 'TZ'): array
     {
         return self::OPTIONS[$country]['cities'] ?? [];
@@ -102,17 +207,40 @@ class Countries
     public static function areas(string $city): array
     {
         $map = [
-            'Dar es Salaam' => ['Masaki', 'Mikocheni', 'Kinondoni', 'Kawe', 'Mbezi', 'Upanga', 'Oysterbay', 'Sinza', 'Mbezi Beach', 'Kariakoo'],
-            'Arusha' => ['Njiro', 'Sakina', 'Kaloleni', 'Sombetini', 'Themi'],
-            'Mwanza' => ['Isamilo', 'Nyamagana', 'Ilemela', 'Pamba'],
-            'Nairobi' => ['Westlands', 'Kilimani', 'Karen', 'Lavington', 'CBD', 'Eastleigh'],
-            'Mombasa' => ['Nyali', 'Bamburi', 'Old Town', 'Likoni'],
-            'Kampala' => ['Kololo', 'Nakasero', 'Bugolobi', 'Ntinda', 'Makerere'],
-            'Kigali' => ['Kimihurura', 'Nyarutarama', 'Remera', 'Kacyiru'],
-            'Harare' => ['Borrowdale', 'Avondale', 'CBD', 'Mount Pleasant'],
+            'Dar es Salaam' => ['Ilala', 'Kinondoni', 'Temeke', 'Ubungo', 'Kigamboni', 'Masaki', 'Mikocheni', 'Kawe', 'Mbezi', 'Upanga', 'Oysterbay', 'Kariakoo'],
+            'Arusha' => ['Arusha', 'Meru', 'Karatu', 'Monduli', 'Ngorongoro', 'Longido', 'Njiro', 'Sakina'],
+            'Mwanza' => ['Nyamagana', 'Ilemela', 'Isamilo', 'Pamba'],
+            'Dodoma' => ['Dodoma', 'Bahi', 'Chamwino', 'Chemba', 'Kondoa', 'Mpwapwa'],
+            'Mbeya' => ['Mbeya', 'Kyela', 'Rungwe', 'Chunya', 'Mbarali'],
+            'Morogoro' => ['Morogoro', 'Kilombero', 'Kilosa', 'Mvomero', 'Ulanga'],
+            'Tanga' => ['Tanga', 'Korogwe', 'Muheza', 'Pangani', 'Lushoto'],
+            'Moshi' => ['Moshi', 'Hai', 'Mwanga', 'Rombo', 'Same'],
+            'Zanzibar City' => ['Mjini', 'Magharibi A', 'Magharibi B', 'Kati', 'Kaskazini A'],
+            'Nairobi' => ['Westlands', 'Kilimani', 'Karen', 'Lavington', 'CBD', 'Eastleigh', 'Kasarani', 'Langata'],
+            'Mombasa' => ['Nyali', 'Bamburi', 'Old Town', 'Likoni', 'Kisauni', 'Changamwe'],
+            'Kisumu' => ['Kisumu Central', 'Kisumu East', 'Kisumu West'],
+            'Kampala' => ['Kampala Central', 'Kawempe', 'Makindye', 'Nakawa', 'Rubaga', 'Kololo', 'Ntinda'],
+            'Entebbe' => ['Entebbe', 'Katabi', 'Kigungu'],
+            'Kigali' => ['Gasabo', 'Kicukiro', 'Nyarugenge', 'Kimihurura', 'Remera', 'Kacyiru'],
+            'Bujumbura' => ['Mukaza', 'Muha', 'Ntahangwa'],
+            'Kinshasa' => ['Gombe', 'Limete', 'Ngaliema', 'Kalamu', 'Lemba'],
+            'Harare' => ['Harare Urban', 'Borrowdale', 'Avondale', 'CBD', 'Mount Pleasant'],
+            'Bulawayo' => ['Bulawayo', 'Cowdray Park', 'Nkulumane'],
         ];
 
         return $map[$city] ?? [];
+    }
+
+    /**
+     * District / area options for a city dropdown. Falls back to the city itself.
+     *
+     * @return list<string>
+     */
+    public static function districts(string $city): array
+    {
+        $areas = self::areas($city);
+
+        return $areas !== [] ? $areas : ($city !== '' ? [$city] : []);
     }
 
     public static function fromDial(string $dial): ?string

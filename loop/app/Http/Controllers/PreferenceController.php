@@ -13,6 +13,8 @@ class PreferenceController extends Controller
     private const UNSAFE_RETURN_NAMES = [
         'till.lookup',
         'till.store',
+        'till.branch',
+        'till.redeem',
         'till.register-customer',
     ];
 
@@ -32,7 +34,7 @@ class PreferenceController extends Controller
     public function country(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'country' => ['required', 'in:'.implode(',', array_keys(Countries::OPTIONS))],
+            'country' => ['required', Countries::enabledRule()],
         ]);
 
         $request->session()->put('preferred_country', $data['country']);

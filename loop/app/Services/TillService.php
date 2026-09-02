@@ -11,6 +11,7 @@ use App\Models\Shop;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\Countries;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,7 +25,6 @@ class TillService
     public function findCustomer(string $countryCode, string $phone): ?User
     {
         return User::query()
-            ->where('role', User::ROLE_CUSTOMER)
             ->where('country_code', $countryCode)
             ->where('phone', $phone)
             ->first();
@@ -35,23 +35,47 @@ class TillService
         $existing = $this->findCustomer($data['country_code'], $data['phone']);
 
         if ($existing) {
+            $existing->mergeMemberProfile([
+                'first_name' => $data['first_name'] ?? null,
+                'last_name' => $data['last_name'] ?? null,
+                'birth_month' => $data['birth_month'] ?? null,
+                'birth_day' => $data['birth_day'] ?? null,
+                'gender' => $data['gender'] ?? null,
+                'email' => $data['email'] ?? null,
+                'city' => $data['city'] ?? null,
+            ]);
+            $existing->save();
+
             return $existing;
         }
 
-        return User::create([
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'country_code' => $data['country_code'],
-            'country' => Countries::fromDial($data['country_code']),
-            'phone' => $data['phone'],
-            'email' => $data['email'] ?? null,
-            'birth_month' => $data['birth_month'] ?? null,
-            'birth_day' => $data['birth_day'] ?? null,
-            'role' => User::ROLE_CUSTOMER,
-            'phone_verified_at' => null,
-            'profile_completed' => false,
-            'is_active' => true,
-        ]);
+        try {
+            return User::create([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'] ?? '',
+                'country_code' => $data['country_code'],
+                'country' => Countries::fromDial($data['country_code']),
+                'city' => $data['city'] ?? null,
+                'phone' => $data['phone'],
+                'email' => $data['email'] ?? null,
+                'birth_month' => $data['birth_month'] ?? null,
+                'birth_day' => $data['birth_day'] ?? null,
+                'gender' => $data['gender'] ?? null,
+                'role' => User::ROLE_CUSTOMER,
+                'phone_verified_at' => null,
+                'profile_completed' => false,
+                'is_active' => true,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            $again = $this->findCustomer($data['country_code'], $data['phone']);
+            if ($again) {
+                return $again;
+            }
+
+            throw ValidationException::withMessages([
+                'phone' => __('loop.phone_already_on_loop'),
+            ]);
+        }
     }
 
     public function recordSale(
@@ -63,7 +87,9 @@ class TillService
         string $channel = 'in_store',
         bool $applyPointsAsPayment = false,
         ?int $pointsToSpend = null,
-        bool $includesFeaturedProduct = false,
+        bool|array $includesFeaturedProduct = false,
+        ?int $rewardId = null,
+        ?int $raffleWinnerId = null,
     ): Visit {
         if (! $staff->canUseTill()) {
             throw ValidationException::withMessages(['staff' => 'You are not allowed to record sales.']);
@@ -87,11 +113,11 @@ class TillService
             throw ValidationException::withMessages(['plan' => $limits->visitLimitMessage($business)]);
         }
 
-        if ($amountSpent <= 0 && ! $applyPointsAsPayment) {
+        if ($amountSpent <= 0 && ! $applyPointsAsPayment && ! $rewardId && ! $raffleWinnerId) {
             throw ValidationException::withMessages(['amount_spent' => 'Enter the amount spent or ordered.']);
         }
 
-        return DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $limits) {
+        $visit = DB::transaction(function () use ($staff, $shop, $customer, $amountSpent, $receiptRef, $channel, $business, $applyPointsAsPayment, $pointsToSpend, $includesFeaturedProduct, $rewardId, $raffleWinnerId, $limits) {
             $existingMembership = Membership::query()
                 ->where('business_id', $business->id)
                 ->where('customer_id', $customer->id)
@@ -111,18 +137,14 @@ class TillService
                 $bonuses[] = __('loop.bonus_from_purchase', ['points' => $basePoints]);
             }
 
-            if (
-                $includesFeaturedProduct
-                && $campaign
-                && $campaign->type === 'product_push'
-                && filled($campaign->featured_product_name)
-                && (int) $campaign->bonus_points > 0
-            ) {
-                $pointsEarned += (int) $campaign->bonus_points;
-                $bonuses[] = __('loop.bonus_from_featured', [
-                    'product' => $campaign->featured_product_name,
-                    'points' => $campaign->bonus_points,
-                ]);
+            foreach ($this->featuredPushCampaigns($shop, $includesFeaturedProduct) as $push) {
+                if (filled($push->featured_product_name) && (int) $push->bonus_points > 0) {
+                    $pointsEarned += (int) $push->bonus_points;
+                    $bonuses[] = __('loop.bonus_from_featured', [
+                        'product' => $push->featured_product_name,
+                        'points' => $push->bonus_points,
+                    ]);
+                }
             }
 
             $birthdayCampaign = $this->findBirthdayCampaign($business);
@@ -150,13 +172,38 @@ class TillService
 
             $pointsRedeemed = 0;
             $discount = 0.0;
+            $payPoints = 0;
+            $offer = null;
+            $offerPoints = 0;
+            $offerDiscount = 0.0;
+
+            if ($rewardId) {
+                $prepared = $this->prepareBillOffer($business, $membership, $rewardId, $amountSpent);
+                $offer = $prepared['reward'];
+                $offerPoints = $prepared['points'];
+                $offerDiscount = $prepared['discount'];
+                $pointsRedeemed += $offerPoints;
+                $discount += $offerDiscount;
+            }
+
+            $claimedWinner = null;
+            if ($raffleWinnerId) {
+                if ($offer) {
+                    throw ValidationException::withMessages(['raffle_winner_id' => __('loop.till_raffle_or_offer')]);
+                }
+                $claimedWinner = $this->claimRafflePrize($business, $customer, $raffleWinnerId, $amountSpent);
+                $discount += $claimedWinner['discount'];
+            }
 
             if ($applyPointsAsPayment && $pointsToSpend) {
+                if ($offer || $claimedWinner) {
+                    throw ValidationException::withMessages(['pay_with_points' => __('loop.till_no_pay_points_with_offer')]);
+                }
                 if (! $business->payWithPointsEnabled()) {
                     throw ValidationException::withMessages(['pay_with_points' => __('loop.pay_with_points_disabled')]);
                 }
 
-                $membershipFresh = Membership::query()->findOrFail($membership->id);
+                $membershipFresh = Membership::query()->lockForUpdate()->findOrFail($membership->id);
                 if ($membershipFresh->points_balance < $pointsToSpend) {
                     throw ValidationException::withMessages(['points_to_spend' => 'Not enough points.']);
                 }
@@ -178,8 +225,10 @@ class TillService
                     ]);
                 }
 
-                $discount = min($requestedCurrency, $maxCurrency === PHP_FLOAT_MAX ? $requestedCurrency : $maxCurrency);
-                $pointsRedeemed = $pointsToSpend;
+                $payPoints = $pointsToSpend;
+                $payDiscount = min($requestedCurrency, $maxCurrency === PHP_FLOAT_MAX ? $requestedCurrency : $maxCurrency);
+                $discount += $payDiscount;
+                $pointsRedeemed += $payPoints;
             }
 
             $visit = Visit::create([
@@ -191,7 +240,8 @@ class TillService
                 'recorded_by' => $staff->id,
                 'amount_spent' => $amountSpent,
                 'points_earned' => $pointsEarned,
-                'reward_id' => null,
+                'reward_id' => $offer?->id,
+                'raffle_winner_id' => $claimedWinner ? $claimedWinner['winner']->id : null,
                 'points_redeemed' => $pointsRedeemed,
                 'discount_amount' => $discount,
                 'receipt_ref' => $receiptRef,
@@ -199,10 +249,15 @@ class TillService
                 'notes' => $bonuses !== [] ? implode(' · ', $bonuses) : null,
             ]);
 
-            if ($pointsRedeemed > 0) {
+            if ($offer && $offerPoints > 0) {
+                $this->applyOfferRedemption($staff, $shop, $customer, $membership, $offer, $visit, $offerDiscount);
+                $membership->refresh();
+            }
+
+            if ($payPoints > 0) {
                 $this->points->redeem(
                     $membership,
-                    $pointsRedeemed,
+                    $payPoints,
                     $staff,
                     $visit,
                     __('loop.paid_with_points')
@@ -224,8 +279,21 @@ class TillService
                 );
             }
 
-            return $visit->fresh(['customer', 'shop', 'campaign', 'reward', 'membership']);
+            return $visit->fresh(['customer', 'shop', 'campaign', 'reward', 'membership', 'raffleWinner']);
         });
+
+        $this->notifyIfOfferReady($visit);
+
+        if ($visit->raffle_winner_id) {
+            $winner = \App\Models\RaffleWinner::query()->with(['customer', 'raffle.business', 'membership'])->find($visit->raffle_winner_id);
+            if ($winner) {
+                app(DailyNotificationService::class)->notifyRaffleClaimed($winner);
+            }
+        }
+
+        app(GameService::class)->grantForVisit($visit);
+
+        return $visit;
     }
 
     /**
@@ -257,63 +325,155 @@ class TillService
 
         return DB::transaction(function () use ($staff, $shop, $customer, $rewardId, $notes, $business) {
             $membership = $this->memberships->join($business, $customer, $shop);
-            $reward = Reward::query()
-                ->where('business_id', $business->id)
-                ->whereKey($rewardId)
-                ->firstOrFail();
+            $reward = $this->assertOfferAvailable($business, $membership, $rewardId);
 
-            if (! $reward->isAvailable()) {
-                throw ValidationException::withMessages(['reward_id' => 'This offer is not available.']);
-            }
-
-            $membershipFresh = Membership::query()->lockForUpdate()->findOrFail($membership->id);
-            if ($membershipFresh->points_balance < $reward->points_cost) {
-                throw ValidationException::withMessages(['reward_id' => 'Customer does not have enough points yet.']);
-            }
-
-            if ($reward->max_redemptions_per_member) {
-                $used = Redemption::query()
-                    ->where('reward_id', $reward->id)
-                    ->where('membership_id', $membership->id)
-                    ->count();
-                if ($used >= $reward->max_redemptions_per_member) {
-                    throw ValidationException::withMessages(['reward_id' => __('loop.offer_max_reached')]);
-                }
-            }
-
-            $note = trim((string) $notes);
-            if ($note === '') {
-                $note = __('loop.redemption_default_note', [
-                    'offer' => $reward->name,
-                    'label' => $reward->label(),
-                ]);
-            }
-
-            $this->points->redeem(
-                $membershipFresh,
-                $reward->points_cost,
+            return $this->applyOfferRedemption(
                 $staff,
+                $shop,
+                $customer,
+                $membership,
+                $reward,
                 null,
-                __('loop.applied_offer', ['name' => $reward->name])
+                0,
+                $notes,
             );
-
-            if ($reward->stock !== null) {
-                $reward->decrement('stock');
-            }
-
-            return Redemption::create([
-                'reward_id' => $reward->id,
-                'membership_id' => $membership->id,
-                'customer_id' => $customer->id,
-                'visit_id' => null,
-                'shop_id' => $shop->id,
-                'recorded_by' => $staff->id,
-                'points_spent' => $reward->points_cost,
-                'discount_amount' => 0,
-                'status' => 'applied',
-                'notes' => $note,
-            ])->fresh(['reward', 'customer', 'shop', 'membership']);
         });
+    }
+
+    /**
+     * Attach one offer to a billed sale. Free items discount nothing — extras are paid in full.
+     *
+     * @return array{reward: Reward, points: int, discount: float}
+     */
+    private function prepareBillOffer(Business $business, Membership $membership, int $rewardId, float $amountSpent): array
+    {
+        $reward = $this->assertOfferAvailable($business, $membership, $rewardId);
+
+        if ($amountSpent <= 0 && $reward->needsBill()) {
+            throw ValidationException::withMessages(['amount_spent' => __('loop.amount_required')]);
+        }
+
+        return [
+            'reward' => $reward,
+            'points' => (int) $reward->points_cost,
+            'discount' => $reward->isFreeRedeem() ? 0.0 : $reward->discountForAmount($amountSpent),
+        ];
+    }
+
+    /**
+     * @return array{winner: \App\Models\RaffleWinner, discount: float}
+     */
+    private function claimRafflePrize(Business $business, User $customer, int $winnerId, float $amountSpent): array
+    {
+        $winner = \App\Models\RaffleWinner::query()
+            ->lockForUpdate()
+            ->with('raffle')
+            ->find($winnerId);
+
+        if (! $winner || ! $winner->isOpenToClaim() || (int) $winner->customer_id !== (int) $customer->id) {
+            throw ValidationException::withMessages(['raffle_winner_id' => __('loop.till_raffle_gone')]);
+        }
+        if ((int) $winner->raffle?->business_id !== (int) $business->id) {
+            throw ValidationException::withMessages(['raffle_winner_id' => __('loop.till_raffle_gone')]);
+        }
+
+        $type = $winner->raffle->prize_type;
+        $value = (float) $winner->raffle->prize_value;
+        $needsBill = in_array($type, ['percent_off', 'fixed_off'], true);
+        if ($amountSpent <= 0 && $needsBill) {
+            throw ValidationException::withMessages(['amount_spent' => __('loop.amount_required')]);
+        }
+
+        $discount = 0.0;
+        if ($type === 'percent_off' && $amountSpent > 0) {
+            $discount = round($amountSpent * (min(100, max(0, $value)) / 100), 2);
+        } elseif ($type === 'fixed_off' && $amountSpent > 0) {
+            $discount = min($amountSpent, $value);
+        }
+
+        app(RaffleService::class)->markClaimed($winner);
+
+        return [
+            'winner' => $winner->fresh(),
+            'discount' => $discount,
+        ];
+    }
+
+    private function assertOfferAvailable(Business $business, Membership $membership, int $rewardId): Reward
+    {
+        $reward = Reward::query()
+            ->where('business_id', $business->id)
+            ->whereKey($rewardId)
+            ->first();
+
+        if (! $reward || ! $reward->isAvailable()) {
+            throw ValidationException::withMessages(['reward_id' => 'This offer is not available.']);
+        }
+
+        $membershipFresh = Membership::query()->lockForUpdate()->findOrFail($membership->id);
+        if ($membershipFresh->redeemablePoints() < $reward->points_cost) {
+            throw ValidationException::withMessages([
+                'reward_id' => $membershipFresh->points_balance >= $reward->points_cost
+                    ? __('loop.same_day_earn_redeem_blocked')
+                    : 'Customer does not have enough points yet.',
+            ]);
+        }
+
+        if ($reward->max_redemptions_per_member) {
+            $used = Redemption::query()
+                ->where('reward_id', $reward->id)
+                ->where('membership_id', $membership->id)
+                ->count();
+            if ($used >= $reward->max_redemptions_per_member) {
+                throw ValidationException::withMessages(['reward_id' => __('loop.offer_max_reached')]);
+            }
+        }
+
+        return $reward;
+    }
+
+    private function applyOfferRedemption(
+        User $staff,
+        Shop $shop,
+        User $customer,
+        Membership $membership,
+        Reward $reward,
+        ?Visit $visit,
+        float $discountAmount,
+        ?string $notes = null,
+    ): Redemption {
+        $note = trim((string) $notes);
+        if ($note === '') {
+            $note = __('loop.redemption_default_note', [
+                'offer' => $reward->name,
+                'label' => $reward->label(),
+            ]);
+        }
+
+        $this->points->redeem(
+            $membership,
+            $reward->points_cost,
+            $staff,
+            $visit,
+            __('loop.applied_offer', ['name' => $reward->name])
+        );
+
+        if ($reward->stock !== null) {
+            $reward->decrement('stock');
+        }
+
+        return Redemption::create([
+            'reward_id' => $reward->id,
+            'membership_id' => $membership->id,
+            'customer_id' => $customer->id,
+            'visit_id' => $visit?->id,
+            'shop_id' => $shop->id,
+            'recorded_by' => $staff->id,
+            'points_spent' => $reward->points_cost,
+            'discount_amount' => $discountAmount,
+            'status' => 'applied',
+            'notes' => $note,
+        ])->fresh(['reward', 'customer', 'shop', 'membership']);
     }
 
     /**
@@ -366,13 +526,39 @@ class TillService
         return Campaign::query()
             ->active()
             ->where('business_id', $shop->business_id)
-            ->whereIn('type', [Campaign::TYPE_EARN, 'product_push'])
+            ->where('type', Campaign::TYPE_EARN)
             ->where(function ($query) use ($shop) {
                 $query->whereDoesntHave('shops')
                     ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
             })
             ->orderByDesc('points_per_step')
             ->first();
+    }
+
+    /**
+     * @param  bool|list<int>  $includesFeaturedProduct
+     * @return \Illuminate\Support\Collection<int, Campaign>
+     */
+    private function featuredPushCampaigns(Shop $shop, bool|array $includesFeaturedProduct)
+    {
+        if ($includesFeaturedProduct === false || $includesFeaturedProduct === []) {
+            return collect();
+        }
+
+        $query = Campaign::query()
+            ->active()
+            ->where('business_id', $shop->business_id)
+            ->where('type', Campaign::TYPE_PRODUCT_PUSH)
+            ->where(function ($query) use ($shop) {
+                $query->whereDoesntHave('shops')
+                    ->orWhereHas('shops', fn ($shops) => $shops->where('shops.id', $shop->id));
+            });
+
+        if (is_array($includesFeaturedProduct)) {
+            $query->whereIn('id', $includesFeaturedProduct);
+        }
+
+        return $query->get();
     }
 
     private function findBirthdayCampaign(Business $business): ?Campaign
@@ -382,6 +568,112 @@ class TillService
             ->where('business_id', $business->id)
             ->where('type', Campaign::TYPE_BIRTHDAY)
             ->first();
+    }
+
+    public function undoSale(User $staff, Visit $visit): Visit
+    {
+        $business = $staff->workplace();
+        if (! $business || $visit->business_id !== $business->id) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_undo_forbidden')]);
+        }
+        if (! $staff->isOwner() && (int) $visit->recorded_by !== (int) $staff->id) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_undo_forbidden')]);
+        }
+
+        $raw = Visit::withoutGlobalScope('not_undone')->find($visit->id) ?? $visit;
+        if ($raw->undone_at) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_already_undone')]);
+        }
+        if ($raw->created_at->lt(now()->subMinutes(5))) {
+            throw ValidationException::withMessages(['visit' => __('loop.sale_undo_expired')]);
+        }
+
+        return DB::transaction(function () use ($raw) {
+            $membership = Membership::query()->lockForUpdate()->find($raw->membership_id);
+            if ($membership) {
+                $redemptions = Redemption::query()->where('visit_id', $raw->id)->get();
+                foreach ($redemptions as $redemption) {
+                    if ($redemption->reward && $redemption->reward->stock !== null) {
+                        $redemption->reward->increment('stock');
+                    }
+                    $redemption->delete();
+                }
+
+                \App\Models\PointTransaction::query()->where('visit_id', $raw->id)->delete();
+                if (\App\Support\GameSettings::tablesReady()) {
+                    \App\Models\GamePlay::query()->where('visit_id', $raw->id)->where('status', 'pending')->delete();
+                }
+
+                if ($raw->raffle_winner_id) {
+                    $winner = \App\Models\RaffleWinner::query()->lockForUpdate()->find($raw->raffle_winner_id);
+                    if ($winner && $winner->status === 'claimed') {
+                        $winner->update([
+                            'status' => 'contacted',
+                            'claimed_at' => null,
+                        ]);
+                    }
+                }
+
+                $membership->points_balance = max(
+                    0,
+                    (int) $membership->points_balance - (int) $raw->points_earned + (int) $raw->points_redeemed
+                );
+                $membership->lifetime_points = max(0, (int) $membership->lifetime_points - (int) $raw->points_earned);
+                $membership->save();
+            }
+
+            $raw->undone_at = now();
+            $raw->save();
+
+            return $raw;
+        });
+    }
+
+    /**
+     * @return array{reward: ?Reward, when: string|null}
+     */
+    public function unlockAfterSale(Visit $visit): array
+    {
+        $membership = Membership::query()
+            ->with(['business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost')])
+            ->find($visit->membership_id);
+
+        if (! $membership) {
+            return ['reward' => null, 'when' => null];
+        }
+
+        $ready = $membership->nearestReadyReward();
+        if ($ready) {
+            return ['reward' => $ready, 'when' => 'now'];
+        }
+
+        $balance = (int) $membership->points_balance;
+        $pending = $membership->business->rewards
+            ->filter(fn ($reward) => $reward->is_active && $reward->points_cost <= $balance)
+            ->sortBy('points_cost')
+            ->first();
+
+        if ($pending) {
+            return ['reward' => $pending, 'when' => 'tomorrow'];
+        }
+
+        return ['reward' => null, 'when' => null];
+    }
+
+    private function notifyIfOfferReady(Visit $visit): void
+    {
+        $membership = Membership::query()
+            ->with([
+                'customer',
+                'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            ])
+            ->find($visit->membership_id);
+
+        if (! $membership?->customer) {
+            return;
+        }
+
+        app(DailyNotificationService::class)->notifyCustomerOfferReady($membership);
     }
 
     private function findWelcomeCampaign(Business $business): ?Campaign

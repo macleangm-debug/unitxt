@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Campaign;
 use App\Models\Reward;
 use App\Models\Shop;
+use App\Services\AffiliateService;
+use App\Services\ReferralService;
 use App\Support\CampaignTemplates;
 use App\Support\Confirm;
 use App\Support\Countries;
-use App\Support\OfferTemplates;
+use App\Support\StarterLoyalty;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -25,53 +27,20 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $step = max(1, min(6, (int) $request->query('step', 1)));
-        $branchTotal = max(1, (int) ($business->branch_count ?: 1));
-        $shopsDone = $business->shops()->count();
-        $branchIndex = max(1, min($branchTotal, (int) $request->query('branch', $shopsDone + 1)));
-        $isOnline = $business->isOnline();
-
-        // Logo is compulsory — never skip step 1 without one.
-        if ($step > 1 && blank($business->logo_path)) {
-            return redirect()->route('onboarding.show', ['step' => 1])
-                ->withErrors(['logo' => __('loop.logo_required_body')]);
-        }
-
-        // Online businesses skip the branches count step.
-        if ($step === 3 && $isOnline) {
-            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
-        }
-
-        // Step 4: walk through each branch / virtual location until count is met.
-        if ($step === 4 && $shopsDone >= $branchTotal) {
-            return redirect()->route('onboarding.show', ['step' => 5]);
-        }
-
-        // Step 5 = campaign first. Step 6 = offers (what they redeem).
-        if ($step === 6 && $business->campaigns()->doesntExist()) {
-            return redirect()->route('onboarding.show', ['step' => 5]);
-        }
+        $step = $this->gateStep($request, $business);
+        $earnCampaign = $business->campaigns()->where('type', 'earn')->latest()->first();
+        $starter = $earnCampaign
+            ? StarterLoyalty::fromCampaign($earnCampaign, $business)
+            : StarterLoyalty::propose(5000, $business);
 
         return view('onboarding.business', [
-            'business' => $business->fresh(),
+            'business' => $business->fresh()->load('shops'),
             'cities' => Countries::cities($business->country ?? 'TZ'),
-            'areasByCity' => collect(Countries::cities($business->country ?? 'TZ'))
-                ->mapWithKeys(fn ($city) => [$city => Countries::areas($city)])
-                ->all(),
-            'groupedTemplates' => CampaignTemplates::grouped([
-                // Retention / bonus campaigns come after the first earn + offer.
-                'visit_streak', 'monthly_streak', 'birthday_treat', 'welcome_bonus',
-            ]),
-            'offerTemplates' => OfferTemplates::forSector($business->sector ?: 'other'),
-            'earnCampaign' => $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first(),
-            'existingOffers' => $business->rewards()->latest()->get(),
+            'earnCampaign' => $earnCampaign,
+            'starter' => $starter,
+            'spendChoices' => StarterLoyalty::spendChoices(),
             'step' => $step,
-            'totalSteps' => 6,
-            'branchIndex' => $branchIndex,
-            'branchTotal' => $branchTotal,
-            'dial' => Countries::dial($business->country ?? 'TZ'),
-            'logoJustSaved' => (bool) $request->session()->pull('logo_just_saved', false),
-            'isOnline' => $isOnline,
+            'totalSteps' => 3,
             'currency' => $business->currency ?? 'TZS',
         ]);
     }
@@ -80,273 +49,230 @@ class OnboardingController extends Controller
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        $request->validate([
-            'logo' => ['required', 'image', 'max:2048'],
-        ]);
+        if ($request->hasFile('logo')) {
+            $request->validate(['logo' => ['image', 'max:2048']]);
+            $path = $request->file('logo')->store('business-logos', 'public');
+            $business->update(['logo_path' => $path]);
+        }
 
-        $path = $request->file('logo')->store('business-logos', 'public');
-        $business->update(['logo_path' => $path]);
-
-        return redirect()
-            ->route('onboarding.show', ['step' => 2])
-            ->with('logo_just_saved', true);
+        return redirect()->route('onboarding.show', ['step' => $this->progressStep($business->fresh())]);
     }
 
     public function presence(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        if (blank($business->logo_path)) {
-            return redirect()->route('onboarding.show', ['step' => 1])
-                ->withErrors(['logo' => __('loop.logo_required_body')]);
-        }
-
         $data = $request->validate([
-            'presence' => ['required', 'in:physical,online'],
+            'presence' => ['required', 'in:physical,online,both'],
         ]);
 
+        $updates = ['presence' => $data['presence']];
         if ($data['presence'] === 'online') {
-            $business->update([
-                'presence' => 'online',
-                'branch_count' => 1,
-            ]);
-
-            // Online skips branches — go straight to location / hotline.
-            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
+            $updates['branch_count'] = 1;
         }
+        $business->update($updates);
 
-        $business->update([
-            'presence' => 'physical',
-        ]);
-
-        return redirect()->route('onboarding.show', ['step' => 3]);
+        return redirect()->route('onboarding.show', ['step' => 1]);
     }
 
     public function branches(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        if (blank($business->logo_path)) {
-            return redirect()->route('onboarding.show', ['step' => 1])
-                ->withErrors(['logo' => __('loop.logo_required_body')]);
-        }
-
-        if ($business->isOnline()) {
-            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
-        }
-
         $data = $request->validate([
             'branch_count' => ['required', 'integer', 'min:1', 'max:50'],
         ]);
 
         $business->update([
-            'presence' => 'physical',
+            'presence' => $business->presence ?: 'physical',
             'branch_count' => $data['branch_count'],
         ]);
 
-        return redirect()->route('onboarding.show', ['step' => 4, 'branch' => 1]);
+        return redirect()->route('onboarding.show', ['step' => 1]);
     }
 
     public function shop(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        if (blank($business->logo_path)) {
-            return redirect()->route('onboarding.show', ['step' => 1])
-                ->withErrors(['logo' => __('loop.logo_required_body')]);
-        }
-
-        $branchTotal = max(1, (int) ($business->branch_count ?: 1));
-        $shopsDone = $business->shops()->count();
-
-        if ($shopsDone >= $branchTotal) {
-            return redirect()->route('onboarding.show', ['step' => 5]);
-        }
-
-        $isOnline = $business->isOnline();
+        $presence = (string) $request->input('presence', '');
+        $needsAddress = in_array($presence, ['physical', 'both'], true);
+        $needsLocations = in_array($presence, ['physical', 'both'], true);
 
         $data = $request->validate([
-            'city' => [$isOnline ? 'nullable' : 'required', 'string', 'max:80'],
-            'address' => [$isOnline ? 'nullable' : 'required', 'string', 'max:255'],
+            'presence' => ['required', 'in:physical,online,both'],
+            'city' => ['required', 'string', 'max:80'],
+            'address' => [$needsAddress ? 'required' : 'nullable', 'string', 'max:255'],
             'hotline' => ['nullable', 'string', 'max:40'],
+            'hotline_country_code' => ['nullable', 'string', 'max:8'],
+            'locations' => [$needsLocations ? 'required' : 'nullable', 'in:just_one,more'],
+            'branch_count' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'logo' => [$business->logo_path ? 'nullable' : 'required', 'image', 'max:2048'],
         ]);
 
-        $city = $data['city'] ?? ($business->city ?: 'Online');
-        if ($isOnline) {
-            $city = $city !== '' ? $city : 'Online';
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('business-logos', 'public');
+            $business->update(['logo_path' => $path]);
+            $business = $business->fresh();
         }
 
-        $shopName = $branchTotal === 1
-            ? $business->name
-            : $business->name.' — '.$city;
-
-        // Avoid duplicate city names when adding multiple in same city.
-        if ($branchTotal > 1 && $business->shops()->where('name', $shopName)->exists()) {
-            $shopName = $business->name.' — '.$city.' '.($shopsDone + 1);
-        }
-
-        Shop::create([
-            'business_id' => $business->id,
-            'name' => $shopName,
-            'city' => $city,
-            'address' => $isOnline ? ($data['address'] ?? null) : $data['address'],
-            'code' => 'SHOP-'.Str::upper(Str::random(6)),
-            'is_active' => true,
-            'logo_path' => $business->logo_path,
-        ]);
-
-        if (! $business->city && $city !== 'Online') {
-            $business->update(['city' => $city]);
-        }
-
-        // Hotline once (first branch), dial fixed to business country.
-        if ($shopsDone === 0 && ! blank($data['hotline'] ?? null)) {
-            $dial = Countries::dial($business->country ?? 'TZ');
-            $business->update([
-                'hotline' => trim($dial.' '.Countries::normalizePhone($data['hotline'])),
+        if (blank($business->logo_path)) {
+            return back()->withErrors([
+                'logo' => __('loop.logo_required_body'),
             ]);
         }
 
-        $nextIndex = $shopsDone + 2;
-        if ($shopsDone + 1 < $branchTotal) {
-            return redirect()->route('onboarding.show', ['step' => 4, 'branch' => $nextIndex]);
+        $city = $data['city'];
+        $presence = $data['presence'];
+        $address = $needsAddress ? ($data['address'] ?? null) : null;
+        $locations = $presence === 'online' ? 'just_one' : $data['locations'];
+        $branchCount = $presence === 'online' || $locations !== 'more'
+            ? 1
+            : max(2, min(50, (int) ($data['branch_count'] ?? 2)));
+
+        $businessUpdates = [
+            'city' => $city === 'Online' ? $business->city : $city,
+            'presence' => $presence,
+            'branch_count' => $branchCount,
+        ];
+
+        if (! blank($data['hotline'] ?? null)) {
+            $dial = $data['hotline_country_code'] ?? Countries::dial($business->country ?? 'TZ');
+            $businessUpdates['hotline'] = trim($dial.' '.Countries::normalizePhone($data['hotline']));
         }
 
-        return redirect()->route('onboarding.show', ['step' => 5]);
+        $business->update($businessUpdates);
+        $business = $business->fresh();
+
+        $shopName = $branchCount === 1
+            ? $business->name
+            : $business->name.' — '.$city;
+
+        $shop = $business->shops()->first();
+        $payload = [
+            'name' => $shop?->name ?: $shopName,
+            'city' => $city,
+            'address' => $address,
+            'logo_path' => $business->logo_path,
+        ];
+
+        if ($shop) {
+            $shop->update($payload);
+        } else {
+            Shop::create(array_merge($payload, [
+                'business_id' => $business->id,
+                'code' => 'SHOP-'.Str::upper(Str::random(6)),
+                'is_active' => true,
+            ]));
+        }
+
+        return redirect()->route('onboarding.show', ['step' => 2]);
     }
 
     public function campaign(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
+        if (blank($business->logo_path) || $business->shops()->doesntExist()) {
+            return redirect()->route('onboarding.show', ['step' => 1]);
+        }
+
         $data = $request->validate([
-            'template' => ['required', 'string'],
-            'name' => ['required', 'string', 'max:120'],
-            'spend_step' => ['nullable', 'integer', 'min:100'],
-            'points_per_step' => ['nullable', 'integer', 'min:1', 'max:1000'],
-            'bonus_points' => ['nullable', 'integer', 'min:0', 'max:10000'],
-            'featured_product_name' => ['nullable', 'string', 'max:120'],
+            'typical_spend' => ['required', 'integer', 'min:1', 'max:10000000'],
         ]);
 
-        $template = CampaignTemplates::localized($data['template']);
-        abort_unless($template, 422);
-
-        if ($template['type'] === 'product_push') {
-            $request->validate([
-                'featured_product_name' => ['required', 'string', 'max:120'],
-                'bonus_points' => ['required', 'integer', 'min:1', 'max:10000'],
-            ]);
-            $data['featured_product_name'] = $request->input('featured_product_name');
-            $data['bonus_points'] = (int) $request->input('bonus_points');
+        if ($business->campaigns()->where('type', 'earn')->exists()) {
+            return redirect()->route('onboarding.show', ['step' => 3]);
         }
 
-        // Prefer submitted rates; fall back to template defaults for earn / product push.
-        $spendStep = (int) ($data['spend_step'] ?? $template['spend_step'] ?? 1000);
-        $pointsPerStep = (int) ($data['points_per_step'] ?? $template['points_per_step'] ?? 2);
-        $campaignName = trim($data['name']) !== '' ? trim($data['name']) : $template['name'];
+        $starter = StarterLoyalty::propose((int) $data['typical_spend'], $business);
+        $template = CampaignTemplates::localized(CampaignTemplates::MAIN_KEY);
 
-        if ($business->campaigns()->doesntExist()) {
-            $campaign = Campaign::create([
-                'business_id' => $business->id,
-                'name' => $campaignName,
-                'type' => $template['type'],
-                'description' => $template['description'],
-                'spend_step' => $spendStep,
-                'points_per_step' => $pointsPerStep,
-                'bonus_points' => $data['bonus_points'] ?? ($template['bonus_points'] ?? 0),
-                'featured_product_name' => $data['featured_product_name'] ?? null,
-                'streak_target' => $template['streak_target'] ?? null,
-                'streak_period' => $template['streak_period'] ?? null,
-                'starts_at' => now(),
-                'is_active' => true,
-                'template_key' => $data['template'],
-            ]);
+        $campaign = Campaign::create([
+            'business_id' => $business->id,
+            'name' => $starter['campaign_name'],
+            'type' => 'earn',
+            'description' => $template['description'] ?? null,
+            'spend_step' => $starter['spend_step'],
+            'points_per_step' => $starter['points_per_step'],
+            'bonus_points' => 0,
+            'featured_product_name' => null,
+            'starts_at' => now(),
+            'is_active' => true,
+            'template_key' => CampaignTemplates::MAIN_KEY,
+        ]);
 
-            $shopIds = $business->shops()->pluck('id');
-            $campaign->shops()->sync($shopIds);
-        }
+        $campaign->shops()->sync($business->shops()->pluck('id'));
 
-        return redirect()->route('onboarding.show', ['step' => 6])->with('confirm', Confirm::make(
-            __('loop.first_campaign_done_title'),
-            __('loop.first_campaign_done_body', ['name' => $campaignName]),
-            __('loop.next_to_offers'),
-            route('onboarding.show', ['step' => 6]),
-            true,
-        ));
+        return redirect()->route('onboarding.show', ['step' => 3]);
     }
 
     public function offers(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
 
-        if ($business->campaigns()->doesntExist()) {
-            return redirect()->route('onboarding.show', ['step' => 5]);
+        $earn = $business->campaigns()->where('type', 'earn')->latest()->first();
+        if (! $earn) {
+            return redirect()->route('onboarding.show', ['step' => 2]);
+        }
+        if (blank($business->logo_path) || $business->shops()->doesntExist()) {
+            return redirect()->route('onboarding.show', ['step' => 1]);
         }
 
+        $starter = StarterLoyalty::fromCampaign($earn, $business);
         $data = $request->validate([
-            'offers' => ['required', 'array', 'min:1'],
-            'offers.*.reward_type' => ['required', 'in:percent_off,fixed_off,free_item'],
-            'offers.*.name' => ['required', 'string', 'max:120'],
-            'offers.*.product_name' => ['nullable', 'string', 'max:120'],
-            'offers.*.points_cost' => ['required', 'integer', 'min:1', 'max:100000'],
-            'offers.*.reward_value' => ['nullable', 'numeric', 'min:0'],
+            'name' => ['nullable', 'string', 'max:120'],
         ]);
 
-        foreach ($data['offers'] as $offer) {
-            $type = $offer['reward_type'];
-            $value = (float) ($offer['reward_value'] ?? 0);
-            if ($type === 'free_item') {
-                $value = 0;
-            }
-            if ($type === 'percent_off') {
-                $value = max(1, min(100, $value));
-            }
-
-            $product = filled($offer['product_name'] ?? null) ? trim($offer['product_name']) : null;
-            $name = trim($offer['name']);
-
+        if ($business->rewards()->doesntExist()) {
+            $name = trim((string) ($data['name'] ?? '')) ?: $starter['reward_name'];
             Reward::create([
                 'business_id' => $business->id,
                 'name' => $name,
-                'description' => $product
-                    ? __('loop.offer_tied_product_desc', ['product' => $product])
-                    : null,
-                'product_name' => $product,
-                'points_cost' => (int) $offer['points_cost'],
-                'reward_type' => $type,
-                'reward_value' => $value,
+                'description' => null,
+                'product_name' => $starter['product_name'],
+                'points_cost' => $starter['points_cost'],
+                'reward_type' => $starter['reward_type'],
+                'reward_value' => 0,
                 'is_active' => true,
             ]);
         }
 
-        if ($business->rewards()->doesntExist()) {
-            return back()
-                ->withErrors(['offers' => __('loop.need_offer_first_body')])
-                ->with('confirm', Confirm::make(
-                    __('loop.need_offer_first_title'),
-                    __('loop.need_offer_first_body'),
-                    __('loop.pick_offers'),
-                    route('onboarding.show', ['step' => 6]),
-                    false,
-                ));
-        }
-
-        $campaign = $business->campaigns()->latest()->first();
-        if ($campaign) {
-            $campaign->shops()->sync($business->shops()->pluck('id'));
-        }
-
+        $earn->shops()->sync($business->shops()->pluck('id'));
         $business->update(['onboarding_completed_at' => now()]);
 
-        app(\App\Services\ReferralService::class)->qualifyForBusiness($business->fresh());
-        app(\App\Services\AffiliateService::class)->qualifyForBusiness($business->fresh());
+        app(ReferralService::class)->qualifyForBusiness($business->fresh());
+        app(AffiliateService::class)->qualifyForBusiness($business->fresh());
 
-        return redirect()->route('dashboard')->with('confirm', Confirm::make(
-            __('loop.first_offer_done_title'),
-            __('loop.first_offer_done_body'),
-            __('loop.go_to_home'),
-            route('dashboard'),
+        return redirect()->route('till.index')->with('confirm', Confirm::make(
+            __('loop.youre_live'),
+            __('loop.onboarding_done'),
+            __('loop.start_selling'),
+            route('till.index'),
             true,
-        ))->with('all_set', true);
+        ));
+    }
+
+    private function gateStep(Request $request, $business): int
+    {
+        $ready = $this->progressStep($business);
+        $wanted = (int) $request->query('step', $ready);
+        if ($wanted < 1) {
+            $wanted = $ready;
+        }
+
+        return min(max(1, $wanted), $ready, 3);
+    }
+
+    private function progressStep($business): int
+    {
+        if (blank($business->logo_path) || $business->shops()->doesntExist()) {
+            return 1;
+        }
+        if ($business->campaigns()->where('type', 'earn')->doesntExist()) {
+            return 2;
+        }
+
+        return 3;
     }
 }

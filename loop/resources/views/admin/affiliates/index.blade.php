@@ -13,22 +13,26 @@
         'settings' => __('loop.affiliate_tab_settings'),
     ];
 @endphp
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_affiliates') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.admin_affiliates_blurb') }}</p>
+        <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+                <h1>{{ __('loop.admin_affiliates') }}</h1>
+                <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.admin_affiliates_program_kind') }}</p>
+                <p class="mt-1 text-sm text-slate-500">{{ __('loop.admin_affiliates_blurb') }}</p>
+            </div>
+            <a href="{{ route('admin.affiliates.create') }}" class="admin-btn">{{ __('loop.create_affiliate') }}</a>
+        </div>
     </x-slot>
 
-    @include('admin.partials.nav')
-
-    <div class="loop-admin-tabs" role="tablist">
+    <div class="admin-subnav" role="tablist">
         @foreach ($tabs as $key => $label)
             <a href="{{ $key === 'performance'
                     ? route('admin.insights.affiliate-performance')
                     : ($key === 'settings'
                         ? route('admin.settings', ['tab' => 'affiliates'])
                         : route('admin.affiliates.index', ['tab' => $key])) }}"
-               class="loop-admin-tab {{ $tab === $key ? 'is-active' : '' }}">{{ $label }}</a>
+               class="{{ $tab === $key ? 'is-active' : '' }}">{{ $label }}</a>
         @endforeach
     </div>
 
@@ -41,7 +45,7 @@
                 · {{ __('loop.monthly_paying_target') }} {{ $settings['monthly_paying_business_target'] }}
             </p>
         </div>
-        <a href="{{ route('admin.settings', ['tab' => 'affiliates']) }}" class="loop-btn-mint !py-2">{{ __('loop.edit_in_settings_hub') }} →</a>
+        <a href="{{ route('admin.settings', ['tab' => 'affiliates']) }}" class="admin-btn !py-2">{{ __('loop.edit_in_settings_hub') }} →</a>
     </div>
 
     @if ($tab === 'applications')
@@ -52,8 +56,8 @@
     @endif
 
     <x-admin.empty-state :empty="$affiliates->isEmpty()" :title="__('loop.admin_affiliates')">
-        <div class="loop-table-wrap">
-            <table class="loop-table">
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>{{ __('loop.name') }}</th>
@@ -85,6 +89,8 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-6">{{ $affiliates->links() }}</div>
+        <div class="mt-6">
+            <x-admin.table-pager :paginator="$affiliates" />
+        </div>
     </x-admin.empty-state>
-</x-app-layout>
+</x-admin-layout>

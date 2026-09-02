@@ -1,14 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\AffiliateController as AdminAffiliateController;
+use App\Http\Controllers\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Admin\BusinessController as AdminBusinessController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ExceptionHitController as AdminExceptionHitController;
 use App\Http\Controllers\Admin\InsightController as AdminInsightController;
 use App\Http\Controllers\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\ReferralController as AdminReferralController;
 use App\Http\Controllers\Admin\ReferralProgramController as AdminReferralProgramController;
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\PrivacyController as AdminPrivacyController;
 use App\Http\Controllers\Admin\SettingsHubController as AdminSettingsHubController;
 use App\Http\Controllers\AffiliateDashboardController;
 use App\Http\Controllers\AffiliateLandingController;
@@ -25,27 +28,38 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerWalletQrController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscoverController;
+use App\Http\Controllers\HelpController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\MembershipController;
+use App\Http\Controllers\MemberActivityController;
+use App\Http\Controllers\MemberMessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\PricingController;
+use App\Http\Controllers\GameController;
+use App\Http\Controllers\GamePlayController;
 use App\Http\Controllers\RaffleController;
 use App\Http\Controllers\ReferralHubController;
 use App\Http\Controllers\RewardController;
+use App\Http\Controllers\SectorSearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\StoryController;
 use App\Http\Controllers\TillController;
 use App\Http\Controllers\TransactionController;
+use App\Models\Article;
 use App\Models\Plan;
 use App\Support\MarketingSettings;
 use App\Support\Plans;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('welcome', [
+        'landingStories' => Article::forLanding(auth()->user()),
+    ]);
 })->name('home');
 
 Route::get('/for-business', function () {
@@ -57,7 +71,9 @@ Route::get('/for-business', function () {
     ]);
 })->name('landing.business');
 
-Route::get('/for-customers', fn () => view('landings.customer'))->name('landing.customer');
+Route::get('/for-customers', fn () => view('landings.customer', [
+    'landingStories' => Article::forLanding(auth()->user()),
+]))->name('landing.customer');
 Route::get('/affiliates', [AffiliateLandingController::class, 'index'])->name('affiliates.landing');
 Route::get('/affiliates/apply', [AffiliateLandingController::class, 'applyForm'])->name('affiliates.apply');
 Route::post('/affiliates/apply', [AffiliateLandingController::class, 'apply'])->name('affiliates.apply.store');
@@ -66,10 +82,19 @@ Route::post('/affiliates/status', [AffiliateLandingController::class, 'statusLoo
 Route::get('/pricing', PricingController::class)->name('pricing');
 Route::get('/locale/{locale}', [PreferenceController::class, 'locale'])->name('locale');
 Route::post('/preference/country', [PreferenceController::class, 'country'])->name('preference.country');
+Route::post('/sector-search/miss', [SectorSearchController::class, 'miss'])->middleware('throttle:20,1')->name('sector-search.miss');
 Route::post('/webhooks/payin', [PaymentController::class, 'payinWebhook'])->name('payments.webhook.payin');
 
 Route::get('/discover', DiscoverController::class)->name('discover');
+Route::get('/discover/{business:slug}/{kind}', [DiscoverController::class, 'catalog'])
+    ->whereIn('kind', ['campaigns', 'offers', 'raffles'])
+    ->name('discover.catalog');
 Route::get('/discover/{business:slug}', [DiscoverController::class, 'show'])->name('discover.show');
+Route::get('/help', HelpController::class)->name('help');
+Route::get('/legal', [LegalController::class, 'index'])->name('legal.index');
+Route::get('/legal/{slug}', [LegalController::class, 'show'])->name('legal.show');
+Route::get('/stories', [StoryController::class, 'index'])->name('stories.index');
+Route::get('/stories/{article:slug}', [StoryController::class, 'show'])->name('stories.show');
 
 Route::middleware('guest')->group(function () {
     Route::get('/business/register', [BusinessRegisterController::class, 'create'])->name('business.register');
@@ -77,6 +102,14 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/staff/login', [StaffSessionController::class, 'create'])->name('staff.login');
     Route::post('/staff/login', [StaffSessionController::class, 'store']);
+
+    Route::get('/login', function () {
+        if (request()->boolean('admin')) {
+            return redirect()->route('staff.login', ['admin' => 1]);
+        }
+
+        return redirect()->route('home');
+    })->name('login');
 
     Route::get('/affiliate/login', [AffiliateAuthController::class, 'loginForm'])->name('affiliate.login');
     Route::post('/affiliate/login', [AffiliateAuthController::class, 'login']);
@@ -96,9 +129,15 @@ Route::post('/logout', [StaffSessionController::class, 'destroy'])->middleware('
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/plays/{play:token}', [GamePlayController::class, 'show'])->name('games.play');
+    Route::post('/plays/{play:token}', [GamePlayController::class, 'reveal'])->name('games.reveal');
+    Route::post('/plays/{play:token}/claim', [GamePlayController::class, 'claim'])->name('games.claim');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::get('/more', \App\Http\Controllers\MoreController::class)->name('more.index');
+    Route::get('/account/legal', [LegalController::class, 'account'])->name('legal.account');
+    Route::post('/account/privacy-requests', [LegalController::class, 'privacyRequest'])->name('legal.privacy-request');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
@@ -112,7 +151,15 @@ Route::middleware('auth')->group(function () {
         Route::put('/referrals/program', [AdminReferralProgramController::class, 'update'])->name('referrals.program.update');
         Route::post('/referrals/{referral}/qualify', [AdminReferralController::class, 'qualify'])->name('referrals.qualify');
         Route::post('/referrals/{referral}/reward', [AdminReferralController::class, 'reward'])->name('referrals.reward');
+        Route::get('/articles', [AdminArticleController::class, 'index'])->name('articles.index');
+        Route::get('/articles/create', [AdminArticleController::class, 'create'])->name('articles.create');
+        Route::post('/articles', [AdminArticleController::class, 'store'])->name('articles.store');
+        Route::get('/articles/{article}/edit', [AdminArticleController::class, 'edit'])->name('articles.edit');
+        Route::put('/articles/{article}', [AdminArticleController::class, 'update'])->name('articles.update');
+        Route::delete('/articles/{article}', [AdminArticleController::class, 'destroy'])->name('articles.destroy');
         Route::get('/affiliates', [AdminAffiliateController::class, 'index'])->name('affiliates.index');
+        Route::get('/affiliates/create', [AdminAffiliateController::class, 'create'])->name('affiliates.create');
+        Route::post('/affiliates', [AdminAffiliateController::class, 'store'])->name('affiliates.store');
         Route::put('/affiliates/settings', [AdminAffiliateController::class, 'updateSettings'])->name('affiliates.settings');
         Route::get('/affiliates/{affiliate}', [AdminAffiliateController::class, 'show'])->name('affiliates.show');
         Route::post('/affiliates/{affiliate}/decide', [AdminAffiliateController::class, 'decide'])->name('affiliates.decide');
@@ -123,13 +170,26 @@ Route::middleware('auth')->group(function () {
         Route::get('/insights/till-businesses', [AdminInsightController::class, 'tillBusinesses'])->name('insights.till-businesses');
         Route::get('/insights/affiliate-performance', [AdminInsightController::class, 'affiliatePerformance'])->name('insights.affiliate-performance');
         Route::get('/insights/customers', [AdminInsightController::class, 'customers'])->name('insights.customers');
+        Route::get('/insights/customers/{customer}', [AdminInsightController::class, 'customer'])->name('insights.customers.show');
         Route::get('/integrations', [AdminIntegrationController::class, 'index'])->name('integrations.index');
+        Route::get('/errors', [AdminExceptionHitController::class, 'index'])->name('errors.index');
+        Route::get('/errors/preview', [AdminExceptionHitController::class, 'preview'])->name('errors.preview');
+        Route::get('/errors/{hit}', [AdminExceptionHitController::class, 'show'])->name('errors.show');
+        Route::post('/errors/{hit}/resolve', [AdminExceptionHitController::class, 'resolve'])->name('errors.resolve');
         Route::put('/integrations', [AdminIntegrationController::class, 'update'])->name('integrations.update');
         Route::post('/integrations/test-pay', [AdminIntegrationController::class, 'testPay'])->name('integrations.test-pay');
+        Route::post('/integrations/test-sms', [AdminIntegrationController::class, 'testSms'])->name('integrations.test-sms');
+        Route::post('/integrations/sender-ids', [AdminIntegrationController::class, 'storeSenderId'])->name('integrations.sender-ids.store');
+        Route::patch('/integrations/sender-ids/{platformSenderId}', [AdminIntegrationController::class, 'updateSenderId'])->name('integrations.sender-ids.update');
+        Route::post('/integrations/business-sender/{senderId}/activate', [AdminIntegrationController::class, 'activateBusinessSender'])->name('integrations.business-sender.activate');
+        Route::post('/integrations/sms/businesses', [AdminIntegrationController::class, 'sendBusinessSms'])->name('integrations.sms.businesses');
         Route::post('/integrations/switch-primary', [AdminIntegrationController::class, 'switchPrimary'])->name('integrations.switch-primary');
+        Route::get('/privacy', [AdminPrivacyController::class, 'index'])->name('privacy.index');
+        Route::post('/privacy/{privacyRequest}/resolve', [AdminPrivacyController::class, 'resolve'])->name('privacy.resolve');
         Route::get('/settings', [AdminSettingsHubController::class, 'index'])->name('settings');
         Route::put('/settings/billing', [AdminSettingsHubController::class, 'updateBilling'])->name('settings.billing');
         Route::put('/settings/growth', [AdminSettingsHubController::class, 'updateGrowth'])->name('settings.growth');
+        Route::put('/settings/games', [AdminSettingsHubController::class, 'updateGames'])->name('settings.games');
         Route::put('/settings/sectors', [AdminSettingsHubController::class, 'updateSectors'])->name('settings.sectors');
         Route::put('/settings/sales-visibility', [AdminSettingsHubController::class, 'updateSalesVisibility'])->name('settings.sales-visibility');
         Route::put('/settings/base-url', [AdminSettingsHubController::class, 'updatePlatformUrl'])->name('settings.base-url');
@@ -138,8 +198,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/affiliates', [AdminSettingsHubController::class, 'updateAffiliates'])->name('settings.affiliates');
         Route::put('/settings/countries', [AdminSettingsHubController::class, 'updateCountries'])->name('settings.countries');
         Route::put('/settings/notifications', [AdminSettingsHubController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::put('/settings/messaging', [AdminSettingsHubController::class, 'updateMessaging'])->name('settings.messaging');
         Route::put('/settings/marketing', [AdminSettingsHubController::class, 'updateMarketing'])->name('settings.marketing');
+        Route::put('/settings/legal', [AdminSettingsHubController::class, 'updateLegal'])->name('settings.legal');
         Route::put('/settings/plans/{plan}', [AdminSettingsHubController::class, 'updatePlan'])->name('settings.plans.update');
+        Route::post('/settings/plans/clone-country', [AdminSettingsHubController::class, 'cloneCountryPackages'])->name('settings.plans.clone-country');
     });
 
     Route::get('/payments/{payment}/wait', [PaymentController::class, 'wait'])->name('payments.wait');
@@ -153,6 +216,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/promo', [AffiliateDashboardController::class, 'updatePromo'])->name('promo.update');
         Route::get('/payout', [AffiliateDashboardController::class, 'payoutForm'])->name('payout');
         Route::put('/payout', [AffiliateDashboardController::class, 'updatePayout'])->name('payout.update');
+        Route::get('/withdraw', [AffiliateDashboardController::class, 'withdrawForm'])->name('withdraw');
+        Route::post('/withdraw', [AffiliateDashboardController::class, 'withdraw'])->name('withdraw.store');
     });
 
     Route::middleware('role:owner')->group(function () {
@@ -168,18 +233,32 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings/referrals', ReferralHubController::class)->name('settings.referrals');
         Route::get('/business/settings', [BusinessController::class, 'edit'])->name('business.edit');
         Route::patch('/business/settings', [BusinessController::class, 'update'])->name('business.update');
+        Route::get('/pay', [PaymentController::class, 'show'])->name('payments.show');
+        Route::post('/pay', [PaymentController::class, 'checkout'])->name('payments.checkout');
         Route::get('/billing', [BillingController::class, 'show'])->name('billing.show');
+        Route::get('/billing/plans', [BillingController::class, 'plans'])->name('billing.plans');
         Route::post('/billing/choose', [BillingController::class, 'choose'])->name('billing.choose');
         Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
         Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+        Route::get('/members/messages', [MemberMessageController::class, 'index'])->name('members.messages.index');
+        Route::post('/members/messages/sender', [MemberMessageController::class, 'storeSender'])->name('members.messages.sender');
+        Route::post('/members/messages/starter/{platformSenderId}', [MemberMessageController::class, 'adoptStarter'])->name('members.messages.starter');
+        Route::post('/members/messages/groups', [MemberMessageController::class, 'storeGroup'])->name('members.messages.groups');
+        Route::post('/members/messages', [MemberMessageController::class, 'storeBroadcast'])->name('members.messages.store');
         Route::get('/raffles', [RaffleController::class, 'index'])->name('raffles.index');
         Route::get('/raffles/create', [RaffleController::class, 'create'])->name('raffles.create');
         Route::post('/raffles', [RaffleController::class, 'store'])->name('raffles.store');
         Route::get('/raffles/{raffle}', [RaffleController::class, 'show'])->name('raffles.show');
         Route::get('/raffles/{raffle}/live', [RaffleController::class, 'live'])->name('raffles.live');
+        Route::get('/raffles/{raffle}/display', [RaffleController::class, 'display'])->name('raffles.display');
+        Route::get('/raffles/{raffle}/board', [RaffleController::class, 'board'])->name('raffles.board');
         Route::post('/raffles/{raffle}/draw', [RaffleController::class, 'draw'])->name('raffles.draw');
         Route::post('/raffles/{raffle}/winners/{winner}/contact', [RaffleController::class, 'contact'])->name('raffles.contact');
         Route::post('/raffles/{raffle}/winners/{winner}/claim', [RaffleController::class, 'claim'])->name('raffles.claim');
+        Route::get('/games', [GameController::class, 'index'])->name('games.index');
+        Route::get('/games/create', [GameController::class, 'create'])->name('games.create');
+        Route::post('/games', [GameController::class, 'store'])->name('games.store');
+        Route::get('/games/{game}', [GameController::class, 'show'])->name('games.show');
         Route::get('/content-studio', [ContentStudioController::class, 'index'])->name('content-studio.index');
         Route::resource('shops', ShopController::class);
         Route::post('/campaigns/{campaign}/toggle', [CampaignController::class, 'toggle'])->name('campaigns.toggle');
@@ -189,25 +268,32 @@ Route::middleware('auth')->group(function () {
         Route::post('/offers', [RewardController::class, 'store'])->name('rewards.store');
         Route::get('/offers/{reward}/edit', [RewardController::class, 'edit'])->name('rewards.edit');
         Route::put('/offers/{reward}', [RewardController::class, 'update'])->name('rewards.update');
+        Route::post('/offers/{reward}/toggle', [RewardController::class, 'toggle'])->name('rewards.toggle');
         Route::get('/offers/{reward}', [RewardController::class, 'show'])->name('rewards.show');
         Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
         Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::patch('/staff/{staff}/shops', [StaffController::class, 'updateShops'])->name('staff.shops');
         Route::patch('/staff/{staff}/toggle', [StaffController::class, 'toggle'])->name('staff.toggle');
     });
 
     Route::middleware('role:owner,front_desk')->group(function () {
         Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
         Route::get('/sale', [TillController::class, 'index'])->name('till.index');
+        Route::post('/sale/branch', [TillController::class, 'pickBranch'])->name('till.branch');
         Route::post('/sale/lookup', [TillController::class, 'lookup'])->name('till.lookup');
         Route::get('/sale/ticket', [TillController::class, 'ticket'])->name('till.ticket');
+        Route::get('/sale/registered', [TillController::class, 'registered'])->name('till.registered');
         Route::post('/sale/register-customer', [TillController::class, 'registerCustomer'])->name('till.register-customer');
         Route::post('/sale', [TillController::class, 'store'])->name('till.store');
+        Route::post('/sale/{visit}/undo', [TillController::class, 'undo'])->name('till.undo');
         Route::post('/sale/redeem', [TillController::class, 'redeem'])->name('till.redeem');
     });
 
     Route::middleware('role:customer')->group(function () {
+        Route::get('/activity', MemberActivityController::class)->name('member.activity');
         Route::get('/wallets', [MembershipController::class, 'index'])->name('memberships.index');
         Route::get('/wallets/{business:slug}', [MembershipController::class, 'show'])->name('memberships.show');
+        Route::post('/wallets/{business:slug}/want-loop-back', [MembershipController::class, 'wantBack'])->name('memberships.want-back');
         Route::get('/wallet/qr.svg', CustomerWalletQrController::class)->name('customer.wallet-qr');
         Route::post('/invite-business', [BusinessInviteController::class, 'store'])->name('business-invites.store');
     });

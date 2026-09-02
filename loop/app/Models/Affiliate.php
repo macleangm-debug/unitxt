@@ -95,6 +95,24 @@ class Affiliate extends Model
         return $this->isActive() && ! $this->setup_completed_at;
     }
 
+    public function hasPayoutAccount(): bool
+    {
+        if (! filled($this->payout_method) || ! filled($this->payout_account_name)) {
+            return false;
+        }
+
+        if ($this->payout_method === 'phone') {
+            return filled($this->payout_phone);
+        }
+
+        return filled($this->bank_name);
+    }
+
+    public function availableCommission(): int
+    {
+        return (int) $this->referrals()->where('status', 'commissioned')->sum('commission_amount');
+    }
+
     public static function normalizePromoCode(string $code): string
     {
         return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code) ?? '');

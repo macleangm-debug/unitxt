@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Article;
 use App\Models\Business;
 use App\Models\Campaign;
 use App\Models\Plan;
@@ -28,6 +29,11 @@ class DatabaseSeeder extends Seeder
                     'max_shops' => $plan['max_shops'],
                     'max_members' => $plan['max_members'],
                     'max_monthly_visits' => $plan['max_monthly_visits'] ?? null,
+                    'max_product_pushes' => $plan['max_product_pushes'] ?? null,
+                    'max_offers' => $plan['max_offers'] ?? null,
+                    'has_raffles' => (bool) ($plan['has_raffles'] ?? false),
+                    'has_sms' => (bool) ($plan['has_sms'] ?? false),
+                    'has_games' => (bool) ($plan['has_games'] ?? false),
                     'is_public' => true,
                     'sort_order' => $plan['sort_order'],
                     'features' => $plan['features'],
@@ -39,6 +45,7 @@ class DatabaseSeeder extends Seeder
         \App\Models\PlatformSetting::putValue(\App\Support\ReferralProgram::KEY, \App\Support\ReferralProgram::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\GrowthSettings::KEY, \App\Support\GrowthSettings::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\FeatureFlags::KEY, \App\Support\FeatureFlags::defaults());
+        \App\Models\PlatformSetting::putValue(\App\Support\GameSettings::KEY, \App\Support\GameSettings::defaults());
         \App\Models\PlatformSetting::putValue(\App\Support\AffiliateProgram::KEY, \App\Support\AffiliateProgram::defaults());
 
         User::factory()->admin()->create([
@@ -93,7 +100,7 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        Shop::create([
+        $waterfront = Shop::create([
             'business_id' => $business->id,
             'name' => 'Harbor Beans Waterfront',
             'code' => 'SHOP-HBWAVE',
@@ -102,6 +109,8 @@ class DatabaseSeeder extends Seeder
             'phone' => '+255 712 000 002',
             'is_active' => true,
         ]);
+
+        $frontDesk->assignedShops()->sync([$downtown->id, $waterfront->id]);
 
         $campaign = Campaign::create([
             'business_id' => $business->id,
@@ -153,6 +162,46 @@ class DatabaseSeeder extends Seeder
         ]);
 
         app(TillService::class)->recordSale($frontDesk, $downtown, $customer, 10000);
+
+        $extraMembers = [
+            ['Asha', 'Mushi', '713000002'],
+            ['Baraka', 'Ngoma', '713000003'],
+            ['Clara', 'Mwakyusa', '713000004'],
+            ['David', 'Kimaro', '713000005'],
+            ['Eliza', 'Shayo', '713000006'],
+            ['Faraji', 'Hassan', '713000007'],
+            ['Grace', 'Lyimo', '713000008'],
+            ['Hassan', 'Omar', '713000009'],
+            ['Irene', 'Massawe', '713000010'],
+            ['Juma', 'Kweka', '713000011'],
+            ['Lulu', 'Ngowi', '713000012'],
+        ];
+        foreach ($extraMembers as $i => [$first, $last, $phone]) {
+            $member = User::factory()->customer()->create([
+                'first_name' => $first,
+                'last_name' => $last,
+                'phone' => $phone,
+                'country' => 'TZ',
+                'city' => 'Dar es Salaam',
+                'password' => Hash::make('1234'),
+                'phone_verified_at' => now(),
+                'profile_completed' => true,
+            ]);
+            app(TillService::class)->recordSale($frontDesk, $downtown, $member, 2500 + ($i * 400));
+        }
+
+        $business->raffles()->create([
+            'created_by' => $owner->id,
+            'name' => 'Friday coffee draw',
+            'prize_name' => 'Free pourover',
+            'prize_type' => 'custom',
+            'winners_count' => 2,
+            'frequency' => 'once',
+            'draw_at' => now()->toDateString(),
+            'claim_days' => 7,
+            'status' => 'scheduled',
+            'is_active' => true,
+        ]);
 
         $business->update(['onboarding_completed_at' => now()]);
 
@@ -225,5 +274,34 @@ class DatabaseSeeder extends Seeder
             'starts_at' => now()->subDay(),
             'is_active' => true,
         ]);
+
+        Article::query()->create([
+            'user_id' => User::query()->where('role', User::ROLE_ADMIN)->value('id'),
+            'slug' => 'welcome-to-loop-tanzania',
+            'title_en' => 'Harbor Beans is live in Dar',
+            'title_sw' => 'Harbor Beans imeanza Dar',
+            'excerpt_en' => 'Coffee points across Downtown and Waterfront — one balance, two shops.',
+            'excerpt_sw' => 'Pointi za kahawa Downtown na Waterfront — salio moja, maduka mawili.',
+            'body_en' => "Harbor Beans joined Loop this week.\n\nEarn on every cup, then redeem a free drink once you hit the offer. Same points at Downtown and Waterfront.",
+            'body_sw' => "Harbor Beans imejiunga na Loop wiki hii.\n\nPata pointi kila kikombe, kisha komboa kinywaji bure unapofikia ofa. Pointi zilezile Downtown na Waterfront.",
+            'country' => 'TZ',
+            'audience' => Article::AUDIENCE_MEMBERS,
+            'published_at' => now()->subHour(),
+        ]);
+
+        Article::query()->create([
+            'user_id' => User::query()->where('role', User::ROLE_ADMIN)->value('id'),
+            'slug' => 'how-loop-offers-work',
+            'title_en' => 'How Loop offers unlock',
+            'title_sw' => 'Ofa za Loop zinavyofunguka',
+            'excerpt_en' => 'Reach the points, then come back another day unless the shop allows same-day redeem.',
+            'excerpt_sw' => 'Fikia pointi, kisha rudi siku nyingine isipokuwa duka linaruhusu kukomboa siku ileile.',
+            'body_en' => "Loop’s default is simple: points you earn today do not unlock an offer until a later day.\n\nThat is how most loyalty programs avoid buying a reward on the same ticket. A shop can turn same-day redeem on in Redeem settings.",
+            'body_sw' => "Chaguo-msingi la Loop ni rahisi: pointi za leo hazifungui ofa hadi siku nyingine.\n\nProgramu nyingi za uaminifu hufanya hivyo ili mtu asinunue ofa kwenye tiketi ileile. Duka linaweza kuwasha kukomboa siku ileile kwenye mipangilio.",
+            'country' => null,
+            'audience' => Article::AUDIENCE_MEMBERS,
+            'published_at' => now()->subDay(),
+        ]);
+        app(\App\Services\LegalService::class)->syncDrafts();
     }
 }

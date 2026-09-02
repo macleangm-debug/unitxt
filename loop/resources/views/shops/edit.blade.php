@@ -1,7 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit_shop') }}</h1>
-        <p class="mt-1 text-ink-muted">{{ __('loop.code') }}: <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('shops.show', $shop)" />
+            <div>
+                <h1 class="font-display text-3xl font-semibold">{{ __('loop.edit_shop') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.code') }}: <span class="font-semibold text-ink">{{ $shop->code }}</span></p>
+            </div>
+        </div>
     </x-slot>
 
     <form method="POST" action="{{ route('shops.update', $shop) }}" class="loop-panel mx-auto max-w-xl space-y-5 p-6 sm:p-8">
@@ -12,31 +17,27 @@
             <input name="name" value="{{ old('name', $shop->name) }}" class="loop-input" required>
         </div>
         <div>
-            <label class="loop-label">{{ __('loop.city') }}</label>
-            <input name="city" list="cities" value="{{ old('city', $shop->city) }}" class="loop-input" required>
-            <datalist id="cities">
-                @foreach ($cities as $city)
-                    <option value="{{ $city }}"></option>
-                @endforeach
-            </datalist>
+            <x-city-sheet-select
+                name="city"
+                :label="__('loop.city')"
+                :value="old('city', $shop->city)"
+                :cities="$cities"
+                :country="$shop->business->country ?? 'TZ'"
+                :required="true"
+            />
         </div>
         <div>
             <label class="loop-label">{{ __('loop.address') }}</label>
             <input name="address" value="{{ old('address', $shop->address) }}" class="loop-input">
         </div>
-        <div class="grid gap-3 sm:grid-cols-[8rem_1fr]">
-            <div>
-                <label class="loop-label">{{ __('loop.country_prefix') }}</label>
-                <select name="country_code" class="loop-input">
-                    @foreach ($countries as $meta)
-                        <option value="{{ $meta['dial'] }}" @selected(old('country_code', $dial) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="loop-label">{{ __('loop.phone') }}</label>
-                <input name="phone" value="{{ old('phone', $localPhone) }}" class="loop-input" placeholder="+255 712 000 001">
-            </div>
+        <div>
+            <label class="loop-label">{{ __('loop.phone') }}</label>
+            <x-phone-field
+                name="phone"
+                :dial="$dial"
+                hidden-dial-name="country_code"
+                :value="old('phone', $localPhone)"
+            />
         </div>
         <label class="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $shop->is_active))>

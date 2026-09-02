@@ -27,12 +27,28 @@ class PlatformSetting extends Model
 
     public static function putValue(string $key, array $value): self
     {
+        $previous = static::query()->where('key', $key)->first();
+        $old = $previous?->value;
+
         $setting = static::query()->updateOrCreate(
             ['key' => $key],
             ['value' => $value]
         );
 
         Cache::forget("platform_setting:{$key}");
+
+        try {
+            if ($old != $value) {
+                SettingAudit::query()->create([
+                    'user_id' => auth()->id(),
+                    'setting_key' => $key,
+                    'old_value' => is_array($old) ? $old : null,
+                    'new_value' => $value,
+                ]);
+            }
+        } catch (\Throwable) {
+            // Audits must never block saving platform law.
+        }
 
         return $setting;
     }

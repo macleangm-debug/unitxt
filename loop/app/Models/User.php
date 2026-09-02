@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -26,11 +27,13 @@ use Illuminate\Notifications\Notifiable;
     'birth_date',
     'birth_month',
     'birth_day',
+    'gender',
     'role',
     'business_id',
     'must_change_password',
     'is_active',
     'profile_completed',
+    'marketing_opt_in',
     'phone_verified_at',
     'email_verified_at',
 ])]
@@ -62,6 +65,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'is_active' => 'boolean',
             'profile_completed' => 'boolean',
+            'marketing_opt_in' => 'boolean',
             'interests' => 'array',
         ];
     }
@@ -74,6 +78,62 @@ class User extends Authenticatable
     public function getFullPhoneAttribute(): string
     {
         return $this->country_code.' '.$this->phone;
+    }
+
+    public function hasKnownName(): bool
+    {
+        return filled($this->first_name);
+    }
+
+    public function hasBirthday(): bool
+    {
+        return filled($this->birth_month) && filled($this->birth_day);
+    }
+
+    public function hasGender(): bool
+    {
+        return filled($this->gender);
+    }
+
+    public function hasInterests(): bool
+    {
+        return filled($this->interests);
+    }
+
+    /**
+     * Fill member profile fields without wiping values Loop already knows.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function mergeMemberProfile(array $data): void
+    {
+        $assign = [];
+
+        foreach (['first_name', 'last_name', 'country', 'city', 'email', 'gender'] as $key) {
+            if (! array_key_exists($key, $data)) {
+                continue;
+            }
+            $value = $data[$key];
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $assign[$key] = $value;
+        }
+
+        foreach (['birth_month', 'birth_day'] as $key) {
+            if (! array_key_exists($key, $data) || $data[$key] === null || $data[$key] === '') {
+                continue;
+            }
+            $assign[$key] = $data[$key];
+        }
+
+        if (array_key_exists('interests', $data) && is_array($data['interests']) && $data['interests'] !== []) {
+            $assign['interests'] = array_values($data['interests']);
+        }
+
+        if ($assign !== []) {
+            $this->fill($assign);
+        }
     }
 
     public function isOwner(): bool
@@ -148,5 +208,42 @@ class User extends Authenticatable
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class, 'customer_id');
+    }
+
+    public function assignedShops(): BelongsToMany
+    {
+        return $this->belongsToMany(Shop::class)->withTimestamps();
+    }
+
+    /**
+     * Shops this staff member may sell from. Owners see every active shop.
+     * Front desk with no assignments still sees every shop (legacy staff).
+     *
+     * @return \Illuminate\Support\Collection<int, Shop>
+     */
+    public function tillShops(?Business $business = null)
+    {
+        $business = $business ?? $this->workplace();
+        if (! $business) {
+            return collect();
+        }
+
+        $all = $business->shops()->where('is_active', true)->orderBy('name')->get();
+        if ($this->isOwner() || $all->count() <= 1) {
+            return $all;
+        }
+
+        $assigned = $this->assignedShops()
+            ->where('shops.business_id', $business->id)
+            ->where('shops.is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return $assigned->isNotEmpty() ? $assigned : $all;
+    }
+
+    public function canAccessShop(Shop $shop): bool
+    {
+        return $this->tillShops($shop->business)->contains(fn (Shop $row) => (int) $row->id === (int) $shop->id);
     }
 }

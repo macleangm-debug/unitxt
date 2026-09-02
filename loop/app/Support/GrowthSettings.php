@@ -32,6 +32,7 @@ class GrowthSettings
             'raffle_max_winners_percent' => 30,
             'raffle_remind_days_before' => 2,
             'raffle_default_claim_days' => 7,
+            'raffle_spin_seconds' => 50,
             'banner_member_milestones' => [10, 25, 50, 100],
             'banner_max_count' => 2,
             'campaign_delta_threshold_pct' => 15,
@@ -67,6 +68,7 @@ class GrowthSettings
             'raffle_max_winners_percent' => max(5, min(50, (int) ($input['raffle_max_winners_percent'] ?? 30))),
             'raffle_remind_days_before' => max(1, min(14, (int) ($input['raffle_remind_days_before'] ?? 2))),
             'raffle_default_claim_days' => max(1, min(30, (int) ($input['raffle_default_claim_days'] ?? 7))),
+            'raffle_spin_seconds' => max(45, min(60, (int) ($input['raffle_spin_seconds'] ?? 50))),
             'banner_member_milestones' => $milestones ?: [10, 25, 50, 100],
             'banner_max_count' => max(1, min(5, (int) ($input['banner_max_count'] ?? 2))),
             'campaign_delta_threshold_pct' => max(5, min(100, (int) ($input['campaign_delta_threshold_pct'] ?? 15))),
@@ -90,6 +92,16 @@ class GrowthSettings
     public static function raffleMaxWinnersPercent(): int
     {
         return (int) self::settings()['raffle_max_winners_percent'];
+    }
+
+    public static function raffleSpinSeconds(): int
+    {
+        return max(45, min(60, (int) self::settings()['raffle_spin_seconds']));
+    }
+
+    public static function raffleSpinMs(): int
+    {
+        return self::raffleSpinSeconds() * 1000;
     }
 
     /**

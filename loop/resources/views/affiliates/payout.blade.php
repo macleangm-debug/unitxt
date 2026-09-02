@@ -35,7 +35,7 @@
 
         <div x-show="method === 'phone'" x-cloak>
             <label class="loop-label">{{ __('loop.payout_phone') }}</label>
-            <input name="payout_phone" value="{{ old('payout_phone', $affiliate->payout_phone) }}" class="loop-input" placeholder="+255 712 000 000" :required="method === 'phone'">
+            <input name="payout_phone" value="{{ old('payout_phone', $affiliate->payout_phone) }}" class="loop-input" placeholder="+255 712 000 000" :required="method === 'phone'" inputmode="tel" pattern="[0-9+ ]*">
         </div>
 
         <div x-show="method === 'bank'" x-cloak>

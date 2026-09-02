@@ -11,15 +11,13 @@ class PlanLimitService
 {
     public function planFor(Business $business): ?Plan
     {
-        return $business->relationLoaded('plan')
-            ? $business->plan
-            : Plan::query()->where('key', $business->plan_key ?: Plans::FREE)->first();
+        return Plan::locate($business->plan_key ?: Plans::FREE, $business->country);
     }
 
     /**
      * Effective caps — free/trial plan uses admin BillingSettings overrides.
      *
-     * @return array{max_shops: ?int, max_members: ?int, max_monthly_visits: ?int}
+     * @return array{max_shops: ?int, max_members: ?int, max_monthly_visits: ?int, max_product_pushes: ?int, max_offers: ?int}
      */
     public function effectiveCaps(Business $business): array
     {
@@ -31,6 +29,8 @@ class PlanLimitService
                 'max_shops' => $billing['free_max_shops'],
                 'max_members' => $billing['free_max_members'],
                 'max_monthly_visits' => $billing['free_max_monthly_visits'],
+                'max_product_pushes' => $billing['free_max_product_pushes'],
+                'max_offers' => $billing['free_max_offers'],
             ];
         }
 
@@ -38,6 +38,8 @@ class PlanLimitService
             'max_shops' => $plan->max_shops,
             'max_members' => $plan->max_members,
             'max_monthly_visits' => $plan->max_monthly_visits,
+            'max_product_pushes' => $plan->max_product_pushes,
+            'max_offers' => $plan->max_offers,
         ];
     }
 
@@ -61,20 +63,12 @@ class PlanLimitService
             return true;
         }
 
-        if ($this->trialExpired($business) && ! Plans::isPaidPlan($business->plan_key)) {
-            return false;
-        }
-
-        if ($this->trialExpired($business) && $business->billing_status === 'past_due') {
-            return false;
-        }
-
-        return true;
+        return ! app(LoopAccess::class)->isPaused($business);
     }
 
     public function trialExpiredMessage(): string
     {
-        return __('loop.trial_expired_till');
+        return __('loop.loop_paused_till');
     }
 
     public function canAddShop(Business $business): bool
@@ -95,6 +89,48 @@ class PlanLimitService
         return __('loop.shop_limit_reached', [
             'plan' => $plan?->name ?? 'Trial',
             'max' => $caps['max_shops'] ?? 1,
+        ]);
+    }
+
+    public function canAddProductPush(Business $business): bool
+    {
+        $caps = $this->effectiveCaps($business);
+        if ($caps['max_product_pushes'] === null) {
+            return true;
+        }
+
+        return $business->campaigns()->where('type', 'product_push')->count() < $caps['max_product_pushes'];
+    }
+
+    public function productPushLimitMessage(Business $business): string
+    {
+        $caps = $this->effectiveCaps($business);
+        $plan = $this->planFor($business);
+
+        return __('loop.product_push_limit_reached', [
+            'plan' => $plan?->name ?? 'Trial',
+            'max' => $caps['max_product_pushes'] ?? 0,
+        ]);
+    }
+
+    public function canAddOffer(Business $business): bool
+    {
+        $caps = $this->effectiveCaps($business);
+        if ($caps['max_offers'] === null) {
+            return true;
+        }
+
+        return $business->rewards()->count() < $caps['max_offers'];
+    }
+
+    public function offerLimitMessage(Business $business): string
+    {
+        $caps = $this->effectiveCaps($business);
+        $plan = $this->planFor($business);
+
+        return __('loop.offer_limit_reached', [
+            'plan' => $plan?->name ?? 'Trial',
+            'max' => $caps['max_offers'] ?? 0,
         ]);
     }
 
@@ -170,16 +206,58 @@ class PlanLimitService
 
     public function syncTrialStatus(Business $business): void
     {
-        if (! $this->trialExpired($business)) {
-            return;
+        app(LoopAccess::class)->sync($business);
+    }
+
+    public function rafflesEnabled(Business $business): bool
+    {
+        if (! \App\Support\FeatureFlags::enabled('raffles')) {
+            return false;
         }
 
-        if (Plans::isPaidPlan($business->plan_key) && $business->billing_status === 'active') {
-            return;
+        $plan = $this->planFor($business);
+        if ($plan && $plan->exists) {
+            return (bool) $plan->has_raffles;
         }
 
-        if ($business->billing_status !== 'past_due') {
-            $business->update(['billing_status' => 'past_due']);
+        $catalog = Plans::catalog()[$business->plan_key] ?? [];
+
+        return (bool) ($catalog['has_raffles'] ?? false);
+    }
+
+    public function smsEnabled(Business $business): bool
+    {
+        if (app(LoopAccess::class)->isPaused($business)) {
+            return false;
         }
+
+        if (! \App\Support\FeatureFlags::enabled('sms_messaging')) {
+            return false;
+        }
+
+        $plan = $this->planFor($business);
+        if ($plan && $plan->exists) {
+            return (bool) $plan->has_sms;
+        }
+
+        $catalog = Plans::catalog()[$business->plan_key] ?? [];
+
+        return (bool) ($catalog['has_sms'] ?? false);
+    }
+
+    public function gamesEnabled(Business $business): bool
+    {
+        if (! \App\Support\GameSettings::engineOn()) {
+            return false;
+        }
+
+        $plan = $this->planFor($business);
+        if ($plan && $plan->exists) {
+            return (bool) $plan->has_games;
+        }
+
+        $catalog = Plans::catalog()[$business->plan_key] ?? [];
+
+        return (bool) ($catalog['has_games'] ?? false);
     }
 }

@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="loop-no-skeleton">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Loop — {{ __('loop.with_your_phone') }}</title>
+    @include('partials.head-boot')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
-<div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
+<div class="relative min-h-screen overflow-x-hidden bg-chalk pb-24 sm:pb-0" x-data="loopPageMotion()">
     <div class="pointer-events-none absolute inset-0">
         <div class="absolute -left-24 top-10 h-80 w-80 rounded-full bg-violet/15 blur-3xl"></div>
         <div class="absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-lime/20 blur-3xl"></div>
@@ -18,8 +18,11 @@
 
 <x-site-header>
     <x-slot:actions>
-        <a href="{{ route('staff.login') }}" class="loop-btn-ghost !py-2 text-sm">{{ __('loop.staff_login') }}</a>
-        <a href="{{ route('staff.login', ['admin' => 1]) }}" class="text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.admin_login') }}</a>
+        @if (\App\Support\AffiliateProgram::isEnabled() && \App\Support\MarketingSettings::settings()['show_affiliate_cta'])
+        <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
+        @endif
+        <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.business') }}</a>
+        <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.customer') }}</a>
     </x-slot:actions>
 </x-site-header>
 
@@ -32,8 +35,8 @@
                 <p class="mt-2 font-display text-2xl text-ink-muted sm:text-3xl">{{ $heroTagline ?? __('loop.tagline') }}</p>
                 <p class="mt-5 max-w-lg text-lg text-ink-muted">{{ __('loop.business_hero_body') }}</p>
                 <div class="mt-8 flex flex-wrap gap-3">
-                    <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.cta_business') }}</a>
-                    <a href="{{ route('pricing') }}" class="loop-btn-ghost">{{ __('loop.see_pricing') }}</a>
+                    <a href="{{ route('business.register') }}" class="loop-btn">{{ __('loop.register') }}</a>
+                    <a href="{{ route('staff.login') }}" class="loop-btn-ghost">{{ __('loop.login') }}</a>
                 </div>
             </div>
             <div class="loop-wallet animate-fade-up-delay p-6 sm:p-8">
@@ -88,8 +91,12 @@
         </div>
     </section>
 </main>
+<div class="loop-sticky-cta sm:hidden">
+    <a href="{{ route('business.register') }}" class="loop-btn w-full justify-center">{{ __('loop.cta_business') }}</a>
+</div>
 <x-site-footer />
 <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
+<x-page-skeleton variant="public" />
 </body>
 </html>

@@ -9,11 +9,14 @@
     :aside-point2="__('loop.auth_aside_2')"
     :aside-point3="__('loop.auth_aside_3')"
 >
-    <form method="POST" action="{{ route('staff.login') }}" class="space-y-4" x-data="{
+    <form method="POST" action="{{ route('staff.login') }}" class="space-y-4" autocomplete="off" data-lpignore="true" data-1p-ignore="true" x-data="{
         country: @js(old('country_code', \App\Support\Countries::dial(session('preferred_country', 'TZ')))),
         dials: @js(collect($countries)->mapWithKeys(fn ($m, $c) => [$m['dial'] => $m['dial']])->all()),
     }">
         @csrf
+        @if ($isAdmin)
+            <input type="hidden" name="admin" value="1">
+        @endif
         <div>
             <h1 class="font-display text-2xl font-semibold">{{ $isAdmin ? __('loop.admin_login') : __('loop.staff_login') }}</h1>
             <p class="mt-1 text-sm text-ink-muted">{{ $isAdmin ? __('loop.admin_login_blurb') : __('loop.staff_login_blurb') }}</p>
@@ -35,12 +38,12 @@
                         <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial(session('preferred_country', 'TZ'))) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
                     @endforeach
                 </select>
-                <input name="phone" value="{{ old('phone', $isAdmin ? '710000000' : '') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="tel" autocomplete="tel-national">
+                <input name="phone" value="{{ old('phone', $isAdmin ? '710000000' : '') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-lpignore="true" data-1p-ignore="true">
             </div>
         </div>
         <div>
             <label class="loop-label">{{ __('loop.password') }}</label>
-            <input type="password" name="password" class="loop-input" required value="{{ $isAdmin ? 'password' : '' }}">
+            <input type="text" name="password" class="loop-input loop-secret" required value="{{ old('password') }}" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" data-form-type="other" spellcheck="false" autocorrect="off">
         </div>
         <label class="flex items-center gap-2 text-sm text-ink-muted">
             <input type="checkbox" name="remember"> {{ __('loop.remember_me') }}

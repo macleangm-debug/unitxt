@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Confirm;
+use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,8 +15,15 @@ class BusinessController extends Controller
         $business = $request->user()->ownedBusiness;
         abort_unless($business && $request->user()->isOwner(), 403);
 
+        $dial = Countries::dial($business->country ?? 'TZ');
+        $hotlineLocal = $business->hotline
+            ? preg_replace('/^\+\d+\s*/', '', (string) $business->hotline)
+            : '';
+
         return view('business.edit', [
             'business' => $business,
+            'dial' => $dial,
+            'hotlineLocal' => $hotlineLocal,
         ]);
     }
 
@@ -29,12 +37,14 @@ class BusinessController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'city' => ['nullable', 'string', 'max:80'],
             'hotline' => ['nullable', 'string', 'max:40'],
+            'hotline_country_code' => ['nullable', 'string', 'max:8'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
             'allow_pay_with_points' => ['sometimes', 'boolean'],
             'pay_spend_step' => ['nullable', 'integer', 'min:1'],
             'pay_points_per_step' => ['nullable', 'integer', 'min:1'],
             'pay_points_max_percent' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'allow_same_day_earn_redeem' => ['sometimes', 'boolean'],
         ]);
 
         if ($request->hasFile('logo')) {
@@ -48,13 +58,16 @@ class BusinessController extends Controller
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'city' => $data['city'] ?? $business->city,
-            'hotline' => $data['hotline'] ?? null,
+            'hotline' => filled($data['hotline'] ?? null)
+                ? trim(($data['hotline_country_code'] ?? Countries::dial($business->country ?? 'TZ')).' '.Countries::normalizePhone($data['hotline']))
+                : null,
             'logo_path' => $business->logo_path,
             'is_active' => $request->boolean('is_active', $business->is_active),
             'allow_pay_with_points' => $allowPay,
             'pay_spend_step' => $allowPay ? ($data['pay_spend_step'] ?? $business->pay_spend_step) : null,
             'pay_points_per_step' => $allowPay ? ($data['pay_points_per_step'] ?? $business->pay_points_per_step) : null,
             'pay_points_max_percent' => $allowPay ? ($data['pay_points_max_percent'] ?? 50) : ($business->pay_points_max_percent ?: 50),
+            'allow_same_day_earn_redeem' => $request->boolean('allow_same_day_earn_redeem'),
         ]);
 
         return redirect()->route('business.edit')->with('confirm', Confirm::make(

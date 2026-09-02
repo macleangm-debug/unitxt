@@ -16,6 +16,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -30,6 +31,11 @@ class BusinessRegisterController extends Controller
         $affiliate = $affiliates->findByPromo($ref);
         $referrer = $affiliate ? null : $referrals->findReferrer($ref);
 
+        if (filled($ref) && AffiliateProgram::isEnabled()) {
+            $minutes = max(1, (int) AffiliateProgram::settings()['cookie_days']) * 24 * 60;
+            Cookie::queue('loop_ref', strtoupper(trim((string) $ref)), $minutes);
+        }
+
         $scoutId = $request->query('scout');
         if (filled($scoutId) && ctype_digit((string) $scoutId)) {
             $request->session()->put('scout_customer_id', (int) $scoutId);
@@ -37,7 +43,7 @@ class BusinessRegisterController extends Controller
 
         return view('auth.business-register', [
             'sectors' => Sectors::all(),
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::enabledOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
             'referralCode' => $affiliate?->promo_code ?? $referrer?->referral_code ?? old('referral_code', $ref),
             'referrerBusiness' => $referrer,
@@ -52,7 +58,7 @@ class BusinessRegisterController extends Controller
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
-            'country' => ['required', 'in:'.implode(',', array_keys(Countries::OPTIONS))],
+            'country' => ['required', Countries::enabledRule()],
             'phone' => ['required', 'string', 'max:32'],
             'email' => ['nullable', 'email', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
@@ -77,7 +83,7 @@ class BusinessRegisterController extends Controller
             ]);
         }
 
-        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $hotline, $referrals, $affiliates) {
+        $owner = DB::transaction(function () use ($data, $countryCode, $phone, $hotline, $referrals, $affiliates, $request) {
             $owner = User::create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -109,9 +115,13 @@ class BusinessRegisterController extends Controller
 
             $owner->update(['business_id' => $business->id]);
 
-            $code = $data['referral_code'] ?? null;
+            $code = $data['referral_code'] ?? $request->cookie('loop_ref');
             if (! $affiliates->attachToBusiness($business, $code)) {
                 $referrals->attachReferral($business, $code);
+            }
+
+            if ($data['sector'] === 'other' && filled($data['sector_other'] ?? null)) {
+                \App\Models\SectorSearchMiss::record($data['sector_other']);
             }
 
             return $owner;
@@ -129,6 +139,9 @@ class BusinessRegisterController extends Controller
         event(new Registered($owner));
         Auth::login($owner);
         $request->session()->put('preferred_country', $data['country']);
+        $owner->marketing_opt_in = $request->boolean('marketing_opt_in');
+        $owner->save();
+        app(\App\Services\LegalService::class)->recordSignup($owner, 'business');
 
         return redirect()->route('onboarding.show');
     }

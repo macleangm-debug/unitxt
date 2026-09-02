@@ -29,30 +29,31 @@
     @keydown.escape.window="menuOpen = false"
     x-effect="document.documentElement.classList.toggle('overflow-hidden', menuOpen)"
 >
-    <div class="loop-shell flex h-14 items-center gap-3 sm:h-16 sm:gap-4">
+    <div class="loop-shell flex h-14 items-center gap-4 sm:h-16 sm:gap-6">
         <a href="/" class="flex shrink-0 items-center gap-2 {{ $brandClass }}">
             <x-loop-logo class="h-8 w-8 sm:h-9 sm:w-9" />
             <span class="font-display text-lg font-semibold tracking-tight sm:text-xl">Loop</span>
         </a>
 
-        <div class="flex-1"></div>
-
         @unless ($slim)
             @if ($actionsHtml)
-                <nav class="loop-top-nav hidden items-center gap-6 md:flex lg:gap-8">
+                <nav class="loop-top-nav hidden items-center gap-5 md:flex lg:gap-6">
                     {!! $actionsHtml !!}
                 </nav>
             @endif
         @endunless
 
-        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2 {{ $actionsHtml && ! $slim ? 'md:ml-4 lg:ml-6' : '' }}">
+        <div class="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <form method="POST" action="{{ route('preference.country') }}">
                 @csrf
-                <select name="country" onchange="this.form.submit()" aria-label="{{ __('loop.country') }}" class="{{ $controlClass }}">
-                    @foreach (\App\Support\Countries::enabledOptions() as $code => $meta)
-                        <option value="{{ $code }}" @selected(session('preferred_country', 'TZ') === $code)>{{ $meta['flag'] }} {{ $code }}</option>
-                    @endforeach
-                </select>
+                <x-sheet-select
+                    name="country"
+                    :options="collect(\App\Support\Countries::enabledOptions())->mapWithKeys(fn ($meta, $code) => [$code => ($meta['flag'].' '.$code)])->all()"
+                    :value="session('preferred_country', 'TZ')"
+                    :autosubmit="true"
+                    :placeholder="__('loop.country')"
+                    trigger-class="{{ $controlClass }} flex items-center justify-between gap-1"
+                />
             </form>
 
             <div class="{{ $langWrap }}">
@@ -89,8 +90,13 @@
                     <div
                         x-show="menuOpen"
                         x-cloak
-                        x-transition.opacity.duration.200ms
-                        class="fixed inset-0 z-[60] bg-ink/45 md:hidden"
+                        x-transition:enter="loop-drawer-scrim-enter-active"
+                        x-transition:enter-start="opacity-0"
+                        x-transition:enter-end="opacity-100"
+                        x-transition:leave="loop-drawer-scrim-leave-active"
+                        x-transition:leave-start="opacity-100"
+                        x-transition:leave-end="opacity-0"
+                        class="loop-drawer-scrim fixed inset-0 z-[60] md:hidden"
                         @click="menuOpen = false"
                         aria-hidden="true"
                     ></div>
@@ -98,10 +104,10 @@
                         id="loop-mobile-nav"
                         x-show="menuOpen"
                         x-cloak
-                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter="loop-drawer-enter-active"
                         x-transition:enter-start="translate-x-full"
                         x-transition:enter-end="translate-x-0"
-                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave="loop-drawer-leave-active"
                         x-transition:leave-start="translate-x-0"
                         x-transition:leave-end="translate-x-full"
                         class="fixed inset-y-0 right-0 z-[70] flex w-[min(100%,20rem)] flex-col bg-white shadow-2xl md:hidden"

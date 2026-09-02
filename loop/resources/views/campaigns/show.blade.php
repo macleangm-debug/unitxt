@@ -5,46 +5,41 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.campaigns') }}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-3">
                     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $campaign->displayName() }}</h1>
-                    @if ($campaign->isCurrentlyActive())
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-mint px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink shadow-[0_0_0_4px_rgba(46,125,50,0.18)]">
-                            <span class="h-2 w-2 animate-pulse rounded-full bg-ink"></span>
-                            {{ __('loop.live') }}
-                        </span>
-                    @else
-                        <span class="inline-flex items-center rounded-full bg-ink/10 px-3.5 py-1.5 text-sm font-bold uppercase tracking-wide text-ink-muted">
-                            {{ __('loop.paused') }}
-                        </span>
-                    @endif
+                    <span class="rounded-full {{ $campaign->isMain() ? 'bg-mint-soft text-mint-deep' : 'bg-chalk text-ink-muted' }} px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]">
+                        {{ $campaign->isMain() ? __('loop.main_campaign') : __('loop.bonus_campaign') }}
+                    </span>
+                    <x-status-pill :live="$campaign->isCurrentlyActive()" size="lg" />
                 </div>
                 <p class="mt-2 text-sm text-ink-muted">{{ $campaign->scheduleLabel() }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index') }}" class="loop-btn-ghost !py-2.5">{{ __('loop.back') }}</a>
-                <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
-                    @csrf
-                    <button class="loop-btn-ghost !py-2.5">
-                        {{ $campaign->is_active ? __('loop.pause_campaign') : __('loop.resume_campaign') }}
-                    </button>
-                </form>
+                <x-back-icon :href="route('campaigns.index')" />
+                @if ($campaign->is_active)
+                    <x-pause-confirm
+                        :action="route('campaigns.toggle', $campaign)"
+                        :title="__('loop.pause_campaign_confirm_title')"
+                        :body="__('loop.pause_campaign_confirm_body')"
+                    />
+                @else
+                    <form method="POST" action="{{ route('campaigns.toggle', $campaign) }}">
+                        @csrf
+                        <button class="loop-btn-ghost !py-2.5">{{ __('loop.resume_campaign') }}</button>
+                    </form>
+                @endif
                 <a href="{{ route('campaigns.edit', $campaign) }}" class="loop-btn-mint !py-2.5">{{ __('loop.edit') }}</a>
             </div>
         </div>
     </x-slot>
 
-    @if (in_array($campaign->type, ['earn', 'product_push'], true) && $campaign->spend_step && $campaign->points_per_step)
+    @if ($campaign->isMain() && $campaign->spend_step && $campaign->points_per_step)
         <div class="mt-6 rounded-[1.5rem] border border-ink/10 bg-white px-5 py-5">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.customer_gets') }}</p>
             <p class="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-                {{ $campaign->points_per_step }} {{ __('loop.pts') }}
+                {{ number_format((int) $campaign->points_per_step) }} {{ __('loop.pts') }}
                 <span class="text-ink-muted">/</span>
                 {{ $business->currency }} {{ number_format($campaign->spend_step) }}
             </p>
             <p class="mt-2 text-sm text-ink-muted">{{ __('loop.min_spend_to_earn_hint', ['currency' => $business->currency, 'amount' => number_format($campaign->spend_step)]) }}</p>
-            @if ($campaign->type === 'product_push' && $campaign->featured_product_name)
-                <p class="mt-2 text-sm text-ink-muted">
-                    {{ __('loop.rule_featured_product', ['product' => $campaign->featured_product_name, 'points' => $campaign->bonus_points]) }}
-                </p>
-            @endif
         </div>
     @elseif ($campaign->ruleSummary($business->currency))
         <p class="mt-6 text-base font-medium text-ink-muted">{{ $campaign->ruleSummary($business->currency) }}</p>
@@ -80,7 +75,7 @@
                     <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
                         <div class="min-w-0">
                             <p class="truncate font-semibold">{{ $visit->customer->name }}</p>
-                            <p class="mt-0.5 text-xs text-ink-muted">{{ $visit->created_at->format('d M · H:i') }} · +{{ $visit->points_earned }} pts</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">{{ $visit->created_at->format('d M · H:i') }} · +{{ number_format((int) $visit->points_earned) }} pts</p>
                         </div>
                         <p class="shrink-0 font-display text-lg font-semibold">
                             {{ number_format($visit->amount_spent, 0) }}

@@ -3,7 +3,7 @@
         <h1 class="font-display text-3xl font-semibold">{{ $business->name }} rewards</h1>
         <p class="mt-1 text-ink-muted">
             @if ($membership)
-                You have {{ $membership->points_balance }} points available.
+                You have {{ number_format((int) $membership->points_balance) }} points available.
             @else
                 Join this business to redeem rewards.
             @endif
@@ -15,7 +15,7 @@
             <div class="loop-panel p-5">
                 <p class="font-display text-lg font-semibold">{{ $reward->name }}</p>
                 <p class="mt-1 text-sm text-ink-muted">{{ $reward->description }}</p>
-                <p class="mt-3 font-semibold">{{ $reward->points_cost }} points</p>
+                <p class="mt-3 font-semibold">{{ number_format((int) $reward->points_cost) }} points</p>
                 @if ($membership)
                     <form method="POST" action="{{ route('rewards.redeem', $reward) }}" class="mt-4">
                         @csrf

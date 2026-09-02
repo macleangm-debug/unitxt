@@ -52,6 +52,10 @@ class AffiliateDashboardController extends Controller
                 'code' => $affiliate->promo_code,
                 'url' => \App\Support\PlatformUrl::route('business.register', ['ref' => $affiliate->promo_code]),
             ]),
+            'currency' => \App\Support\Countries::currency($affiliate->country ?? 'TZ'),
+            'available' => $affiliate->availableCommission(),
+            'minPayout' => (int) $settings['min_payout_amount'],
+            'hasPayoutAccount' => $affiliate->hasPayoutAccount(),
         ]);
     }
 
@@ -106,18 +110,39 @@ class AffiliateDashboardController extends Controller
         ));
     }
 
-    public function payoutForm(Request $request): View
+    public function payoutForm(Request $request): RedirectResponse
+    {
+        $this->activeAffiliate($request);
+
+        return redirect()->route('affiliate.withdraw');
+    }
+
+    public function withdrawForm(Request $request): View|RedirectResponse
     {
         $affiliate = $this->activeAffiliate($request);
+        if ($affiliate->needsSetup()) {
+            return redirect()->route('affiliate.setup');
+        }
 
-        return view('affiliates.payout', [
+        $settings = AffiliateProgram::settings();
+
+        return view('affiliates.withdraw', [
             'affiliate' => $affiliate,
+            'available' => $affiliate->availableCommission(),
+            'minPayout' => (int) $settings['min_payout_amount'],
+            'currency' => \App\Support\Countries::currency($affiliate->country ?? 'TZ'),
+            'hasAccount' => $affiliate->hasPayoutAccount(),
         ]);
     }
 
-    public function updatePayout(Request $request): RedirectResponse
+    public function withdraw(Request $request): RedirectResponse
     {
         $affiliate = $this->activeAffiliate($request);
+        if ($affiliate->needsSetup()) {
+            return redirect()->route('affiliate.setup');
+        }
+
+        $settings = AffiliateProgram::settings();
 
         $data = $request->validate([
             'payout_method' => ['required', 'in:phone,bank'],
@@ -133,13 +158,41 @@ class AffiliateDashboardController extends Controller
             'payout_account_name' => $data['payout_account_name'],
         ]);
 
-        return back()->with('confirm', Confirm::make(
-            __('loop.payout_saved_title'),
-            __('loop.payout_saved_body'),
+        $available = $affiliate->fresh()->availableCommission();
+        $min = (int) $settings['min_payout_amount'];
+
+        if ($available < $min) {
+            return redirect()->route('affiliate.withdraw')->with('confirm', Confirm::make(
+                __('loop.payout_account_saved_title'),
+                __('loop.payout_account_saved_wait', [
+                    'min' => number_format($min),
+                    'available' => number_format($available),
+                ]),
+                __('loop.done'),
+                route('affiliate.dashboard'),
+                false,
+            ));
+        }
+
+        $affiliate->referrals()->where('status', 'commissioned')->update(['status' => 'paid']);
+
+        return redirect()->route('affiliate.dashboard')->with('confirm', Confirm::make(
+            __('loop.withdraw_requested_title'),
+            __('loop.withdraw_requested_body', [
+                'amount' => number_format($available),
+            ]),
             __('loop.done'),
-            route('affiliate.payout'),
+            route('affiliate.dashboard'),
             false,
         ));
+    }
+
+    /**
+     * @deprecated Payout details are confirmed during withdraw.
+     */
+    public function updatePayout(Request $request): RedirectResponse
+    {
+        return $this->withdraw($request);
     }
 
     private function activeAffiliate(Request $request): \App\Models\Affiliate

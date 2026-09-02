@@ -4,18 +4,19 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\Visit;
+use App\Support\FeatureFlags;
 use App\Support\GrowthSettings;
 use Illuminate\Support\Carbon;
 
 class BusinessInsightService
 {
     /**
-     * @return list<array{key: string, tone: string, title: string, body: string, cta: string, url: string}>
+     * @return list<array{key: string, tone: string, title_key: string, body_key: string, params: array<string, mixed>, cta_key: string, url: string}>
      */
-    public function heroBanners(Business $business): array
+    public function notificationSpecs(Business $business): array
     {
         $settings = GrowthSettings::settings();
-        $banners = [];
+        $specs = [];
 
         $memberCount = $business->uniqueMemberCount();
         $offerCount = $business->rewards()->where('is_active', true)->count();
@@ -34,82 +35,90 @@ class BusinessInsightService
         $retentionDelta = $retentionNow - $retentionPrev;
 
         if ($settings['banner_show_campaign_up'] && $campaignDelta >= $campaignThreshold && $thisWeek['visits'] >= 3) {
-            $banners[] = [
+            $specs[] = [
                 'key' => 'campaign_up',
                 'tone' => 'mint',
-                'title' => __('loop.insight_campaign_up_title'),
-                'body' => __('loop.insight_campaign_up_body', ['pct' => round($campaignDelta)]),
-                'cta' => __('loop.view_campaigns'),
+                'title_key' => 'loop.insight_campaign_up_title',
+                'body_key' => 'loop.insight_campaign_up_body',
+                'params' => ['pct' => round($campaignDelta)],
+                'cta_key' => 'loop.view_campaigns',
                 'url' => route('campaigns.index'),
             ];
         } elseif ($settings['banner_show_campaign_down'] && $campaignDelta <= -$campaignThreshold && $lastWeek['visits'] >= 3) {
-            $banners[] = [
+            $specs[] = [
                 'key' => 'campaign_down',
                 'tone' => 'coral',
-                'title' => __('loop.insight_campaign_down_title'),
-                'body' => __('loop.insight_campaign_down_body', ['pct' => abs(round($campaignDelta))]),
-                'cta' => __('loop.add_offer'),
+                'title_key' => 'loop.insight_campaign_down_title',
+                'body_key' => 'loop.insight_campaign_down_body',
+                'params' => ['pct' => abs(round($campaignDelta))],
+                'cta_key' => 'loop.add_offer',
                 'url' => route('rewards.create'),
             ];
         }
 
         if ($settings['banner_show_retention_up'] && $retentionDelta >= $retentionThreshold && $retentionNow > 0) {
-            $banners[] = [
+            $specs[] = [
                 'key' => 'retention_up',
                 'tone' => 'mint',
-                'title' => __('loop.insight_retention_up_title'),
-                'body' => __('loop.insight_retention_up_body', ['rate' => round($retentionNow)]),
-                'cta' => __('loop.view_customers'),
+                'title_key' => 'loop.insight_retention_up_title',
+                'body_key' => 'loop.insight_retention_up_body',
+                'params' => ['rate' => round($retentionNow)],
+                'cta_key' => 'loop.view_customers',
                 'url' => route('customers.index'),
             ];
         } elseif ($settings['banner_show_retention_down'] && $retentionDelta <= -$retentionThreshold) {
-            $banners[] = [
+            $specs[] = [
                 'key' => 'retention_down',
                 'tone' => 'coral',
-                'title' => __('loop.insight_retention_down_title'),
-                'body' => __('loop.insight_retention_down_body'),
-                'cta' => __('loop.add_offer'),
+                'title_key' => 'loop.insight_retention_down_title',
+                'body_key' => 'loop.insight_retention_down_body',
+                'params' => [],
+                'cta_key' => 'loop.add_offer',
                 'url' => route('rewards.create'),
             ];
         }
 
         if ($settings['banner_show_add_offers_cta'] && $offerCount === 0) {
-            array_unshift($banners, [
+            array_unshift($specs, [
                 'key' => 'need_offers',
                 'tone' => 'ink',
-                'title' => __('loop.insight_need_offers_title'),
-                'body' => __('loop.insight_need_offers_body'),
-                'cta' => __('loop.add_offer'),
+                'title_key' => 'loop.insight_need_offers_title',
+                'body_key' => 'loop.insight_need_offers_body',
+                'params' => [],
+                'cta_key' => 'loop.add_offer',
                 'url' => route('rewards.create'),
             ]);
         }
 
         $minRaffle = GrowthSettings::raffleMinMembers();
         if (
-            $settings['banner_show_raffle_unlock']
+            FeatureFlags::enabled('raffles')
+            && $settings['banner_show_raffle_unlock']
             && $memberCount >= $minRaffle
             && $business->raffles()->doesntExist()
         ) {
-            $banners[] = [
+            $specs[] = [
                 'key' => 'raffle_ready',
                 'tone' => 'ink',
-                'title' => __('loop.insight_raffle_ready_title'),
-                'body' => __('loop.insight_raffle_ready_body', ['count' => $memberCount]),
-                'cta' => __('loop.create_raffle'),
+                'title_key' => 'loop.insight_raffle_ready_title',
+                'body_key' => 'loop.insight_raffle_ready_body',
+                'params' => ['count' => $memberCount],
+                'cta_key' => 'loop.create_raffle',
                 'url' => route('raffles.create'),
             ];
         }
 
-        if ($settings['banner_show_member_milestones']) {
+        if ($settings['banner_show_member_milestones'] && FeatureFlags::enabled('content_studio')) {
             foreach ($settings['banner_member_milestones'] as $milestone) {
                 $milestone = (int) $milestone;
                 if ($milestone > 0 && $memberCount >= $milestone && $memberCount < $milestone + 5) {
-                    array_unshift($banners, [
+                    array_unshift($specs, [
                         'key' => 'members_'.$milestone,
                         'tone' => 'mint',
-                        'title' => __('loop.insight_members_title', ['count' => $milestone]),
-                        'body' => __('loop.insight_members_body', ['count' => $milestone]),
-                        'cta' => __('loop.open_content_studio'),
+                        'title_key' => 'loop.insight_members_title',
+                        'body_key' => 'loop.insight_members_body',
+                        'params' => ['count' => $milestone],
+                        'cta_key' => 'loop.open_content_studio',
                         'url' => route('content-studio.index'),
                     ]);
                     break;
@@ -117,7 +126,24 @@ class BusinessInsightService
             }
         }
 
-        return array_slice($banners, 0, (int) $settings['banner_max_count']);
+        return array_slice($specs, 0, (int) $settings['banner_max_count']);
+    }
+
+    /**
+     * @return list<array{key: string, tone: string, title: string, body: string, cta: string, url: string}>
+     */
+    public function heroBanners(Business $business): array
+    {
+        return array_map(function (array $spec) {
+            return [
+                'key' => $spec['key'],
+                'tone' => $spec['tone'],
+                'title' => __($spec['title_key'], $spec['params'] ?? []),
+                'body' => __($spec['body_key'], $spec['params'] ?? []),
+                'cta' => __($spec['cta_key'], $spec['params'] ?? []),
+                'url' => $spec['url'],
+            ];
+        }, $this->notificationSpecs($business));
     }
 
     /**

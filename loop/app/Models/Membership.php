@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -71,38 +72,103 @@ class Membership extends Model
         return $this->hasMany(Redemption::class);
     }
 
+    /**
+     * Points that may unlock an offer at Till right now.
+     * The member's current balance is what the till can spend.
+     * Same-ticket earn cannot be spent until the sale is recorded — lookup
+     * always sees the balance from earlier visits, including earlier today.
+     */
+    public function redeemablePoints(): int
+    {
+        return (int) $this->points_balance;
+    }
+
+    /**
+     * Whether this membership can spend this offer at Till right now.
+     * Campaign type that earned the points (earn, product push, birthday,
+     * welcome, streak) does not matter — the balance is one pool.
+     */
+    public function canRedeemReward(Reward $reward): bool
+    {
+        if (! $reward->isAvailable()) {
+            return false;
+        }
+        if ((int) $reward->points_cost > $this->redeemablePoints()) {
+            return false;
+        }
+        if ($reward->max_redemptions_per_member) {
+            $used = $this->redemptions()->where('reward_id', $reward->id)->count();
+            if ($used >= $reward->max_redemptions_per_member) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function catalogRewards()
+    {
+        if ($this->relationLoaded('business') && $this->business->relationLoaded('rewards')) {
+            return $this->business->rewards->where('is_active', true)->sortBy('points_cost')->values();
+        }
+
+        return $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+    }
+
     public function availableRewards()
     {
-        return $this->business->rewards()
-            ->where('is_active', true)
-            ->where('points_cost', '<=', $this->points_balance)
-            ->orderBy('points_cost')
-            ->get()
-            ->filter(fn (Reward $reward) => $reward->isAvailable());
+        return $this->catalogRewards()
+            ->filter(fn (Reward $reward) => $this->canRedeemReward($reward))
+            ->values();
     }
 
     public function nextReward(): ?Reward
     {
-        $rewards = $this->relationLoaded('business') && $this->business->relationLoaded('rewards')
-            ? $this->business->rewards
-            : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+        $balance = $this->redeemablePoints();
 
-        return $rewards
-            ->filter(fn (Reward $reward) => $reward->points_cost > $this->points_balance)
+        return $this->catalogRewards()
+            ->filter(fn (Reward $reward) => $reward->isAvailable() && $reward->points_cost > $balance)
             ->sortBy('points_cost')
             ->first();
     }
 
     public function nearestReadyReward(): ?Reward
     {
-        $rewards = $this->relationLoaded('business') && $this->business->relationLoaded('rewards')
-            ? $this->business->rewards
-            : $this->business->rewards()->where('is_active', true)->orderBy('points_cost')->get();
+        return $this->availableRewards()->sortBy('points_cost')->first();
+    }
 
-        return $rewards
-            ->filter(fn (Reward $reward) => $reward->points_cost <= $this->points_balance)
-            ->sortBy('points_cost')
-            ->first();
+    /**
+     * One row per visit (net points) so members do not see every earn fragment.
+     *
+     * @return Collection<int, object{points: int, created_at: \Illuminate\Support\Carbon, visit_id: int|null, type: string}>
+     */
+    public function groupedActivity(int $limit = 20): Collection
+    {
+        $rows = $this->pointTransactions()->latest('id')->limit(80)->get();
+        $grouped = [];
+        $order = [];
+
+        foreach ($rows as $tx) {
+            $key = $tx->visit_id ? 'v:'.$tx->visit_id : 't:'.$tx->id;
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'points' => 0,
+                    'created_at' => $tx->created_at,
+                    'type' => $tx->type,
+                    'visit_id' => $tx->visit_id,
+                ];
+                $order[] = $key;
+            }
+            $grouped[$key]['points'] += (int) $tx->points;
+            if ($tx->type === PointTransaction::TYPE_REDEEM) {
+                $grouped[$key]['type'] = PointTransaction::TYPE_REDEEM;
+            }
+        }
+
+        return collect($order)
+            ->map(fn (string $key) => (object) $grouped[$key])
+            ->take($limit)
+            ->values();
     }
 
     public function progressTo(?Reward $reward): array
@@ -111,9 +177,10 @@ class Membership extends Model
             return ['needed' => 0, 'percent' => 100, 'ready' => true];
         }
 
-        $needed = max(0, $reward->points_cost - $this->points_balance);
+        $balance = $this->redeemablePoints();
+        $needed = max(0, $reward->points_cost - $balance);
         $percent = $reward->points_cost > 0
-            ? (int) min(100, round(($this->points_balance / $reward->points_cost) * 100))
+            ? (int) min(100, round(($balance / $reward->points_cost) * 100))
             : 100;
 
         return [

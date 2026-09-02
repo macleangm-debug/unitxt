@@ -1,104 +1,96 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.offers') }}</p>
-                <div class="mt-1 flex flex-wrap items-center gap-3">
-                    <h1 class="font-display text-3xl font-semibold">{{ $reward->name }}</h1>
-                    @if ($reward->is_active)
-                        <span class="rounded-lg bg-mint px-2.5 py-1 text-xs font-semibold text-ink">{{ __('loop.live') }}</span>
-                    @endif
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0 max-w-2xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.offers') }}</p>
+                <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ $reward->name }}</h1>
+                    <x-status-pill :live="$reward->is_active" size="lg" />
                 </div>
-                <p class="mt-1 text-ink-muted">{{ $reward->label() }} · {{ $reward->points_cost }} pts</p>
+                <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('campaigns.index') }}#offers" class="loop-btn-ghost !py-2">{{ __('loop.back') }}</a>
-                <a href="{{ route('rewards.edit', $reward) }}" class="loop-btn-mint !py-2">{{ __('loop.edit') }}</a>
+                <x-back-icon :href="route('campaigns.index', ['tab' => 'offers'])" />
+                @if ($reward->is_active)
+                    <x-pause-confirm
+                        :action="route('rewards.toggle', $reward)"
+                        :title="__('loop.pause_offer_confirm_title')"
+                        :body="__('loop.pause_offer_confirm_body')"
+                    />
+                @else
+                    <form method="POST" action="{{ route('rewards.toggle', $reward) }}">
+                        @csrf
+                        <button class="loop-btn-ghost !py-2.5">{{ __('loop.resume_campaign') }}</button>
+                    </form>
+                @endif
+                <a href="{{ route('rewards.edit', $reward) }}" class="loop-btn-mint !py-2.5">{{ __('loop.edit') }}</a>
             </div>
         </div>
     </x-slot>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="rounded-2xl bg-gradient-to-br from-mint/30 to-mint/5 p-5 ring-1 ring-mint/20">
-            <p class="text-sm text-ink-muted">{{ __('loop.redemptions') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['total_redemptions'] }}</p>
+    <div class="mt-6 rounded-[1.5rem] border border-ink/10 bg-white px-5 py-5">
+        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.member_redeems') }}</p>
+        <p class="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
+            {{ number_format((int) $reward->points_cost) }} {{ __('loop.pts') }}
+        </p>
+        <p class="mt-2 text-sm text-ink-muted">{{ $reward->label() }} · {{ __('loop.offer_hero_hint', ['points' => number_format((int) $reward->points_cost)]) }}</p>
+        @if ($reward->product_name)
+            <p class="mt-2 text-sm text-ink-muted">{{ __('loop.product') }}: <span class="font-semibold text-ink">{{ $reward->product_name }}</span></p>
+        @endif
+        @if ($reward->description)
+            <p class="mt-2 text-sm text-ink-muted">{{ $reward->description }}</p>
+        @endif
+        <p class="mt-2 text-sm text-ink-muted">
+            {{ __('loop.stock') }}:
+            <span class="font-semibold text-ink">{{ $stats['stock'] ?? __('loop.unlimited') }}</span>
+        </p>
+    </div>
+
+    <div class="mt-6 grid grid-cols-3 gap-3">
+        <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.redemptions') }}</p>
+            <p class="mt-2 font-display text-2xl font-semibold sm:text-3xl">{{ $stats['total_redemptions'] }}</p>
         </div>
-        <div class="rounded-2xl bg-gradient-to-br from-coral/25 to-coral/5 p-5 ring-1 ring-coral/20">
-            <p class="text-sm text-ink-muted">{{ __('loop.this_month') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['this_month'] }}</p>
+        <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.this_month') }}</p>
+            <p class="mt-2 font-display text-2xl font-semibold sm:text-3xl">{{ $stats['this_month'] }}</p>
         </div>
-        <div class="rounded-2xl bg-gradient-to-br from-ink/90 to-ink p-5 text-white">
-            <p class="text-sm text-white/70">{{ __('loop.points_spent') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ number_format($stats['points_spent']) }}</p>
-        </div>
-        <div class="rounded-2xl bg-gradient-to-br from-mint to-mint-deep p-5 text-ink">
-            <p class="text-sm text-ink/70">{{ __('loop.stock') }}</p>
-            <p class="mt-2 font-display text-3xl font-semibold">{{ $stats['stock'] ?? __('loop.unlimited') }}</p>
+        <div class="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.points_spent') }}</p>
+            <p class="mt-2 font-display text-xl font-semibold sm:text-2xl">{{ number_format($stats['points_spent'], 0) }}</p>
+            <p class="mt-0.5 text-[10px] text-ink-muted">{{ __('loop.pts') }}</p>
         </div>
     </div>
 
-    <div class="mt-8 grid gap-6 lg:grid-cols-2">
-        <section class="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/90">
-            <div class="bg-gradient-to-r from-mint/25 via-mint/5 to-transparent px-6 py-4">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.offer_details') }}</h2>
-            </div>
-            <dl class="space-y-3 px-6 py-5 text-sm">
-                <div class="flex justify-between gap-4">
-                    <dt class="text-ink-muted">{{ __('loop.type') }}</dt>
-                    <dd class="font-semibold">{{ __('loop.'.$reward->reward_type) }}</dd>
+    @if ($recentRedemptions->isNotEmpty())
+        <section class="mt-8">
+            <div class="mb-4 flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_redemptions') }}</h2>
+                    <p class="mt-1 text-sm text-ink-muted">{{ __('loop.offer_redemptions_blurb') }}</p>
                 </div>
-                <div class="flex justify-between gap-4">
-                    <dt class="text-ink-muted">{{ __('loop.points_cost') }}</dt>
-                    <dd class="font-semibold">{{ $reward->points_cost }}</dd>
-                </div>
-                @if ($reward->product_name)
-                    <div class="flex justify-between gap-4">
-                        <dt class="text-ink-muted">{{ __('loop.product') }}</dt>
-                        <dd class="font-semibold">{{ $reward->product_name }}</dd>
-                    </div>
-                @endif
-                @if ($reward->description)
-                    <p class="border-t border-ink/5 pt-3 text-ink-muted">{{ $reward->description }}</p>
-                @endif
-            </dl>
-        </section>
-
-        <section class="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-white/90">
-            <div class="bg-gradient-to-r from-coral/20 via-coral/5 to-transparent px-6 py-4">
-                <h2 class="font-display text-xl font-semibold">{{ __('loop.whats_working') }}</h2>
             </div>
-            <div class="px-6 py-5 text-sm text-ink-muted">
-                <p>{{ __('loop.offer_stats_blurb') }}</p>
-                <p class="mt-4 rounded-xl bg-mint-soft/60 px-3 py-2 font-medium text-ink">
-                    {{ __('loop.most_used_hint', ['count' => $stats['total_redemptions']]) }}
-                </p>
-            </div>
-        </section>
-    </div>
-
-    <section class="mt-8">
-        <h2 class="font-display text-xl font-semibold">{{ __('loop.recent_redemptions') }}</h2>
-        <div class="mt-4 space-y-3">
-            @forelse ($recentRedemptions as $redemption)
-                <div class="loop-panel flex items-center justify-between gap-4 px-4 py-3">
-                    <div class="min-w-0">
-                        <p class="font-semibold">{{ $redemption->customer?->name ?? __('loop.customer') }}</p>
-                        <p class="text-xs text-ink-muted">{{ $redemption->created_at->format('d M Y · H:i') }}
-                            @if ($redemption->shop)
-                                · {{ $redemption->shop->name }}
-                            @elseif ($redemption->visit?->shop)
-                                · {{ $redemption->visit->shop->name }}
-                            @endif
+            <div class="space-y-3">
+                @foreach ($recentRedemptions as $redemption)
+                    <div class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-3.5">
+                        <div class="min-w-0">
+                            <p class="truncate font-semibold">{{ $redemption->customer?->name ?? __('loop.customer') }}</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">
+                                {{ $redemption->created_at->format('d M · H:i') }}
+                                @if ($redemption->shop)
+                                    · {{ $redemption->shop->name }}
+                                @elseif ($redemption->visit?->shop)
+                                    · {{ $redemption->visit->shop->name }}
+                                @endif
+                                · −{{ $redemption->points_spent }} {{ __('loop.pts') }}
+                            </p>
+                        </div>
+                        <p class="shrink-0 font-display text-lg font-semibold">
+                            −{{ number_format($redemption->points_spent, 0) }}
                         </p>
-                        @if ($redemption->notes)
-                            <p class="mt-1 text-sm text-ink">{{ $redemption->notes }}</p>
-                        @endif
                     </div>
-                    <span class="shrink-0 font-display text-lg font-semibold text-coral">−{{ $redemption->points_spent }}</span>
-                </div>
-            @empty
-                <p class="text-sm text-ink-muted">{{ __('loop.no_redemptions_yet') }}</p>
-            @endforelse
-        </div>
-    </section>
+                @endforeach
+            </div>
+        </section>
+    @endif
 </x-app-layout>

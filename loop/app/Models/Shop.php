@@ -51,4 +51,9 @@ class Shop extends Model
     {
         return $this->hasMany(Visit::class);
     }
+
+    public function staff(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)->withTimestamps();
+    }
 }

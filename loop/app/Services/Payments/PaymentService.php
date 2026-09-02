@@ -3,9 +3,14 @@
 namespace App\Services\Payments;
 
 use App\Models\Business;
+use App\Models\MessageBroadcast;
 use App\Models\PaymentIntent;
 use App\Models\Plan;
+use App\Models\SenderId;
 use App\Models\User;
+use App\Services\LoopAccess;
+use App\Services\MessagingService;
+use App\Support\BillingSettings;
 use App\Support\Countries;
 use App\Support\IntegrationSettings;
 use Illuminate\Support\Str;
@@ -14,7 +19,7 @@ class PaymentService
 {
     public function __construct(private PayinClient $payin) {}
 
-    public function startPlanPayment(Business $business, User $user, Plan $plan, string $localPhone, string $country): PaymentIntent
+    public function startPlanPayment(Business $business, User $user, Plan $plan, string $localPhone, string $country, int $months = 1): PaymentIntent
     {
         $country = strtoupper($country);
         $dial = Countries::dial($country);
@@ -22,6 +27,13 @@ class PaymentService
         $fullPhone = ltrim($dial, '+').$digits;
         $currency = $plan->currency ?: Countries::currency($country);
         $provider = IntegrationSettings::primaryProvider();
+        $months = BillingSettings::normalizeMonths($months);
+        $monthly = $business->effectiveMonthlyPrice();
+        if ($monthly <= 0) {
+            $monthly = (int) $plan->price_monthly;
+        }
+        $amount = BillingSettings::amountForMonths($monthly, $months);
+        $discount = BillingSettings::discountForMonths($months);
 
         $intent = PaymentIntent::query()->create([
             'uuid' => (string) Str::uuid(),
@@ -29,15 +41,115 @@ class PaymentService
             'user_id' => $user->id,
             'purpose' => 'plan_upgrade',
             'plan_key' => $plan->key,
-            'amount' => (int) $plan->price_monthly,
+            'amount' => $amount,
             'currency' => $currency,
             'phone' => $fullPhone,
             'country' => $country,
             'provider' => $provider,
             'status' => PaymentIntent::STATUS_PENDING,
-            'description' => 'Loop '.$plan->name.' subscription',
-            'meta' => ['plan_name' => $plan->name],
+            'description' => 'Loop '.$plan->name.' subscription · '.$months.' month(s)',
+            'meta' => [
+                'plan_name' => $plan->name,
+                'months' => $months,
+                'discount_percent' => $discount,
+            ],
         ]);
+
+        return $this->dispatchCollection($intent);
+    }
+
+    public function startSenderIdPayment(Business $business, User $user, SenderId $senderId, string $localPhone, string $country): PaymentIntent
+    {
+        $country = strtoupper($country);
+        $dial = Countries::dial($country);
+        $digits = Countries::normalizePhone($localPhone);
+        $fullPhone = ltrim($dial, '+').$digits;
+        $amount = (int) ($senderId->yearly_fee ?: app(MessagingService::class)->senderYearlyFee());
+
+        $intent = PaymentIntent::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+            'purpose' => 'sender_id',
+            'plan_key' => null,
+            'amount' => max(1, $amount),
+            'currency' => $business->currency ?: Countries::currency($country),
+            'phone' => $fullPhone,
+            'country' => $country,
+            'provider' => IntegrationSettings::primaryProvider(),
+            'status' => PaymentIntent::STATUS_PENDING,
+            'description' => 'Loop Sender ID '.$senderId->code.' · 12 months',
+            'meta' => ['sender_id_id' => $senderId->id, 'code' => $senderId->code],
+        ]);
+
+        return $this->dispatchCollection($intent);
+    }
+
+    public function startSmsBroadcastPayment(Business $business, User $user, MessageBroadcast $broadcast, string $localPhone, string $country): PaymentIntent
+    {
+        $country = strtoupper($country);
+        $dial = Countries::dial($country);
+        $digits = Countries::normalizePhone($localPhone);
+        $fullPhone = ltrim($dial, '+').$digits;
+
+        $intent = PaymentIntent::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+            'purpose' => 'sms_broadcast',
+            'plan_key' => null,
+            'amount' => max(1, (int) $broadcast->cost),
+            'currency' => $broadcast->currency ?: $business->currency,
+            'phone' => $fullPhone,
+            'country' => $country,
+            'provider' => IntegrationSettings::primaryProvider(),
+            'status' => PaymentIntent::STATUS_PENDING,
+            'description' => 'Loop member SMS · '.$broadcast->recipient_count.' messages',
+            'meta' => ['broadcast_id' => $broadcast->id],
+        ]);
+
+        $broadcast->update([
+            'payment_intent_id' => $intent->id,
+            'status' => MessageBroadcast::STATUS_PENDING_PAYMENT,
+        ]);
+
+        return $this->dispatchCollection($intent);
+    }
+
+    public function startSmsCreditPayment(Business $business, User $user, int $credits, string $localPhone, string $country, ?int $broadcastId = null): PaymentIntent
+    {
+        $country = strtoupper($country);
+        $dial = Countries::dial($country);
+        $digits = Countries::normalizePhone($localPhone);
+        $fullPhone = ltrim($dial, '+').$digits;
+        $credits = max(1, $credits);
+        $amount = app(MessagingService::class)->costForMessages($credits);
+
+        $intent = PaymentIntent::query()->create([
+            'uuid' => (string) Str::uuid(),
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+            'purpose' => 'sms_credits',
+            'plan_key' => null,
+            'amount' => max(1, $amount),
+            'currency' => $business->currency ?: Countries::currency($country),
+            'phone' => $fullPhone,
+            'country' => $country,
+            'provider' => IntegrationSettings::primaryProvider(),
+            'status' => PaymentIntent::STATUS_PENDING,
+            'description' => 'Loop SMS credits · '.$credits.' messages',
+            'meta' => array_filter([
+                'credits' => $credits,
+                'broadcast_id' => $broadcastId,
+            ]),
+        ]);
+
+        if ($broadcastId) {
+            MessageBroadcast::query()->whereKey($broadcastId)->update([
+                'payment_intent_id' => $intent->id,
+                'status' => MessageBroadcast::STATUS_PENDING_PAYMENT,
+            ]);
+        }
 
         return $this->dispatchCollection($intent);
     }
@@ -125,12 +237,74 @@ class PaymentService
         ]);
 
         if ($intent->purpose === 'plan_upgrade' && $intent->business_id && $intent->plan_key) {
-            $intent->business?->update([
-                'plan_key' => $intent->plan_key,
-                'billing_status' => 'active',
-                'trial_ends_at' => null,
-            ]);
+            $months = (int) (($intent->meta['months'] ?? 1) ?: 1);
+            $business = $intent->business;
+            if ($business) {
+                $plan = Plan::locate($intent->plan_key, $business->country);
+                $monthly = (int) ($plan?->price_monthly ?? 0);
+                if (($business->referral_credit_months ?? 0) > 0) {
+                    $monthly = 0;
+                } elseif ($monthly > 0) {
+                    $monthly = (int) round($monthly * (100 - min(100, max(0, (int) $business->referral_discount_percent))) / 100);
+                }
+                app(LoopAccess::class)->activate($business, $intent->plan_key, $months, $monthly);
+            }
         }
+
+        if ($intent->purpose === 'sender_id') {
+            $senderId = SenderId::query()->find($intent->meta['sender_id_id'] ?? 0);
+            if ($senderId) {
+                $until = ($senderId->paid_until && $senderId->paid_until->isFuture())
+                    ? $senderId->paid_until->copy()->addYear()
+                    : now()->addYear();
+                $senderId->update([
+                    'paid_until' => $until,
+                    'status' => SenderId::STATUS_ACTIVE,
+                ]);
+            }
+        }
+
+        if ($intent->purpose === 'sms_credits' && $intent->business) {
+            $credits = max(0, (int) ($intent->meta['credits'] ?? 0));
+            if ($credits > 0) {
+                $intent->business->increment('sms_credit_balance', $credits);
+            }
+            $broadcast = MessageBroadcast::query()->find($intent->meta['broadcast_id'] ?? 0);
+            if ($broadcast && $broadcast->business) {
+                $this->sendBroadcast($broadcast, true);
+            }
+        }
+
+        if ($intent->purpose === 'sms_broadcast') {
+            $broadcast = MessageBroadcast::query()->find($intent->meta['broadcast_id'] ?? 0);
+            if (! $broadcast && $intent->business_id) {
+                $broadcast = MessageBroadcast::query()
+                    ->where('payment_intent_id', $intent->id)
+                    ->first();
+            }
+            if ($broadcast && $broadcast->business) {
+                $this->sendBroadcast($broadcast, false);
+            }
+        }
+    }
+
+    private function sendBroadcast(MessageBroadcast $broadcast, bool $deductCredits): void
+    {
+        $business = $broadcast->business?->fresh();
+        if (! $business) {
+            return;
+        }
+        $messaging = app(MessagingService::class);
+        $audience = array_merge(['audience' => $broadcast->audience], $broadcast->audience_meta ?? []);
+        $users = $messaging->recipients($business, $audience);
+        if ($deductCredits) {
+            $needed = $messaging->messagesFor($users->count(), (string) $broadcast->body);
+            if ($needed > 0 && (int) $business->sms_credit_balance >= $needed) {
+                $business->decrement('sms_credit_balance', $needed);
+            }
+        }
+        $phones = $messaging->phonesFor($users, $business->country ?: 'TZ');
+        $messaging->deliver($broadcast, $phones);
     }
 
     /** Stub console helper: force-confirm a processing payment (sandbox/UI only). */
@@ -143,5 +317,15 @@ class PaymentService
         $this->markPaid($intent);
 
         return $intent->fresh();
+    }
+
+    public function paidRedirectUrl(PaymentIntent $intent): string
+    {
+        return match ($intent->purpose) {
+            'test' => route('admin.integrations.index', ['tab' => 'console']),
+            'test_sms', 'admin_sms' => route('admin.integrations.index', ['tab' => 'messaging']),
+            'sender_id', 'sms_broadcast', 'sms_credits' => route('members.messages.index'),
+            default => route('billing.show'),
+        };
     }
 }

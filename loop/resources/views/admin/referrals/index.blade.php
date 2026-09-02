@@ -4,19 +4,18 @@
         $tab = 'progress';
     }
 @endphp
-<x-app-layout>
+<x-admin-layout>
     <x-slot name="header">
         <h1 class="font-display text-3xl font-semibold">{{ __('loop.admin_referrals') }}</h1>
+        <p class="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.admin_referrals_program_kind') }}</p>
         <p class="mt-1 text-ink-muted">{{ __('loop.admin_referrals_blurb') }}</p>
     </x-slot>
 
-    @include('admin.partials.nav')
-
-    <div class="loop-admin-tabs" role="tablist">
+    <div class="admin-subnav" role="tablist">
         <a href="{{ route('admin.referrals.index', ['tab' => 'progress']) }}"
-           class="loop-admin-tab {{ $tab === 'progress' ? 'is-active' : '' }}">{{ __('loop.referral_tab_progress') }}</a>
+           class="{{ $tab === 'progress' ? 'is-active' : '' }}">{{ __('loop.referral_tab_progress') }}</a>
         <a href="{{ route('admin.settings', ['tab' => 'referrals']) }}"
-           class="loop-admin-tab">{{ __('loop.referral_tab_program') }}</a>
+           class="">{{ __('loop.referral_tab_program') }}</a>
     </div>
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-mint-soft/50 px-4 py-3 text-sm text-ink">
@@ -24,30 +23,30 @@
             <p class="font-semibold">{{ __('loop.settings_source_of_truth') }}</p>
             <p class="mt-1 text-ink-muted">{{ __('loop.referral_settings_managed_in_hub') }}</p>
         </div>
-        <a href="{{ route('admin.settings', ['tab' => 'referrals']) }}" class="loop-btn-mint !py-2">{{ __('loop.edit_in_settings_hub') }} →</a>
+        <a href="{{ route('admin.settings', ['tab' => 'referrals']) }}" class="admin-btn !py-2">{{ __('loop.edit_in_settings_hub') }} →</a>
     </div>
 
     <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.referral_pending') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $counts['pending'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.referral_qualified') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $counts['qualified'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.referral_rewarded') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $counts['rewarded'] }}</p>
         </div>
-        <div class="loop-stat">
+        <div class="admin-stat">
             <p class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">{{ __('loop.referral_total') }}</p>
             <p class="mt-2 font-display text-2xl font-semibold">{{ $counts['total'] }}</p>
             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.referral_biz_to_biz') }}</p>
         </div>
     </div>
 
-    <section class="mb-6 loop-glass p-5">
+    <section class="mb-6 admin-card">
         <h2 class="font-display text-lg font-semibold">{{ __('loop.referral_progress_title') }}</h2>
         <p class="mt-1 text-sm text-ink-muted">{{ __('loop.referral_progress_blurb') }}</p>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
@@ -70,8 +69,8 @@
     </section>
 
     <x-admin.empty-state :empty="$referrals->isEmpty()" :title="__('loop.referral_progress_title')">
-        <div class="loop-table-wrap">
-            <table class="loop-table">
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
                         <th>{{ __('loop.referrer') }}</th>
@@ -100,13 +99,13 @@
                                     @if ($referral->isPending())
                                         <form method="POST" action="{{ route('admin.referrals.qualify', $referral) }}">
                                             @csrf
-                                            <button class="loop-btn-ghost !py-1.5 !text-xs">{{ __('loop.mark_qualified') }}</button>
+                                            <button class="admin-btn-ghost !py-1.5 !text-xs">{{ __('loop.mark_qualified') }}</button>
                                         </form>
                                     @endif
                                     @if (! $referral->isRewarded())
                                         <form method="POST" action="{{ route('admin.referrals.reward', $referral) }}">
                                             @csrf
-                                            <button class="loop-btn-mint !py-1.5 !text-xs">{{ __('loop.grant_reward') }}</button>
+                                            <button class="admin-btn !py-1.5 !text-xs">{{ __('loop.grant_reward') }}</button>
                                         </form>
                                     @else
                                         <span class="rounded-lg bg-mint-soft px-3 py-1.5 text-xs font-semibold">{{ __('loop.rewarded') }}</span>
@@ -120,4 +119,4 @@
         </div>
         <div class="mt-6">{{ $referrals->links() }}</div>
     </x-admin.empty-state>
-</x-app-layout>
+</x-admin-layout>

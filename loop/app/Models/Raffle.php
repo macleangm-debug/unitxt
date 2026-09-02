@@ -75,4 +75,40 @@ class Raffle extends Model
     {
         return max(0, $this->winners_count - $this->winners()->count());
     }
+
+    public function canDrawNow(?\Illuminate\Support\Carbon $at = null): bool
+    {
+        if (! in_array($this->status, ['scheduled', 'live'], true)) {
+            return false;
+        }
+        if ($this->remainingWinnerSlots() <= 0) {
+            return false;
+        }
+
+        $at = ($at ?? now())->copy()->startOfDay();
+
+        return $this->nextDrawDate($at)->lte($at);
+    }
+
+    public function nextDrawDate(?\Illuminate\Support\Carbon $from = null): \Illuminate\Support\Carbon
+    {
+        $from = ($from ?? now())->copy()->startOfDay();
+        $start = $this->draw_at->copy()->startOfDay();
+        if ($this->frequency === 'once' || $start->gte($from)) {
+            return $start;
+        }
+
+        $cursor = $start->copy();
+        while ($cursor->lt($from)) {
+            if ($this->frequency === 'monthly') {
+                $cursor->addMonth();
+            } elseif ($this->frequency === 'yearly') {
+                $cursor->addYear();
+            } else {
+                $cursor->addWeek();
+            }
+        }
+
+        return $cursor;
+    }
 }

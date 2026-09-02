@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('register') }}" class="space-y-4">
+    <form method="POST" action="{{ route('register') }}" class="space-y-4" autocomplete="off">
         @csrf
 
         <div>
@@ -15,7 +15,7 @@
 
         <div>
             <label class="loop-label" for="email">Email</label>
-            <input id="email" class="loop-input" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" />
+            <input id="email" class="loop-input" type="email" name="email" value="{{ old('email') }}" required autocomplete="off" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
@@ -38,13 +38,13 @@
 
         <div>
             <label class="loop-label" for="password">Password</label>
-            <input id="password" class="loop-input" type="password" name="password" required autocomplete="new-password" />
+            <input id="password" class="loop-input" type="password" name="password" required autocomplete="off" />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
         <div>
             <label class="loop-label" for="password_confirmation">Confirm password</label>
-            <input id="password_confirmation" class="loop-input" type="password" name="password_confirmation" required autocomplete="new-password" />
+            <input id="password_confirmation" class="loop-input" type="password" name="password_confirmation" required autocomplete="off" />
         </div>
 
         <div class="flex items-center justify-between pt-2">

@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="loop-no-skeleton">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="Permissions-Policy" content="notifications=(), push=()">
     <title>Loop — {{ __('loop.tagline') }}</title>
+    @include('partials.head-boot')
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|sora:500,600,700&display=swap" rel="stylesheet" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>[x-cloak]{display:none!important}</style>
 </head>
 <body class="font-sans text-ink">
 <div class="relative min-h-screen overflow-x-hidden bg-chalk" x-data="loopPageMotion()">
@@ -18,10 +19,12 @@
 
     <x-site-header>
         <x-slot:actions>
+            @if (\App\Support\AffiliateProgram::isEnabled() && \App\Support\MarketingSettings::settings()['show_affiliate_cta'])
             <a href="{{ route('affiliates.landing') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.affiliates') }}</a>
+            @endif
+            <a href="{{ route('stories.index') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.stories') }}</a>
             <a href="{{ route('landing.business') }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.business') }}</a>
             <a href="{{ route('landing.customer') }}" class="whitespace-nowrap text-sm font-semibold text-violet hover:text-ink">{{ __('loop.customer') }}</a>
-            <a href="{{ route('staff.login', ['admin' => 1]) }}" class="whitespace-nowrap text-sm font-semibold text-ink-muted hover:text-ink">{{ __('loop.admin_login') }}</a>
         </x-slot:actions>
     </x-site-header>
 
@@ -75,6 +78,8 @@
         </div>
     </section>
 
+    @include('stories.partials.landing')
+
     <section class="loop-shell grid gap-5 py-14 sm:grid-cols-2 sm:gap-6 sm:py-20">
         <div class="loop-energy-card loop-energy-card--ink p-7 sm:p-9">
             <div class="loop-orb loop-orb--a"></div>
@@ -110,7 +115,7 @@
             <h2 class="font-display text-2xl font-semibold sm:text-3xl">{{ __('loop.countries_title') }}</h2>
             <p class="mt-3 max-w-2xl text-sm text-ink-muted sm:text-base">{{ __('loop.countries_body') }}</p>
             <div class="mt-8 flex flex-wrap gap-2">
-                @foreach (\App\Support\Countries::OPTIONS as $code => $meta)
+                @foreach (\App\Support\Countries::enabledOptions() as $code => $meta)
                     <span class="loop-glass !rounded-full px-3.5 py-1.5 text-sm font-medium">{{ $meta['flag'] }} {{ $meta['name'] }}</span>
                 @endforeach
             </div>
@@ -120,5 +125,6 @@
     <x-site-footer />
     <div class="loop-page-veil" :class="{ 'is-on': transitioning }" aria-hidden="true"></div>
 </div>
+<x-page-skeleton variant="public" />
 </body>
 </html>

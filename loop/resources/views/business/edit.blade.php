@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.business_settings') }}</h1>
-            <p class="mt-1 text-ink-muted">{{ __('loop.business_settings_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('settings')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-mint-deep">{{ __('loop.settings') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.business_settings') }}</h1>
+                <p class="mt-1 text-ink-muted">{{ __('loop.business_settings_blurb') }}</p>
+            </div>
         </div>
     </x-slot>
 
@@ -11,16 +14,15 @@
         @csrf
         @method('PATCH')
 
-        <div class="flex items-center gap-4 rounded-2xl bg-chalk/70 p-4">
-            @if ($business->logoUrl())
-                <img src="{{ $business->logoUrl() }}" alt="" class="h-16 w-16 rounded-2xl object-cover">
-            @else
-                <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-ink font-display text-xl text-mint">{{ mb_substr($business->name, 0, 1) }}</div>
-            @endif
-            <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold">{{ __('loop.business_logo') }}</p>
-                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.shared_logo_hint') }}</p>
-                <input type="file" name="logo" accept="image/*" class="loop-input mt-2">
+        <div>
+            <p class="loop-label">{{ __('loop.business_logo') }}</p>
+            <p class="mt-1 text-xs text-ink-muted">{{ __('loop.shared_logo_hint') }}</p>
+            <div class="mt-4">
+                <x-logo-placeholder
+                    name="logo"
+                    :preview="$business->logoUrl()"
+                    :hint="__('loop.logo_square_hint')"
+                />
             </div>
         </div>
 
@@ -29,13 +31,34 @@
             <input name="name" value="{{ old('name', $business->name) }}" class="loop-input" required>
         </div>
         <div>
-            <label class="loop-label">{{ __('loop.city') }}</label>
-            <input name="city" value="{{ old('city', $business->city) }}" class="loop-input">
+            <x-city-sheet-select
+                name="city"
+                :label="__('loop.city')"
+                :value="old('city', $business->city)"
+                :country="$business->country ?? 'TZ'"
+            />
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+                <label class="loop-label">{{ __('loop.country') }}</label>
+                <input class="loop-input bg-chalk" value="{{ \App\Support\Countries::OPTIONS[$business->country]['name'] ?? $business->country }}" disabled>
+            </div>
+            <div>
+                <label class="loop-label">{{ __('loop.currency') }}</label>
+                <input class="loop-input bg-chalk" value="{{ $business->currency }}" disabled>
+                <p class="mt-1 text-xs text-ink-muted">{{ __('loop.currency_follows_country') }}</p>
+            </div>
         </div>
         <div>
             <label class="loop-label">{{ __('loop.hotline') }}</label>
-            <input name="hotline" value="{{ old('hotline', $business->hotline) }}" class="loop-input" placeholder="+255 712 345 678">
+            <x-phone-field
+                name="hotline"
+                :dial="$dial"
+                hidden-dial-name="hotline_country_code"
+                :value="old('hotline', $hotlineLocal)"
+            />
             <p class="mt-1 text-xs text-ink-muted">{{ __('loop.hotline_hint') }}</p>
+            <x-input-error :messages="$errors->get('hotline')" class="mt-1" />
         </div>
         <div>
             <label class="loop-label">{{ __('loop.description') }}</label>
@@ -89,6 +112,18 @@
                 </p>
             </div>
             @endif
+        </section>
+
+        <section class="space-y-3 rounded-2xl border border-ink/10 bg-chalk/40 p-4">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.redeem_settings') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.redeem_settings_help') }}</p>
+            </div>
+            <label class="flex items-start gap-2 text-sm font-semibold">
+                <input type="checkbox" name="allow_same_day_earn_redeem" value="1" class="mt-0.5 rounded border-ink/20 text-mint-deep focus:ring-mint-deep" @checked(old('allow_same_day_earn_redeem', $business->allow_same_day_earn_redeem))>
+                <span>{{ __('loop.allow_same_day_earn_redeem') }}</span>
+            </label>
+            <p class="text-xs text-ink-muted">{{ __('loop.allow_same_day_earn_redeem_help') }}</p>
         </section>
 
         <button class="loop-btn-mint w-full">{{ __('loop.save_changes') }}</button>

@@ -1,10 +1,17 @@
-<x-guest-layout>
+<x-guest-layout
+    :aside-stamp="__('loop.affiliate_stamp')"
+    :aside-title="__('loop.affiliate_aside_title')"
+    :aside-body="__('loop.affiliate_aside_body')"
+    :aside-point1="__('loop.affiliate_aside_1')"
+    :aside-point2="__('loop.affiliate_aside_2')"
+    :aside-point3="__('loop.affiliate_aside_3')"
+>
     <div class="mx-auto w-full max-w-md">
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.affiliates') }}</p>
         <h1 class="mt-2 font-display text-3xl font-semibold">{{ __('loop.affiliate_login') }}</h1>
         <p class="mt-2 text-sm text-ink-muted">{{ __('loop.affiliate_login_blurb') }}</p>
 
-        <form method="POST" action="{{ route('affiliate.login') }}" class="mt-8 space-y-4" x-data="{ method: 'pin' }">
+        <form method="POST" action="{{ route('affiliate.login') }}" class="mt-8 space-y-4" autocomplete="off" data-lpignore="true" data-1p-ignore="true">
             @csrf
             <div>
                 <label class="loop-label">{{ __('loop.phone') }}</label>
@@ -14,23 +21,13 @@
                             <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
                         @endforeach
                     </select>
-                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required inputmode="tel" autocomplete="tel-national">
+                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-lpignore="true">
                 </div>
             </div>
 
-            <div class="flex gap-2">
-                <button type="button" class="rounded-full px-3 py-1.5 text-xs font-semibold" :class="method==='pin' ? 'bg-ink text-white' : 'bg-white ring-1 ring-ink/10'" @click="method='pin'">{{ __('loop.use_pin') }}</button>
-                <button type="button" class="rounded-full px-3 py-1.5 text-xs font-semibold" :class="method==='password' ? 'bg-ink text-white' : 'bg-white ring-1 ring-ink/10'" @click="method='password'">{{ __('loop.use_password') }}</button>
-            </div>
-            <input type="hidden" name="method" :value="method">
-
-            <div x-show="method==='pin'">
+            <div>
                 <label class="loop-label">{{ __('loop.pin') }} ({{ $pinLength }} {{ __('loop.digits') }})</label>
-                <input type="password" inputmode="numeric" name="pin" maxlength="{{ $pinLength }}" class="loop-input" autocomplete="one-time-code">
-            </div>
-            <div x-show="method==='password'" x-cloak>
-                <label class="loop-label">{{ __('loop.password') }}</label>
-                <input type="password" name="password" class="loop-input" autocomplete="current-password">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" name="pin" maxlength="{{ $pinLength }}" class="loop-input loop-secret" required autocomplete="off" data-lpignore="true" spellcheck="false">
             </div>
 
             <button class="loop-btn-mint w-full">{{ __('loop.log_in') }}</button>

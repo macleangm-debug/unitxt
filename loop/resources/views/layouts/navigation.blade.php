@@ -1,6 +1,7 @@
 @php
     $here = url()->full();
     $user = Auth::user();
+    $hasMobileNav = \App\Support\MobileNav::enabled($user);
 @endphp
 
 <nav
@@ -23,23 +24,24 @@
             @if ($user->isCustomer())
                 <div class="hidden min-w-0 flex-1 items-center gap-1 md:flex">
                     <x-loop-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" kind="tab">{{ __('loop.home') }}</x-loop-nav-link>
-                    <x-loop-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')" kind="tab">{{ __('loop.wallets') }}</x-loop-nav-link>
                     <x-loop-nav-link :href="route('discover')" :active="request()->routeIs('discover*')" kind="tab">{{ __('loop.discover') }}</x-loop-nav-link>
+                    <x-loop-nav-link :href="route('memberships.index')" :active="request()->routeIs('memberships.*')" kind="tab">{{ __('loop.nav_rewards') }}</x-loop-nav-link>
+                    <x-loop-nav-link :href="route('member.activity')" :active="request()->routeIs('member.activity')" kind="tab">{{ __('loop.activity') }}</x-loop-nav-link>
+                    <x-loop-nav-link :href="route('more.index')" :active="request()->routeIs('more.*', 'help', 'legal.*')" kind="tab">{{ __('loop.nav_account') }}</x-loop-nav-link>
                 </div>
             @else
                 <div class="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto md:flex">
                     @if ($user->isAdmin())
                         <x-loop-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')" kind="tab">{{ __('loop.admin') }}</x-loop-nav-link>
+                        <x-loop-nav-link :href="route('admin.articles.index')" :active="request()->routeIs('admin.articles.*')" kind="tab">{{ __('loop.admin_articles') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.reports.index')" :active="request()->routeIs('admin.reports.*')" kind="tab">{{ __('loop.admin_reports') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.businesses.index')" :active="request()->routeIs('admin.businesses.*')" kind="tab">{{ __('loop.admin_businesses') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.affiliates.index')" :active="request()->routeIs('admin.affiliates.*')" kind="tab">{{ __('loop.admin_affiliates') }}</x-loop-nav-link>
                         <x-loop-nav-link :href="route('admin.settings')" :active="request()->routeIs('admin.settings*') || request()->routeIs('admin.referrals.*') || request()->routeIs('admin.plans.*')" kind="tab">{{ __('loop.admin_settings_hub') }}</x-loop-nav-link>
                     @elseif ($user->isAffiliate())
                         <x-loop-nav-link :href="route('affiliate.dashboard')" :active="request()->routeIs('affiliate.dashboard') || request()->routeIs('affiliate.setup')" kind="tab">{{ __('loop.home') }}</x-loop-nav-link>
-                        <x-nav-link :href="route('affiliate.dashboard').'#share'" :active="false">{{ __('loop.affiliate_nav_share') }}</x-nav-link>
-                        <x-nav-link :href="route('affiliate.dashboard').'#referrals'" :active="false">{{ __('loop.affiliate_nav_referrals') }}</x-nav-link>
-                        <x-loop-nav-link :href="route('affiliate.payout')" :active="request()->routeIs('affiliate.payout')" kind="tab">{{ __('loop.payout_settings') }}</x-loop-nav-link>
-                        <x-loop-nav-link :href="route('affiliates.landing')" :active="request()->routeIs('affiliates.landing')" kind="push">{{ __('loop.affiliate_nav_how') }}</x-loop-nav-link>
+                        <x-loop-nav-link :href="route('affiliate.dashboard').'#referrals'" :active="request()->routeIs('affiliate.dashboard')" kind="tab">{{ __('loop.affiliate_nav_referrals') }}</x-loop-nav-link>
+                        <x-loop-nav-link :href="route('affiliate.withdraw')" :active="request()->routeIs('affiliate.withdraw') || request()->routeIs('affiliate.payout')" kind="tab">{{ __('loop.withdraw') }}</x-loop-nav-link>
                     @else
                         <x-loop-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" kind="tab">{{ __('loop.home') }}</x-loop-nav-link>
                         @if ($user->isStaff())
@@ -49,7 +51,7 @@
                             @endif
                             @if ($user->isOwner())
                                 <x-loop-nav-link :href="route('customers.index')" :active="request()->routeIs('customers.*')" kind="tab">{{ __('loop.customers') }}</x-loop-nav-link>
-                                <x-loop-nav-link :href="route('settings')" :active="request()->routeIs('settings*') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*') || request()->routeIs('business.*') || request()->routeIs('billing.*') || request()->routeIs('raffles.*') || request()->routeIs('content-studio.*')" kind="tab">{{ __('loop.settings') }}</x-loop-nav-link>
+                                <x-loop-nav-link :href="route('settings')" :active="request()->routeIs('settings*') || request()->routeIs('shops.*') || request()->routeIs('campaigns.*') || request()->routeIs('rewards.*') || request()->routeIs('staff.*') || request()->routeIs('business.*') || request()->routeIs('billing.*') || request()->routeIs('raffles.*') || request()->routeIs('games.*') || request()->routeIs('content-studio.*')" kind="tab">{{ __('loop.settings') }}</x-loop-nav-link>
                             @endif
                         @endif
                     @endif
@@ -66,6 +68,7 @@
                 @endif
 
                 @php
+                    app(\App\Services\DailyNotificationService::class)->ensureTodayForUser($user);
                     $unreadNotifications = \App\Models\InAppNotification::query()
                         ->where('user_id', $user->id)
                         ->whereNull('read_at')
@@ -81,13 +84,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
                     </svg>
                     @if ($unreadNotifications > 0)
-                        <span class="absolute -right-1 -top-1 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">{{ min(9, $unreadNotifications) }}{{ $unreadNotifications > 9 ? '+' : '' }}</span>
+                        <span class="absolute -right-1 -top-1 inline-flex min-w-[1.15rem] items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold leading-none text-white">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
                     @endif
                 </a>
 
                 <div class="flex rounded-xl border border-ink/10 bg-white p-0.5 text-xs font-semibold shadow-sm">
-                    <a href="{{ route('locale', ['locale' => 'en', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}">EN</a>
-                    <a href="{{ route('locale', ['locale' => 'sw', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'sw' ? 'bg-ink text-white' : 'text-ink-muted' }}">SW</a>
+                    <a href="{{ route('locale', ['locale' => 'en', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-ink text-white' : 'text-ink-muted' }}" @click.prevent="window.dispatchEvent(new Event('loop:locale-changing')); window.location.href = @js(url('/locale/en')) + '?return=' + encodeURIComponent(window.location.href)">EN</a>
+                    <a href="{{ route('locale', ['locale' => 'sw', 'return' => $here]) }}" class="rounded-lg px-2.5 py-1.5 {{ app()->getLocale() === 'sw' ? 'bg-ink text-white' : 'text-ink-muted' }}" @click.prevent="window.dispatchEvent(new Event('loop:locale-changing')); window.location.href = @js(url('/locale/sw')) + '?return=' + encodeURIComponent(window.location.href)">SW</a>
                 </div>
 
                 <form method="POST" action="{{ route('logout') }}" class="hidden md:block">
@@ -97,6 +100,7 @@
                     </button>
                 </form>
 
+                @unless ($hasMobileNav)
                 <button
                     type="button"
                     @click="open = ! open"
@@ -111,6 +115,7 @@
                         <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
                     </svg>
                 </button>
+                @endunless
             </div>
         </div>
     </div>
@@ -120,18 +125,23 @@
             <div
                 x-show="open"
                 x-cloak
-                x-transition.opacity.duration.200ms
-                class="fixed inset-0 z-[60] bg-ink/45 md:hidden"
+                x-transition:enter="loop-drawer-scrim-enter-active"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
+                x-transition:leave="loop-drawer-scrim-leave-active"
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                class="loop-drawer-scrim fixed inset-0 z-[60] md:hidden"
                 @click="open = false"
                 aria-hidden="true"
             ></div>
             <div
                 x-show="open"
                 x-cloak
-                x-transition:enter="transition ease-out duration-300"
+                x-transition:enter="loop-drawer-enter-active"
                 x-transition:enter-start="translate-x-full"
                 x-transition:enter-end="translate-x-0"
-                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave="loop-drawer-leave-active"
                 x-transition:leave-start="translate-x-0"
                 x-transition:leave-end="translate-x-full"
                 class="fixed inset-y-0 right-0 z-[70] flex w-[min(100%,20rem)] flex-col bg-white shadow-2xl md:hidden"
@@ -154,7 +164,8 @@
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
                 </button>
             </div>
-            <nav class="loop-mobile-actions flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+            <nav class="loop-mobile-actions flex flex-1 flex-col overflow-y-auto p-4">
+                <div class="loop-menu-group">
                 @if ($user->isAffiliate())
                     <div class="loop-menu-role">
                         <span class="loop-menu-role__mark">AF</span>
@@ -167,20 +178,21 @@
 
                 @if ($user->isCustomer())
                     <x-loop-link :href="route('dashboard')" kind="tab" :current="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-loop-link>
-                    <x-loop-link :href="route('memberships.index')" kind="tab" :current="request()->routeIs('memberships.*')">{{ __('loop.wallets') }}</x-loop-link>
                     <x-loop-link :href="route('discover')" kind="tab" :current="request()->routeIs('discover*')">{{ __('loop.discover') }}</x-loop-link>
+                    <x-loop-link :href="route('memberships.index')" kind="tab" :current="request()->routeIs('memberships.*')">{{ __('loop.nav_rewards') }}</x-loop-link>
+                    <x-loop-link :href="route('member.activity')" kind="tab" :current="request()->routeIs('member.activity')">{{ __('loop.activity') }}</x-loop-link>
+                    <x-loop-link :href="route('more.index')" kind="tab" :current="request()->routeIs('more.*', 'help', 'legal.*')">{{ __('loop.nav_account') }}</x-loop-link>
                 @elseif ($user->isAdmin())
                     <x-loop-link :href="route('admin.dashboard')" kind="tab" :current="request()->routeIs('admin.dashboard')">{{ __('loop.admin') }}</x-loop-link>
+                    <x-loop-link :href="route('admin.articles.index')" kind="tab" :current="request()->routeIs('admin.articles.*')">{{ __('loop.admin_articles') }}</x-loop-link>
                     <x-loop-link :href="route('admin.reports.index')" kind="tab">{{ __('loop.admin_reports') }}</x-loop-link>
                     <x-loop-link :href="route('admin.businesses.index')" kind="tab">{{ __('loop.admin_businesses') }}</x-loop-link>
                     <x-loop-link :href="route('admin.affiliates.index')" kind="tab">{{ __('loop.admin_affiliates') }}</x-loop-link>
                     <x-loop-link :href="route('admin.settings')" kind="tab">{{ __('loop.admin_settings_hub') }}</x-loop-link>
                 @elseif ($user->isAffiliate())
                     <x-loop-link :href="route('affiliate.dashboard')" kind="tab" :current="request()->routeIs('affiliate.dashboard') || request()->routeIs('affiliate.setup')">{{ __('loop.home') }}</x-loop-link>
-                    <a href="{{ route('affiliate.dashboard') }}#share">{{ __('loop.affiliate_nav_share') }}</a>
-                    <a href="{{ route('affiliate.dashboard') }}#referrals">{{ __('loop.affiliate_nav_referrals') }}</a>
-                    <x-loop-link :href="route('affiliate.payout')" kind="tab" :current="request()->routeIs('affiliate.payout')">{{ __('loop.payout_settings') }}</x-loop-link>
-                    <x-loop-link :href="route('affiliates.landing')" kind="push">{{ __('loop.affiliate_nav_how') }}</x-loop-link>
+                    <x-loop-link :href="route('affiliate.dashboard').'#referrals'" kind="tab">{{ __('loop.affiliate_nav_referrals') }}</x-loop-link>
+                    <x-loop-link :href="route('affiliate.withdraw')" kind="tab" :current="request()->routeIs('affiliate.withdraw') || request()->routeIs('affiliate.payout')">{{ __('loop.withdraw') }}</x-loop-link>
                 @else
                     <x-loop-link :href="route('dashboard')" kind="tab" :current="request()->routeIs('dashboard')">{{ __('loop.home') }}</x-loop-link>
                     @if ($user->isStaff())
@@ -194,9 +206,16 @@
                         @endif
                     @endif
                 @endif
-                <form method="POST" action="{{ route('logout') }}" class="mt-2">
+                <x-loop-link :href="route('notifications.index')" kind="push" :current="request()->routeIs('notifications.*')">
+                    {{ __('loop.notifications') }}
+                    @if ($unreadNotifications > 0)
+                        <span class="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-coral px-1.5 text-[10px] font-bold text-white">{{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}</span>
+                    @endif
+                </x-loop-link>
+                </div>
+                <form method="POST" action="{{ route('logout') }}" class="loop-menu-group mt-auto">
                     @csrf
-                    <button type="submit" class="loop-btn-ghost w-full">{{ __('loop.log_out') }}</button>
+                    <button type="submit">{{ __('loop.log_out') }}</button>
                 </form>
             </nav>
             </div>
@@ -204,25 +223,4 @@
     </template>
 </nav>
 
-@if ($user->isCustomer())
-    @php
-        $navIndex = request()->routeIs('dashboard') ? 0 : (request()->routeIs('memberships.*') ? 1 : (request()->routeIs('discover*') ? 2 : 0));
-    @endphp
-    <nav class="loop-bottom-nav md:hidden" aria-label="{{ __('loop.member') }}">
-        <div class="relative mx-auto grid max-w-lg grid-cols-3 px-2 py-1.5 text-center text-[11px] font-semibold">
-            <div class="loop-nav-pill" style="left: calc({{ $navIndex }} * 33.333% + 0.25rem)"></div>
-            <a href="{{ route('dashboard') }}" @click="$store.loopNav.go(@js(route('dashboard')), $event, { kind: 'tab' })" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 0 ? 'text-violet' : 'text-ink-muted'])>
-                <span class="text-base leading-none">⌂</span>
-                {{ __('loop.home') }}
-            </a>
-            <a href="{{ route('memberships.index') }}" @click="$store.loopNav.go(@js(route('memberships.index')), $event, { kind: 'tab' })" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 1 ? 'text-violet' : 'text-ink-muted'])>
-                <span class="text-base leading-none">◇</span>
-                {{ __('loop.wallets') }}
-            </a>
-            <a href="{{ route('discover') }}" @click="$store.loopNav.go(@js(route('discover')), $event, { kind: 'tab' })" @class(['relative z-10 flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors duration-200', $navIndex === 2 ? 'text-violet' : 'text-ink-muted'])>
-                <span class="text-base leading-none">◎</span>
-                {{ __('loop.browse_campaigns') }}
-            </a>
-        </div>
-    </nav>
-@endif
+</nav>

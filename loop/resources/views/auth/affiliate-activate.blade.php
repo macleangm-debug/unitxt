@@ -1,4 +1,11 @@
-<x-guest-layout>
+<x-guest-layout
+    :aside-stamp="__('loop.affiliate_stamp')"
+    :aside-title="__('loop.affiliate_aside_title')"
+    :aside-body="__('loop.affiliate_aside_body')"
+    :aside-point1="__('loop.affiliate_aside_1')"
+    :aside-point2="__('loop.affiliate_aside_2')"
+    :aside-point3="__('loop.affiliate_aside_3')"
+>
     <div class="mx-auto max-w-md">
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-mint-deep">{{ __('loop.affiliates') }}</p>
         <h1 class="mt-2 font-display text-3xl font-semibold">{{ __('loop.activate_account') }}</h1>
@@ -17,7 +24,7 @@
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.phone') }}</label>
-                    <input name="phone" value="{{ old('phone', $prefillPhone) }}" class="loop-input" required>
+                    <input name="phone" value="{{ old('phone', $prefillPhone) }}" class="loop-input" required inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                     <x-input-error :messages="$errors->get('phone')" class="mt-1" />
                 </div>
                 <button class="loop-btn-mint w-full">{{ __('loop.continue') }}</button>
@@ -27,26 +34,18 @@
                 <p class="font-semibold">{{ $affiliate->name }}</p>
                 <p class="text-ink-muted">{{ $affiliate->full_phone }} · {{ $affiliate->tracking_code }}</p>
             </div>
-            <form method="POST" action="{{ route('affiliate.activate.store') }}" class="mt-6 space-y-4">
+            <form method="POST" action="{{ route('affiliate.activate.store') }}" class="mt-6 space-y-4" autocomplete="off">
                 @csrf
                 <input type="hidden" name="country_code" value="{{ $affiliate->country_code }}">
                 <input type="hidden" name="phone" value="{{ $affiliate->phone }}">
                 <div>
-                    <label class="loop-label">{{ __('loop.password') }}</label>
-                    <input type="password" name="password" class="loop-input" required autocomplete="new-password">
-                </div>
-                <div>
-                    <label class="loop-label">{{ __('loop.confirm_password') }}</label>
-                    <input type="password" name="password_confirmation" class="loop-input" required>
-                </div>
-                <div>
                     <label class="loop-label">{{ __('loop.pin') }} ({{ $pinLength }} {{ __('loop.digits') }})</label>
-                    <input type="password" inputmode="numeric" name="pin" maxlength="{{ $pinLength }}" class="loop-input" required>
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" name="pin" maxlength="{{ $pinLength }}" class="loop-input loop-secret" required autocomplete="off" spellcheck="false">
                     <x-input-error :messages="$errors->get('pin')" class="mt-1" />
                 </div>
                 <div>
                     <label class="loop-label">{{ __('loop.confirm_pin') }}</label>
-                    <input type="password" inputmode="numeric" name="pin_confirmation" maxlength="{{ $pinLength }}" class="loop-input" required>
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" name="pin_confirmation" maxlength="{{ $pinLength }}" class="loop-input loop-secret" required autocomplete="off" spellcheck="false">
                 </div>
                 <button class="loop-btn-mint w-full">{{ __('loop.activate_account') }}</button>
             </form>

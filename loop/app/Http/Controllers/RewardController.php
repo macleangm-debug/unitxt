@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Reward;
+use App\Services\PlanLimitService;
 use App\Support\Confirm;
 use App\Support\OfferTemplates;
 use Illuminate\Http\RedirectResponse;
@@ -13,13 +14,20 @@ class RewardController extends Controller
 {
     public function index(): RedirectResponse
     {
-        return redirect()->to(route('campaigns.index').'#offers');
+        return redirect()->route('campaigns.index', ['tab' => 'offers']);
     }
 
-    public function create(Request $request): View
+    public function create(Request $request): View|RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
-        $earn = $business->campaigns()->whereIn('type', ['earn', 'product_push'])->latest()->first();
+        $limits = app(PlanLimitService::class);
+        if (! $limits->canAddOffer($business)) {
+            return redirect()
+                ->route('campaigns.index', ['tab' => 'offers'])
+                ->withErrors(['plan' => $limits->offerLimitMessage($business)]);
+        }
+
+        $earn = $business->campaigns()->where('type', 'earn')->latest()->first();
         $type = $request->query('type');
         $templateKey = $request->query('template');
         $starters = OfferTemplates::typeStarters();
@@ -47,6 +55,12 @@ class RewardController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $business = $request->user()->ownedBusiness()->firstOrFail();
+        $limits = app(PlanLimitService::class);
+        if (! $limits->canAddOffer($business)) {
+            return redirect()
+                ->route('campaigns.index', ['tab' => 'offers'])
+                ->withErrors(['plan' => $limits->offerLimitMessage($business)]);
+        }
 
         if ($request->filled('template_key') && ! $request->boolean('customize') && ! $request->filled('name')) {
             $catalog = collect(OfferTemplates::forSector($business->sector ?: 'other'))->keyBy('key');
@@ -74,7 +88,11 @@ class RewardController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'product_name' => ['nullable', 'string', 'max:120'],
+            'product_name' => [
+                $request->input('reward_type') === 'free_item' ? 'required' : 'nullable',
+                'string',
+                'max:120',
+            ],
             'points_cost' => ['required', 'integer', 'min:1'],
             'reward_type' => ['required', 'in:percent_off,fixed_off,free_item,custom'],
             'reward_value' => ['nullable', 'numeric', 'min:0'],
@@ -139,7 +157,11 @@ class RewardController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'product_name' => ['nullable', 'string', 'max:120'],
+            'product_name' => [
+                $request->input('reward_type') === 'free_item' ? 'required' : 'nullable',
+                'string',
+                'max:120',
+            ],
             'points_cost' => ['required', 'integer', 'min:1'],
             'reward_type' => ['required', 'in:percent_off,fixed_off,free_item,custom'],
             'reward_value' => ['nullable', 'numeric', 'min:0'],
@@ -160,5 +182,30 @@ class RewardController extends Controller
             route('rewards.show', $reward),
             false,
         ));
+    }
+
+    public function toggle(Request $request, Reward $reward): RedirectResponse
+    {
+        $business = $request->user()->ownedBusiness;
+        abort_unless($business && $reward->business_id === $business->id, 403);
+
+        $reward->update([
+            'is_active' => ! $reward->is_active,
+        ]);
+        $reward->refresh();
+
+        $live = $reward->is_active;
+
+        return redirect()->route('rewards.show', $reward)->with(
+            'confirm',
+            Confirm::withBoldName(
+                $live ? __('loop.offer_resumed_title') : __('loop.offer_paused_title'),
+                $live ? 'offer_resumed_body' : 'offer_paused_body',
+                $reward->name,
+                __('loop.done'),
+                route('rewards.show', $reward),
+                false,
+            )
+        );
     }
 }

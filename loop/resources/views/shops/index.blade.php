@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <h1 class="font-display text-3xl font-semibold">{{ __('loop.shops') }}</h1>
-                <p class="mt-1 text-ink-muted">{{ __('loop.shops_blurb') }}</p>
+            <div class="flex items-start gap-3">
+                <x-back-icon :href="route('settings')" />
+                <div>
+                    <h1 class="font-display text-3xl font-semibold">{{ __('loop.shops') }}</h1>
+                    <p class="mt-1 text-ink-muted">{{ __('loop.shops_blurb') }}</p>
+                </div>
             </div>
             <a href="{{ route('shops.create') }}" class="loop-btn-mint">{{ __('loop.add_shop') }}</a>
         </div>
@@ -11,6 +14,13 @@
 
     @if ($errors->has('plan'))
         <div class="mb-4 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink">{{ $errors->first('plan') }}</div>
+    @endif
+
+    @if ((int) $business->branch_count > $shops->count())
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet/20 bg-violet-soft/40 px-4 py-3 text-sm text-ink">
+            <p>{{ __('loop.setup_other_locations_banner', ['count' => (int) $business->branch_count]) }}</p>
+            <a href="{{ route('shops.create') }}" class="font-semibold text-violet">{{ __('loop.add_shop') }} →</a>
+        </div>
     @endif
 
     <div class="grid gap-4">

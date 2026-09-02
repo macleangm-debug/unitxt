@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Affiliate;
 use App\Models\Business;
 use App\Models\Campaign;
 use App\Models\InAppNotification;
@@ -9,6 +10,9 @@ use App\Models\Membership;
 use App\Models\User;
 use App\Models\Visit;
 use App\Support\FeatureFlags;
+use App\Support\GrowthSettings;
+use App\Support\NotificationPolicy;
+use App\Support\NotificationSettings;
 use Illuminate\Support\Carbon;
 
 class DailyNotificationService
@@ -20,17 +24,30 @@ class DailyNotificationService
      */
     public function generateForBusiness(Business $business, ?Carbon $day = null): int
     {
-        if (! FeatureFlags::enabled('owner_daily_digest')) {
-            return 0;
-        }
-
         $owner = $business->owner;
         if (! $owner) {
             return 0;
         }
 
         $day = ($day ?? now())->copy()->startOfDay();
-        $created = 0;
+        $access = app(LoopAccess::class);
+        $access->sync($business->fresh());
+        $business = $business->fresh();
+
+        $created = $this->pushBillingReminders($owner, $business, $day);
+
+        if ($access->isPaused($business)) {
+            return $created;
+        }
+
+        if (! FeatureFlags::enabled('owner_daily_digest')) {
+            return $created;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_OWNER)) {
+            return $created;
+        }
+
+        $created += $this->pushInsights($owner, $business, $day);
 
         $created += $this->push($owner, $business, 'setup_offers', 'need_offers', $day, [
             'title_key' => 'loop.notif_need_offers_title',
@@ -47,7 +64,7 @@ class DailyNotificationService
             'cta_key' => 'loop.view_campaigns',
             'url' => route('campaigns.create'),
             'tone' => 'ink',
-            'when' => $business->campaigns()->whereIn('type', ['earn', 'product_push'])->where('is_active', true)->doesntExist(),
+            'when' => $business->campaigns()->where('type', 'earn')->where('is_active', true)->doesntExist(),
         ]);
 
         if (FeatureFlags::enabled('birthday_campaigns')) {
@@ -138,11 +155,22 @@ class DailyNotificationService
             ]);
         }
 
+        $tip = app(SalesTipService::class)->tipFor($business);
+        $created += $this->push($owner, $business, 'sales_tip', $business->sector ?: 'default', $day, [
+            'title_key' => $tip['title_key'],
+            'body_key' => $tip['body_key'],
+            'cta_key' => $tip['cta_key'],
+            'url' => $tip['url'],
+            'tone' => 'mint',
+            'when' => true,
+        ]);
+
         $created += $this->push($owner, $business, 'daily_hello', 'hello', $day, [
             'title_key' => 'loop.notif_daily_hello_title',
             'body_key' => 'loop.notif_daily_hello_body',
             'params' => [
                 'business' => $business->name,
+                'customers' => $business->uniqueMemberCount(),
                 'members' => $business->uniqueMemberCount(),
             ],
             'cta_key' => 'loop.start_selling',
@@ -151,31 +179,500 @@ class DailyNotificationService
             'when' => true,
         ]);
 
+        $created += $this->pushRaffleDrawReminders($owner, $business, $day);
+
+        $created += $this->ensureMinimum($owner, $business, $day, 'owner', [
+            [
+                'type' => 'daily_hello',
+                'dedupe' => 'hello_fill',
+                'title_key' => 'loop.notif_daily_hello_title',
+                'body_key' => 'loop.notif_daily_hello_body',
+                'params' => ['business' => $business->name, 'customers' => $business->uniqueMemberCount(), 'members' => $business->uniqueMemberCount()],
+                'cta_key' => 'loop.start_selling',
+                'url' => route('till.index'),
+                'tone' => 'mint',
+            ],
+        ]);
+
+        return $created;
+    }
+
+    public function generateForCustomer(User $customer, ?Carbon $day = null): int
+    {
+        if (! FeatureFlags::enabled('member_daily_digest') || ! $customer->isCustomer()) {
+            return 0;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_CUSTOMER)) {
+            return 0;
+        }
+
+        $day = ($day ?? now())->copy()->startOfDay();
+        $memberships = Membership::query()
+            ->with([
+                'business.rewards' => fn ($q) => $q->where('is_active', true)->orderBy('points_cost'),
+            ])
+            ->where('customer_id', $customer->id)
+            ->get();
+        $membership = $memberships->sortByDesc('id')->first();
+        $business = $membership?->business;
+        $created = 0;
+
+        $created += $this->push($customer, $business, 'member_hello', 'hello', $day, [
+            'title_key' => 'loop.notif_member_hello_title',
+            'body_key' => 'loop.notif_member_hello_body',
+            'params' => [
+                'name' => $customer->first_name ?: $customer->name,
+                'points' => (int) $memberships->sum('points_balance'),
+            ],
+            'cta_key' => 'loop.discover',
+            'url' => route('discover'),
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+
+        $ready = null;
+        foreach ($memberships as $row) {
+            $reward = $row->nearestReadyReward();
+            if ($reward) {
+                $ready = [$row, $reward];
+                break;
+            }
+        }
+
+        if ($ready) {
+            [$readyMembership, $reward] = $ready;
+            $created += $this->push($customer, $readyMembership->business, 'member_redeem_ready', 'redeem_'.$readyMembership->business_id.'_'.$reward->id, $day, [
+                'title_key' => 'loop.notif_member_redeem_title',
+                'body_key' => 'loop.notif_member_redeem_body',
+                'params' => [
+                    'shop' => $readyMembership->business->name,
+                    'offer' => $reward->name,
+                ],
+                'cta_key' => 'loop.see_rewards',
+                'url' => route('memberships.show', $readyMembership->business),
+                'tone' => 'mint',
+                'when' => true,
+                'audience' => 'customer',
+            ]);
+        } else {
+            $created += $this->push($customer, $business, 'member_offers', 'offers', $day, [
+                'title_key' => 'loop.notif_member_offers_title',
+                'body_key' => 'loop.notif_member_offers_body',
+                'cta_key' => 'loop.wallets',
+                'url' => route('memberships.index'),
+                'tone' => 'violet',
+                'when' => true,
+                'audience' => 'customer',
+            ]);
+        }
+
+        $wins = \App\Models\RaffleWinner::query()
+            ->with(['raffle.business'])
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', ['pending', 'contacted'])
+            ->get();
+
+        foreach ($wins as $win) {
+            $raffle = $win->raffle;
+            $shop = $raffle?->business;
+            if (! $raffle || ! $shop) {
+                continue;
+            }
+            $days = $win->daysUntilClaim();
+            if ($days === 2) {
+                $created += $this->push($customer, $shop, 'member_raffle_expiry', 'raffle_soon_'.$win->id, $day, [
+                    'title_key' => 'loop.notif_raffle_soon_title',
+                    'body_key' => 'loop.notif_raffle_soon_body',
+                    'params' => [
+                        'days' => 2,
+                        'prize' => $raffle->prize_name,
+                    ],
+                    'cta_key' => 'loop.your_raffle_wins',
+                    'url' => route('memberships.show', $shop),
+                    'tone' => 'coral',
+                    'when' => true,
+                    'audience' => 'customer',
+                ]);
+            }
+            if ($days === 0) {
+                $created += $this->push($customer, $shop, 'member_raffle_last_day', 'raffle_today_'.$win->id, $day, [
+                    'title_key' => 'loop.notif_raffle_today_title',
+                    'body_key' => 'loop.notif_raffle_today_body',
+                    'params' => [
+                        'prize' => $raffle->prize_name,
+                        'shop' => $shop->name,
+                    ],
+                    'cta_key' => 'loop.your_raffle_wins',
+                    'url' => route('memberships.show', $shop),
+                    'tone' => 'coral',
+                    'when' => true,
+                    'audience' => 'customer',
+                ]);
+            }
+        }
+
+        return $created;
+    }
+
+    public function notifyRaffleWinner(\App\Models\RaffleWinner $winner): int
+    {
+        $customer = $winner->customer;
+        $raffle = $winner->raffle;
+        $business = $raffle?->business;
+        if (! $customer?->isCustomer() || ! $raffle || ! $business) {
+            return 0;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_CUSTOMER)) {
+            return 0;
+        }
+
+        $claimBy = $winner->claim_by?->format('j F') ?? '';
+
+        return $this->push($customer, $business, 'member_raffle_won', 'raffle_win_'.$winner->id, now()->copy()->startOfDay(), [
+            'title_key' => 'loop.notif_raffle_won_title',
+            'body_key' => 'loop.notif_raffle_won_body',
+            'params' => [
+                'prize' => $raffle->prize_name,
+                'shop' => $business->name,
+                'raffle' => $raffle->name,
+                'claim_by' => $claimBy,
+            ],
+            'cta_key' => 'loop.your_raffle_wins',
+            'url' => route('memberships.show', $business),
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+    }
+
+    public function notifyRaffleClaimed(\App\Models\RaffleWinner $winner): int
+    {
+        $customer = $winner->customer;
+        $raffle = $winner->raffle;
+        $business = $raffle?->business;
+        if (! $customer?->isCustomer() || ! $raffle || ! $business) {
+            return 0;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_CUSTOMER)) {
+            return 0;
+        }
+
+        return $this->push($customer, $business, 'member_raffle_claimed', 'raffle_claimed_'.$winner->id, now()->copy()->startOfDay(), [
+            'title_key' => 'loop.notif_raffle_claimed_title',
+            'body_key' => 'loop.notif_raffle_claimed_body',
+            'params' => [
+                'prize' => $raffle->prize_name,
+                'shop' => $business->name,
+            ],
+            'cta_key' => 'loop.your_raffle_wins',
+            'url' => route('memberships.show', $business),
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+    }
+
+    /**
+     * Ping the member as soon as an offer is actually redeemable (not merely earned today).
+     */
+    public function notifyCustomerOfferReady(Membership $membership): int
+    {
+        $customer = $membership->customer;
+        if (! $customer?->isCustomer()) {
+            return 0;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_CUSTOMER)) {
+            return 0;
+        }
+
+        $reward = $membership->nearestReadyReward();
+        if (! $reward) {
+            return 0;
+        }
+
+        if (! $membership->business?->allow_same_day_earn_redeem) {
+            $earnedToday = (int) $membership->visits()->whereDate('created_at', today())->sum('points_earned');
+            if (((int) $membership->points_balance - $earnedToday) < $reward->points_cost) {
+                return 0;
+            }
+        }
+
+        return $this->push($customer, $membership->business, 'member_redeem_ready', 'redeem_'.$membership->business_id.'_'.$reward->id, now()->copy()->startOfDay(), [
+            'title_key' => 'loop.notif_member_redeem_title',
+            'body_key' => 'loop.notif_member_redeem_body',
+            'params' => [
+                'shop' => $membership->business->name,
+                'offer' => $reward->name,
+            ],
+            'cta_key' => 'loop.see_rewards',
+            'url' => route('memberships.show', $membership->business),
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'customer',
+        ]);
+    }
+
+    public function generateForAffiliate(User $affiliateUser, ?Carbon $day = null): int
+    {
+        if (! FeatureFlags::enabled('affiliate_daily_digest') || ! $affiliateUser->isAffiliate()) {
+            return 0;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_AFFILIATE)) {
+            return 0;
+        }
+
+        $day = ($day ?? now())->copy()->startOfDay();
+        $profile = Affiliate::query()->where('user_id', $affiliateUser->id)->first();
+        $created = 0;
+
+        $created += $this->push($affiliateUser, null, 'affiliate_share', 'share', $day, [
+            'title_key' => 'loop.notif_affiliate_share_title',
+            'body_key' => 'loop.notif_affiliate_share_body',
+            'params' => ['code' => $profile?->promo_code ?? ''],
+            'cta_key' => 'loop.affiliate_nav_share',
+            'url' => route('affiliate.dashboard').'#share',
+            'tone' => 'mint',
+            'when' => true,
+            'audience' => 'affiliate',
+        ]);
+
+        $created += $this->push($affiliateUser, null, 'affiliate_tips', 'tips', $day, [
+            'title_key' => 'loop.notif_affiliate_tips_title',
+            'body_key' => 'loop.notif_affiliate_tips_body',
+            'cta_key' => 'loop.affiliate_nav_referrals',
+            'url' => route('affiliate.dashboard').'#referrals',
+            'tone' => 'violet',
+            'when' => true,
+            'audience' => 'affiliate',
+        ]);
+
         return $created;
     }
 
     public function ensureTodayForOwner(User $owner): void
     {
-        $business = $owner->ownedBusiness;
-        if (! $business || ! FeatureFlags::enabled('owner_daily_digest')) {
+        $this->ensureTodayForUser($owner);
+    }
+
+    public function ensureTodayForUser(User $user): void
+    {
+        $today = now()->toDateString();
+        $count = InAppNotification::query()
+            ->where('user_id', $user->id)
+            ->whereDate('for_date', $today)
+            ->count();
+
+        if ($count >= 2) {
             return;
         }
 
-        $today = now()->toDateString();
-        $exists = InAppNotification::query()
-            ->where('user_id', $owner->id)
-            ->whereDate('for_date', $today)
-            ->exists();
-
-        if (! $exists) {
-            $this->generateForBusiness($business);
+        if ($user->isOwner() && FeatureFlags::enabled('owner_daily_digest')) {
+            $business = $user->ownedBusiness;
+            if ($business) {
+                $this->generateForBusiness($business);
+            }
         }
+
+        if ($user->isCustomer()) {
+            $this->generateForCustomer($user);
+        }
+
+        if ($user->isAffiliate()) {
+            $this->generateForAffiliate($user);
+        }
+    }
+
+    private function pushRaffleDrawReminders(User $owner, Business $business, Carbon $day): int
+    {
+        if (! FeatureFlags::enabled('raffles')) {
+            return 0;
+        }
+
+        $days = (int) GrowthSettings::settings()['raffle_remind_days_before'];
+        $horizon = $day->copy()->addDays($days);
+        $created = 0;
+
+        $raffles = $business->raffles()
+            ->where('is_active', true)
+            ->whereIn('status', ['scheduled', 'live'])
+            ->get();
+
+        foreach ($raffles as $raffle) {
+            $next = $raffle->nextDrawDate($day);
+            if ($next->lt($day) || $next->gt($horizon)) {
+                continue;
+            }
+
+            $created += $this->push($owner, $business, 'raffle_draw', 'raffle_'.$raffle->id.'_'.$next->toDateString(), $day, [
+                'title_key' => 'loop.notif_raffle_draw_title',
+                'body_key' => $raffle->frequency === 'weekly'
+                    ? 'loop.notif_raffle_draw_weekly_body'
+                    : 'loop.notif_raffle_draw_body',
+                'params' => [
+                    'name' => $raffle->name,
+                    'date' => $next->toFormattedDateString(),
+                    'prize' => $raffle->prize_name,
+                ],
+                'cta_key' => $raffle->canDrawNow($day) ? 'loop.start_draw' : 'loop.view_raffle',
+                'url' => $raffle->canDrawNow($day) ? route('raffles.live', $raffle) : route('raffles.show', $raffle),
+                'tone' => $next->isSameDay($day) ? 'coral' : 'mint',
+                'when' => true,
+            ]);
+        }
+
+        return $created;
+    }
+
+    private function pushInsights(User $owner, Business $business, Carbon $day): int
+    {
+        $created = 0;
+        foreach (app(BusinessInsightService::class)->notificationSpecs($business) as $spec) {
+            $created += $this->push($owner, $business, 'insight_'.$spec['key'], $spec['key'], $day, [
+                'title_key' => $spec['title_key'],
+                'body_key' => $spec['body_key'],
+                'params' => $spec['params'] ?? [],
+                'cta_key' => $spec['cta_key'],
+                'url' => $spec['url'],
+                'tone' => $spec['tone'] ?? 'mint',
+                'when' => true,
+            ]);
+        }
+
+        return $created;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $fallbacks
+     */
+    private function ensureMinimum(User $user, ?Business $business, Carbon $day, string $audience, array $fallbacks): int
+    {
+        $count = InAppNotification::query()
+            ->where('user_id', $user->id)
+            ->whereDate('for_date', $day->toDateString())
+            ->count();
+        $created = 0;
+
+        foreach ($fallbacks as $row) {
+            if ($count + $created >= 2) {
+                break;
+            }
+            $created += $this->push($user, $business, $row['type'], $row['dedupe'], $day, [
+                ...$row,
+                'when' => true,
+                'audience' => $audience,
+            ]);
+        }
+
+        return $created;
+    }
+
+    public function notifyLoopBack(User $owner, Business $business, Membership $membership): int
+    {
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_OWNER)) {
+            return 0;
+        }
+
+        $count = $business->loopBackRequests()->count();
+
+        return $this->push($owner, $business, 'loop_back', 'ask_'.$membership->customer_id, now()->copy()->startOfDay(), [
+            'title_key' => 'loop.notif_loop_back_title',
+            'body_key' => 'loop.notif_loop_back_body',
+            'params' => [
+                'count' => $count,
+                'name' => $membership->customer?->first_name ?: $membership->customer?->name,
+            ],
+            'cta_key' => 'loop.reactivate_loop',
+            'url' => route('billing.show'),
+            'tone' => 'coral',
+            'when' => true,
+        ]);
+    }
+
+    private function pushBillingReminders(User $owner, Business $business, Carbon $day): int
+    {
+        if (! NotificationSettings::settings()['trial_reminders']) {
+            return 0;
+        }
+        if (! NotificationPolicy::inAppEnabled(NotificationPolicy::AUDIENCE_OWNER)) {
+            return 0;
+        }
+
+        $access = app(LoopAccess::class);
+        $phase = $access->phase($business);
+        $momentum = $access->momentum($business);
+        $members = $momentum['members'];
+
+        if ($phase === LoopAccess::PHASE_PAUSED) {
+            $existing = InAppNotification::query()
+                ->where('user_id', $owner->id)
+                ->where('business_id', $business->id)
+                ->where('type', 'billing_paused')
+                ->exists();
+            if ($existing) {
+                return 0;
+            }
+
+            return $this->push($owner, $business, 'billing_paused', 'paused', $day, [
+                'title_key' => 'loop.notif_loop_paused_title',
+                'body_key' => 'loop.notif_loop_paused_body',
+                'params' => ['count' => $members],
+                'cta_key' => 'loop.reactivate_loop',
+                'url' => route('billing.show'),
+                'tone' => 'coral',
+                'when' => true,
+            ]);
+        }
+
+        if ($phase === LoopAccess::PHASE_GRACE) {
+            $left = $access->graceDaysLeft($business);
+
+            return $this->push($owner, $business, 'billing_grace', 'grace_'.$left, $day, [
+                'title_key' => 'loop.notif_loop_grace_title',
+                'body_key' => 'loop.notif_loop_grace_body',
+                'params' => ['days' => $left],
+                'cta_key' => 'loop.reactivate_loop',
+                'url' => route('billing.show'),
+                'tone' => 'coral',
+                'when' => true,
+            ]);
+        }
+
+        $days = $access->daysUntilDue($business);
+        if ($days === null) {
+            return 0;
+        }
+
+        $map = [
+            7 => ['billing_renew_7', 'renew_7', 'loop.notif_loop_renew_7_title', 'loop.notif_loop_renew_7_body'],
+            3 => ['billing_renew_3', 'renew_3', 'loop.notif_loop_renew_3_title', 'loop.notif_loop_renew_3_body'],
+            1 => ['billing_renew_1', 'renew_1', 'loop.notif_loop_renew_1_title', 'loop.notif_loop_renew_1_body'],
+        ];
+
+        if (! isset($map[$days])) {
+            return 0;
+        }
+
+        [$type, $dedupe, $title, $body] = $map[$days];
+
+        return $this->push($owner, $business, $type, $dedupe, $day, [
+            'title_key' => $title,
+            'body_key' => $body,
+            'params' => [
+                'count' => $members,
+                'close' => $momentum['close_to_reward'],
+            ],
+            'cta_key' => 'loop.renew_now',
+            'url' => route('billing.show'),
+            'tone' => $days <= 3 ? 'coral' : 'amber',
+            'when' => true,
+        ]);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function push(User $user, Business $business, string $type, string $dedupe, Carbon $day, array $data): int
+    private function push(User $user, ?Business $business, string $type, string $dedupe, Carbon $day, array $data): int
     {
         if (empty($data['when'])) {
             return 0;
@@ -194,8 +691,8 @@ class DailyNotificationService
 
         InAppNotification::create([
             'user_id' => $user->id,
-            'business_id' => $business->id,
-            'audience' => 'owner',
+            'business_id' => $business?->id,
+            'audience' => $data['audience'] ?? 'owner',
             'type' => $type,
             'dedupe_key' => $dedupe,
             'title_key' => $data['title_key'],

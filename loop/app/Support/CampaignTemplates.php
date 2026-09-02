@@ -10,6 +10,19 @@ class CampaignTemplates
 
     public const INTENTION_RETENTION = 'retention';
 
+    public const MAIN_KEY = 'everyday_earn';
+
+    /** @var list<string> */
+    public const BONUS_KEYS = [
+        'product_push',
+        'birthday_treat',
+        'visit_streak',
+        'welcome_bonus',
+    ];
+
+    /** One per business — product push can repeat. */
+    public const UNIQUE_TYPES = ['earn', 'birthday', 'welcome', 'streak'];
+
     /**
      * @return array<string, array<string, mixed>>
      */
@@ -33,8 +46,8 @@ class CampaignTemplates
             'product_push' => [
                 'intention' => self::INTENTION_PRODUCT,
                 'type' => 'product_push',
-                'spend_step' => 1000,
-                'points_per_step' => 2,
+                'spend_step' => null,
+                'points_per_step' => null,
                 'bonus_points' => 10,
             ],
             'visit_streak' => [
@@ -102,6 +115,9 @@ class CampaignTemplates
             if (in_array($key, $excludeKeys, true)) {
                 continue;
             }
+            if (! FeatureFlags::allowsCampaignType($template['type'])) {
+                continue;
+            }
             $groups[$template['intention']][$key] = self::localized($key);
         }
 
@@ -149,5 +165,68 @@ class CampaignTemplates
         }
 
         return __('loop.templates.'.$templateKey.'.description');
+    }
+
+    public static function isUniqueType(string $type): bool
+    {
+        return in_array($type, self::UNIQUE_TYPES, true);
+    }
+
+    public static function isMainType(string $type): bool
+    {
+        return $type === 'earn';
+    }
+
+    /**
+     * Picker groups: one main earn slot, then bonus add-ons.
+     * Unique bonuses already on the business stay visible so owners can open them.
+     *
+     * @param  list<string>  $usedTypes
+     * @param  array<string, \App\Models\Campaign>  $existingByType
+     * @return array<string, array{label: string, hint: string, templates: array<string, array<string, mixed>>}>
+     */
+    public static function picker(array $usedTypes = [], bool $canAddProductPush = true, array $existingByType = []): array
+    {
+        $main = [];
+        if (! in_array('earn', $usedTypes, true)) {
+            $main[self::MAIN_KEY] = self::localized(self::MAIN_KEY);
+        }
+
+        $bonus = [];
+        foreach (self::BONUS_KEYS as $key) {
+            $template = self::localized($key);
+            if (! $template) {
+                continue;
+            }
+            $existing = $existingByType[$template['type']] ?? null;
+            if (! FeatureFlags::allowsCampaignType($template['type']) && ! $existing) {
+                continue;
+            }
+            if ($template['type'] === 'product_push' && ! $canAddProductPush) {
+                continue;
+            }
+            if ($existing && $template['type'] !== 'product_push') {
+                $template['existing_id'] = $existing->id;
+            }
+            $bonus[$key] = $template;
+        }
+
+        $result = [];
+        if ($main !== []) {
+            $result['main'] = [
+                'label' => __('loop.main_campaign'),
+                'hint' => __('loop.main_campaign_hint'),
+                'templates' => $main,
+            ];
+        }
+        if ($bonus !== []) {
+            $result['bonus'] = [
+                'label' => __('loop.bonus_campaigns'),
+                'hint' => __('loop.bonus_campaigns_hint'),
+                'templates' => $bonus,
+            ];
+        }
+
+        return $result;
     }
 }

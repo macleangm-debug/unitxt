@@ -1,9 +1,12 @@
 <x-app-layout>
     <x-slot name="header">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.referrals') }}</p>
-            <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.grow_with_referrals') }}</h1>
-            <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.grow_with_referrals_blurb') }}</p>
+        <div class="flex items-start gap-3">
+            <x-back-icon :href="route('settings')" />
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet">{{ __('loop.referrals') }}</p>
+                <h1 class="mt-1 font-display text-3xl font-semibold">{{ __('loop.grow_with_referrals') }}</h1>
+                <p class="mt-1 max-w-2xl text-ink-muted">{{ __('loop.grow_with_referrals_blurb') }}</p>
+            </div>
         </div>
     </x-slot>
 
@@ -86,6 +89,4 @@
             @endforelse
         </div>
     </section>
-
-    <a href="{{ route('settings') }}" class="mt-8 inline-block text-sm font-semibold text-ink-muted underline">{{ __('loop.back') }}</a>
 </x-app-layout>

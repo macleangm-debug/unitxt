@@ -6,7 +6,7 @@
     :aside-point2="__('loop.customer_aside_2')"
     :aside-point3="__('loop.customer_aside_3')"
 >
-    <form method="POST" action="{{ route('customer.send') }}" class="space-y-4">
+    <form method="POST" action="{{ route('customer.send') }}" class="space-y-4" autocomplete="off">
         @csrf
         <div>
             <h1 class="font-display text-2xl font-semibold">{{ __('loop.cta_customer') }}</h1>
@@ -20,8 +20,9 @@
                         <option value="{{ $meta['dial'] }}" @selected(old('country_code', \App\Support\Countries::dial($preferredCountry)) === $meta['dial'])>{{ $meta['flag'] }} {{ $meta['dial'] }}</option>
                     @endforeach
                 </select>
-                <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="tel" autocomplete="tel-national">
+                    <input name="phone" value="{{ old('phone') }}" class="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-base tracking-wide focus:ring-0" placeholder="7xxxxxxxx" required autofocus inputmode="numeric" pattern="[0-9]*" autocomplete="off">
             </div>
+            <x-input-error :messages="$errors->get('phone')" class="mt-1" />
         </div>
         <button class="loop-btn w-full">{{ __('loop.continue') }}</button>
         <p class="text-center text-sm text-ink-muted"><a href="{{ route('discover') }}" class="underline">{{ __('loop.browse_campaigns') }}</a></p>

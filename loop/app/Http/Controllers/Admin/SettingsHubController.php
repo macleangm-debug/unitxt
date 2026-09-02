@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Models\SettingAudit;
 use App\Support\AffiliateProgram;
 use App\Support\BillingSettings;
 use App\Support\Confirm;
@@ -17,30 +18,98 @@ use App\Support\Plans;
 use App\Support\PlatformUrl;
 use App\Support\ReferralProgram;
 use App\Support\SalesVisibility;
+use App\Support\LegalCatalog;
 use App\Support\Sectors;
+use App\Support\SettingsHealth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class SettingsHubController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $country = strtoupper((string) $request->query('country', 'TZ'));
+        if (! isset(\App\Support\Countries::OPTIONS[$country])) {
+            $country = 'TZ';
+        }
+
+        $plans = Plan::query()->where('country', $country)->orderBy('sort_order')->get();
+        if ($plans->isEmpty()) {
+            $plans = Plan::query()->where('country', 'TZ')->orderBy('sort_order')->get();
+        }
+
+        $billing = BillingSettings::settings();
+        $growth = GrowthSettings::settings();
+        $gameSettings = \App\Support\GameSettings::settings();
+        $referral = ReferralProgram::settings();
+        $affiliate = AffiliateProgram::settings();
+        $featureFlags = FeatureFlags::settings();
+
+        $settingsSummary = [
+            __('loop.settings_tab_packages') => __('loop.settings_summary_packages', [
+                'count' => $plans->count(),
+                'country' => \App\Support\Countries::OPTIONS[$country]['name'] ?? $country,
+            ]),
+            __('loop.settings_tab_billing') => __('loop.settings_summary_billing', [
+                'days' => $billing['trial_days'],
+                'grace' => $billing['grace_days'],
+                'members' => $billing['free_max_members'],
+                'block' => $billing['block_till_when_trial_ends'] ? __('loop.on') : __('loop.off'),
+            ]),
+            __('loop.settings_tab_growth') => __('loop.settings_summary_growth', [
+                'raffle' => $growth['raffle_min_members'],
+                'banners' => $growth['banner_max_count'],
+            ]),
+            __('loop.settings_tab_games') => __('loop.settings_summary_games', [
+                'on' => ! empty($gameSettings['enabled']) ? __('loop.on') : __('loop.off'),
+                'rate' => $gameSettings['recommended_win_rate'],
+            ]),
+            __('loop.settings_tab_referrals') => __('loop.settings_summary_referrals', [
+                'goal' => $referral['goal_count'],
+                'days' => $referral['referrer_extra_days_per_referral'],
+            ]),
+            __('loop.settings_tab_affiliates') => __('loop.settings_summary_affiliates', [
+                'commission' => $affiliate['commission_percent'],
+                'enabled' => $affiliate['enabled'] ? __('loop.on') : __('loop.off'),
+            ]),
+            __('loop.settings_tab_language') => __('loop.settings_summary_language', [
+                'lang' => strtoupper(app()->getLocale()),
+            ]),
+        ];
+
+        $legalDocuments = collect();
+        if ($request->query('tab') === 'legal') {
+            app(\App\Services\LegalService::class)->syncDrafts();
+            $legalDocuments = \App\Models\LegalDocument::query()->orderBy('slug')->orderByDesc('id')->get();
+        }
+
         return view('admin.settings.index', [
-            'billing' => BillingSettings::settings(),
-            'growth' => GrowthSettings::settings(),
-            'referral' => ReferralProgram::settings(),
-            'affiliate' => AffiliateProgram::settings(),
+            'billing' => $billing,
+            'growth' => $growth,
+            'gameSettings' => $gameSettings,
+            'referral' => $referral,
+            'affiliate' => $affiliate,
             'salesVisibility' => SalesVisibility::settings(),
             'platformUrl' => PlatformUrl::settings(),
-            'featureFlags' => FeatureFlags::settings(),
+            'featureFlags' => $featureFlags,
             'featureCatalog' => FeatureFlags::catalog(),
             'sectors' => Sectors::list(),
-            'plans' => Plan::query()->orderBy('sort_order')->get(),
+            'sectorCategories' => Sectors::CATEGORIES,
+            'sectorMisses' => \App\Models\SectorSearchMiss::query()->orderByDesc('hits')->limit(40)->get(),
+            'plans' => $plans,
+            'planCountry' => $country,
+            'planCountries' => Plan::countriesInUse(),
+            'settingsSummary' => $settingsSummary,
             'countries' => CountrySettings::settings(),
             'notifications' => NotificationSettings::settings(),
             'marketing' => MarketingSettings::settings(),
+            'messagingRates' => \App\Support\IntegrationSettings::settings()['messaging'],
             'countryCatalog' => \App\Support\Countries::OPTIONS,
+            'healthChecks' => SettingsHealth::checks(),
+            'recentAudits' => SettingAudit::query()->with('user')->latest()->limit(30)->get(),
+            'legalIdentity' => LegalCatalog::identity(),
+            'legalDocuments' => $legalDocuments,
         ]);
     }
 
@@ -48,15 +117,25 @@ class SettingsHubController extends Controller
     {
         $data = $request->validate([
             'trial_days' => ['required', 'integer', 'min:1', 'max:90'],
+            'grace_days' => ['nullable', 'integer', 'min:0', 'max:30'],
             'free_max_shops' => ['required', 'integer', 'min:1', 'max:5'],
             'free_max_members' => ['required', 'integer', 'min:1', 'max:500'],
             'free_max_monthly_visits' => ['required', 'integer', 'min:1', 'max:500'],
+            'free_max_product_pushes' => ['required', 'integer', 'min:0', 'max:50'],
+            'free_max_offers' => ['required', 'integer', 'min:1', 'max:200'],
             'block_till_when_trial_ends' => ['sometimes', 'boolean'],
+            'discount_months_3' => ['nullable', 'integer', 'min:0', 'max:80'],
+            'discount_months_6' => ['nullable', 'integer', 'min:0', 'max:80'],
+            'discount_months_12' => ['nullable', 'integer', 'min:0', 'max:80'],
         ]);
 
         $normalized = BillingSettings::normalizeInput([
             ...$data,
             'block_till_when_trial_ends' => $request->boolean('block_till_when_trial_ends'),
+            'grace_days' => $data['grace_days'] ?? BillingSettings::settings()['grace_days'],
+            'discount_months_3' => $data['discount_months_3'] ?? 8,
+            'discount_months_6' => $data['discount_months_6'] ?? 15,
+            'discount_months_12' => $data['discount_months_12'] ?? 25,
         ]);
 
         PlatformSetting::putValue(BillingSettings::KEY, $normalized);
@@ -67,10 +146,14 @@ class SettingsHubController extends Controller
             'max_shops' => $normalized['free_max_shops'],
             'max_members' => $normalized['free_max_members'],
             'max_monthly_visits' => $normalized['free_max_monthly_visits'],
+            'max_product_pushes' => $normalized['free_max_product_pushes'],
+            'max_offers' => $normalized['free_max_offers'],
             'features' => [
                 '1 physical shop + address',
                 "Up to {$normalized['free_max_members']} members",
                 "Up to {$normalized['free_max_monthly_visits']} sales / month",
+                "Up to {$normalized['free_max_product_pushes']} product-push campaigns",
+                "Up to {$normalized['free_max_offers']} offers",
                 "{$normalized['trial_days']}-day trial then upgrade",
             ],
         ]);
@@ -95,6 +178,7 @@ class SettingsHubController extends Controller
             'retention_delta_threshold_pct' => ['required', 'integer', 'min:3', 'max:50'],
             'raffle_remind_days_before' => ['required', 'integer', 'min:1', 'max:14'],
             'raffle_default_claim_days' => ['required', 'integer', 'min:1', 'max:30'],
+            'raffle_spin_seconds' => ['required', 'integer', 'min:45', 'max:60'],
             'banner_show_campaign_up' => ['sometimes', 'boolean'],
             'banner_show_campaign_down' => ['sometimes', 'boolean'],
             'banner_show_retention_up' => ['sometimes', 'boolean'],
@@ -128,21 +212,69 @@ class SettingsHubController extends Controller
         ));
     }
 
+    public function updateGames(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['sometimes', 'boolean'],
+            'types' => ['nullable', 'array'],
+            'types.*' => ['in:spin,boxes,scratch'],
+            'default_qualify' => ['required', 'in:spend,visits,both'],
+            'spend_multiplier' => ['required', 'numeric', 'min:1', 'max:4'],
+            'recommended_visit_threshold' => ['required', 'integer', 'min:2', 'max:20'],
+            'recommended_win_rate' => ['required', 'integer', 'min:5', 'max:50'],
+            'max_win_rate' => ['required', 'integer', 'min:10', 'max:80'],
+            'default_play_frequency' => ['required', 'in:daily,transaction,game'],
+            'max_duration_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'claim_days' => ['required', 'integer', 'min:1', 'max:30'],
+            'expected_plays' => ['required', 'integer', 'min:20', 'max:20000'],
+            'allowed_prize_kinds' => ['nullable', 'array'],
+            'allowed_prize_kinds.*' => ['in:free_item,percent,points,custom'],
+        ]);
+
+        $normalized = \App\Support\GameSettings::normalizeInput([
+            ...$data,
+            'enabled' => $request->boolean('enabled'),
+            'types' => $request->input('types', []),
+            'allowed_prize_kinds' => $request->input('allowed_prize_kinds', []),
+        ]);
+
+        PlatformSetting::putValue(\App\Support\GameSettings::KEY, $normalized);
+
+        return back()->with('confirm', Confirm::make(
+            __('loop.admin_games_saved_title'),
+            __('loop.admin_games_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'games']),
+            false,
+        ));
+    }
+
     public function updateSectors(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'sectors' => ['required', 'array', 'min:1'],
             'sectors.*.key' => ['required', 'string', 'max:40'],
             'sectors.*.label' => ['required', 'string', 'max:80'],
+            'sectors.*.category' => ['nullable', 'string', 'max:40'],
+            'sectors.*.aliases' => ['nullable', 'string', 'max:400'],
+            'sectors.*.featured' => ['sometimes', 'boolean'],
+            'sectors.*.short' => ['nullable', 'string', 'max:40'],
             'new_key' => ['nullable', 'string', 'max:40'],
             'new_label' => ['nullable', 'string', 'max:80'],
+            'new_category' => ['nullable', 'string', 'max:40'],
+            'new_aliases' => ['nullable', 'string', 'max:400'],
         ]);
 
         $rows = $data['sectors'];
+        foreach ($rows as $i => $row) {
+            $rows[$i]['featured'] = $request->boolean("sectors.$i.featured");
+        }
         if (filled($data['new_key'] ?? null) && filled($data['new_label'] ?? null)) {
             $rows[] = [
                 'key' => $data['new_key'],
                 'label' => $data['new_label'],
+                'category' => $data['new_category'] ?? 'other',
+                'aliases' => $data['new_aliases'] ?? '',
             ];
         }
 
@@ -308,6 +440,28 @@ class SettingsHubController extends Controller
         ));
     }
 
+    public function updateMessaging(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'price_per_message' => ['required', 'integer', 'min:1', 'max:100000'],
+            'chars_per_message' => ['required', 'integer', 'min:1', 'max:320'],
+            'sender_id_yearly_fee' => ['required', 'integer', 'min:0', 'max:10000000'],
+        ]);
+
+        \App\Models\PlatformSetting::putValue(
+            \App\Support\IntegrationSettings::KEY,
+            \App\Support\IntegrationSettings::mergeMessagingRates($data)
+        );
+
+        return redirect()->route('admin.settings', ['tab' => 'notifications'])->with('confirm', Confirm::make(
+            __('loop.sms_rates_saved_title'),
+            __('loop.sms_rates_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'notifications']),
+            false,
+        ));
+    }
+
     public function updatePlan(Request $request, Plan $plan): RedirectResponse
     {
         $data = $request->validate([
@@ -318,9 +472,14 @@ class SettingsHubController extends Controller
             'max_shops' => ['nullable', 'integer', 'min:1', 'max:500'],
             'max_members' => ['nullable', 'integer', 'min:1', 'max:1000000'],
             'max_monthly_visits' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+            'max_product_pushes' => ['nullable', 'integer', 'min:0', 'max:500'],
+            'max_offers' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:100'],
             'is_public' => ['sometimes', 'boolean'],
             'features_text' => ['nullable', 'string', 'max:4000'],
+            'has_raffles' => ['sometimes', 'boolean'],
+            'has_sms' => ['sometimes', 'boolean'],
+            'has_games' => ['sometimes', 'boolean'],
         ]);
 
         $features = collect(preg_split('/\r\n|\r|\n/', (string) ($data['features_text'] ?? '')))
@@ -337,18 +496,80 @@ class SettingsHubController extends Controller
             'max_shops' => $data['max_shops'] ?? null,
             'max_members' => $data['max_members'] ?? null,
             'max_monthly_visits' => $data['max_monthly_visits'] ?? null,
+            'max_product_pushes' => $data['max_product_pushes'] ?? null,
+            'max_offers' => $data['max_offers'] ?? null,
             'sort_order' => $data['sort_order'],
             'is_public' => $request->boolean('is_public'),
+            'has_raffles' => $request->boolean('has_raffles'),
+            'has_sms' => $request->boolean('has_sms'),
+            'has_games' => $request->boolean('has_games'),
             'features' => $features,
         ]);
 
+        $params = ['tab' => 'packages'];
+        if (($plan->country ?: 'TZ') !== 'TZ') {
+            $params['country'] = $plan->country;
+        }
+
         return redirect()
-            ->route('admin.settings', ['tab' => 'packages'])
+            ->route('admin.settings', $params)
             ->with('confirm', Confirm::make(
                 __('loop.admin_plan_saved_title'),
                 __('loop.admin_plan_saved', ['name' => $plan->name]),
                 __('loop.done'),
-                route('admin.settings', ['tab' => 'packages']),
+                route('admin.settings', $params),
+                false,
+            ));
+    }
+
+    public function cloneCountryPackages(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'string', 'size:2'],
+            'to' => ['required', 'string', 'size:2', 'different:from'],
+        ]);
+
+        if (! isset(\App\Support\Countries::OPTIONS[$data['to']])) {
+            abort(422);
+        }
+
+        $source = Plan::query()->where('country', $data['from'])->orderBy('sort_order')->get();
+        if ($source->isEmpty()) {
+            $source = Plan::query()->where('country', 'TZ')->orderBy('sort_order')->get();
+        }
+
+        $currency = \App\Support\Countries::currency($data['to']);
+
+        foreach ($source as $plan) {
+            Plan::query()->updateOrCreate(
+                ['key' => $plan->key, 'country' => $data['to']],
+                [
+                    'name' => $plan->name,
+                    'tagline' => $plan->tagline,
+                    'price_monthly' => $plan->price_monthly,
+                    'currency' => $currency,
+                    'max_shops' => $plan->max_shops,
+                    'max_members' => $plan->max_members,
+                    'max_monthly_visits' => $plan->max_monthly_visits,
+                    'max_product_pushes' => $plan->max_product_pushes,
+                    'max_offers' => $plan->max_offers,
+                    'has_raffles' => $plan->has_raffles,
+                    'has_sms' => $plan->has_sms,
+                    'has_games' => $plan->has_games,
+                    'is_public' => $plan->is_public,
+                    'sort_order' => $plan->sort_order,
+                    'features' => $plan->features,
+                ]
+            );
+        }
+
+        return redirect()
+            ->route('admin.settings', ['tab' => 'packages', 'country' => $data['to']])
+            ->with('confirm', Confirm::make(
+                __('loop.packages_cloned_title'),
+                __('loop.packages_cloned_body', ['country' => \App\Support\Countries::OPTIONS[$data['to']]['name']]),
+                __('loop.done'),
+                route('admin.settings', ['tab' => 'packages', 'country' => $data['to']]),
                 false,
             ));
     }
@@ -362,6 +583,20 @@ class SettingsHubController extends Controller
             __('loop.marketing_saved'),
             __('loop.done'),
             route('admin.settings', ['tab' => 'marketing']),
+            false,
+        ));
+    }
+
+    public function updateLegal(Request $request): RedirectResponse
+    {
+        app(\App\Services\LegalService::class)->syncDrafts();
+        PlatformSetting::putValue(LegalCatalog::KEY, LegalCatalog::normalizeIdentity($request->all()));
+
+        return redirect()->route('admin.settings', ['tab' => 'legal'])->with('confirm', Confirm::make(
+            __('loop.legal_saved_title'),
+            __('loop.legal_saved'),
+            __('loop.done'),
+            route('admin.settings', ['tab' => 'legal']),
             false,
         ));
     }

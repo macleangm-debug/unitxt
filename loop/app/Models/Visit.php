@@ -17,14 +17,23 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'amount_spent',
     'points_earned',
     'reward_id',
+    'raffle_winner_id',
     'points_redeemed',
     'discount_amount',
     'receipt_ref',
     'channel',
     'notes',
+    'undone_at',
 ])]
 class Visit extends Model
 {
+    protected static function booted(): void
+    {
+        static::addGlobalScope('not_undone', function ($query) {
+            $query->whereNull('visits.undone_at');
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -32,6 +41,7 @@ class Visit extends Model
             'discount_amount' => 'decimal:2',
             'points_earned' => 'integer',
             'points_redeemed' => 'integer',
+            'undone_at' => 'datetime',
         ];
     }
 
@@ -68,6 +78,11 @@ class Visit extends Model
     public function reward(): BelongsTo
     {
         return $this->belongsTo(Reward::class);
+    }
+
+    public function raffleWinner(): BelongsTo
+    {
+        return $this->belongsTo(RaffleWinner::class);
     }
 
     public function pointTransaction(): HasOne

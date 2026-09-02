@@ -2,17 +2,361 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+window.loopNumber = {
+    decimalsFor(code) {
+        return ['USD', 'KES', 'EUR', 'GBP'].includes(String(code || '').toUpperCase()) ? 2 : 0;
+    },
+    parse(value) {
+        const raw = String(value ?? '').replace(/,/g, '').replace(/[^\d.-]/g, '');
+        if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
+            return 0;
+        }
+        const n = Number(raw);
+
+        return Number.isFinite(n) ? n : 0;
+    },
+    format(value, decimals = 0) {
+        const n = typeof value === 'number' ? value : this.parse(value);
+
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        }).format(n);
+    },
+    formatInput(value, decimals = 0) {
+        const raw = String(value ?? '');
+        const cleaned = raw.replace(/[^\d.]/g, '');
+        if (! cleaned) {
+            return '';
+        }
+        const parts = cleaned.split('.');
+        const intPart = parts.shift() || '';
+        const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        if (decimals <= 0) {
+            return grouped;
+        }
+        const frac = parts.join('').slice(0, decimals);
+        if (raw.includes('.') && frac.length === 0) {
+            return grouped + '.';
+        }
+
+        return frac.length ? grouped + '.' + frac : grouped;
+    },
+};
+
+window.loopToast = {
+    show(message, kind = 'success', ms) {
+        const store = window.Alpine?.store?.('loopToast');
+        if (store) {
+            store.show(message, kind, ms);
+        }
+    },
+    success(message) {
+        this.show(message, 'success', 2000);
+    },
+    error(message) {
+        this.show(message, 'error', 4000);
+    },
+};
+
+window.loopCopy = async (text, successLabel, errorLabel) => {
+    try {
+        await navigator.clipboard.writeText(String(text || ''));
+        window.loopToast.success(successLabel || 'Copied');
+        return true;
+    } catch (_) {
+        window.loopToast.error(errorLabel || successLabel || 'Copied');
+        return false;
+    }
+};
+
+(() => {
+    if ('Notification' in window) {
+        try {
+            Object.defineProperty(Notification, 'requestPermission', {
+                configurable: true,
+                value: () => Promise.resolve('denied'),
+            });
+        } catch (_) {
+            try {
+                Notification.requestPermission = () => Promise.resolve('denied');
+            } catch (_) {
+                // Ignore: some browsers freeze Notification.requestPermission.
+            }
+        }
+    }
+
+    const hardenCredentials = () => {
+        document.querySelectorAll('form').forEach((form) => {
+            if (form.querySelector('input[type="password"], input[name="pin"]')) {
+                form.setAttribute('autocomplete', 'off');
+            }
+        });
+        document.querySelectorAll('input[type="password"], input[name="pin"]').forEach((el) => {
+            el.setAttribute('autocomplete', 'off');
+            el.setAttribute('data-lpignore', 'true');
+            el.setAttribute('data-1p-ignore', 'true');
+        });
+    };
+
+    const numericKind = (el) => {
+        if (! (el instanceof HTMLInputElement) || el.disabled || el.readOnly || el.type === 'hidden') {
+            return null;
+        }
+        if (el.dataset.numeric === 'off') {
+            return null;
+        }
+        const name = (el.name || '').toLowerCase();
+        const mode = (el.getAttribute('inputmode') || '').toLowerCase();
+        if (name === 'pin' || name === 'pin_confirmation') {
+            return 'digits';
+        }
+        if (name === 'phone' || name === 'payout_phone' || mode === 'tel') {
+            return 'phone';
+        }
+        if (mode === 'decimal' || el.hasAttribute('data-amount-input') || el.hasAttribute('data-spend-input') || el.hasAttribute('data-value-input') || el.hasAttribute('data-loop-money')) {
+            return 'amount';
+        }
+        if (el.type === 'number') {
+            return 'digits';
+        }
+        if (mode === 'numeric' || el.dataset.numeric) {
+            return el.dataset.numeric === 'decimal' || el.dataset.numeric === 'amount' ? 'amount' : 'digits';
+        }
+
+        return null;
+    };
+
+    const allowedRe = {
+        digits: /[0-9]/,
+        phone: /[0-9+]/,
+        decimal: /[0-9.,]/,
+        amount: /[0-9.,]/,
+    };
+
+    const sanitizeNumeric = (value, kind) => {
+        const raw = String(value || '');
+        if (kind === 'phone') {
+            return raw.replace(/[^\d+]/g, '');
+        }
+        if (kind === 'decimal' || kind === 'amount') {
+            const decimals = kind === 'decimal' ? 2 : 0;
+
+            return window.loopNumber.formatInput(raw, decimals);
+        }
+
+        return raw.replace(/\D+/g, '');
+    };
+
+    const lockNumericEntry = () => {
+        document.querySelectorAll('input[name="phone"], input[name="payout_phone"]').forEach((el) => {
+            if (! el.getAttribute('inputmode')) {
+                el.setAttribute('inputmode', 'numeric');
+            }
+            if (! el.getAttribute('pattern')) {
+                el.setAttribute('pattern', '[0-9]*');
+            }
+        });
+        document.querySelectorAll('input[name="pin"], input[name="pin_confirmation"]').forEach((el) => {
+            el.setAttribute('inputmode', 'numeric');
+            el.setAttribute('pattern', '[0-9]*');
+            if (el.type === 'password') {
+                el.type = 'text';
+                el.classList.add('loop-secret');
+            }
+        });
+        document.querySelectorAll('input[type="number"]').forEach((el) => {
+            if (! el.getAttribute('inputmode')) {
+                const decimal = el.step && String(el.step).includes('.');
+                el.setAttribute('inputmode', decimal ? 'decimal' : 'numeric');
+            }
+        });
+    };
+
+    const onNumericBeforeInput = (event) => {
+        const el = event.target;
+        const kind = numericKind(el);
+        if (! kind || ! event.data) {
+            return;
+        }
+        const allowed = [...event.data].every((ch) => allowedRe[kind].test(ch));
+        if (! allowed) {
+            event.preventDefault();
+        }
+    };
+
+    const onNumericInput = (event) => {
+        const el = event.target;
+        const kind = numericKind(el);
+        if (! kind) {
+            return;
+        }
+        const next = sanitizeNumeric(el.value, kind);
+        if (next !== el.value) {
+            el.value = next;
+        }
+    };
+
+    const onNumericPaste = (event) => {
+        const el = event.target;
+        const kind = numericKind(el);
+        if (! kind) {
+            return;
+        }
+        const text = event.clipboardData?.getData('text') || '';
+        const cleaned = sanitizeNumeric(text, kind);
+        if (cleaned === text) {
+            return;
+        }
+        event.preventDefault();
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        el.value = sanitizeNumeric(el.value.slice(0, start) + cleaned + el.value.slice(end), kind);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            hardenCredentials();
+            lockNumericEntry();
+        });
+    } else {
+        hardenCredentials();
+        lockNumericEntry();
+    }
+    document.addEventListener('beforeinput', onNumericBeforeInput);
+    document.addEventListener('input', onNumericInput);
+    document.addEventListener('paste', onNumericPaste);
+})();
+
 const prefersReducedMotion = () =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const loopSheetState = {
+    panel: null,
+    startY: 0,
+    dy: 0,
+    tracking: false,
+    locked: () => false,
+    setOpen: null,
+};
+
+window.loopSheet = {
+    down(event, panel, getOpen, setOpen, getLocked) {
+        if (prefersReducedMotion() || window.matchMedia('(min-width: 640px)').matches) {
+            return;
+        }
+        if (! panel || event.touches.length !== 1) {
+            return;
+        }
+        const list = panel.querySelector('.loop-picker-list, .loop-picker-body');
+        const fromHandle = event.target.closest('.loop-picker-handle, .loop-picker-head');
+        if (! fromHandle && list && list.scrollTop > 0) {
+            return;
+        }
+        loopSheetState.panel = panel;
+        loopSheetState.startY = event.touches[0].clientY;
+        loopSheetState.dy = 0;
+        loopSheetState.tracking = true;
+        loopSheetState.locked = typeof getLocked === 'function' ? getLocked : () => false;
+        loopSheetState.setOpen = setOpen;
+        panel.classList.add('is-dragging');
+    },
+    move(event) {
+        if (! loopSheetState.tracking || ! loopSheetState.panel || event.touches.length !== 1) {
+            return;
+        }
+        const dy = event.touches[0].clientY - loopSheetState.startY;
+        if (dy < 0) {
+            loopSheetState.dy = 0;
+            loopSheetState.panel.style.transform = '';
+            return;
+        }
+        if (dy > 8) {
+            event.preventDefault();
+        }
+        loopSheetState.dy = dy;
+        loopSheetState.panel.style.transform = `translateY(${dy}px)`;
+    },
+    up() {
+        if (! loopSheetState.tracking || ! loopSheetState.panel) {
+            return;
+        }
+        const panel = loopSheetState.panel;
+        const dy = loopSheetState.dy;
+        const locked = loopSheetState.locked();
+        const close = loopSheetState.setOpen;
+        panel.classList.remove('is-dragging');
+        panel.style.transform = '';
+        loopSheetState.tracking = false;
+        loopSheetState.panel = null;
+        if (! locked && dy > 88 && typeof close === 'function') {
+            close(false);
+        }
+        this.syncLock();
+    },
+    syncLock() {
+        const any = Array.from(document.getElementsByClassName('loop-picker-layer'))
+            .some((el) => window.getComputedStyle(el).display !== 'none');
+        document.documentElement.classList.toggle('loop-picker-open', any);
+    },
+};
 
 const supportsViewTransitions = () => 'startViewTransition' in document;
 
 const sameOriginUrl = (url) => {
     try {
         const next = new URL(url, window.location.href);
+        if (next.protocol !== 'http:' && next.protocol !== 'https:') {
+            return null;
+        }
         return next.origin === window.location.origin ? next : null;
     } catch (_) {
         return null;
+    }
+};
+
+const showLoopSkeleton = () => {
+    const root = document.documentElement;
+    root.classList.add('loop-js');
+    root.classList.remove('loop-ready');
+    document.body?.setAttribute('aria-busy', 'true');
+    try {
+        sessionStorage.setItem('loopNavPending', '1');
+    } catch (_) {
+        /* ignore */
+    }
+};
+
+const markTabActive = (event) => {
+    const item = event?.target?.closest?.('.loop-bottom-nav__item');
+    if (! item) {
+        return;
+    }
+    const nav = item.closest('.loop-bottom-nav');
+    if (! nav) {
+        return;
+    }
+    nav.querySelectorAll('.loop-bottom-nav__item').forEach((el) => {
+        const on = el === item;
+        el.classList.toggle('is-active', on);
+        if (on) {
+            el.setAttribute('aria-current', 'page');
+        } else {
+            el.removeAttribute('aria-current');
+        }
+    });
+};
+
+const markLoopReady = () => {
+    const root = document.documentElement;
+    root.classList.add('loop-ready');
+    root.classList.remove('loop-nav-pending');
+    document.body?.removeAttribute('aria-busy');
+    try {
+        sessionStorage.removeItem('loopNavPending');
+    } catch (_) {
+        /* ignore */
     }
 };
 
@@ -37,11 +381,42 @@ const isHashOnlyNav = (url) => {
  * - fade: generic soft dissolve
  * - morph: shared-element (logo) handoff
  */
+Alpine.store('loopToast', {
+    open: false,
+    title: '',
+    message: '',
+    kind: 'success',
+    cta: 'Done',
+    show(message, kind = 'success') {
+        this.message = String(message || '');
+        this.title = this.message;
+        this.message = '';
+        this.kind = kind === 'error' ? 'error' : 'success';
+        this.open = true;
+        clearTimeout(this.timer);
+    },
+    success(message) {
+        this.show(message, 'success');
+    },
+    error(message) {
+        this.show(message, 'error');
+    },
+    close() {
+        this.open = false;
+    },
+});
+
 Alpine.store('loopNav', {
     transitioning: false,
     morphing: false,
+    navigating: false,
     kind: 'fade',
     go(url, event, options = {}) {
+        if (this.navigating) {
+            event?.preventDefault();
+            return;
+        }
+
         if (
             event &&
             (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button === 1)
@@ -54,7 +429,17 @@ Alpine.store('loopNav', {
             return;
         }
 
+        // Public/guest pages opt out: native navigation, no skeleton flash.
+        if (document.documentElement.classList.contains('loop-no-skeleton')) {
+            return;
+        }
+
         if (prefersReducedMotion()) {
+            try {
+                sessionStorage.setItem('loopNavKind', options.kind || 'tab');
+            } catch (_) {
+                /* ignore */
+            }
             return;
         }
 
@@ -79,6 +464,13 @@ Alpine.store('loopNav', {
         const supportsVT = supportsViewTransitions();
         let usedMorph = false;
         let kind = options.kind || (morphEl ? 'morph' : 'fade');
+        if (next.pathname.startsWith('/locale/')) {
+            kind = 'tab';
+        }
+
+        if (kind === 'tab') {
+            markTabActive(event);
+        }
 
         if (morphEl) {
             kind = 'morph';
@@ -135,24 +527,14 @@ Alpine.store('loopNav', {
 
         this.kind = kind;
         this.morphing = usedMorph || kind === 'morph';
+        this.navigating = true;
         document.documentElement.dataset.loopNav = kind;
         sessionStorage.setItem('loopNavKind', kind);
 
-        // View Transitions carry tab/push/morph without a heavy veil wipe.
-        if (supportsVT) {
-            this.transitioning = kind === 'fade' && ! usedMorph;
-            if (usedMorph || kind === 'tab' || kind === 'push' || kind === 'back') {
-                this.transitioning = false;
-            }
-            window.location.href = next.href;
-            return;
-        }
-
-        // Fallback veil for browsers without VT.
-        this.transitioning = true;
-        setTimeout(() => {
-            window.location.href = next.href;
-        }, usedMorph ? 160 : kind === 'tab' ? 180 : 260);
+        // Do not flash the skeleton on the outgoing page. The next document
+        // already knows the nav kind and paints ready (see head-boot).
+        this.transitioning = false;
+        window.location.href = next.href;
     },
 });
 
@@ -172,12 +554,6 @@ function loopSettleMorph() {
         sessionStorage.removeItem('loopMorphLift');
         sessionStorage.removeItem('loopVt');
         return;
-    }
-
-    // Soft content entrance only after an in-app navigation (not cold loads).
-    if (navKind === 'tab' || navKind === 'push' || navKind === 'back' || navKind === 'fade') {
-        const shell = document.querySelector('main.loop-shell') || document.querySelector('main');
-        shell?.classList.add(navKind === 'tab' ? 'loop-nav-enter-tab' : 'loop-nav-enter-push');
     }
 
     const usedVt = sessionStorage.getItem('loopVt') === '1';
@@ -390,18 +766,135 @@ Alpine.data('loopQrExpand', () => ({
 }));
 
 /**
- * Count points 0 → target with ease-out (~700–900ms).
+ * Loop-branded camera scanner for member wallet QR on Sale.
+ */
+Alpine.data('loopQrScanner', (cfg = {}) => ({
+    scanning: false,
+    status: '',
+    error: '',
+    stream: null,
+    raf: null,
+    detector: null,
+    scanningLabel: cfg.scanningLabel || 'Scanning…',
+    secureError: cfg.secureError || '',
+    cameraError: cfg.cameraError || '',
+    unrecognized: cfg.unrecognized || '',
+    async open() {
+        this.error = '';
+        this.status = '';
+        this.scanning = true;
+        await this.$nextTick();
+        try {
+            if (! window.isSecureContext && location.hostname !== 'localhost') {
+                throw new Error('secure');
+            }
+            this.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false,
+            });
+            const video = this.$refs.video;
+            video.srcObject = this.stream;
+            await video.play();
+            this.status = this.scanningLabel;
+            if ('BarcodeDetector' in window) {
+                this.detector = new BarcodeDetector({ formats: ['qr_code'] });
+                this.tick();
+            }
+        } catch (err) {
+            this.error = err?.message === 'secure' ? this.secureError : this.cameraError;
+        }
+    },
+    async tick() {
+        if (! this.scanning || ! this.detector) {
+            return;
+        }
+        try {
+            const codes = await this.detector.detect(this.$refs.video);
+            if (codes?.length) {
+                this.handlePayload(codes[0].rawValue || '');
+                return;
+            }
+        } catch (_) {
+            /* keep scanning */
+        }
+        this.raf = requestAnimationFrame(() => this.tick());
+    },
+    handlePayload(raw) {
+        const text = String(raw || '').trim();
+        if (! text) {
+            return;
+        }
+        let dial = '';
+        let phone = '';
+        try {
+            const url = new URL(text, window.location.origin);
+            const scan = url.searchParams.get('scan') || '';
+            if (scan.includes('|')) {
+                [dial, phone] = scan.split('|');
+            }
+        } catch (_) {
+            /* not a URL */
+        }
+        if (! phone && text.includes('|')) {
+            [dial, phone] = text.split('|');
+        }
+        if (! phone && /^\+?\d{8,15}$/.test(text.replace(/\s+/g, ''))) {
+            phone = text.replace(/\D+/g, '').slice(-9);
+        }
+        phone = String(phone || '').replace(/\D+/g, '');
+        if (! phone) {
+            this.error = this.unrecognized;
+            this.raf = requestAnimationFrame(() => this.tick());
+            return;
+        }
+        const form = this.$root?.closest?.('form') || this.$el.closest('form');
+        const phoneInput = form?.querySelector('input[name="phone"]');
+        const dialInput = form?.querySelector('input[name="country_code"]');
+        if (phoneInput) {
+            phoneInput.value = phone;
+            phoneInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        if (dial && dialInput) {
+            dialInput.value = dial.startsWith('+') ? dial : `+${dial}`;
+        }
+        this.close();
+        form?.requestSubmit?.();
+    },
+    close() {
+        this.scanning = false;
+        if (this.raf) {
+            cancelAnimationFrame(this.raf);
+            this.raf = null;
+        }
+        if (this.stream) {
+            this.stream.getTracks().forEach((t) => t.stop());
+            this.stream = null;
+        }
+        const video = this.$refs.video;
+        if (video) {
+            video.srcObject = null;
+        }
+    },
+    destroy() {
+        this.close();
+    },
+}));
+
+/**
+ * Count from → target with ease-out (~700–900ms).
+ * Default from is 0 (heroes). Pass startFrom for 340 → 364 till moments.
  * Optional earnedDelta shows a floating +N after settle.
  */
-Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0) => ({
-    display: 0,
+Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0, startFrom = 0) => ({
+    display: Number(startFrom) || 0,
     earned: null,
     ripple: false,
     init() {
         const goal = Number(target) || 0;
+        const from = Number(startFrom) || 0;
         const earned = Number(earnedDelta) || 0;
 
-        if (prefersReducedMotion() || goal <= 0) {
+        if (prefersReducedMotion() || goal === from || (from === 0 && goal <= 0)) {
             this.display = goal;
             if (earned > 0) {
                 this.flashEarned(earned);
@@ -413,7 +906,7 @@ Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0) => ({
         const tick = (now) => {
             const t = Math.min(1, (now - start) / duration);
             const eased = 1 - Math.pow(1 - t, 3);
-            this.display = Math.round(goal * eased);
+            this.display = Math.round(from + (goal - from) * eased);
             if (t < 1) {
                 requestAnimationFrame(tick);
             } else {
@@ -436,7 +929,7 @@ Alpine.data('loopCountUp', (target, duration = 800, earnedDelta = 0) => ({
         }, 1200);
     },
     formatted() {
-        return new Intl.NumberFormat().format(this.display);
+        return window.loopNumber.format(this.display);
     },
 }));
 
@@ -456,101 +949,56 @@ Alpine.data('loopLivingWallet', (earnedDelta = 0) => ({
 }));
 
 /**
- * Horizontal carousel: slow swipe + soft snap + light parallax.
+ * Horizontal carousel: native swipe + light parallax.
+ * Never hijack the wheel — that turned page-scroll into a sideways snap and hid copy.
  */
-Alpine.data('loopParallaxCarousel', () => ({
-    _target: 0,
-    _current: 0,
-    _raf: null,
+Alpine.data('loopParallaxCarousel', (cfg = {}) => ({
+    autoMs: cfg.autoMs ?? 0,
+    _timer: null,
     init() {
-        this._target = this.$el.scrollLeft;
-        this._current = this.$el.scrollLeft;
+        this._onScroll = () => this.refresh();
         this.$nextTick(() => this.refresh());
-
-        if (prefersReducedMotion()) {
-            this._onScroll = () => this.refresh();
-            this.$el.addEventListener('scroll', this._onScroll, { passive: true });
-            return;
-        }
-
-        this._onScroll = () => {
-            if (! this._raf) {
-                this._target = this.$el.scrollLeft;
-                this._current = this.$el.scrollLeft;
-            }
-            this.refresh();
-        };
         this.$el.addEventListener('scroll', this._onScroll, { passive: true });
         window.addEventListener('resize', this._onScroll, { passive: true });
-
-        this._onWheel = (event) => {
-            const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) || event.shiftKey;
-            if (! horizontal && Math.abs(event.deltaY) < 2) {
-                return;
-            }
-            if (! horizontal && this.$el.scrollWidth <= this.$el.clientWidth + 4) {
-                return;
-            }
-            event.preventDefault();
-            const delta = horizontal ? event.deltaX || event.deltaY : event.deltaY;
-            this._target = Math.max(
-                0,
-                Math.min(this.$el.scrollWidth - this.$el.clientWidth, this._target + delta * 0.35)
-            );
-            this.lerp();
-        };
-        this.$el.addEventListener('wheel', this._onWheel, { passive: false });
+        if (this.autoMs > 0 && ! prefersReducedMotion()) {
+            this.$el.addEventListener('pointerenter', () => this.stopAuto());
+            this.$el.addEventListener('pointerleave', () => this.startAuto());
+            this.startAuto();
+        }
     },
     destroy() {
+        this.stopAuto();
         this.$el.removeEventListener('scroll', this._onScroll);
         window.removeEventListener('resize', this._onScroll);
-        if (this._onWheel) {
-            this.$el.removeEventListener('wheel', this._onWheel);
-        }
-        if (this._raf) {
-            cancelAnimationFrame(this._raf);
-        }
     },
-    lerp() {
-        if (this._raf) {
+    startAuto() {
+        this.stopAuto();
+        if (this.autoMs <= 0 || prefersReducedMotion()) {
             return;
         }
-        const tick = () => {
-            this._current += (this._target - this._current) * 0.06;
-            this.$el.scrollLeft = this._current;
-            this.refresh();
-            if (Math.abs(this._target - this._current) > 0.4) {
-                this._raf = requestAnimationFrame(tick);
-            } else {
-                this.$el.scrollLeft = this._target;
-                this._raf = null;
-                this.snapSlow();
-            }
-        };
-        this._raf = requestAnimationFrame(tick);
+        this._timer = window.setInterval(() => this.advance(), this.autoMs);
     },
-    snapSlow() {
-        const cards = [...this.$el.querySelectorAll('[data-loop-card]')];
-        if (! cards.length) {
+    stopAuto() {
+        if (this._timer) {
+            window.clearInterval(this._timer);
+            this._timer = null;
+        }
+    },
+    advance() {
+        const root = this.$el;
+        const cards = root.querySelectorAll('[data-loop-card]');
+        if (cards.length < 2) {
             return;
         }
-        const mid = this.$el.scrollLeft + this.$el.clientWidth / 2;
-        let best = cards[0];
-        let bestDist = Infinity;
-        cards.forEach((card) => {
-            const center = card.offsetLeft + card.offsetWidth / 2;
-            const dist = Math.abs(mid - center);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = card;
-            }
-        });
-        this._target = Math.max(0, best.offsetLeft - 8);
-        if (Math.abs(this._target - this._current) > 1) {
-            this.lerp();
-        }
+        const step = cards[0].offsetWidth + 16;
+        const max = root.scrollWidth - root.clientWidth;
+        const next = root.scrollLeft + step;
+        root.scrollTo({ left: next >= max - 4 ? 0 : next, behavior: 'smooth' });
     },
     refresh() {
+        if (prefersReducedMotion()) {
+            return;
+        }
         const root = this.$el;
         const mid = root.scrollLeft + root.clientWidth / 2;
         root.querySelectorAll('[data-loop-card]').forEach((card) => {
@@ -562,7 +1010,6 @@ Alpine.data('loopParallaxCarousel', () => ({
             if (media) {
                 const shift = Math.max(-4, Math.min(4, (mid - center) * 0.015));
                 media.style.transform = `translateX(${shift}px) scale(1.04)`;
-                media.style.transition = 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
             }
         });
     },
@@ -662,4 +1109,2298 @@ Alpine.data('loopPageMotion', () => ({
     },
 }));
 
+Alpine.data('campaignWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    total: cfg.total ?? 4,
+    hasPick: cfg.hasPick ?? false,
+    skipBonuses: cfg.skipBonuses ?? false,
+    templateKey: cfg.templateKey ?? '',
+    fromTemplate: cfg.fromTemplate ?? false,
+    pickedLabel: cfg.pickedLabel ?? '',
+    namePlaceholder: cfg.namePlaceholder ?? '',
+    descPlaceholder: cfg.descPlaceholder ?? '',
+    spendPlaceholder: cfg.spendPlaceholder ?? '',
+    pointsPlaceholder: cfg.pointsPlaceholder ?? '',
+    bonusPlaceholder: cfg.bonusPlaceholder ?? '',
+    templates: cfg.templates ?? {},
+    typeLabels: cfg.typeLabels ?? {},
+    pickRequired: cfg.pickRequired ?? '',
+    type: cfg.type ?? 'earn',
+    enableWelcome: cfg.enableWelcome ?? false,
+    enableBirthday: cfg.enableBirthday ?? false,
+    enableStreak: cfg.enableStreak ?? false,
+    spendDisplay: cfg.spendDisplay ?? '',
+    pointsPerStep: cfg.pointsPerStep ?? null,
+    bonusPoints: cfg.bonusPoints ?? null,
+    streakTarget: cfg.streakTarget ?? 3,
+    streakPeriod: cfg.streakPeriod ?? 'week',
+    currency: cfg.currency ?? '',
+    spendRequired: cfg.spendRequired ?? '',
+    pointsRequired: cfg.pointsRequired ?? '',
+    bonusRequired: cfg.bonusRequired ?? '',
+    persistKey: cfg.persistKey ?? 'loop.campaignWizard',
+    saving: false,
+    isEarn() {
+        return this.type === 'earn';
+    },
+    isProductPush() {
+        return this.type === 'product_push';
+    },
+    isStreak() {
+        return this.type === 'streak';
+    },
+    typeLabel() {
+        return this.typeLabels[this.type] || this.type;
+    },
+    basicsStep() {
+        return this.hasPick ? 2 : 1;
+    },
+    spendStep() {
+        return this.hasPick ? 3 : 2;
+    },
+    bonusesStep() {
+        if (this.skipBonuses) {
+            return -1;
+        }
+        return this.hasPick ? 4 : 3;
+    },
+    scheduleStep() {
+        if (this.skipBonuses) {
+            return this.hasPick ? 4 : 3;
+        }
+        return this.hasPick ? 5 : 4;
+    },
+    pickTemplate(key) {
+        const t = this.templates[key];
+        if (!t) {
+            return;
+        }
+        this.templateKey = key;
+        this.type = t.type || 'earn';
+        this.fromTemplate = true;
+        this.pickedLabel = t.name || '';
+        this.namePlaceholder = t.name || this.namePlaceholder;
+        this.descPlaceholder = t.description || this.descPlaceholder;
+        if (t.spend_step) {
+            this.spendPlaceholder = String(t.spend_step).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        if (t.points_per_step) {
+            this.pointsPlaceholder = String(t.points_per_step);
+        }
+        if (t.bonus_points) {
+            this.bonusPlaceholder = String(t.bonus_points);
+            if (this.bonusPoints === null || this.bonusPoints === '') {
+                this.bonusPoints = t.bonus_points;
+            }
+        }
+        if (t.streak_target) {
+            this.streakTarget = t.streak_target;
+        }
+        if (t.streak_period) {
+            this.streakPeriod = t.streak_period;
+        }
+    },
+    pickOwn() {
+        this.templateKey = '';
+        this.type = 'earn';
+        this.fromTemplate = false;
+        this.pickedLabel = '';
+    },
+    init() {
+        if (!this.persistKey) {
+            return;
+        }
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        if (saved && typeof saved === 'object') {
+            if (saved.step) this.step = saved.step;
+            if (saved.type) this.type = saved.type;
+            if (saved.templateKey) this.templateKey = saved.templateKey;
+        }
+        if (urlStep >= 1) this.step = urlStep;
+        this.syncCampaignUrl();
+        this.persistCampaign();
+    },
+    persistCampaign() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                type: this.type,
+                templateKey: this.templateKey,
+            }));
+        } catch (e) {}
+    },
+    syncCampaignUrl() {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
+    go(n) {
+        this.step = n;
+        this.syncCampaignUrl();
+        this.persistCampaign();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        if (this.hasPick && stepNum === 1) {
+            if (!this.templateKey) {
+                return this.fail(1, this.$refs.pickAnchor, this.pickRequired);
+            }
+            return true;
+        }
+        if (stepNum === this.basicsStep()) {
+            const name = root.querySelector('[name="name"]');
+            if (!name || !String(name.value || '').trim()) {
+                return this.fail(stepNum, name);
+            }
+        }
+        if (stepNum === this.spendStep()) {
+            if (this.type === 'earn') {
+                const spendEl = root.querySelector('[data-spend-input]');
+                if (this.spendValue() < 1) {
+                    return this.fail(stepNum, spendEl, this.spendRequired);
+                }
+                const ptsEl = root.querySelector('[data-points-input]') || root.querySelector('[name="points_per_step"]');
+                const pts = parseInt(this.pointsPerStep, 10);
+                if (!pts || pts < 1) {
+                    return this.fail(stepNum, ptsEl, this.pointsRequired);
+                }
+            } else if (this.type === 'product_push') {
+                const product = root.querySelector('[name="featured_product_name"]');
+                if (!product || !String(product.value || '').trim()) {
+                    return this.fail(stepNum, product);
+                }
+                const bonusEl = root.querySelector('[data-bonus-input]');
+                const bonus = parseInt(this.bonusPoints, 10);
+                if (!bonus || bonus < 1) {
+                    return this.fail(stepNum, bonusEl, this.bonusRequired);
+                }
+            } else if (this.type === 'streak') {
+                const target = root.querySelector('[name="streak_target"]');
+                const period = root.querySelector('[name="streak_period"]');
+                const bonusEl = root.querySelector('[data-bonus-input]');
+                if (!target || parseInt(this.streakTarget || target.value, 10) < 2) {
+                    return this.fail(stepNum, target);
+                }
+                if (!period || !(this.streakPeriod || period.value)) {
+                    return this.fail(stepNum, period);
+                }
+                const bonus = parseInt(this.bonusPoints, 10);
+                if (!bonus || bonus < 1) {
+                    return this.fail(stepNum, bonusEl, this.bonusRequired);
+                }
+            } else {
+                const bonusEl = root.querySelector('[data-bonus-input]') || root.querySelector('[name="bonus_points"]');
+                const bonus = parseInt(this.bonusPoints || (bonusEl && bonusEl.value), 10);
+                if (!bonus || bonus < 1) {
+                    return this.fail(stepNum, bonusEl, this.bonusRequired);
+                }
+            }
+        }
+        if (stepNum === this.bonusesStep() && this.bonusesStep() > 0 && this.total > this.bonusesStep()) {
+            if (this.enableWelcome) {
+                const el = root.querySelector('[name="welcome_points"]');
+                if (!el || parseInt(el.value, 10) < 1) {
+                    return this.fail(stepNum, el);
+                }
+            }
+            if (this.enableBirthday) {
+                const el = root.querySelector('[name="birthday_points"]');
+                if (!el || parseInt(el.value, 10) < 1) {
+                    return this.fail(stepNum, el);
+                }
+            }
+            if (this.enableStreak) {
+                const target = root.querySelector('[name="streak_target"]');
+                const period = root.querySelector('[name="streak_period"]');
+                const points = root.querySelector('[name="streak_points"]');
+                if (!target || parseInt(target.value, 10) < 2) {
+                    return this.fail(stepNum, target);
+                }
+                if (!period || !period.value) {
+                    return this.fail(stepNum, period);
+                }
+                if (!points || parseInt(points.value, 10) < 1) {
+                    return this.fail(stepNum, points);
+                }
+            }
+        }
+        if (stepNum === this.scheduleStep()) {
+            const starts = root.querySelector('[name="starts_at"]');
+            if (!starts || !String(starts.value || '').trim()) {
+                return this.fail(stepNum, starts);
+            }
+        }
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(Math.min(this.total, this.step + 1));
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.step !== this.total) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        for (let s = 1; s <= this.total; s++) {
+            if (!this.validateStep(s)) {
+                event.preventDefault();
+                return;
+            }
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+        this.saving = true;
+    },
+    formatSpend() {
+        let raw = String(this.spendDisplay).replace(/[^\d]/g, '');
+        this.spendDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+    },
+    spendValue() {
+        return parseInt(String(this.spendDisplay).replace(/,/g, ''), 10) || 0;
+    },
+}));
+
+Alpine.data('offerWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    total: cfg.total ?? 5,
+    hasPick: cfg.hasPick ?? false,
+    persistKey: cfg.persistKey ?? '',
+    type: cfg.type ?? '',
+    typeLabel: cfg.typeLabel ?? '',
+    name: cfg.name ?? '',
+    namePlaceholder: cfg.namePlaceholder ?? '',
+    descPlaceholder: cfg.descPlaceholder ?? '',
+    points: cfg.points ?? null,
+    pointsPlaceholder: cfg.pointsPlaceholder ?? '',
+    valueDisplay: cfg.valueDisplay ?? '',
+    valuePlaceholder: cfg.valuePlaceholder ?? '',
+    product: cfg.product ?? '',
+    productPlaceholder: cfg.productPlaceholder ?? '',
+    productRequired: cfg.productRequired ?? '',
+    spendPerPoint: cfg.spendPerPoint ?? 0,
+    currency: cfg.currency ?? '',
+    businessName: cfg.businessName ?? '',
+    pickRequired: cfg.pickRequired ?? '',
+    valueRequired: cfg.valueRequired ?? '',
+    pointsRequired: cfg.pointsRequired ?? '',
+    saving: false,
+    init() {
+        if (!this.persistKey) {
+            return;
+        }
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        const urlType = params.get('reward_type') || '';
+        if (saved && typeof saved === 'object') {
+            if (saved.type) this.type = saved.type;
+            if (saved.typeLabel) this.typeLabel = saved.typeLabel;
+            if (saved.name) this.name = saved.name;
+            if (saved.points != null) this.points = saved.points;
+            if (saved.valueDisplay) this.valueDisplay = saved.valueDisplay;
+            if (saved.product) this.product = saved.product;
+            if (saved.step) this.step = saved.step;
+        }
+        if (urlType) this.type = urlType;
+        if (urlStep >= 1) this.step = urlStep;
+        this.step = Math.max(1, Math.min(this.step, this.totalSteps()));
+        this.syncUrl();
+        this.persist();
+    },
+    persist() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                type: this.type,
+                typeLabel: this.typeLabel,
+                name: this.name,
+                points: this.points,
+                valueDisplay: this.valueDisplay,
+                product: this.product,
+            }));
+        } catch (e) {}
+    },
+    clearPersist() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+    },
+    isFreeItem() {
+        return this.type === 'free_item';
+    },
+    hideLimits(n) {
+        return this.isFreeItem() && Number(n) === this.limitsStep();
+    },
+    limitsStep() {
+        return this.hasPick ? 5 : 4;
+    },
+    totalSteps() {
+        return this.isFreeItem() ? this.costStep() : (this.hasPick ? 5 : 4);
+    },
+    nameStep() {
+        return this.hasPick ? 2 : 1;
+    },
+    rewardStep() {
+        return this.hasPick ? 3 : 2;
+    },
+    costStep() {
+        return this.hasPick ? 4 : 3;
+    },
+    selectType(starter) {
+        if (!starter) {
+            return;
+        }
+        this.type = starter.reward_type || starter.key || '';
+        this.typeLabel = starter.name || '';
+        this.namePlaceholder = starter.default_name || starter.name || this.namePlaceholder;
+        this.descPlaceholder = starter.description || this.descPlaceholder;
+        this.pointsPlaceholder = starter.points_cost ? String(starter.points_cost) : this.pointsPlaceholder;
+        if ((starter.reward_type || starter.key) === 'percent_off') {
+            this.valuePlaceholder = String(starter.reward_value || 5);
+        } else if ((starter.reward_type || starter.key) === 'fixed_off') {
+            const raw = String(starter.reward_value || '');
+            this.valuePlaceholder = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : this.valuePlaceholder;
+        }
+        this.persist();
+    },
+    syncUrl() {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            if (this.type) {
+                url.searchParams.set('reward_type', this.type);
+            }
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
+    go(n) {
+        this.step = n;
+        this.syncUrl();
+        this.persist();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        if (this.hasPick && stepNum === 1) {
+            if (!this.type) {
+                return this.fail(1, this.$refs.pickAnchor, this.pickRequired);
+            }
+            return true;
+        }
+        if (stepNum === this.nameStep()) {
+            const name = root.querySelector('[name="name"]');
+            if (!name || !String(name.value || '').trim()) {
+                return this.fail(stepNum, name);
+            }
+        }
+        if (stepNum === this.rewardStep() && (this.type === 'percent_off' || this.type === 'fixed_off')) {
+            const el = root.querySelector('[data-value-input]');
+            if (this.valueNumber() < 1) {
+                return this.fail(stepNum, el, this.valueRequired);
+            }
+        }
+        if (stepNum === this.rewardStep() && this.isFreeItem()) {
+            const el = root.querySelector('[name="product_name"]');
+            if (!el || !String(this.product || el.value || '').trim()) {
+                return this.fail(stepNum, el, this.productRequired);
+            }
+        }
+        if (stepNum === this.costStep()) {
+            const el = root.querySelector('[name="points_cost"]');
+            const pts = parseInt(this.points, 10);
+            if (!pts || pts < 1) {
+                return this.fail(stepNum, el, this.pointsRequired);
+            }
+        }
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(Math.min(this.totalSteps(), this.step + 1));
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.step !== this.totalSteps()) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        for (let s = 1; s <= this.totalSteps(); s++) {
+            if (!this.validateStep(s)) {
+                event.preventDefault();
+                return;
+            }
+        }
+        this.clearPersist();
+        this.saving = true;
+    },
+    formatValue() {
+        if (this.type !== 'fixed_off') {
+            return;
+        }
+        let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
+        this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+    },
+    valueNumber() {
+        return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0;
+    },
+    unlockSpend() {
+        if (!this.spendPerPoint) {
+            return 0;
+        }
+        return Math.round((parseInt(this.points, 10) || 0) * this.spendPerPoint);
+    },
+    applyIdea(label) {
+        this.name = this.businessName ? (this.businessName + ' ' + label) : label;
+    },
+}));
+
+Alpine.data('raffleWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    total: 4,
+    persistKey: cfg.persistKey ?? '',
+    type: cfg.type ?? '',
+    typeLabels: cfg.typeLabels ?? {},
+    typeLabel: cfg.typeLabel ?? '',
+    name: cfg.name ?? '',
+    description: cfg.description ?? '',
+    prizeName: cfg.prizeName ?? '',
+    valueDisplay: cfg.valueDisplay ?? '',
+    frequency: cfg.frequency ?? 'once',
+    drawAt: cfg.drawAt ?? '',
+    winners: cfg.winners ?? '',
+    claimDays: cfg.claimDays ?? '',
+    pickRequired: cfg.pickRequired ?? '',
+    valueRequired: cfg.valueRequired ?? '',
+    prizeNameRequired: cfg.prizeNameRequired ?? '',
+    saving: false,
+    init() {
+        if (!this.persistKey) {
+            return;
+        }
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        const urlType = params.get('prize_type') || '';
+        const urlFreq = params.get('frequency') || '';
+        const urlDraw = params.get('draw_at') || '';
+        if (saved) {
+            this.type = saved.type || this.type;
+            this.name = saved.name || this.name;
+            this.description = saved.description || this.description;
+            this.prizeName = saved.prizeName || this.prizeName;
+            this.valueDisplay = saved.valueDisplay || this.valueDisplay;
+            this.frequency = saved.frequency || this.frequency;
+            this.drawAt = saved.drawAt || this.drawAt;
+            this.winners = saved.winners ?? this.winners;
+            this.claimDays = saved.claimDays ?? this.claimDays;
+        }
+        if (urlType) {
+            this.type = urlType;
+        }
+        if (urlFreq) {
+            this.frequency = urlFreq;
+        }
+        if (urlDraw) {
+            this.drawAt = urlDraw;
+        }
+        this.applyTypeLabel();
+        if (urlStep >= 1 && urlStep <= this.total) {
+            this.step = urlStep;
+        } else if (saved && saved.step) {
+            this.step = saved.step;
+        }
+        this.syncUrl();
+        this.persist();
+        window.addEventListener('loop:locale-changing', () => {
+            this.persist();
+            this.syncUrl();
+        });
+    },
+    applyTypeLabel() {
+        if (this.type && this.typeLabels[this.type]) {
+            this.typeLabel = this.typeLabels[this.type];
+        }
+    },
+    captureForm() {
+        const form = this.$refs.form;
+        if (!form) {
+            return;
+        }
+        const date = form.querySelector('[name="draw_at"]');
+        if (date && date.value) {
+            this.drawAt = date.value;
+        }
+        const freq = form.querySelector('[name="frequency"]');
+        if (freq && freq.value) {
+            this.frequency = freq.value;
+        }
+    },
+    persist() {
+        if (!this.persistKey) {
+            return;
+        }
+        this.captureForm();
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                type: this.type,
+                name: this.name,
+                description: this.description,
+                prizeName: this.prizeName,
+                valueDisplay: this.valueDisplay,
+                frequency: this.frequency,
+                drawAt: this.drawAt,
+                winners: this.winners,
+                claimDays: this.claimDays,
+            }));
+        } catch (e) {}
+    },
+    clearPersist() {
+        if (!this.persistKey) {
+            return;
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+    },
+    syncUrl() {
+        this.captureForm();
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            if (this.type) {
+                url.searchParams.set('prize_type', this.type);
+            }
+            if (this.frequency) {
+                url.searchParams.set('frequency', this.frequency);
+            }
+            if (this.drawAt) {
+                url.searchParams.set('draw_at', this.drawAt);
+            }
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
+    pickType(key) {
+        this.type = key;
+        this.applyTypeLabel();
+        this.persist();
+        this.syncUrl();
+    },
+    go(n) {
+        this.step = n;
+        this.syncUrl();
+        this.persist();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    valueNumber() {
+        return parseFloat(String(this.valueDisplay).replace(/,/g, '')) || 0;
+    },
+    formatValue() {
+        if (this.type !== 'fixed_off') {
+            return;
+        }
+        let raw = String(this.valueDisplay).replace(/[^\d]/g, '');
+        this.valueDisplay = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        if (stepNum === 1 && !this.type) {
+            return this.fail(1, this.$refs.pickAnchor, this.pickRequired);
+        }
+        if (stepNum === 2 && (this.type === 'percent_off' || this.type === 'fixed_off')) {
+            const el = root.querySelector('[data-value-input]');
+            const n = this.valueNumber();
+            if (this.type === 'percent_off' && (n < 1 || n > 100)) {
+                return this.fail(2, el, this.valueRequired);
+            }
+            if (this.type === 'fixed_off' && n < 1) {
+                return this.fail(2, el, this.valueRequired);
+            }
+        }
+        if (stepNum === 2 && (this.type === 'free_item' || this.type === 'custom')) {
+            const el = root.querySelector('[name="prize_name"]');
+            if (!el || !String(this.prizeName || el.value || '').trim()) {
+                return this.fail(2, el, this.prizeNameRequired);
+            }
+        }
+        if (stepNum === 3) {
+            const name = root.querySelector('[name="name"]');
+            if (!name || !String(name.value || '').trim()) {
+                return this.fail(3, name);
+            }
+        }
+        if (stepNum === 4) {
+            const date = root.querySelector('[name="draw_at"]');
+            if (date && !String(date.value || '').trim()) {
+                return this.fail(4, date);
+            }
+        }
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(Math.min(this.total, this.step + 1));
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.step !== this.total) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        for (let s = 1; s <= this.total; s++) {
+            if (!this.validateStep(s)) {
+                event.preventDefault();
+                return;
+            }
+        }
+        this.clearPersist();
+        this.saving = true;
+    },
+}));
+
+Alpine.data('gameWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    type: cfg.type ?? '',
+    typeLabels: cfg.typeLabels ?? {},
+    qualify: cfg.qualify ?? 'spend',
+    spend: cfg.spend ?? 20000,
+    spendDisplay: '',
+    visits: cfg.visits ?? 3,
+    playLimit: cfg.playLimit ?? 'daily',
+    winMode: cfg.winMode ?? 'automatic',
+    oddsEvery: cfg.oddsEvery ?? 5,
+    spreadCount: cfg.spreadCount ?? 5,
+    expectedPlays: cfg.expectedPlays ?? 500,
+    typicalSpend: cfg.typicalSpend ?? 10000,
+    currency: cfg.currency ?? 'TZS',
+    pickRequired: cfg.pickRequired ?? '',
+    init() {
+        this.spendDisplay = window.loopNumber.format(this.spend);
+    },
+    formatSpend() {
+        this.spendDisplay = window.loopNumber.formatInput(this.spendDisplay);
+        this.spend = window.loopNumber.parse(this.spendDisplay);
+    },
+    goTo(n) {
+        this.step = n;
+    },
+    go(n) {
+        this.step = n;
+    },
+    next() {
+        if (this.step === 1 && !this.type) {
+            return;
+        }
+        if (this.step < 7) {
+            this.step += 1;
+        }
+    },
+    recommendLine() {
+        if (this.qualify === 'visits') {
+            return this.visits + '';
+        }
+        return this.currency + ' ' + Number(this.spend).toLocaleString();
+    },
+    summaryLine() {
+        return this.recommendLine();
+    },
+    submitForm() {
+        return true;
+    },
+}));
+
+Alpine.data('gamePlay', (cfg = {}) => ({
+    type: cfg.type || 'spin',
+    played: Boolean(cfg.played),
+    justPlayed: Boolean(cfg.justPlayed),
+    spinning: false,
+    shown: Boolean(cfg.played) && !cfg.justPlayed,
+    revealMs: Number(cfg.revealMs) || 2800,
+    landing: Number(cfg.landing) || 0,
+    sliceCount: Number(cfg.sliceCount) || 1,
+    win: Boolean(cfg.win),
+    init() {
+        if (!this.justPlayed) {
+            return;
+        }
+        this.spinning = true;
+        this.shown = false;
+        setTimeout(() => {
+            this.spinning = false;
+            this.shown = true;
+            window.dispatchEvent(new CustomEvent('loop:confirm-ready'));
+        }, this.revealMs);
+    },
+    choose() {
+        if (this.played || this.spinning) {
+            return;
+        }
+        this.$refs.form?.requestSubmit();
+    },
+    wheelStyle() {
+        const n = this.sliceCount || 1;
+        const target = 360 - ((this.landing + 0.5) * (360 / n));
+        const turn = this.spinning || this.shown ? (1080 + target) : 0;
+        return `--turn: ${turn}deg`;
+    },
+}));
+
+Alpine.data('tillWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    hasOffers: cfg.hasOffers ?? false,
+    rewardId: cfg.rewardId ?? '',
+    raffleWinnerId: cfg.raffleWinnerId ?? '',
+    offers: cfg.offers ?? [],
+    amountDisplay: cfg.amountDisplay ?? '',
+    currency: cfg.currency ?? '',
+    amountRequired: cfg.amountRequired ?? '',
+    giveButton: cfg.giveButton ?? '',
+    giveAndCollect: cfg.giveAndCollect ?? '',
+    collectRemaining: cfg.collectRemaining ?? '',
+    completeSale: cfg.completeSale ?? '',
+    payWithPoints: cfg.payWithPoints ?? false,
+    pointsToSpend: cfg.pointsToSpend ?? '',
+    balance: cfg.balance ?? 0,
+    rate: cfg.rate ?? 0,
+    maxPercent: cfg.maxPercent ?? 100,
+    saving: false,
+    selectedOffer() {
+        const raffleId = String(this.raffleWinnerId || '');
+        if (raffleId) {
+            return this.offers.find((offer) => offer.kind === 'raffle' && String(offer.id) === raffleId) || null;
+        }
+        const id = String(this.rewardId || '');
+        if (!id) {
+            return null;
+        }
+
+        return this.offers.find((offer) => offer.kind !== 'raffle' && String(offer.id) === id) || null;
+    },
+    isFreeItem() {
+        const type = this.selectedOffer()?.type;
+
+        return type === 'free_item' || type === 'custom';
+    },
+    needsAmount() {
+        return !this.isFreeItem();
+    },
+    total() {
+        return this.hasOffers ? 2 : 1;
+    },
+    billStep() {
+        return this.hasOffers ? 2 : 1;
+    },
+    pickOffer(id, kind) {
+        if (kind === 'raffle') {
+            this.raffleWinnerId = id === null || id === undefined || id === '' ? '' : String(id);
+            this.rewardId = '';
+        } else {
+            this.rewardId = id === null || id === undefined || id === '' ? '' : String(id);
+            this.raffleWinnerId = '';
+        }
+        if (this.rewardId || this.raffleWinnerId) {
+            this.payWithPoints = false;
+        }
+    },
+    init() {
+        this.amountDisplay = window.loopNumber.formatInput(
+            this.amountDisplay,
+            window.loopNumber.decimalsFor(this.currency)
+        );
+    },
+    formatAmount() {
+        this.amountDisplay = window.loopNumber.formatInput(
+            this.amountDisplay,
+            window.loopNumber.decimalsFor(this.currency)
+        );
+    },
+    amountValue() {
+        return window.loopNumber.parse(this.amountDisplay);
+    },
+    discount() {
+        const offer = this.selectedOffer();
+        const amount = this.amountValue();
+        if (!offer || !amount) {
+            return 0;
+        }
+        if (offer.type === 'percent_off') {
+            return Math.round(amount * (Number(offer.value) / 100));
+        }
+        if (offer.type === 'fixed_off') {
+            return Math.min(amount, Math.round(Number(offer.value)));
+        }
+
+        return 0;
+    },
+    remaining() {
+        return Math.max(0, this.amountValue() - this.discount());
+    },
+    hasExtraPurchase() {
+        return this.isFreeItem() && this.amountValue() >= 1;
+    },
+    showFeatured() {
+        return true;
+    },
+    submitLabel() {
+        const name = this.selectedOffer()?.name || '';
+        if (this.isFreeItem()) {
+            if (!this.hasExtraPurchase()) {
+                return this.giveButton.replace(':name', name);
+            }
+
+            return this.giveAndCollect
+                .replace(':name', name)
+                .replace(':currency', this.currency)
+                .replace(':amount', window.loopNumber.format(this.remaining(), window.loopNumber.decimalsFor(this.currency)));
+        }
+        if (this.discount() > 0) {
+            return this.collectRemaining
+                .replace(':amount', window.loopNumber.format(this.remaining(), window.loopNumber.decimalsFor(this.currency)))
+                .replace(':currency', this.currency);
+        }
+
+        return this.completeSale;
+    },
+    maxPointsByPercent() {
+        if (!this.rate || !this.amountValue()) {
+            return this.balance;
+        }
+        const maxCurrency = this.amountValue() * (this.maxPercent / 100);
+
+        return Math.min(this.balance, Math.floor(maxCurrency / this.rate));
+    },
+    pointsValue() {
+        return Math.min(parseInt(this.pointsToSpend || 0, 10) || 0, this.maxPointsByPercent());
+    },
+    pointsDiscount() {
+        return Math.round(this.pointsValue() * this.rate);
+    },
+    go(n) {
+        this.step = n;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    fail(stepNum, el, message) {
+        if (this.step !== stepNum) {
+            this.go(stepNum);
+        }
+        this.$nextTick(() => {
+            if (!el) {
+                return;
+            }
+            if (message) {
+                el.setCustomValidity(message);
+                el.reportValidity();
+                el.setCustomValidity('');
+            } else {
+                el.reportValidity();
+            }
+            el.focus();
+        });
+        return false;
+    },
+    validateStep(stepNum) {
+        if (this.hasOffers && stepNum === 1) {
+            return true;
+        }
+        if (stepNum === this.billStep() && this.needsAmount() && this.amountValue() < 1) {
+            return this.fail(stepNum, this.$refs.amountInput, this.amountRequired);
+        }
+
+        return true;
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        if (this.step < this.total()) {
+            this.go(this.step + 1);
+        }
+    },
+    submitForm(event) {
+        if (this.saving) {
+            event.preventDefault();
+            return;
+        }
+        if (this.hasOffers && this.step < 2) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        if (!this.validateStep(this.billStep())) {
+            event.preventDefault();
+            return;
+        }
+        this.saving = true;
+    },
+}));
+
+Alpine.data('billingPayConfirm', (cfg = {}) => ({
+    months: Number(cfg.months || 6),
+    discounts: cfg.discounts || {},
+    monthly: Number(cfg.monthly || 0),
+    currency: cfg.currency || 'TZS',
+    planKey: cfg.planKey || 'growth',
+    pickedKey: cfg.pickedKey || cfg.planKey || 'growth',
+    currentKey: cfg.currentKey || '',
+    planPrices: cfg.planPrices || {},
+    planNames: cfg.planNames || {},
+    payUrl: cfg.payUrl || '/pay',
+    plansUrl: cfg.plansUrl || '/billing/plans',
+    fromPlans: Boolean(cfg.fromPlans),
+    untils: cfg.untils || {},
+    monthLabels: cfg.monthLabels || {},
+    saveTemplate: cfg.saveTemplate || 'Save :currency :amount',
+    payTemplate: cfg.payTemplate || 'Pay :currency :amount',
+    paySaveTemplate: cfg.paySaveTemplate || 'Pay :currency :amount · Save :currency :save',
+    continueLabel: cfg.continueLabel || 'Continue to payment',
+    upgradeTemplate: cfg.upgradeTemplate || 'Upgrade to :plan',
+    regularLabel: cfg.regularLabel || 'Regular price',
+    historyOpen: false,
+    setMonths(n) {
+        this.months = Math.max(1, Math.min(12, Number(n) || 1));
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('months', String(this.months));
+            window.history.replaceState({}, '', url);
+        } catch (e) {
+            // ignore
+        }
+    },
+    setPlan(key) {
+        this.pickedKey = key;
+    },
+    lookup(map, key) {
+        if (! map) {
+            return undefined;
+        }
+
+        return map[key] ?? map[String(key)];
+    },
+    discountFor(months) {
+        return Number(this.lookup(this.discounts, months) || 0);
+    },
+    monthlyFor(planKey) {
+        const fromPlan = this.lookup(this.planPrices, planKey || this.planKey);
+        if (fromPlan != null && fromPlan !== '') {
+            return Number(fromPlan);
+        }
+
+        return Number(this.monthly || 0);
+    },
+    quote(planKey) {
+        return this.quoteFor(planKey || this.planKey);
+    },
+    quoteFor(planKey) {
+        const months = Number(this.months) || 1;
+        const monthly = this.monthlyFor(planKey);
+        const discount = this.discountFor(months);
+        const full = monthly * months;
+        const amount = Math.round(full * ((100 - discount) / 100));
+
+        return {
+            months,
+            monthly,
+            discount,
+            full,
+            amount,
+            save: Math.max(0, full - amount),
+        };
+    },
+    money(n) {
+        const formatted = window.loopNumber
+            ? window.loopNumber.format(n)
+            : Number(n).toLocaleString('en-US');
+
+        return `${this.currency} ${formatted}`;
+    },
+    fill(template, vars) {
+        return Object.keys(vars).reduce(
+            (text, key) => text.split(`:${key}`).join(String(vars[key])),
+            String(template || ''),
+        );
+    },
+    saveLabel(planKey) {
+        return this.saveLabelFor(planKey || this.planKey);
+    },
+    saveLabelFor(planKey) {
+        const quote = this.quoteFor(planKey);
+        if (quote.save <= 0) {
+            return '';
+        }
+
+        return this.fill(this.saveTemplate, {
+            currency: this.currency,
+            amount: window.loopNumber.format(quote.save),
+        });
+    },
+    monthLabel() {
+        return this.lookup(this.monthLabels, this.months) || String(this.months);
+    },
+    untilLabel() {
+        return this.lookup(this.untils, this.months) || '';
+    },
+    summaryTitle(name) {
+        return `${name} · ${this.monthLabel()}`;
+    },
+    pickedName() {
+        return this.lookup(this.planNames, this.pickedKey) || this.pickedKey;
+    },
+    pickedSummaryTitle() {
+        return this.summaryTitle(this.pickedName());
+    },
+    isUpgrade() {
+        return ['starter', 'growth', 'scale'].includes(this.currentKey)
+            && this.pickedKey !== this.currentKey;
+    },
+    regularPriceLine() {
+        return `${this.regularLabel}: ${this.money(this.quoteFor(this.pickedKey).full)}`;
+    },
+    planCta() {
+        if (this.isUpgrade()) {
+            return this.fill(this.upgradeTemplate, { plan: this.pickedName() });
+        }
+
+        return this.continueLabel;
+    },
+    payCta(paused, fallback) {
+        if (paused) {
+            return fallback || this.continueLabel;
+        }
+        const quote = this.quoteFor(this.pickedKey || this.planKey);
+        const amount = window.loopNumber.format(quote.amount);
+        if (quote.save > 0) {
+            return this.fill(this.paySaveTemplate, {
+                currency: this.currency,
+                amount,
+                save: window.loopNumber.format(quote.save),
+            });
+        }
+
+        return this.fill(this.payTemplate, {
+            currency: this.currency,
+            amount,
+        });
+    },
+    priceFor(planKey) {
+        return this.money(this.quoteFor(planKey).amount);
+    },
+    priceLabel(monthly, currency) {
+        const months = Number(this.months) || 1;
+        const amount = Math.round(monthly * months * ((100 - this.discountFor(months)) / 100));
+
+        return `${currency} ${window.loopNumber.format(amount)}`;
+    },
+    payHref(planKey) {
+        const params = new URLSearchParams({
+            purpose: 'plan',
+            plan_key: planKey || this.pickedKey || this.planKey,
+            months: String(this.months || 1),
+        });
+        if (this.fromPlans) {
+            params.set('from', 'plans');
+        }
+
+        return `${this.payUrl}?${params.toString()}`;
+    },
+    plansHref() {
+        const params = new URLSearchParams({ months: String(this.months || 1) });
+
+        return `${this.plansUrl}?${params.toString()}`;
+    },
+}));
+
+Alpine.data('memberMessageWizard', (cfg = {}) => ({
+    step: Number(cfg.step || 1),
+    audience: 'all',
+    body: '',
+    groupMode: 'pick',
+    shopOpen: false,
+    memberOpen: false,
+    price: cfg.price || 30,
+    chars: cfg.chars || 160,
+    credits: cfg.credits || 0,
+    currency: cfg.currency || 'TZS',
+    memberCount: cfg.memberCount || 0,
+    goTo(n) {
+        this.step = Math.max(1, Math.min(4, Number(n) || 1));
+    },
+    go(n) {
+        this.goTo(n);
+    },
+    next() {
+        if (this.step < 4) {
+            this.step += 1;
+        }
+    },
+    segments() {
+        const len = String(this.body || '').length;
+        if (len < 1) {
+            return 0;
+        }
+        return Math.max(1, Math.ceil(len / (this.chars || 160)));
+    },
+    costLine() {
+        const units = this.segments();
+        const people = this.audience === 'person' ? 1 : this.memberCount;
+        const needed = units * people;
+        return `${this.currency} ${(needed * this.price).toLocaleString()} · ${needed} · ${this.credits}`;
+    },
+}));
+
+Alpine.data('affiliateApplyWizard', (cfg = {}) => ({
+    step: Number(cfg.step) || 1,
+    country: cfg.country || 'TZ',
+    dials: cfg.dials || {},
+    go(n) {
+        this.step = Math.max(1, Math.min(3, Number(n) || 1));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    next() {
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        this.go(this.step + 1);
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        const fields = root.querySelectorAll('input, select, textarea');
+        for (const el of fields) {
+            if (el.disabled) {
+                continue;
+            }
+            if (el.type === 'hidden' && ! el.hasAttribute('required')) {
+                continue;
+            }
+            if (typeof el.reportValidity === 'function' && !el.reportValidity()) {
+                el.focus();
+                return false;
+            }
+        }
+        return true;
+    },
+}));
+
+Alpine.data('memberRegisterWizard', (cfg = {}) => ({
+    step: cfg.step ?? 1,
+    introPane: cfg.introPane ?? 1,
+    splitIntro: cfg.splitIntro ?? false,
+    persistKey: 'loop.memberRegister',
+    maxStep: cfg.total ?? 3,
+    init() {
+        let saved = null;
+        try {
+            saved = JSON.parse(sessionStorage.getItem(this.persistKey) || 'null');
+        } catch (e) {
+            saved = null;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const urlStep = parseInt(params.get('step') || '', 10);
+        if (cfg.force) {
+            this.step = cfg.step ?? 1;
+            this.introPane = cfg.introPane ?? 1;
+        } else {
+            if (saved && saved.step) {
+                this.step = saved.step;
+            }
+            if (saved && saved.introPane) {
+                this.introPane = saved.introPane;
+            }
+            if (urlStep >= 1 && urlStep <= this.maxStep) {
+                this.step = urlStep;
+            }
+        }
+        this.syncUrl();
+        this.persist();
+    },
+    persist() {
+        try {
+            sessionStorage.setItem(this.persistKey, JSON.stringify({
+                step: this.step,
+                introPane: this.introPane,
+            }));
+        } catch (e) {}
+    },
+    syncUrl() {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('step', String(this.step));
+            window.history.replaceState({}, '', url);
+        } catch (e) {}
+    },
+    totalSteps() {
+        return this.maxStep;
+    },
+    go(n) {
+        const next = Math.max(1, Math.min(this.maxStep, parseInt(n, 10) || 1));
+        if (this.splitIntro && next === 1 && this.step > 1) {
+            this.introPane = 2;
+        }
+        this.step = next;
+        this.syncUrl();
+        this.persist();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    goTo(n) {
+        n = parseInt(n, 10);
+        if (n <= this.step) {
+            this.go(n);
+            return;
+        }
+        while (this.step < n) {
+            const before = this.step;
+            this.next();
+            if (this.step === before) {
+                return;
+            }
+        }
+    },
+    next() {
+        if (this.splitIntro && this.step === 1 && this.introPane === 1) {
+            if (! this.validatePane(1)) {
+                return;
+            }
+            this.introPane = 2;
+            this.persist();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        if (!this.validateStep(this.step)) {
+            return;
+        }
+        if (this.splitIntro && this.step === 1) {
+            this.introPane = 1;
+        }
+        this.go(Math.min(this.maxStep, this.step + 1));
+    },
+    backIntro() {
+        if (this.splitIntro && this.step === 1 && this.introPane === 2) {
+            this.introPane = 1;
+            this.persist();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+        this.go(this.step - 1);
+    },
+    validatePane(pane) {
+        const form = this.$refs.form;
+        if (! form) {
+            return false;
+        }
+        const root = form.querySelector('[data-intro-pane="' + pane + '"]');
+        if (! root) {
+            return true;
+        }
+        const fields = root.querySelectorAll('input, select, textarea');
+        for (const el of fields) {
+            if (typeof el.reportValidity === 'function' && ! el.reportValidity()) {
+                el.focus();
+                return false;
+            }
+        }
+        return true;
+    },
+    validateStep(stepNum) {
+        const form = this.$refs.form;
+        if (!form) {
+            return false;
+        }
+        const root = form.querySelector('[data-step="' + stepNum + '"]');
+        if (!root) {
+            return true;
+        }
+        const fields = root.querySelectorAll('input, select, textarea');
+        for (const el of fields) {
+            if (typeof el.reportValidity === 'function' && !el.reportValidity()) {
+                el.focus();
+                return false;
+            }
+        }
+        const pin = root.querySelector('[name="pin"]');
+        const confirm = root.querySelector('[name="pin_confirmation"]');
+        if (pin && confirm && pin.value !== confirm.value) {
+            confirm.setCustomValidity(confirm.validationMessage || 'PIN');
+            confirm.reportValidity();
+            confirm.setCustomValidity('');
+            return false;
+        }
+        return true;
+    },
+    submitForm(event) {
+        if (this.step !== this.maxStep) {
+            event.preventDefault();
+            this.next();
+            return;
+        }
+        if (!this.validateStep(this.step)) {
+            event.preventDefault();
+        }
+        try {
+            sessionStorage.removeItem(this.persistKey);
+        } catch (e) {}
+    },
+}));
+
+Alpine.data('articlePreview', (cfg = {}) => ({
+    lang: 'en',
+    device: 'phone',
+    title_en: cfg.title_en || '',
+    title_sw: cfg.title_sw || '',
+    excerpt_en: cfg.excerpt_en || '',
+    excerpt_sw: cfg.excerpt_sw || '',
+    body_en: cfg.body_en || '',
+    body_sw: cfg.body_sw || '',
+    image: cfg.image || '',
+    title() {
+        const primary = this.lang === 'sw' ? this.title_sw : this.title_en;
+        const fallback = this.lang === 'sw' ? this.title_en : this.title_sw;
+        return primary || fallback || '';
+    },
+    excerpt() {
+        const primary = this.lang === 'sw' ? this.excerpt_sw : this.excerpt_en;
+        const fallback = this.lang === 'sw' ? this.excerpt_en : this.excerpt_sw;
+        return primary || fallback || '';
+    },
+    bodyHtml() {
+        const primary = this.lang === 'sw' ? this.body_sw : this.body_en;
+        const fallback = this.lang === 'sw' ? this.body_en : this.body_sw;
+        const raw = String(primary || fallback || '').trim();
+        if (! raw) {
+            return '';
+        }
+        return raw.split(/\n{2,}/).map((block) => {
+            const safe = block
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            return `<p class="mb-3 last:mb-0">${safe}</p>`;
+        }).join('');
+    },
+}));
+
+document.addEventListener('click', (event) => {
+    const anchor = event.target.closest?.('a[href]');
+    if (! anchor || event.defaultPrevented) {
+        return;
+    }
+    if (anchor.hasAttribute('download') || (anchor.target && anchor.target !== '_self')) {
+        return;
+    }
+    Alpine.store('loopNav').go(anchor.href, event, {
+        kind: anchor.dataset.loopNavKind || 'fade',
+    });
+});
+
+document.addEventListener('submit', (event) => {
+    if (event.defaultPrevented) {
+        return;
+    }
+    const form = event.target;
+    if (! (form instanceof HTMLFormElement) || (form.target && form.target !== '_self')) {
+        return;
+    }
+    if (form.hasAttribute('data-loop-quiet') || form.hasAttribute('data-loop-no-skeleton') || form.closest('[data-loop-no-skeleton]')) {
+        return;
+    }
+    form.querySelectorAll('[data-loop-money]').forEach((el) => {
+        if (el instanceof HTMLInputElement && el.name) {
+            el.value = String(window.loopNumber.parse(el.value));
+        }
+    });
+    if (document.documentElement.classList.contains('loop-no-skeleton')) {
+        return;
+    }
+    try {
+        sessionStorage.setItem('loopNavKind', 'tab');
+    } catch (_) {
+        /* ignore */
+    }
+});
+
+Alpine.data('loopDateField', (cfg = {}) => ({
+    open: false,
+    isCompact: typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches,
+    init() {
+        const mq = window.matchMedia('(max-width: 639px)');
+        const sync = () => { this.isCompact = mq.matches; };
+        if (mq.addEventListener) {
+            mq.addEventListener('change', sync);
+        } else if (mq.addListener) {
+            mq.addListener(sync);
+        }
+    },
+    value: cfg.value || '',
+    placeholder: cfg.placeholder || '',
+    min: cfg.min || '',
+    weekdays: cfg.weekdays || ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+    view: (() => {
+        const today = new Date();
+        const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const floor = cfg.min || '';
+        let base = cfg.value || todayIso;
+        if (floor && base < floor) {
+            base = floor;
+        }
+        const parts = String(base).split('-').map(Number);
+
+        return {
+            year: parts[0] || today.getFullYear(),
+            month: parts[1] || (today.getMonth() + 1),
+        };
+    })(),
+    monthLabel() {
+        return new Date(this.view.year, this.view.month - 1, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' });
+    },
+    days() {
+        const first = new Date(this.view.year, this.view.month - 1, 1);
+        const start = (first.getDay() + 6) % 7;
+        const daysInMonth = new Date(this.view.year, this.view.month, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < start; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+        return cells;
+    },
+    isoDay(day) {
+        if (! day) {
+            return '';
+        }
+
+        return `${this.view.year}-${String(this.view.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    },
+    isDisabled(day) {
+        if (! day || ! this.min) {
+            return ! day;
+        }
+
+        return this.isoDay(day) < this.min;
+    },
+    canPrev() {
+        if (! this.min) {
+            return true;
+        }
+        let month = this.view.month - 1;
+        let year = this.view.year;
+        if (month === 0) {
+            month = 12;
+            year -= 1;
+        }
+        const last = new Date(year, month, 0).getDate();
+        const lastIso = `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+
+        return lastIso >= this.min;
+    },
+    isSelected(day) {
+        return Boolean(day) && this.value === this.isoDay(day);
+    },
+    toggle() {
+        this.open = ! this.open;
+    },
+    close() {
+        this.open = false;
+    },
+    pick(day) {
+        if (! day || this.isDisabled(day)) {
+            return;
+        }
+        this.value = this.isoDay(day);
+        this.open = false;
+    },
+    display() {
+        if (! this.value) {
+            return '';
+        }
+        const [y, m, d] = this.value.split('-');
+
+        return `${d}/${m}/${y}`;
+    },
+    prev() {
+        if (! this.canPrev()) {
+            return;
+        }
+        if (this.view.month === 1) {
+            this.view.month = 12;
+            this.view.year--;
+        } else {
+            this.view.month--;
+        }
+    },
+    next() {
+        if (this.view.month === 12) {
+            this.view.month = 1;
+            this.view.year++;
+        } else {
+            this.view.month++;
+        }
+    },
+    clear() {
+        this.value = '';
+        this.open = false;
+    },
+}));
+
+Alpine.data('phoneCountryField', (cfg = {}) => ({
+    country: cfg.country || 'TZ',
+    countries: cfg.countries || {},
+    get dial() {
+        return this.countries[this.country] || '+255';
+    },
+}));
+
+Alpine.data('logoPlaceholder', (cfg = {}) => ({
+    preview: cfg.preview || '',
+    posX: 50,
+    posY: 50,
+    zoom: 100,
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startPosX: 50,
+    startPosY: 50,
+    baked: false,
+    openPicker() {
+        this.$refs.input.value = '';
+        this.$refs.input.click();
+    },
+    pick(event) {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        this.baked = false;
+        const reader = new FileReader();
+        reader.onload = () => {
+            this.preview = String(reader.result || '');
+            this.posX = 50;
+            this.posY = 50;
+            this.zoom = 100;
+            this.$dispatch('logo-picked', { preview: this.preview });
+        };
+        reader.readAsDataURL(file);
+    },
+    imgStyle() {
+        const z = Math.max(1, Number(this.zoom) / 100);
+        return `object-position: ${this.posX}% ${this.posY}%; transform: scale(${z}); transform-origin: ${this.posX}% ${this.posY}%;`;
+    },
+    onDown(event) {
+        if (!this.preview) {
+            return;
+        }
+        event.preventDefault();
+        this.dragging = true;
+        this.startX = event.clientX;
+        this.startY = event.clientY;
+        this.startPosX = this.posX;
+        this.startPosY = this.posY;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    onMove(event) {
+        if (!this.dragging) {
+            return;
+        }
+        const box = this.$refs.frame.getBoundingClientRect();
+        if (!box.width || !box.height) {
+            return;
+        }
+        this.posX = Math.min(100, Math.max(0, this.startPosX - ((event.clientX - this.startX) / box.width) * 100));
+        this.posY = Math.min(100, Math.max(0, this.startPosY - ((event.clientY - this.startY) / box.height) * 100));
+    },
+    onUp() {
+        this.dragging = false;
+    },
+    init() {
+        const form = this.$el.closest('form');
+        form?.addEventListener('submit', async (event) => {
+            if (this.baked || !this.$refs.input?.files?.[0]) {
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            await this.exportCrop();
+            this.baked = true;
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        }, true);
+    },
+    loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    },
+    async exportCrop() {
+        if (!this.preview) {
+            return;
+        }
+        const img = await this.loadImage(this.preview);
+        const size = 800;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const zoom = Math.max(1, Number(this.zoom) / 100);
+        const scale = Math.max(size / img.width, size / img.height) * zoom;
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (size - dw) * ((Number(this.posX) || 50) / 100);
+        const dy = (size - dh) * ((Number(this.posY) || 50) / 100);
+        ctx.drawImage(img, dx, dy, dw, dh);
+        const blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+        if (!blob) {
+            return;
+        }
+        const file = new File([blob], 'logo.png', { type: 'image/png' });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        this.$refs.input.files = transfer.files;
+    },
+}));
+
+Alpine.data('contentStudio', (cfg = {}) => ({
+    topic: cfg.topic || 'loop',
+    copyKey: cfg.copyKey || 'now_on_loop',
+    lang: cfg.lang || 'en',
+    copiesByTopic: cfg.copiesByTopic || {},
+    designs: cfg.designs || [],
+    design: cfg.design || 'mint_card',
+    look: 'plain',
+    photoUrl: '',
+    photoX: 50,
+    photoY: 50,
+    editOpen: false,
+    saving: false,
+    businessName: cfg.businessName || '',
+    hotline: cfg.hotline || '',
+    logoUrl: cfg.logoUrl || '',
+    emptyHints: cfg.emptyHints || {},
+    setTopic(key) {
+        this.topic = key;
+        const copies = this.topicCopies();
+        this.copyKey = copies[0]?.key || this.copyKey;
+    },
+    topicCopies() {
+        return this.copiesByTopic[this.topic] || [];
+    },
+    selectedCopy() {
+        return this.topicCopies().find((row) => row.key === this.copyKey) || this.topicCopies()[0] || null;
+    },
+    copyPosition() {
+        const copies = this.topicCopies();
+        if (!copies.length) {
+            return '';
+        }
+        const index = Math.max(0, copies.findIndex((row) => row.key === this.copyKey));
+
+        return (index + 1) + ' / ' + copies.length;
+    },
+    headline() {
+        const copy = this.selectedCopy();
+        if (!copy) {
+            return this.businessName;
+        }
+        return copy[this.lang] || copy.en || '';
+    },
+    supportLine() {
+        const copy = this.selectedCopy();
+        if (!copy) {
+            return '';
+        }
+        return copy['support_' + this.lang] || copy.support_en || '';
+    },
+    currentDesign() {
+        return this.designs.find((row) => row.key === this.design) || this.designs[0] || {};
+    },
+    cardToneClass() {
+        if (this.look === 'photo' && this.photoUrl) {
+            return 'loop-studio-tone-photo';
+        }
+        return 'loop-studio-tone-' + (this.design || 'mint_card').replace('_', '-');
+    },
+    cardToneStyle() {
+        if (this.look === 'photo' && this.photoUrl) {
+            return { background: '#0B1F2A', color: '#FFFFFF' };
+        }
+        const design = this.currentDesign();
+
+        return {
+            background: 'linear-gradient(135deg, ' + (design.from || '#2DD4A8') + ' 0%, ' + (design.to || '#0F6B56') + ' 100%)',
+            color: design.ink || '#0B1F2A',
+        };
+    },
+    onPhoto(event) {
+        const file = event.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            this.photoUrl = String(reader.result || '');
+            this.look = 'photo';
+            this.photoX = 50;
+            this.photoY = 50;
+        };
+        reader.readAsDataURL(file);
+    },
+    onPhotoDown(event) {
+        if (this.look !== 'photo' || !this.photoUrl) {
+            return;
+        }
+        event.preventDefault();
+        this._drag = {
+            x: event.clientX,
+            y: event.clientY,
+            posX: this.photoX,
+            posY: this.photoY,
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    onPhotoMove(event) {
+        if (!this._drag) {
+            return;
+        }
+        const box = event.currentTarget.getBoundingClientRect();
+        this.photoX = Math.min(100, Math.max(0, this._drag.posX - ((event.clientX - this._drag.x) / box.width) * 100));
+        this.photoY = Math.min(100, Math.max(0, this._drag.posY - ((event.clientY - this._drag.y) / box.height) * 100));
+    },
+    onPhotoUp() {
+        this._drag = null;
+    },
+    tryAnother() {
+        const copies = this.topicCopies();
+        if (copies.length > 1) {
+            const index = copies.findIndex((row) => row.key === this.copyKey);
+            this.copyKey = copies[(index + 1) % copies.length].key;
+            return;
+        }
+        const di = this.designs.findIndex((row) => row.key === this.design);
+        if (this.designs.length) {
+            this.design = this.designs[(di + 1) % this.designs.length].key;
+        }
+    },
+    async saveImage() {
+        this.saving = true;
+        try {
+            const blob = await this.renderPng();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (this.businessName || 'loop') + '-loop.png';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {}
+        this.saving = false;
+    },
+    async shareCard() {
+        const text = [this.headline(), this.supportLine(), this.businessName + ' on Loop'].filter(Boolean).join(' — ');
+        try {
+            const blob = await this.renderPng();
+            const file = new File([blob], 'loop.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: this.businessName, text, files: [file] });
+                return;
+            }
+            if (navigator.share) {
+                await navigator.share({ title: this.businessName, text });
+                return;
+            }
+        } catch (e) {}
+        await window.loopCopy(text, cfg.copiedLabel);
+    },
+    loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    },
+    coverDraw(ctx, img, size, focusY, focusX = 50) {
+        const scale = Math.max(size / img.width, size / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (size - dw) * ((Number(focusX) || 50) / 100);
+        const dy = (size - dh) * ((Number(focusY) || 50) / 100);
+        ctx.drawImage(img, dx, dy, dw, dh);
+    },
+    wrapLines(ctx, text, maxWidth) {
+        const words = String(text || '').split(/\s+/);
+        const lines = [];
+        let line = '';
+        words.forEach((word) => {
+            const next = line ? line + ' ' + word : word;
+            if (ctx.measureText(next).width > maxWidth && line) {
+                lines.push(line);
+                line = word;
+            } else {
+                line = next;
+            }
+        });
+        if (line) {
+            lines.push(line);
+        }
+        return lines;
+    },
+    async renderPng() {
+        const size = 1080;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const design = this.currentDesign();
+        const photoMode = this.look === 'photo' && this.photoUrl;
+        if (photoMode) {
+            ctx.fillStyle = '#0B1F2A';
+            ctx.fillRect(0, 0, size, size);
+            try {
+                const img = await this.loadImage(this.photoUrl);
+                ctx.save();
+                ctx.filter = 'grayscale(0.42) contrast(1.08) brightness(0.62) saturate(0.55)';
+                this.coverDraw(ctx, img, size, this.photoY, this.photoX);
+                ctx.restore();
+            } catch (e) {}
+            const overlay = ctx.createLinearGradient(0, 0, 0, size);
+            overlay.addColorStop(0, 'rgba(11,31,42,0.28)');
+            overlay.addColorStop(0.4, 'rgba(11,31,42,0.18)');
+            overlay.addColorStop(1, 'rgba(11,31,42,0.78)');
+            ctx.fillStyle = overlay;
+            ctx.fillRect(0, 0, size, size);
+        } else {
+            const grad = ctx.createLinearGradient(0, 0, size, size);
+            grad.addColorStop(0, design.from || '#2DD4A8');
+            grad.addColorStop(1, design.to || '#0F6B56');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, size, size);
+        }
+        const ink = photoMode ? '#FFFFFF' : (design.ink || '#0B1F2A');
+        ctx.fillStyle = ink;
+        ctx.textBaseline = 'top';
+        let x = 72;
+        let y = 72;
+        if (this.logoUrl) {
+            try {
+                const logo = await this.loadImage(this.logoUrl);
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(x, y, 88, 88, 24);
+                ctx.clip();
+                this.coverDrawLogo(ctx, logo, x, y, 88);
+                ctx.restore();
+            } catch (e) {}
+            ctx.font = '700 36px Sora, sans-serif';
+            ctx.fillText(this.businessName, x + 108, y + 24);
+        } else {
+            ctx.font = '700 40px Sora, sans-serif';
+            ctx.fillText(this.businessName, x, y + 20);
+        }
+        ctx.font = '700 28px Sora, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.globalAlpha = 0.85;
+        ctx.fillText('LOOP', size - 72, y + 32);
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+        const headline = this.headline();
+        ctx.font = '700 72px Sora, sans-serif';
+        const lines = this.wrapLines(ctx, headline, size - 144);
+        let hy = 390;
+        lines.slice(0, 5).forEach((line) => {
+            ctx.fillText(line, x, hy);
+            hy += 86;
+        });
+        const support = this.supportLine();
+        if (support) {
+            ctx.globalAlpha = 0.82;
+            ctx.font = '500 32px DM Sans, sans-serif';
+            ctx.fillText(support, x, hy + 12);
+            ctx.globalAlpha = 1;
+        }
+        if (this.hotline) {
+            ctx.font = '600 32px DM Sans, sans-serif';
+            ctx.fillText(this.hotline, x, size - 110);
+        }
+        return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
+    },
+    coverDrawLogo(ctx, img, x, y, size) {
+        const scale = Math.max(size / img.width, size / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        ctx.drawImage(img, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
+    },
+}));
+
+Alpine.data('raffleControl', (cfg = {}) => ({
+    winnerId: cfg.winnerId || 0,
+    spinning: false,
+    shown: '',
+    timer: null,
+    init() {
+        if (cfg.playReveal && this.winnerId) {
+            this.theatre();
+        }
+    },
+    theatre() {
+        this.spinning = true;
+        const duration = Math.max(1000, Number(cfg.spinMs) || 50000);
+        const tick = 80;
+        const max = Math.max(10, Number(cfg.eligible) || 10);
+        const start = Date.now();
+        clearInterval(this.timer);
+        this.timer = setInterval(() => {
+            this.shown = String(1 + Math.floor(Math.random() * max)).padStart(3, '0');
+            if (Date.now() - start >= duration) {
+                clearInterval(this.timer);
+                this.spinning = false;
+                window.dispatchEvent(new CustomEvent('loop:confirm-ready'));
+            }
+        }, tick);
+    },
+    signalCalling() {
+        try {
+            new BroadcastChannel('loop-raffle').postMessage({ type: 'calling' });
+        } catch (e) {}
+    },
+}));
+
+Alpine.data('raffleStage', (cfg = {}) => ({
+    boardUrl: cfg.boardUrl,
+    name: cfg.name || '',
+    prize: cfg.prize || '',
+    business: cfg.business || '',
+    eligible: cfg.eligible || 0,
+    winnersCount: cfg.winnersCount || 1,
+    drawn: 0,
+    callingLabel: cfg.callingLabel || '',
+    phase: 'idle',
+    shown: '000',
+    winnerName: '',
+    winnerTag: '',
+    seenId: 0,
+    ready: false,
+    timer: null,
+    init() {
+        this.poll();
+        setInterval(() => this.poll(), 1400);
+        try {
+            const channel = new BroadcastChannel('loop-raffle');
+            channel.addEventListener('message', (event) => {
+                if (event.data?.type === 'calling' && this.phase === 'winner') {
+                    this.phase = 'calling';
+                }
+            });
+        } catch (e) {}
+    },
+    membersLine() {
+        return (cfg.membersLabel || '').replace(String(cfg.eligible ?? ''), String(this.eligible));
+    },
+    winnerSlot() {
+        const n = Math.min(this.drawn + (this.drawn < this.winnersCount ? 1 : 0), this.winnersCount) || 1;
+        return n + ' / ' + this.winnersCount;
+    },
+    async poll() {
+        if (!this.boardUrl) {
+            return;
+        }
+        try {
+            const response = await fetch(this.boardUrl, { headers: { Accept: 'application/json' } });
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            this.name = data.name;
+            this.prize = data.prize;
+            this.business = data.business;
+            this.eligible = data.eligible;
+            this.winnersCount = data.winners_count;
+            this.drawn = data.drawn;
+            const latest = data.latest;
+            if (!this.ready) {
+                this.ready = true;
+                if (latest) {
+                    this.seenId = latest.id;
+                    this.showWinner(latest);
+                }
+                return;
+            }
+            if (latest && latest.id !== this.seenId) {
+                this.seenId = latest.id;
+                this.animateTo(latest);
+            }
+        } catch (e) {}
+    },
+    showWinner(latest) {
+        this.winnerName = latest.name;
+        this.winnerTag = latest.tag;
+        this.prize = latest.prize || this.prize;
+        this.phase = 'winner';
+    },
+    animateTo(latest) {
+        this.phase = 'spin';
+        const duration = Math.max(1000, Number(cfg.spinMs) || 50000);
+        const tick = 80;
+        const max = Math.max(10, Number(this.eligible) || 10);
+        const start = Date.now();
+        clearInterval(this.timer);
+        this.timer = setInterval(() => {
+            this.shown = String(1 + Math.floor(Math.random() * max)).padStart(3, '0');
+            if (Date.now() - start >= duration) {
+                clearInterval(this.timer);
+                this.showWinner(latest);
+            }
+        }, tick);
+    },
+}));
+
+if (document.body && ! document.querySelector('[data-loop-toast-host]')) {
+    const host = document.createElement('div');
+    host.setAttribute('data-loop-toast-host', '');
+    host.innerHTML = `
+        <div
+            x-cloak
+            x-show="$store.loopToast.open"
+            x-transition:enter="loop-sheet-enter-active"
+            x-transition:enter-start="loop-sheet-enter-from"
+            x-transition:enter-end="loop-sheet-enter-to"
+            class="fixed inset-0 z-[80] flex items-center justify-center p-4"
+            role="dialog"
+            @keydown.escape.window="$store.loopToast.close()"
+        >
+            <div class="absolute inset-0 bg-ink/60 backdrop-blur-sm" @click="$store.loopToast.close()"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-ink/10 bg-white p-8 text-center shadow-[0_40px_100px_rgba(17,17,20,0.35)] sm:p-10">
+                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl font-bold ring-1"
+                     :class="$store.loopToast.kind === 'error' ? 'bg-coral/15 text-coral ring-coral/30' : 'bg-mint-soft text-mint-deep ring-mint/30'"
+                     x-text="$store.loopToast.kind === 'error' ? '!' : '✓'"></div>
+                <p class="mt-6 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl" x-text="$store.loopToast.title"></p>
+                <p class="mt-3 text-base font-medium leading-relaxed text-ink-muted sm:text-lg" x-show="$store.loopToast.message" x-text="$store.loopToast.message"></p>
+                <button type="button" class="loop-btn mt-8 inline-flex w-full justify-center text-base" @click="$store.loopToast.close()" x-text="$store.loopToast.cta">Done</button>
+            </div>
+        </div>`;
+    document.body.appendChild(host);
+}
+
 Alpine.start();
+
+window.addEventListener('loop:locale-changing', () => {
+    try {
+        sessionStorage.setItem('loopNavKind', 'tab');
+    } catch (_) {
+        /* ignore */
+    }
+});
+
+if (! document.documentElement.classList.contains('loop-ready')) {
+    document.body?.setAttribute('aria-busy', 'true');
+}
+requestAnimationFrame(() => {
+    requestAnimationFrame(markLoopReady);
+});
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        Alpine.store('loopNav').navigating = false;
+        markLoopReady();
+    }
+});
+window.addEventListener('pagehide', () => {
+    try {
+        if (! sessionStorage.getItem('loopNavKind')) {
+            sessionStorage.setItem('loopNavKind', 'back');
+        }
+    } catch (_) {
+        /* ignore */
+    }
+});
+setTimeout(markLoopReady, 700);

@@ -10,7 +10,7 @@
             <div class="loop-orb loop-orb--b "></div>
             <div class="relative">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-lime">Loop</p>
-                <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.sale') }}</h1>
+                <h1 class="mt-2 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{{ __('loop.whos_buying') }}</h1>
                 <p class="mt-1 text-sm text-white/60">{{ __('loop.sale_blurb_short') }}</p>
                 @if (! empty($scanPhone))
                     <p class="mt-2 text-sm font-semibold text-lime">{{ __('loop.wallet_qr_scanned') }}</p>
@@ -19,55 +19,173 @@
         </div>
     </x-slot>
 
-    @if (! empty($tillLocked))
+    @if (! empty($loopPaused))
         <div class="mb-6 max-w-xl rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-4">
-            <p class="font-display text-lg font-semibold">{{ __('loop.till_locked_title') }}</p>
-            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_locked_body') }}</p>
+            <p class="font-display text-lg font-semibold">{{ __('loop.loop_paused_till_title') }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ __('loop.till_paused_body') }}</p>
             @if (! empty($isOwner))
-                <a href="{{ route('billing.show') }}" class="mt-4 inline-flex rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">{{ __('loop.upgrade_now') }}</a>
+                <a href="{{ route('billing.show') }}" class="mt-4 inline-flex rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-black">{{ __('loop.reactivate_loop') }}</a>
             @endif
         </div>
     @endif
 
-    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel mx-auto max-w-xl space-y-4 p-6 {{ ! empty($tillLocked) ? 'pointer-events-none opacity-50' : '' }}">
+    @if ($shopCount < 1)
+        <div class="loop-panel mx-auto max-w-xl p-6">
+            <p class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm">{{ __('loop.till_needs_shop') }}</p>
+        </div>
+    @elseif (! empty($needsBranchPick))
+        <div class="loop-panel mx-auto max-w-xl space-y-3 p-6">
+            <div>
+                <p class="loop-label">{{ __('loop.choose_branch') }}</p>
+                <p class="mt-1 text-sm text-ink-muted">{{ __('loop.choose_branch_first_blurb') }}</p>
+            </div>
+            @foreach ($shops as $shop)
+                <form method="POST" action="{{ route('till.branch') }}" data-loop-quiet>
+                    @csrf
+                    <input type="hidden" name="shop_id" value="{{ $shop->id }}">
+                    @if (! empty($scanQuery))
+                        <input type="hidden" name="scan" value="{{ $scanQuery }}">
+                    @endif
+                    <button type="submit" class="flex w-full items-center justify-between rounded-2xl border border-ink/10 bg-white px-4 py-4 text-left hover:border-mint">
+                        <span class="font-semibold">{{ $shop->name }}</span>
+                        <span class="text-sm text-ink-muted">{{ $shop->city }}</span>
+                    </button>
+                </form>
+            @endforeach
+        </div>
+    @else
+    @php
+        $tillConfirm = session('confirm');
+        $tillMoment = is_array($tillConfirm) ? ($tillConfirm['loop_moment'] ?? null) : null;
+    @endphp
+    <div
+        class="mx-auto max-w-xl"
+        x-data="{ tillDone: {{ $tillMoment ? 'true' : 'false' }}, undoOpen: false }"
+    >
+    @if ($tillMoment)
+        <div x-show="tillDone" class="loop-panel loop-till-done mb-6 p-6 text-center">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-mint-soft text-2xl font-bold text-mint-deep">✓</div>
+            <p class="mt-4 font-display text-3xl font-semibold">{{ $tillConfirm['title'] }}</p>
+            <p class="mt-1 text-sm text-ink-muted">{{ $tillMoment['name'] }}</p>
+            @if ((int) $tillMoment['earned'] > 0)
+                <p class="mt-4 font-display text-2xl font-semibold text-mint-deep">+{{ $tillMoment['earned'] }} {{ __('loop.pts') }}</p>
+            @endif
+            <p class="mt-2 font-display text-5xl font-semibold tabular-nums">
+                @if ((int) $tillMoment['from'] !== (int) $tillMoment['to'])
+                    <x-count-up :value="$tillMoment['to']" :from="$tillMoment['from']" :earned="$tillMoment['earned']" />
+                @else
+                    {{ number_format((int) $tillMoment['to']) }}
+                @endif
+            </p>
+            @if (! empty($tillMoment['unlock']))
+                <div class="mt-5 rounded-[1.25rem] bg-violet px-4 py-3 text-white">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{{ __('loop.offer_unlocked') }}</p>
+                    <p class="mt-1 font-display text-xl font-semibold">{{ $tillMoment['unlock'] }}</p>
+                </div>
+            @endif
+            @if (! empty($tillConfirm['game_play']))
+                <div class="mt-5 rounded-[1.25rem] bg-violet px-4 py-3 text-white">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-lime">{{ $tillConfirm['game_play']['game'] }}</p>
+                    <p class="mt-1 font-display text-xl font-semibold">{{ $tillConfirm['game_play']['title'] }}</p>
+                    <a href="{{ $tillConfirm['game_play']['url'] }}" class="loop-btn-lime mt-3 inline-flex">{{ __('loop.game_let_them_play') }}</a>
+                </div>
+            @endif
+            <button type="button" class="loop-btn mt-6 w-full" @click="tillDone = false">{{ $tillConfirm['cta'] ?? __('loop.next_customer') }}</button>
+            @if (! empty($tillConfirm['undo_url']))
+                <button type="button" class="mt-3 w-full text-sm font-semibold text-ink-muted hover:text-ink" @click="undoOpen = true">{{ __('loop.undo') }}</button>
+                <x-loop-sheet model="undoOpen" :title="__('loop.sale_undo_confirm_title')" lock-swipe="true">
+                    <p class="text-base leading-relaxed text-ink-muted">{{ __('loop.sale_undo_confirm_body') }}</p>
+                    <form method="POST" action="{{ $tillConfirm['undo_url'] }}" class="mt-6 space-y-3" data-loop-quiet>
+                        @csrf
+                        <button type="submit" class="loop-btn-danger w-full">{{ __('loop.sale_undo_confirm_cta') }}</button>
+                        <button type="button" class="loop-btn-ghost w-full" @click="undoOpen = false">{{ __('loop.cancel') }}</button>
+                    </form>
+                </x-loop-sheet>
+            @endif
+        </div>
+    @endif
+    <form method="POST" action="{{ route('till.lookup') }}" class="loop-panel space-y-4 p-6" x-show="!tillDone" data-loop-quiet>
         @csrf
-        @if ($shopCount > 1)
-            <x-sheet-select
-                name="shop_id"
-                :label="__('loop.shop')"
-                :options="$shops->mapWithKeys(fn ($s) => [$s->id => $s->name])->all()"
-                :value="old('shop_id', $shops->first()?->id)"
-                :required="true"
-            />
-        @else
-            <input type="hidden" name="shop_id" value="{{ $shops->first()?->id }}">
+        @if ($errors->any())
+            <div class="rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-ink" role="alert">
+                {{ $errors->first() }}
+            </div>
         @endif
+            <input type="hidden" name="shop_id" value="{{ $activeShop->id }}">
+            <div class="flex items-center justify-between rounded-2xl border border-ink/10 bg-chalk/50 px-4 py-3">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-mint-deep">{{ __('loop.selling_at') }}</p>
+                    <p class="font-semibold">{{ $activeShop->name }}</p>
+                </div>
+                @if ($shopCount > 1)
+                    <x-till-branch-sheet :shops="$shops" :active-shop="$activeShop" :scan-query="$scanQuery ?? null" />
+                @endif
+            </div>
 
         <div>
-            <label class="loop-label">{{ __('loop.channel') }}</label>
-            <div class="mt-2 grid grid-cols-2 gap-3">
-                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
-                    <input type="radio" name="channel" value="in_store" class="sr-only" checked> {{ __('loop.in_store') }}
-                </label>
-                <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
-                    <input type="radio" name="channel" value="phone_order" class="sr-only"> {{ __('loop.phone_order') }}
-                </label>
+            <p class="loop-label">{{ __('loop.enter_phone_or_scan') }}</p>
+            <div
+                x-data="loopQrScanner({
+                    scanningLabel: @js(__('loop.scanning')),
+                    secureError: @js(__('loop.scan_camera_https')),
+                    cameraError: @js(__('loop.scan_camera_unavailable')),
+                    unrecognized: @js(__('loop.scan_qr_unrecognized')),
+                })"
+                @loop-open-qr-scan.window="open()"
+            >
+                <x-phone-field
+                    name="phone"
+                    :dial="$defaultDial"
+                    hidden-dial-name="country_code"
+                    :value="$scanPhone ?? old('phone')"
+                    :required="true"
+                    :autofocus="empty($scanPhone)"
+                    :scanable="true"
+                />
+                <p class="mt-2 text-xs text-ink-muted">{{ __('loop.scan_or_type_phone') }}</p>
+                <details class="mt-3">
+                    <summary class="cursor-pointer text-xs font-semibold text-ink-muted">{{ __('loop.phone_order') }} / {{ __('loop.in_store') }}</summary>
+                    <div class="mt-2 grid grid-cols-2 gap-3">
+                        <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
+                            <input type="radio" name="channel" value="in_store" class="sr-only" @checked(($channel ?? 'in_store') !== 'phone_order')> {{ __('loop.in_store') }}
+                        </label>
+                        <label class="rounded-xl border border-ink/10 bg-chalk px-4 py-3 text-sm has-[:checked]:border-mint-deep has-[:checked]:bg-mint-soft">
+                            <input type="radio" name="channel" value="phone_order" class="sr-only" @checked(($channel ?? 'in_store') === 'phone_order')> {{ __('loop.phone_order') }}
+                        </label>
+                    </div>
+                </details>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="scanning"
+                        x-cloak
+                        class="fixed inset-0 z-[90] flex flex-col bg-ink"
+                        @keydown.escape.window="close()"
+                    >
+                        <div class="flex items-center justify-between px-4 py-4">
+                            <div class="flex items-center gap-2">
+                                <x-loop-logo class="h-8 w-8" />
+                                <span class="font-display text-lg font-semibold text-white">Loop</span>
+                            </div>
+                            <button type="button" class="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-white" @click="close()">{{ __('loop.close') }}</button>
+                        </div>
+                        <div class="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 pb-10">
+                            <p class="mb-4 text-center text-sm text-white/70">{{ __('loop.scan_member_qr_hint') }}</p>
+                            <div class="relative aspect-square w-full max-w-sm overflow-hidden rounded-[1.75rem] ring-2 ring-lime/60">
+                                <video x-ref="video" class="h-full w-full object-cover" playsinline muted></video>
+                                <div class="pointer-events-none absolute inset-8 rounded-2xl border-2 border-lime/80"></div>
+                            </div>
+                            <p class="mt-4 text-center text-xs text-white/50" x-text="status"></p>
+                            <p x-show="error" class="mt-2 text-center text-sm text-coral" x-text="error"></p>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
-
-        <div>
-            <label class="loop-label">{{ __('loop.customer_phone') }}</label>
-            <x-phone-field
-                name="phone"
-                :dial="$defaultDial"
-                hidden-dial-name="country_code"
-                :value="$scanPhone ?? old('phone')"
-                :required="true"
-                :autofocus="empty($scanPhone)"
-            />
-        </div>
-        <button class="loop-btn w-full">{{ __('loop.look_up') }}</button>
+        <button class="loop-btn w-full">{{ __('loop.continue') }}</button>
     </form>
+    </div>
+    @endif
 
     @if ($hasRecent)
         <section class="mx-auto mt-10 max-w-xl">
@@ -77,16 +195,17 @@
             </div>
             <div class="space-y-3">
                 @foreach ($recent as $visit)
-                    <div class="loop-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                        <div>
-                            <p class="font-semibold">{{ $visit->customer->name }} · {{ $visit->shop->name }}</p>
-                            <p class="text-sm text-ink-muted">
+                    <div class="loop-panel flex items-start gap-3 px-4 py-3">
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate font-semibold">{{ $visit->customer->name }}</p>
+                            <p class="mt-0.5 text-sm text-ink-muted">
                                 {{ $business->currency }} {{ number_format($visit->amount_spent, 0) }}
                                 · {{ $visit->channel === 'phone_order' ? __('loop.phone_order') : __('loop.in_store') }}
                                 · {{ $visit->created_at->format('d M Y · H:i') }}
                             </p>
+                            <p class="mt-0.5 truncate text-xs text-ink-muted">{{ $visit->shop->name }}</p>
                         </div>
-                        <span class="rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ $visit->points_earned }} {{ __('loop.pts') }}</span>
+                        <span class="shrink-0 rounded-lg bg-mint-soft px-2.5 py-1 text-sm font-semibold text-mint-deep">+{{ number_format((int) $visit->points_earned) }} {{ __('loop.pts') }}</span>
                     </div>
                 @endforeach
             </div>

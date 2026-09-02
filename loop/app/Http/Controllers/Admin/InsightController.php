@@ -7,9 +7,11 @@ use App\Models\Affiliate;
 use App\Models\AffiliateReferral;
 use App\Models\Business;
 use App\Models\PaymentIntent;
+use App\Models\User;
 use App\Services\AdminReportService;
 use App\Support\AffiliateProgram;
 use App\Support\Sectors;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class InsightController extends Controller
@@ -108,9 +110,10 @@ class InsightController extends Controller
         ]);
     }
 
-    public function customers(): View
+    public function customers(Request $request): View
     {
         $monthStart = now()->copy()->startOfMonth();
+        $perPage = \App\Support\AdminPagination::perPage($request, 25);
 
         $customers = \App\Models\User::query()
             ->where('role', 'customer')
@@ -122,7 +125,8 @@ class InsightController extends Controller
             ->withSum('visits as lifetime_spend', 'amount_spent')
             ->withSum(['visits as month_spend' => fn ($q) => $q->where('created_at', '>=', $monthStart)], 'amount_spent')
             ->latest()
-            ->paginate(40);
+            ->paginate($perPage)
+            ->withQueryString();
 
         $totals = [
             'customers' => \App\Models\User::query()->where('role', 'customer')->count(),
@@ -142,6 +146,45 @@ class InsightController extends Controller
             'customers' => $customers,
             'totals' => $totals,
             'bySector' => app(AdminReportService::class)->customersBySector(),
+        ]);
+    }
+
+    public function customer(User $customer): View
+    {
+        abort_unless($customer->isCustomer() || $customer->memberships()->exists(), 404);
+
+        $memberships = $customer->memberships()
+            ->with(['business', 'shop'])
+            ->latest('joined_at')
+            ->get();
+
+        $visits = $customer->visits()
+            ->with(['shop', 'business', 'campaign', 'reward'])
+            ->latest()
+            ->take(20)
+            ->get();
+
+        $raffleWins = \App\Models\RaffleWinner::query()
+            ->with('raffle')
+            ->where('customer_id', $customer->id)
+            ->latest('drawn_at')
+            ->get();
+
+        $interests = collect($customer->interests ?? [])
+            ->map(fn ($key) => Sectors::label((string) $key))
+            ->filter()
+            ->values();
+
+        return view('admin.insights.customer', [
+            'customer' => $customer,
+            'memberships' => $memberships,
+            'visits' => $visits,
+            'raffleWins' => $raffleWins,
+            'interests' => $interests,
+            'points' => (int) $memberships->sum('points_balance'),
+            'lifetime' => (int) $memberships->sum('lifetime_points'),
+            'visitCount' => $customer->visits()->count(),
+            'totalSpend' => (float) $customer->visits()->sum('amount_spent'),
         ]);
     }
 }

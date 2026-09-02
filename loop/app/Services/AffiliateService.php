@@ -86,6 +86,54 @@ class AffiliateService
         return $affiliate->fresh();
     }
 
+    public function createFromAdmin(array $data, User $admin): array
+    {
+        $exists = Affiliate::query()
+            ->where('country_code', $data['country_code'])
+            ->where('phone', $data['phone'])
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages(['phone' => __('loop.affiliate_phone_exists')]);
+        }
+
+        if (User::query()->where('country_code', $data['country_code'])->where('phone', $data['phone'])->exists()) {
+            throw ValidationException::withMessages(['phone' => __('loop.affiliate_phone_taken')]);
+        }
+
+        $affiliate = DB::transaction(function () use ($data, $admin) {
+            return Affiliate::create([
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
+                'country_code' => $data['country_code'],
+                'country' => $data['country'],
+                'phone' => $data['phone'],
+                'email' => $data['email'] ?? null,
+                'city' => $data['city'] ?? null,
+                'id_type' => $data['id_type'] ?? 'nida',
+                'id_number' => $data['id_number'] ?? 'ADMIN',
+                'status' => 'approved',
+                'tracking_code' => Affiliate::generateTrackingCode(),
+                'promo_code' => Affiliate::generatePromoCode(),
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => now(),
+                'decision_note' => $data['decision_note'] ?? __('loop.affiliate_created_by_admin'),
+            ]);
+        });
+
+        $password = $data['password'] ?? null;
+        if (filled($password)) {
+            $pinLength = AffiliateProgram::pinLength();
+            $pin = $data['pin'] ?? str_pad((string) random_int(0, (10 ** $pinLength) - 1), $pinLength, '0', STR_PAD_LEFT);
+            $this->activate($affiliate->fresh(), $password, $pin);
+        }
+
+        return [
+            'affiliate' => $affiliate->fresh(),
+            'password' => $password,
+        ];
+    }
+
     public function activate(Affiliate $affiliate, string $password, string $pin): User
     {
         if (! $affiliate->canActivate()) {
@@ -170,12 +218,21 @@ class AffiliateService
             return null;
         }
 
+        $settings = AffiliateProgram::settings();
+        if (! empty($settings['block_self_referral'])) {
+            $owner = $business->owner;
+            if ($owner
+                && $owner->country_code === $affiliate->country_code
+                && $owner->phone === $affiliate->phone) {
+                return null;
+            }
+        }
+
         if ($business->referred_by_affiliate_id || $business->referred_by_business_id) {
             return null;
         }
 
-        $settings = AffiliateProgram::settings();
-        $planAmount = (int) (Plan::query()->where('key', $business->plan_key)->value('price_monthly') ?? 0);
+        $planAmount = (int) (Plan::locate($business->plan_key, $business->country)?->price_monthly ?? 0);
         $math = AffiliateProgram::commissionOn($planAmount);
 
         $business->update([
@@ -213,7 +270,7 @@ class AffiliateService
             return;
         }
 
-        $planAmount = (int) (Plan::query()->where('key', $business->plan_key)->value('price_monthly') ?? 0);
+        $planAmount = (int) (Plan::locate($business->plan_key, $business->country)?->price_monthly ?? 0);
         $math = AffiliateProgram::commissionOn(
             $planAmount,
             (int) $business->referral_discount_percent ?: AffiliateProgram::referredDiscountPercent(),

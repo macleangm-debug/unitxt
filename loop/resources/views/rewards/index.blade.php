@@ -11,7 +11,7 @@
         @forelse ($rewards as $reward)
             <div class="loop-panel p-5">
                 <p class="font-display text-lg font-semibold">{{ $reward->name }}</p>
-                <p class="text-sm text-ink-muted">{{ $reward->points_cost }} pts · {{ $reward->label() }}</p>
+                <p class="text-sm text-ink-muted">{{ number_format((int) $reward->points_cost) }} pts · {{ $reward->label() }}</p>
                 @if ($reward->product_name)
                     <p class="mt-2 text-sm">{{ __('loop.product') }}: <span class="font-semibold">{{ $reward->product_name }}</span>
                         @if ($reward->product_sku) <span class="text-ink-muted">({{ $reward->product_sku }})</span> @endif

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Visit;
 use App\Support\FeatureFlags;
 use App\Support\Plans;
+use App\Support\ReportPeriod;
 use App\Support\Sectors;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,11 +25,13 @@ class AdminReportService
      *
      * @return array<string, mixed>
      */
-    public function overview(): array
+    public function overview(?ReportPeriod $period = null): array
     {
         $today = now()->toDateString();
         $monthStart = now()->copy()->startOfMonth();
         $packages = $this->packagePerformance();
+        $period ??= new ReportPeriod('month', now()->startOfMonth(), now()->endOfDay());
+        $periodVisits = $period->apply(Visit::query());
 
         return [
             // Till / loyalty economy (customer spend recorded at shops)
@@ -40,6 +43,10 @@ class AdminReportService
             'revenue_all' => (float) Visit::query()->sum('amount_spent'),
             'avg_ticket_month' => $this->avgTicketSince($monthStart),
             'avg_ticket_all' => $this->avgTicketSince(null),
+            'sales_period' => (clone $periodVisits)->count(),
+            'revenue_period' => (float) (clone $periodVisits)->sum('amount_spent'),
+            'unique_customers_period' => (int) (clone $periodVisits)->selectRaw('COUNT(DISTINCT customer_id) as c')->value('c'),
+            'period_label' => $period->label(),
 
             // Customers & brands
             'unique_customers' => User::query()->where('role', User::ROLE_CUSTOMER)->count(),
@@ -52,7 +59,7 @@ class AdminReportService
             // Loop subscriptions (package state — not yet Mobile Money cash)
             'trialing' => Business::query()->where('billing_status', 'trialing')->count(),
             'past_due' => Business::query()->where('billing_status', 'past_due')->count(),
-            'suspended' => Business::query()->where('billing_status', 'suspended')->count(),
+            'suspended' => Business::query()->whereIn('billing_status', ['paused', 'suspended'])->count(),
             'free_lane' => Business::query()->where('billing_status', 'free')->count(),
             'paid_active' => Business::query()
                 ->where('billing_status', 'active')
@@ -224,13 +231,18 @@ class AdminReportService
      *
      * @return Collection<int, object>
      */
-    public function salesBySector(): Collection
+    public function salesBySector(?ReportPeriod $period = null): Collection
     {
         $bizCounts = Business::query()
             ->select('sector', DB::raw('COUNT(*) as businesses'))
             ->groupBy('sector');
 
-        return Visit::query()
+        $visits = Visit::query();
+        if ($period) {
+            $period->apply($visits, 'visits.created_at');
+        }
+
+        return $visits
             ->join('businesses', 'visits.business_id', '=', 'businesses.id')
             ->leftJoinSub($bizCounts, 'bc', 'businesses.sector', '=', 'bc.sector')
             ->select(
@@ -254,9 +266,14 @@ class AdminReportService
     /**
      * @return Collection<int, object>
      */
-    public function dailySales(int $days = 14): Collection
+    public function dailySales(int $days = 14, ?ReportPeriod $period = null): Collection
     {
-        $start = now()->subDays($days - 1)->startOfDay();
+        if ($period?->from && $period->to) {
+            $start = $period->from->copy()->startOfDay();
+            $days = $period->dayCount();
+        } else {
+            $start = now()->subDays($days - 1)->startOfDay();
+        }
         $rows = Visit::query()
             ->select(
                 DB::raw('DATE(created_at) as day'),

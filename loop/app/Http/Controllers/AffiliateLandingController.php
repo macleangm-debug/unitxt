@@ -31,7 +31,7 @@ class AffiliateLandingController extends Controller
         }
 
         return view('affiliates.apply', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::enabledOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
             'idTypes' => [
                 'national_id' => __('loop.id_national'),
@@ -48,7 +48,7 @@ class AffiliateLandingController extends Controller
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
-            'country' => ['required', 'in:'.implode(',', array_keys(Countries::OPTIONS))],
+            'country' => ['required', Countries::enabledRule()],
             'phone' => ['required', 'string', 'max:32'],
             'email' => ['nullable', 'email', 'max:255'],
             'id_type' => ['required', 'in:national_id,passport,drivers_license,voter_id'],
@@ -80,21 +80,51 @@ class AffiliateLandingController extends Controller
             'address' => $data['address'],
         ]);
 
-        return redirect()->route('affiliates.status')->with('confirm', Confirm::make(
-            __('loop.affiliate_applied_title'),
-            __('loop.affiliate_applied_body'),
-            __('loop.check_status'),
-            route('affiliates.status'),
-            false,
-        ));
+        return redirect()->route('affiliates.status')->with([
+            'confirm' => Confirm::make(
+                __('loop.affiliate_applied_title'),
+                __('loop.affiliate_applied_body'),
+                __('loop.got_it'),
+                route('affiliates.status'),
+                true,
+                [
+                    'must_continue' => true,
+                    'how_title' => __('loop.affiliate_status_check_how'),
+                    'steps' => [
+                        __('loop.affiliate_applied_step_1'),
+                        __('loop.affiliate_applied_step_2'),
+                        __('loop.affiliate_applied_step_3'),
+                    ],
+                ],
+            ),
+            'affiliate_lookup' => [
+                'country_code' => $countryCode,
+                'phone' => $phone,
+            ],
+        ]);
     }
 
-    public function statusForm(): View
+    public function statusForm(AffiliateService $affiliates): View
     {
+        $lookup = session('affiliate_lookup');
+        $affiliate = null;
+        $lookedUp = false;
+        $lookupPhone = null;
+
+        if (is_array($lookup) && ! empty($lookup['phone'])) {
+            $countryCode = (string) ($lookup['country_code'] ?? Countries::dial(session('preferred_country', 'TZ')));
+            $phone = Countries::normalizePhone((string) $lookup['phone']);
+            $affiliate = $affiliates->findByPhone($countryCode, $phone);
+            $lookedUp = true;
+            $lookupPhone = $countryCode.' '.$phone;
+        }
+
         return view('affiliates.status', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::enabledOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
-            'affiliate' => null,
+            'affiliate' => $affiliate,
+            'lookedUp' => $lookedUp,
+            'lookupPhone' => $lookupPhone,
         ]);
     }
 
@@ -109,7 +139,7 @@ class AffiliateLandingController extends Controller
         $affiliate = $affiliates->findByPhone($data['country_code'], $phone);
 
         return view('affiliates.status', [
-            'countries' => Countries::OPTIONS,
+            'countries' => Countries::enabledOptions(),
             'preferredCountry' => session('preferred_country', 'TZ'),
             'affiliate' => $affiliate,
             'lookedUp' => true,

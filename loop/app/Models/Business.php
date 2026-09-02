@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Plans;
 use App\Support\Sectors;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,7 @@ use Illuminate\Support\Str;
     'pay_spend_step',
     'pay_points_per_step',
     'pay_points_max_percent',
+    'allow_same_day_earn_redeem',
     'onboarding_completed_at',
     'plan_key',
     'referral_code',
@@ -35,9 +37,17 @@ use Illuminate\Support\Str;
     'referred_by_affiliate_id',
     'billing_status',
     'trial_ends_at',
+    'plan_renews_at',
+    'plan_interval_months',
+    'paused_at',
+    'grace_started_at',
+    'price_locked_until',
+    'price_locked_monthly',
+    'price_locked_plan_key',
     'referral_discount_percent',
     'referral_credit_months',
     'referral_credit_days',
+    'sms_credit_balance',
     'referral_milestones_applied',
 ])]
 class Business extends Model
@@ -47,15 +57,23 @@ class Business extends Model
         return [
             'is_active' => 'boolean',
             'allow_pay_with_points' => 'boolean',
+            'allow_same_day_earn_redeem' => 'boolean',
             'pay_spend_step' => 'integer',
             'pay_points_per_step' => 'integer',
             'pay_points_max_percent' => 'integer',
             'onboarding_completed_at' => 'datetime',
             'branch_count' => 'integer',
             'trial_ends_at' => 'datetime',
+            'plan_renews_at' => 'datetime',
+            'plan_interval_months' => 'integer',
+            'paused_at' => 'datetime',
+            'grace_started_at' => 'datetime',
+            'price_locked_until' => 'datetime',
+            'price_locked_monthly' => 'integer',
             'referral_discount_percent' => 'integer',
             'referral_credit_months' => 'integer',
             'referral_credit_days' => 'integer',
+            'sms_credit_balance' => 'integer',
             'referral_milestones_applied' => 'array',
         ];
     }
@@ -136,6 +154,11 @@ class Business extends Model
         return $this->hasMany(Membership::class);
     }
 
+    public function paymentIntents(): HasMany
+    {
+        return $this->hasMany(PaymentIntent::class);
+    }
+
     public function rewards(): HasMany
     {
         return $this->hasMany(Reward::class);
@@ -146,9 +169,46 @@ class Business extends Model
         return $this->hasMany(Raffle::class);
     }
 
+    public function games(): HasMany
+    {
+        return $this->hasMany(Game::class, 'business_id');
+    }
+
     public function visits(): HasMany
     {
         return $this->hasMany(Visit::class);
+    }
+
+    public function senderIds(): HasMany
+    {
+        return $this->hasMany(SenderId::class);
+    }
+
+    public function memberGroups(): HasMany
+    {
+        return $this->hasMany(MemberGroup::class);
+    }
+
+    public function messageBroadcasts(): HasMany
+    {
+        return $this->hasMany(MessageBroadcast::class);
+    }
+
+    public function syncCurrencyFromCountry(): void
+    {
+        if (filled($this->country)) {
+            $this->currency = \App\Support\Countries::currency($this->country);
+        }
+    }
+
+    public function loopBackRequests(): HasMany
+    {
+        return $this->hasMany(LoopBackRequest::class);
+    }
+
+    public function subscriptionBanner(): ?array
+    {
+        return app(\App\Services\LoopAccess::class)->banner($this);
     }
 
     public function uniqueMemberCount(): int
@@ -174,6 +234,11 @@ class Business extends Model
     public function isOnline(): bool
     {
         return ($this->presence ?? 'physical') === 'online';
+    }
+
+    public function hasPhysicalLocation(): bool
+    {
+        return ($this->presence ?? 'physical') !== 'online';
     }
 
     public function payWithPointsEnabled(): bool
@@ -204,8 +269,14 @@ class Business extends Model
 
     public function effectiveMonthlyPrice(): int
     {
-        $plan = $this->plan ?? Plan::query()->where('key', $this->plan_key)->first();
+        $plan = Plan::locate($this->plan_key ?: \App\Support\Plans::FREE, $this->country);
         $base = (int) ($plan?->price_monthly ?? 0);
+
+        if ($this->price_locked_until?->isFuture()
+            && $this->price_locked_plan_key === ($this->plan_key ?: \App\Support\Plans::FREE)
+            && (int) $this->price_locked_monthly > 0) {
+            $base = (int) $this->price_locked_monthly;
+        }
 
         if ($base <= 0) {
             return 0;

@@ -14,6 +14,13 @@ class OfferTemplates
     public static function typeStarters(): array
     {
         return [
+            self::localizeType('free_item', [
+                'reward_type' => 'free_item',
+                'points_cost' => 100,
+                'reward_value' => 0,
+                'default_name' => __('loop.offer_type_free_name'),
+                'product_name' => null,
+            ]),
             self::localizeType('percent_off', [
                 'reward_type' => 'percent_off',
                 'points_cost' => 100,
@@ -26,13 +33,6 @@ class OfferTemplates
                 'points_cost' => 150,
                 'reward_value' => 2000,
                 'default_name' => __('loop.offer_type_fixed_name'),
-                'product_name' => null,
-            ]),
-            self::localizeType('free_item', [
-                'reward_type' => 'free_item',
-                'points_cost' => 100,
-                'reward_value' => 0,
-                'default_name' => __('loop.offer_type_free_name'),
                 'product_name' => null,
             ]),
         ];
